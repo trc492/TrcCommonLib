@@ -24,13 +24,13 @@ package TrcCommonLib.command;
 
 import java.util.Locale;
 
+import TrcCommonLib.trclib.TrcDashboard;
 import TrcCommonLib.trclib.TrcDbgTrace;
 import TrcCommonLib.trclib.TrcEvent;
 import TrcCommonLib.trclib.TrcMotor;
 import TrcCommonLib.trclib.TrcRobot;
 import TrcCommonLib.trclib.TrcStateMachine;
 import TrcCommonLib.trclib.TrcTimer;
-import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements the drive base motors test. This test will spin each of the drive base motors at the
@@ -45,7 +45,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
     }   //enum State
 
     private static final String moduleName = "CmdDriveMotorsTest";
-    private static final HalDashboard dashboard = HalDashboard.getInstance();
+    private static final TrcDashboard dashboard = TrcDashboard.getInstance();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
 
     private final TrcMotor[] motors;

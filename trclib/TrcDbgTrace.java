@@ -25,8 +25,6 @@ package TrcCommonLib.trclib;
 import java.io.File;
 import java.util.Locale;
 
-import TrcHalLib.hallib.HalDbgLog;
-
 /**
  * This class implements the Debug Tracer.
  */
@@ -86,14 +84,53 @@ public class TrcDbgTrace
 
     }   //enum MsgLevel
 
+    /**
+     * This interface provides a platform independent way to write to the debug log. It is mainly for TrcLib which is
+     * platform agnostic. A platform dependent class will implement methods in this interface.
+     */
+    public interface DbgLog
+    {
+        /**
+         * This method is called to print a message with the specified message level to the debug console.
+         *
+         * @param level specifies the message level.
+         * @param msg specifies the message.
+         */
+        void msg(MsgLevel level, String msg);
+
+        /**
+         * This method is called to print a message to the debug console.
+         *
+         * @param msg specifies the message.
+         */
+        void traceMsg(String msg);
+
+    }   //interface DbgLog
+
     private static TrcDbgTrace globalTracer = null;
     private static int indentLevel = 0;
+    private static DbgLog dbgLog = null;
 
-    private String instanceName;
+    private final String instanceName;
     private boolean traceEnabled;
     private TraceLevel traceLevel;
     private MsgLevel msgLevel;
     private TrcTraceLogger traceLogger = null;
+
+    /**
+     * This static method must be called to set the DbgLog object before any TrcDbgTrace can be instantiated.
+     *
+     * @param dbgLog specifies the dbgLog object to be set.
+     */
+    public static void setDbgLog(DbgLog dbgLog)
+    {
+        if (TrcDbgTrace.dbgLog != null)
+        {
+            throw new IllegalStateException("DbgLog object has already been set.");
+        }
+
+        TrcDbgTrace.dbgLog = dbgLog;
+    }   //setDbgLog
 
     /**
      * Constructor: Create an instance of the object.
@@ -103,8 +140,13 @@ public class TrcDbgTrace
      * @param traceLevel specifies the trace level.
      * @param msgLevel specifies the message level.
      */
-    public TrcDbgTrace(final String instanceName, boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
+    public TrcDbgTrace(String instanceName, boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
     {
+        if (dbgLog == null)
+        {
+            throw new NullPointerException("dbgLog must be set first.");
+        }
+
         this.instanceName = instanceName;
         setDbgTraceConfig(traceEnabled, traceLevel, msgLevel);
     }   //TrcDbgTrace
@@ -121,7 +163,7 @@ public class TrcDbgTrace
         if (globalTracer == null)
         {
             globalTracer = new TrcDbgTrace(
-                "GlobalTracer", false, TrcDbgTrace.TraceLevel.API, TrcDbgTrace.MsgLevel.INFO);
+                "globalTracer", false, TrcDbgTrace.TraceLevel.API, TrcDbgTrace.MsgLevel.INFO);
         }
 
         return globalTracer;
@@ -371,7 +413,7 @@ public class TrcDbgTrace
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            HalDbgLog.traceMsg(tracePrefix(funcName, true, false) + String.format(format, args) + ")\n");
+            dbgLog.traceMsg(tracePrefix(funcName, true, false) + String.format(format, args) + ")\n");
         }
     }   //traceEnter
 
@@ -385,7 +427,7 @@ public class TrcDbgTrace
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            HalDbgLog.traceMsg(tracePrefix(funcName, true, true));
+            dbgLog.traceMsg(tracePrefix(funcName, true, true));
         }
     }   //traceEnter
 
@@ -401,7 +443,7 @@ public class TrcDbgTrace
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            HalDbgLog.traceMsg(tracePrefix(funcName, false, false) + String.format(format, args) + "\n");
+            dbgLog.traceMsg(tracePrefix(funcName, false, false) + String.format(format, args) + "\n");
         }
     }   //traceExitMsg
 
@@ -414,7 +456,7 @@ public class TrcDbgTrace
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            HalDbgLog.traceMsg(tracePrefix(funcName, false, true));
+            dbgLog.traceMsg(tracePrefix(funcName, false, true));
         }
     }   //traceExit
 
@@ -503,7 +545,7 @@ public class TrcDbgTrace
      */
     public void tracePrintf(String format, Object... args)
     {
-        HalDbgLog.traceMsg(String.format(format, args));
+        dbgLog.traceMsg(String.format(format, args));
     }   //tracePrintf
 
     /**
@@ -519,7 +561,7 @@ public class TrcDbgTrace
         if (level.getValue() <= msgLevel.getValue())
         {
             String msg = msgPrefix(funcName, level) + String.format(format, args);
-            HalDbgLog.msg(level, msg + "\n");
+            dbgLog.msg(level, msg + "\n");
             if (traceLogger != null)
             {
                 traceLogger.logMessage(msg);

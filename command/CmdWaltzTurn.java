@@ -22,6 +22,7 @@
 
 package TrcCommonLib.command;
 
+import TrcCommonLib.trclib.TrcDashboard;
 import TrcCommonLib.trclib.TrcDbgTrace;
 import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
@@ -29,7 +30,6 @@ import TrcCommonLib.trclib.TrcPidDrive;
 import TrcCommonLib.trclib.TrcPidDrive.TurnMode;
 import TrcCommonLib.trclib.TrcRobot;
 import TrcCommonLib.trclib.TrcStateMachine;
-import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements a waltz turn command sequence. It is useful for avoiding a pushing match with our
@@ -45,7 +45,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
     }   //enum State
 
     private static final String moduleName = "CmdWaltzTurn";
-    private static final HalDashboard dashboard = HalDashboard.getInstance();
+    private static final TrcDashboard dashboard = TrcDashboard.getInstance();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
 
     private final TrcDriveBase driveBase;

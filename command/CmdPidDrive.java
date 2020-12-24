@@ -22,6 +22,7 @@
 
 package TrcCommonLib.command;
 
+import TrcCommonLib.trclib.TrcDashboard;
 import TrcCommonLib.trclib.TrcDbgTrace;
 import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
@@ -31,7 +32,6 @@ import TrcCommonLib.trclib.TrcPidDrive;
 import TrcCommonLib.trclib.TrcRobot;
 import TrcCommonLib.trclib.TrcStateMachine;
 import TrcCommonLib.trclib.TrcTimer;
-import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements a generic PID control drive command. It is agnostic to the PID controller sensors.
@@ -51,7 +51,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     }   //enum State
 
     private static final String moduleName = "CmdPidDrive";
-    private static final HalDashboard dashboard = HalDashboard.getInstance();
+    private static final TrcDashboard dashboard = TrcDashboard.getInstance();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
 
     private final TrcDriveBase driveBase;
