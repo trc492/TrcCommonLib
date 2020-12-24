@@ -22,13 +22,13 @@
 
 package TrcCommonLib.command;
 
-import hallib.HalDashboard;
-import trclib.TrcDbgTrace;
-import trclib.TrcDriveBase;
-import trclib.TrcEvent;
-import trclib.TrcRobot;
-import trclib.TrcStateMachine;
-import trclib.TrcTimer;
+import TrcCommonLib.trclib.TrcDbgTrace;
+import TrcCommonLib.trclib.TrcDriveBase;
+import TrcCommonLib.trclib.TrcEvent;
+import TrcCommonLib.trclib.TrcRobot;
+import TrcCommonLib.trclib.TrcStateMachine;
+import TrcCommonLib.trclib.TrcTimer;
+import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements a generic timed drive command. The command drives the robot in the given direction

@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements the Spurious Data filter. It is used for detecting and discarding bogus sensor data.

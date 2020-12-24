@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;

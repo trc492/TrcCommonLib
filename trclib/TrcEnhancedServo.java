@@ -20,10 +20,10 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
-import trclib.TrcRobot.RunMode;
-import trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcRobot.RunMode;
+import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
  * This class implements a platform independent Enhanced servo. An enhanced servo is a servo with enhanced features.

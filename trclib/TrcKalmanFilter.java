@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements the Kalman filter. It is useful for filtering noise from the sensor data.

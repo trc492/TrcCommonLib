@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a generic sensor calibrator on a given sensor with the specified data type.

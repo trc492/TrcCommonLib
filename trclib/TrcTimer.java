@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a timer that will signal an event or make a notification callback when the time has expired.

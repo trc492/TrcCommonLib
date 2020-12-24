@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a path. A path is consists of an array of waypoints, and can be used for path following,

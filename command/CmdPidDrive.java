@@ -22,16 +22,16 @@
 
 package TrcCommonLib.command;
 
-import hallib.HalDashboard;
-import trclib.TrcDbgTrace;
-import trclib.TrcDriveBase;
-import trclib.TrcEvent;
-import trclib.TrcPidController;
-import trclib.TrcPidController.PidCoefficients;
-import trclib.TrcPidDrive;
-import trclib.TrcRobot;
-import trclib.TrcStateMachine;
-import trclib.TrcTimer;
+import TrcCommonLib.trclib.TrcDbgTrace;
+import TrcCommonLib.trclib.TrcDriveBase;
+import TrcCommonLib.trclib.TrcEvent;
+import TrcCommonLib.trclib.TrcPidController;
+import TrcCommonLib.trclib.TrcPidController.PidCoefficients;
+import TrcCommonLib.trclib.TrcPidDrive;
+import TrcCommonLib.trclib.TrcRobot;
+import TrcCommonLib.trclib.TrcStateMachine;
+import TrcCommonLib.trclib.TrcTimer;
+import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements a generic PID control drive command. It is agnostic to the PID controller sensors.

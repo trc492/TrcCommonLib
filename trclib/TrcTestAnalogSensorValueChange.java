@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a diagnostics test to monitor if an analog sensor value has changed. If a sensor value

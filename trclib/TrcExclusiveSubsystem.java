@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This interface defines methods for the subsystems to implement exclusive ownership support. A subsystem can be

@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a platform independent mecanum drive base. A mecanum drive base consists of 4 motor driven

@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
-import hallib.HalDashboard;
+import TrcHalLib.hallib.HalDashboard;
 
 import java.util.EmptyStackException;
 import java.util.Locale;

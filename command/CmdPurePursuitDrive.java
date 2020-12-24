@@ -22,14 +22,14 @@
 
 package TrcCommonLib.command;
 
-import trclib.TrcDriveBase;
-import trclib.TrcEvent;
-import trclib.TrcHolonomicPurePursuitDrive;
-import trclib.TrcPath;
-import trclib.TrcPidController;
-import trclib.TrcPose2D;
-import trclib.TrcRobot;
-import trclib.TrcWaypoint;
+import TrcCommonLib.trclib.TrcDriveBase;
+import TrcCommonLib.trclib.TrcEvent;
+import TrcCommonLib.trclib.TrcHolonomicPurePursuitDrive;
+import TrcCommonLib.trclib.TrcPath;
+import TrcCommonLib.trclib.TrcPidController;
+import TrcCommonLib.trclib.TrcPose2D;
+import TrcCommonLib.trclib.TrcRobot;
+import TrcCommonLib.trclib.TrcWaypoint;
 
 /**
  * This class implements a generic Pure Pursuit Drive command. It allows the caller to specify the drive path by

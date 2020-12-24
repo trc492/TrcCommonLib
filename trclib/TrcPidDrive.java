@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
-import trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
  * This class implements a PID controlled robot drive. A PID controlled robot drive consist of a robot drive base

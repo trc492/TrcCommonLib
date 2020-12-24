@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class is intended to be extended by a platform dependent Tank Motion Profile Follower. The extended class

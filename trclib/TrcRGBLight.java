@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
-import trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
  * This class implements a platform independent RGB light. Typically, this class is extended by a platform dependent

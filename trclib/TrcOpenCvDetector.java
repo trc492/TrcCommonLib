@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Point;

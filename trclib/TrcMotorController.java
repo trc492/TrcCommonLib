@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This interface should be implemented by any motor controllers that want to be compatible with the TRC framework.

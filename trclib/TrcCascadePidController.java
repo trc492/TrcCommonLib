@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements a Cascade PID Controller. A Cascade PID controller consists of two PID controllers in cascade.

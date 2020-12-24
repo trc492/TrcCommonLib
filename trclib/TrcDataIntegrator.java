@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class does data integration for sensors that have one or more axes. Some value sensors such as gyros and

@@ -20,11 +20,11 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 
-import trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
  * This class implements a platform independent motor controller. Typically, this class is extended by a platform

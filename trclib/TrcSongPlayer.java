@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
-import trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
  * This class implements a song player that can parse a notated song in a string buffer and play the notes on a Tone

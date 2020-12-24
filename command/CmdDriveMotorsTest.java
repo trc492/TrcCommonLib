@@ -24,13 +24,13 @@ package TrcCommonLib.command;
 
 import java.util.Locale;
 
-import hallib.HalDashboard;
-import trclib.TrcDbgTrace;
-import trclib.TrcEvent;
-import trclib.TrcMotor;
-import trclib.TrcRobot;
-import trclib.TrcStateMachine;
-import trclib.TrcTimer;
+import TrcCommonLib.trclib.TrcDbgTrace;
+import TrcCommonLib.trclib.TrcEvent;
+import TrcCommonLib.trclib.TrcMotor;
+import TrcCommonLib.trclib.TrcRobot;
+import TrcCommonLib.trclib.TrcStateMachine;
+import TrcCommonLib.trclib.TrcTimer;
+import TrcHalLib.hallib.HalDashboard;
 
 /**
  * This class implements the drive base motors test. This test will spin each of the drive base motors at the

@@ -20,12 +20,12 @@
  * SOFTWARE.
  */
 
-package trclib;
+package TrcCommonLib.trclib;
 
 import java.io.File;
 import java.util.Locale;
 
-import hallib.HalDbgLog;
+import TrcHalLib.hallib.HalDbgLog;
 
 /**
  * This class implements the Debug Tracer.
