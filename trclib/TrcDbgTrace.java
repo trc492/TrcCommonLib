@@ -124,11 +124,6 @@ public class TrcDbgTrace
      */
     public static void setDbgLog(DbgLog dbgLog)
     {
-        if (TrcDbgTrace.dbgLog != null)
-        {
-            throw new IllegalStateException("DbgLog object has already been set.");
-        }
-
         TrcDbgTrace.dbgLog = dbgLog;
     }   //setDbgLog
 
