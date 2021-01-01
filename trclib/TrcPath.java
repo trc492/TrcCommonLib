@@ -256,7 +256,7 @@ public class TrcPath
         double acceleration = interpolate(point1.acceleration, point2.acceleration, weight);
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
         double heading = interpolate(point1.heading,
-            TrcWarpSpace.getOptimizedTarget(point2.heading, point1.heading, 360), weight);
+            TrcWarpSpace.getOptimizedTarget(point2.heading, point1.heading, inDegrees? 360.0: 2*Math.PI), weight);
         return new TrcWaypoint(timestep, x, y, position, velocity, acceleration, jerk, heading);
     }   //interpolate
 
