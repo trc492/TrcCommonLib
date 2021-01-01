@@ -123,7 +123,7 @@ public class TrcPath
         TrcWaypoint[] points = new TrcWaypoint[waypoints.length];
         for (int i = 0; i < points.length; i++)
         {
-            points[i] = new TrcWaypoint(waypoints[i]);
+            points[i] = waypoints[i].clone();
         }
         return new TrcPath(inDegrees, points);
     }   //clone
