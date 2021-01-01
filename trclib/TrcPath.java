@@ -90,8 +90,8 @@ public class TrcPath
         for (int i = 0; i < waypoints.length; i++)
         {
             TrcWaypoint wp = new TrcWaypoint(waypoints[i]);
-            wp.x += x;
-            wp.y += y;
+            wp.pose.x += x;
+            wp.pose.y += y;
             points[i] = wp;
         }
         return new TrcPath(inDegrees, points);
@@ -140,15 +140,15 @@ public class TrcPath
         TrcPose2D start = null;
         for (int i = 0; i < waypoints.length; i++)
         {
-            TrcPose2D pos = new TrcPose2D(waypoints[i].x, waypoints[i].y, waypoints[i].heading);
+            TrcPose2D pose = waypoints[i].pose.clone();
             if (start == null)
             {
-                start = pos;
+                start = pose;
             }
-            pos = pos.relativeTo(start, false);
-            newPoints[i] = new TrcWaypoint(waypoints[i]);
-            newPoints[i].x = pos.x;
-            newPoints[i].y = pos.y;
+            pose = pose.relativeTo(start, false);
+            newPoints[i] = waypoints[i].clone();
+            newPoints[i].pose.x = pose.x;
+            newPoints[i].pose.y = pose.y;
         }
         TrcPath path = new TrcPath(true, waypoints);
         return inDegrees ? path : path.toRadians();
@@ -249,15 +249,15 @@ public class TrcPath
     private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
     {
         double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
-        double x = interpolate(point1.x, point2.x, weight);
-        double y = interpolate(point1.y, point2.y, weight);
+        double x = interpolate(point1.pose.x, point2.pose.x, weight);
+        double y = interpolate(point1.pose.y, point2.pose.y, weight);
         double position = interpolate(point1.encoderPosition, point2.encoderPosition, weight);
         double velocity = interpolate(point1.velocity, point2.velocity, weight);
         double acceleration = interpolate(point1.acceleration, point2.acceleration, weight);
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
-        double heading = interpolate(point1.heading,
-            TrcWarpSpace.getOptimizedTarget(point2.heading, point1.heading, inDegrees? 360.0: 2*Math.PI), weight);
-        return new TrcWaypoint(timestep, x, y, position, velocity, acceleration, jerk, heading);
+        double heading = interpolate(point1.pose.angle,
+            TrcWarpSpace.getOptimizedTarget(point2.pose.angle, point1.pose.angle, inDegrees? 360.0: 2*Math.PI), weight);
+        return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //interpolate
 
     /**
@@ -342,7 +342,7 @@ public class TrcPath
         {
             TrcWaypoint waypoint = new TrcWaypoint(this.waypoints[i]);
             // If already in degree mode, don't convert again.
-            waypoint.heading = inDegrees ? waypoint.heading : Math.toDegrees(waypoint.heading);
+            waypoint.pose.angle = inDegrees ? waypoint.pose.angle : Math.toDegrees(waypoint.pose.angle);
             waypoints[i] = waypoint;
         }
 
@@ -363,7 +363,7 @@ public class TrcPath
         {
             TrcWaypoint waypoint = new TrcWaypoint(this.waypoints[i]);
             // If already in radian mode, don't convert again.
-            waypoint.heading = inDegrees ? Math.toRadians(waypoint.heading) : waypoint.heading;
+            waypoint.pose.angle = inDegrees ? Math.toRadians(waypoint.pose.angle) : waypoint.pose.angle;
             waypoints[i] = waypoint;
         }
 
@@ -381,7 +381,7 @@ public class TrcPath
 
             for (TrcWaypoint waypoint : waypoints)
             {
-                waypoint.heading = Math.toDegrees(waypoint.heading);
+                waypoint.pose.angle = Math.toDegrees(waypoint.pose.angle);
             }
         }
     }   //mapSelfToDegrees
@@ -397,7 +397,7 @@ public class TrcPath
 
             for (TrcWaypoint waypoint : waypoints)
             {
-                waypoint.heading = Math.toRadians(waypoint.heading);
+                waypoint.pose.angle = Math.toRadians(waypoint.pose.angle);
             }
         }
     }   //mapSelfToRadians

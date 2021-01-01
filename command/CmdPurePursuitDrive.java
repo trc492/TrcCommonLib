@@ -62,17 +62,18 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * This method starts the Pure Pursuit drive with the specified drive path.
      *
      * @param timeout specifies the maximum time allowed for this operation.
-     * @param absolutePoses specifies true if the poses in the array are relative to the first pose, false if
-     *                      relative to the previous pose in the array.
+     * @param incrementalPath specifies true if each point in the path is relative to its previous point, false if
+     *                        each point in the path is relative to the reference pose which is the pose when the
+     *                        path following starts.
      * @param poses specifies an array of waypoint poses in the drive path.
      */
-    public void start(double timeout, boolean absolutePoses, TrcPose2D... poses)
+    public void start(double timeout, boolean incrementalPath, TrcPose2D... poses)
     {
         TrcWaypoint[] waypoints = new TrcWaypoint[poses.length];
 
         for (int i = 0; i < waypoints.length; i++)
         {
-            waypoints[i] = new TrcWaypoint(absolutePoses? poses[i].relativeTo(poses[0]): poses[i], null);
+            waypoints[i] = new TrcWaypoint(incrementalPath? poses[i].relativeTo(poses[0]): poses[i], null);
         }
 
         purePursuitDrive.start(new TrcPath(true, waypoints), event, timeout);

@@ -392,13 +392,13 @@ public class TrcHolonomicPurePursuitDrive
         double robotY = pose.y;
         TrcWaypoint point = getFollowingPoint(robotX, robotY);
 
-        double dist = TrcUtil.magnitude(robotX - point.x, robotY - point.y);
+        double dist = TrcUtil.magnitude(robotX - point.pose.x, robotY - point.pose.y);
         positionInput = -dist; // Make this negative so the control effort is positive.
         velPidCtrl.setTarget(point.velocity);
         // Only follow heading if we're not maintaining heading
         if (!maintainHeading)
         {
-            turnPidCtrl.setTarget(point.heading);
+            turnPidCtrl.setTarget(point.pose.angle);
         }
 
         double posPower = posPidCtrl.getOutput();
@@ -408,15 +408,15 @@ public class TrcHolonomicPurePursuitDrive
 
         double r = posPower + velPower;
         r = TrcUtil.clipRange(r, -moveOutputLimit, moveOutputLimit);
-        double theta = Math.toDegrees(Math.atan2(point.x - robotX, point.y - robotY));
+        double theta = Math.toDegrees(Math.atan2(point.pose.x - robotX, point.pose.y - robotY));
 
         double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
         if (debugEnabled)
         {
             TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDrive.driveTask",
-                "[%.3f] Robot: (%.2f,%.2f), RobotVel: %.2f, RobotHeading: %.2f, Target: (%.2f,%.2f), TargetVel: %.2f, TargetHeading: %.2f, pathIndex=%d, r,theta=(%.2f,%.1f)",
-                TrcUtil.getModeElapsedTime(), robotX, robotY, velocity, pose.angle, point.x, point.y, point.velocity, point.heading, pathIndex, r,
+                "[%.3f] Robot:(%.2f,%.2f),RobotVel:%.2f,RobotHeading:%.2f,TargetPose=%s,TargetVel:%.2f,pathIndex=%d,r=%.2f,theta=%.1f",
+                TrcUtil.getModeElapsedTime(), robotX, robotY, velocity, pose.angle, point.pose, point.velocity, pathIndex, r,
                 theta);
         }
 
@@ -456,15 +456,15 @@ public class TrcHolonomicPurePursuitDrive
     private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
     {
         double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
-        double x = interpolate(point1.x, point2.x, weight);
-        double y = interpolate(point1.y, point2.y, weight);
+        double x = interpolate(point1.pose.x, point2.pose.x, weight);
+        double y = interpolate(point1.pose.y, point2.pose.y, weight);
         double position = interpolate(point1.encoderPosition, point2.encoderPosition, weight);
         double velocity = interpolate(point1.velocity, point2.velocity, weight);
         double acceleration = interpolate(point1.acceleration, point2.acceleration, weight);
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
-        double heading = interpolate(point1.heading, warpSpace.getOptimizedTarget(point2.heading, point1.heading),
-            weight);
-        return new TrcWaypoint(timestep, x, y, position, velocity, acceleration, jerk, heading);
+        double heading = interpolate(
+                point1.pose.angle, warpSpace.getOptimizedTarget(point2.pose.angle, point1.pose.angle), weight);
+        return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //interpolate
 
     private double interpolate(double start, double end, double weight)
@@ -494,8 +494,8 @@ public class TrcHolonomicPurePursuitDrive
     private TrcWaypoint interpolatePoints(TrcWaypoint prev, TrcWaypoint point, double robotX, double robotY)
     {
         // Find intersection of path segment with circle with radius followingDistance and center at robot
-        RealVector start = new ArrayRealVector(new double[] { prev.x, prev.y });
-        RealVector end = new ArrayRealVector(new double[] { point.x, point.y });
+        RealVector start = new ArrayRealVector(new double[] { prev.pose.x, prev.pose.y });
+        RealVector end = new ArrayRealVector(new double[] { point.pose.x, point.pose.y });
         RealVector robot = new ArrayRealVector(new double[] { robotX, robotY });
 
         RealVector startToEnd = end.subtract(start);
@@ -531,7 +531,7 @@ public class TrcHolonomicPurePursuitDrive
     {
         // TODO: 99% sure this is correct. verify on actual robot, not simulation
         TrcWaypoint last = path.getWaypoint(path.getSize() - 1);
-        if (TrcUtil.magnitude(robotX - last.x, robotY - last.y) < followingDistance)
+        if (TrcUtil.magnitude(robotX - last.pose.x, robotY - last.pose.y) < followingDistance)
         {
             int index = path.getSize() - 1;
             pathIndex = index;
@@ -555,8 +555,8 @@ public class TrcHolonomicPurePursuitDrive
         for (int i = pathIndex; i < path.getSize(); i++)
         {
             TrcWaypoint point = path.getWaypoint(i);
-            if (Math.abs(TrcUtil.magnitude(robotX - closestPoint.x, robotY - closestPoint.y) - followingDistance)
-                >= Math.abs(TrcUtil.magnitude(robotX - point.x, robotY - point.y) - followingDistance))
+            if (Math.abs(TrcUtil.magnitude(robotX - closestPoint.pose.x, robotY - closestPoint.pose.y) - followingDistance)
+                >= Math.abs(TrcUtil.magnitude(robotX - point.pose.x, robotY - point.pose.y) - followingDistance))
             {
                 closestPoint = point;
                 pathIndex = i;

@@ -299,7 +299,7 @@ public class TrcHolonomicPurePursuitDriveV2
         double targetVel = targetPoint.velocity;
         velPidCtrl.setTarget(targetVel);
         // Only follow heading if we're not maintaining heading
-        turnPidCtrl.setTarget(warpSpace.getOptimizedTarget(targetPoint.heading, pose.angle));
+        turnPidCtrl.setTarget(warpSpace.getOptimizedTarget(targetPoint.pose.angle, pose.angle));
 
         double turnPower = turnPidCtrl.getOutput();
         double velPower = velPidCtrl.getOutput();
@@ -307,7 +307,7 @@ public class TrcHolonomicPurePursuitDriveV2
 
         double r = velPower + accelFF * targetPoint.acceleration;
         r = TrcUtil.clipRange(r, 0, moveOutputLimit);
-        double theta = Math.toDegrees(Math.atan2(followingPoint.x - pose.x, followingPoint.y - pose.y));
+        double theta = Math.toDegrees(Math.atan2(followingPoint.pose.x - pose.x, followingPoint.pose.y - pose.y));
 
         double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
@@ -343,15 +343,15 @@ public class TrcHolonomicPurePursuitDriveV2
     private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
     {
         double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
-        double x = interpolate(point1.x, point2.x, weight);
-        double y = interpolate(point1.y, point2.y, weight);
+        double x = interpolate(point1.pose.x, point2.pose.x, weight);
+        double y = interpolate(point1.pose.y, point2.pose.y, weight);
         double position = interpolate(point1.encoderPosition, point2.encoderPosition, weight);
         double velocity = Math.sqrt(interpolate(Math.pow(point1.velocity, 2), Math.pow(point2.velocity, 2), weight));
         double acceleration = point1.acceleration;//interpolate(point1.acceleration, point2.acceleration, weight);
         double jerk = point1.jerk;//interpolate(point1.jerk, point2.jerk, weight);
-        double heading = interpolate(point1.heading, warpSpace.getOptimizedTarget(point2.heading, point1.heading),
+        double heading = interpolate(point1.pose.angle, warpSpace.getOptimizedTarget(point2.pose.angle, point1.pose.angle),
             weight);
-        return new TrcWaypoint(timestep, x, y, position, velocity, acceleration, jerk, heading);
+        return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //interpolate
 
     private double interpolate(double start, double end, double weight)

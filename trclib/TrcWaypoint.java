@@ -37,13 +37,32 @@ import java.util.List;
 public class TrcWaypoint
 {
     public double timeStep;
-    public double x;
-    public double y;
+    public TrcPose2D pose;
     public double encoderPosition;
     public double velocity;
     public double acceleration;
     public double jerk;
-    public double heading;
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param timeStep     specifies the speed denomination in seconds.
+     * @param pose         specifies the pose in the path reference frame.
+     * @param position     specifies the encoder position at this points. (arc length)
+     * @param velocity     specifies the tangential velocity of the wheel at this point.
+     * @param acceleration specifies the tangential acceleration at this point.
+     * @param jerk         specifies the tangential jerk at this point.
+     */
+    public TrcWaypoint(
+            double timeStep, TrcPose2D pose, double position, double velocity, double acceleration, double jerk)
+    {
+        this.timeStep = timeStep;
+        this.pose = pose;
+        this.encoderPosition = position;
+        this.velocity = velocity;
+        this.acceleration = acceleration;
+        this.jerk = jerk;
+    }   //TrcWaypoint
 
     /**
      * Constructor: Create an instance of the object.
@@ -51,24 +70,17 @@ public class TrcWaypoint
      * @param timeStep     specifies the speed denomination in seconds.
      * @param x            specifies the x position in the path reference frame.
      * @param y            specifies the y position in the path reference frame.
+     * @param heading      specifies the heading of the robot at this point.
      * @param position     specifies the encoder position at this points. (arc length)
      * @param velocity     specifies the tangential velocity of the wheel at this point.
      * @param acceleration specifies the tangential acceleration at this point.
      * @param jerk         specifies the tangential jerk at this point.
-     * @param heading      specifies the heading of the robot at this point.
      */
     public TrcWaypoint(
-        double timeStep, double x, double y, double position, double velocity, double acceleration, double jerk,
-        double heading)
+            double timeStep, double x, double y, double heading, double position, double velocity,
+            double acceleration, double jerk)
     {
-        this.timeStep = timeStep;
-        this.x = x;
-        this.y = y;
-        this.encoderPosition = position;
-        this.velocity = velocity;
-        this.acceleration = acceleration;
-        this.jerk = jerk;
-        this.heading = heading;
+        this(timeStep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //TrcWaypoint
 
     /**
@@ -79,25 +91,24 @@ public class TrcWaypoint
     public TrcWaypoint(TrcWaypoint other)
     {
         this.timeStep = other.timeStep;
-        this.x = other.x;
-        this.y = other.y;
+        this.pose = other.pose.clone();
         this.encoderPosition = other.encoderPosition;
         this.velocity = other.velocity;
         this.acceleration = other.acceleration;
         this.jerk = other.jerk;
-        this.heading = other.heading;
     }   //TrcWaypoint
 
     /**
      * Constructor: Create an instance of the object from a given 2D pose.
      *
-     * @param position specifies the position of the way point.
+     * @param pose specifies the position of the way point.
      * @param velocity specifies the velocity of the way point.
      */
-    public TrcWaypoint(TrcPose2D position, TrcPose2D velocity)
+    public TrcWaypoint(TrcPose2D pose, TrcPose2D velocity)
     {
-        this(0, position.x, position.y, 0,
-             velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0, 0, 0, position.angle);
+        // Codereview: should pose be cloned?
+        this(0, pose, 0.0, velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0,
+                0, 0);
     }   //TrcWaypoint
 
     /**
@@ -109,9 +120,15 @@ public class TrcWaypoint
     public String toString()
     {
         return String.format(
-            "TrcWaypoint(timestep=%.3f,x=%.2f,y=%.2f,heading=%.1f,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
-            timeStep, x, y, heading, velocity, encoderPosition, acceleration, jerk);
+            "TrcWaypoint(timestep=%.3f,pose=%s,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
+            timeStep, pose, velocity, encoderPosition, acceleration, jerk);
     }   //toString
+
+    @Override
+    public TrcWaypoint clone()
+    {
+        return new TrcWaypoint(this);
+    }   //clone
 
     /**
      * This method loads waypoint data from a CSV file either on the external file system or attached resources.
@@ -181,7 +198,8 @@ public class TrcWaypoint
 
     public TrcPose2D getPositionPose()
     {
-        return new TrcPose2D(x, y, heading);
+        // Codereview: should pose be cloned? I don't think so.
+        return pose;
     }   //getPositionPose
 
     /**
@@ -192,7 +210,7 @@ public class TrcWaypoint
      */
     public double distanceTo(TrcWaypoint point)
     {
-        return TrcUtil.magnitude(point.x - x, point.y - y);
+        return TrcUtil.magnitude(point.pose.x - this.pose.x, point.pose.y - this.pose.y);
     }   //distanceTo
 
 }   //class TrcWaypoint
