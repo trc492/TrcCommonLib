@@ -894,7 +894,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     //
 
     /**
-     * This method resets the odometry data and sensor.
+     * This method resets the odometry data and sensor. TODO: need to support multiple axes.
      *
      * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
      *                      require some time to complete and will block this method from returning until finish.
@@ -916,13 +916,14 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     }   //resetOdometry
 
     /**
-     * This method returns a copy of the odometry data. It must be a copy so it won't change while the caller is
-     * accessing the data fields.
+     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
+     * the caller is accessing the data fields.
      *
-     * @return odometry data.
+     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor.
+     * @return a copy of the odometry data of the specified axis.
      */
     @Override
-    public Odometry getOdometry()
+    public Odometry getOdometry(int axisIndex)
     {
         synchronized (odometry)
         {

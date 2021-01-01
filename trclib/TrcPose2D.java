@@ -26,6 +26,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealVector;
 
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * This class implements a 2D pose object that represents the positional state of an object.
@@ -47,17 +48,17 @@ public class TrcPose2D
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param x specifies the x component of the position.
-     * @param y specifies the y component of the position.
+     * @param x     specifies the x component of the position.
+     * @param y     specifies the y component of the position.
      * @param angle specifies the angle.
      */
     public TrcPose2D(double x, double y, double angle)
     {
         if (debugEnabled)
         {
-            dbgTrace = useGlobalTracer?
-                    TrcDbgTrace.getGlobalTracer():
-                    new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
+            dbgTrace = useGlobalTracer ?
+                TrcDbgTrace.getGlobalTracer() :
+                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
         }
 
         this.x = x;
@@ -96,6 +97,34 @@ public class TrcPose2D
     }   //toString
 
     /**
+     * This method compares this pose with the specified pose for equality.
+     *
+     * @return true if equal, false otherwise.
+     */
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        TrcPose2D pose2D = (TrcPose2D) o;
+        return Double.compare(pose2D.x, x) == 0 && Double.compare(pose2D.y, y) == 0
+            && Double.compare(pose2D.angle, angle) == 0;
+    }   //equals
+
+    /**
+     * This method returns the hash code of the values in this pose.
+     *
+     * @return pose hash code.
+     */
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(x, y, angle);
+    }   //hashCode
+
+    /**
      * This method creates and returns a copy of this pose.
      *
      * @return a copy of this pose.
@@ -104,6 +133,28 @@ public class TrcPose2D
     {
         return new TrcPose2D(this.x, this.y, this.angle);
     }   //clone
+
+    /**
+     * This method returns the vector form of this pose.
+     *
+     * @return vector form of this pose.
+     */
+    public RealVector toPosVector()
+    {
+        return TrcUtil.createVector(x, y);
+    }   //toPoseVector
+
+    /**
+     * This method returns the distance of the specified pose to this pose.
+     *
+     * @param pose specifies the pose to calculate the distance to.
+     *
+     * @return distance to specified pose.
+     */
+    public double distanceTo(TrcPose2D pose)
+    {
+        return toPosVector().getDistance(pose.toPosVector());
+    }   //distanceTo
 
     /**
      * This method sets this pose to be the same as the given pose.
@@ -120,7 +171,7 @@ public class TrcPose2D
     /**
      * This method returns a transformed pose relative to the given pose.
      *
-     * @param pose specifies the reference pose.
+     * @param pose           specifies the reference pose.
      * @param transformAngle specifies true to also transform angle, false to leave it alone.
      * @return pose relative to the given pose.
      */
@@ -128,10 +179,10 @@ public class TrcPose2D
     {
         double deltaX = x - pose.x;
         double deltaY = y - pose.y;
-        RealVector newPos = TrcUtil.rotateCCW(MatrixUtils.createRealVector(new double[] {deltaX, deltaY}), pose.angle);
+        RealVector newPos =
+            TrcUtil.rotateCCW(MatrixUtils.createRealVector(new double[] { deltaX, deltaY }), pose.angle);
 
-        return new TrcPose2D(
-                newPos.getEntry(0), newPos.getEntry(1), transformAngle? angle - pose.angle: angle);
+        return new TrcPose2D(newPos.getEntry(0), newPos.getEntry(1), transformAngle ? angle - pose.angle : angle);
     }   //relativeTo
 
     /**
@@ -160,13 +211,13 @@ public class TrcPose2D
         double cosAngle = Math.cos(angleRadians);
         double sinAngle = Math.sin(angleRadians);
 
-        newPose.x += xOffset*cosAngle + yOffset*sinAngle;
-        newPose.y += -xOffset*sinAngle + yOffset*cosAngle;
+        newPose.x += xOffset * cosAngle + yOffset * sinAngle;
+        newPose.y += -xOffset * sinAngle + yOffset * cosAngle;
 
         if (debugEnabled)
         {
             dbgTrace.traceInfo(funcName, "xOffset=%.1f, yOffset=%.1f, Pose:%s, newPose:%s",
-                    xOffset, yOffset, this, newPose);
+                xOffset, yOffset, this, newPose);
         }
 
         return newPose;

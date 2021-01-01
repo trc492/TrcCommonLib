@@ -154,7 +154,7 @@ public class TrcPidController
 
     public static final double DEF_SETTLING_TIME = 0.2;
 
-    private TrcDashboard dashboard;
+    private final TrcDashboard dashboard = TrcDashboard.getInstance();
     private String instanceName;
     private PidCoefficients pidCoefficients;
     private double tolerance;
@@ -207,7 +207,6 @@ public class TrcPidController
                 new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
         }
 
-        dashboard = TrcDashboard.getInstance();
         this.instanceName = instanceName;
         this.pidCoefficients = pidCoefficients;
         this.tolerance = Math.abs(tolerance);

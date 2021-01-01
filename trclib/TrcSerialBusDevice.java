@@ -583,7 +583,7 @@ public abstract class TrcSerialBusDevice
 
         if (request.completionEvent != null)
         {
-            request.completionEvent.set(true);
+            request.completionEvent.signal();
         }
 
         if (request.completionHandler != null)

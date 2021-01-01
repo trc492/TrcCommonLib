@@ -37,6 +37,11 @@ public abstract class TrcFilter
     protected TrcDbgTrace dbgTrace = null;
 
     /**
+     * This method resets the filter.
+     */
+    public abstract void reset();
+
+    /**
      * This method returns the filtered data.
      *
      * @param data specifies the data value to be filtered.
@@ -44,7 +49,7 @@ public abstract class TrcFilter
      */
     public abstract double filterData(double data);
 
-    private final String instanceName;
+    protected final String instanceName;
 
     /**
      * Constructor: Create an instance of the object.

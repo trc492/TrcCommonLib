@@ -31,9 +31,9 @@ import java.util.HashMap;
  * the owner is controlling the subsystem. This avoid other components from interfering with an operation in progress.
  * Once the operation is completed, the owner should call the release method to release ownership.
  */
-public class TrcOwnershipManager
+public class TrcOwnershipMgr
 {
-    private static TrcOwnershipManager instance = new TrcOwnershipManager();
+    private static TrcOwnershipMgr instance = new TrcOwnershipMgr();
     private HashMap<TrcExclusiveSubsystem, String> ownershipMap;
 
     /**
@@ -41,7 +41,7 @@ public class TrcOwnershipManager
      *
      * @return instance of the ownership manager.
      */
-    public static TrcOwnershipManager getInstance()
+    public static TrcOwnershipMgr getInstance()
     {
         return instance;
     }   //getInstance
@@ -49,7 +49,7 @@ public class TrcOwnershipManager
     /**
      * Constructor: Create an instance of the object and initialize it.
      */
-    private TrcOwnershipManager()
+    private TrcOwnershipMgr()
     {
         ownershipMap = new HashMap<>();
     }   //TrcOwnershipManager
@@ -92,7 +92,7 @@ public class TrcOwnershipManager
      * ownership will not hit an unexpected exception and will just fail quietly.
      *
      * @param owner specifies the ID string of the caller, can be null if caller is unaware of exclusive ownership.
-     * @param subsystem specifies the subsystem to be checked of its ownership.
+     * @param subsystem specifies the subsystem to be checked of its ownership.`
      * @return true if the caller currently owns the subsystem, false otherwise.
      * @throws IllegalStateException if caller is not the owner of the subsystem.
      */
@@ -141,7 +141,13 @@ public class TrcOwnershipManager
      */
     public synchronized boolean releaseOwnership(String owner, TrcExclusiveSubsystem subsystem)
     {
-        return ownershipMap.remove(subsystem) != null;
+        // Only release the subsystem if this is called by the owner
+        if (owner.equals(ownershipMap.get(subsystem)))
+        {
+            ownershipMap.remove(subsystem);
+            return true;
+        }
+        return false;
     }   //releaseOwnership
 
-}   //class TrcOwnershipManager
+}   //class TrcOwnershipMgr

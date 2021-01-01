@@ -166,10 +166,10 @@ public class TrcTraceLogger
      */
     private void writeMessage(String msg)
     {
-        long startNanoTime = TrcUtil.getCurrentTimeNanos();
+        long startNanoTime = TrcUtil.getNanoTime();
         traceLog.print(msg + "\r\n");
         traceLog.flush();
-        double elapsedNanoTime = TrcUtil.getCurrentTimeNanos() - startNanoTime;
+        double elapsedNanoTime = TrcUtil.getNanoTime() - startNanoTime;
         totalNanoTime += elapsedNanoTime;
         totalMessages++;
         //

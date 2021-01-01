@@ -36,17 +36,23 @@ public class TrcEvent
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private TrcDbgTrace dbgTrace = null;
 
+    public enum EventState
+    {
+        CLEARED,
+        SIGNALED,
+        CANCELED
+    }   //enum EventState
+
     private final String instanceName;
-    private boolean signaled;
-    private boolean canceled;
+    private EventState eventState;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param state specifies the initial state of the event.
+     * @param eventState specifies the initial state of the event.
      */
-    public TrcEvent(final String instanceName, boolean state)
+    public TrcEvent(String instanceName, EventState eventState)
     {
         if (debugEnabled)
         {
@@ -56,8 +62,7 @@ public class TrcEvent
         }
 
         this.instanceName = instanceName;
-        this.signaled = state;
-        this.canceled = false;
+        this.eventState = eventState;
     }   //TrcEvent
 
     /**
@@ -65,9 +70,9 @@ public class TrcEvent
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcEvent(final String instanceName)
+    public TrcEvent(String instanceName)
     {
-        this(instanceName, false);
+        this(instanceName, EventState.CLEARED);
     }   //TrcEvent
 
     /**
@@ -78,65 +83,63 @@ public class TrcEvent
     @Override
     public String toString()
     {
-        return instanceName;
+        return String.format("%s=%s", instanceName, eventState);
     }   //toString
 
     /**
-     * This method sets the state of the event object.
-     *
-     * @param signaled specifies the event state to be set.
-     */
-    public synchronized void set(boolean signaled)
-    {
-        final String funcName = "set";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "signaled=%s", Boolean.toString(signaled));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.signaled = signaled;
-    }   //set
-
-    /**
-     * This method cancels an event if it is not already signaled. An event is either signaled or canceled by the
-     * event source either of which will cause whoever is waiting for it to move on. We could have overloaded
-     * signal for this (i.e. set signal to true when canceled) but we like to be able to differentiate whether
-     * the event was completed normally or aborted.
-     */
-    public synchronized void cancel()
-    {
-        final String funcName = "cancel";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        if (!signaled)
-        {
-            canceled = true;
-        }
-    }   //cancel
-
-    /**
-     * This method clears the event.
+     * This method clears an event.
      */
     public synchronized void clear()
     {
         final String funcName = "clear";
 
+        eventState = EventState.CLEARED;
+
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, " (%s)", eventState);
+        }
+    }   //clear
+
+    /**
+     * This method signals an event if it is not canceled.
+     */
+    public synchronized void signal()
+    {
+        final String funcName = "signal";
+
+        if (eventState != EventState.CANCELED)
+        {
+            eventState = EventState.SIGNALED;
         }
 
-        signaled = false;
-        canceled = false;
-    }   //clear
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, " (%s)", eventState);
+        }
+    }   //signal
+
+    /**
+     * This method cancels an event if it is not already signaled. An event is either signaled or canceled by the
+     * event source either of which will cause whoever is waiting for it to move on.
+     */
+    public synchronized void cancel()
+    {
+        final String funcName = "cancel";
+
+        if (eventState == EventState.CLEARED)
+        {
+            eventState = EventState.CANCELED;
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, " (%s)", eventState);
+        }
+    }   //cancel
 
     /**
      * This method checks if the event is signaled.
@@ -146,11 +149,12 @@ public class TrcEvent
     public synchronized boolean isSignaled()
     {
         final String funcName = "isSignaled";
+        boolean signaled = eventState == EventState.SIGNALED;
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(signaled));
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", signaled);
         }
 
         return signaled;
@@ -164,11 +168,12 @@ public class TrcEvent
     public synchronized boolean isCanceled()
     {
         final String funcName = "isCanceled";
+        boolean canceled = eventState == EventState.CANCELED;
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(canceled));
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", canceled);
         }
 
         return canceled;

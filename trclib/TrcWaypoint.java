@@ -57,8 +57,9 @@ public class TrcWaypoint
      * @param jerk         specifies the tangential jerk at this point.
      * @param heading      specifies the heading of the robot at this point.
      */
-    public TrcWaypoint(double timeStep, double x, double y, double position, double velocity, double acceleration,
-        double jerk, double heading)
+    public TrcWaypoint(
+        double timeStep, double x, double y, double position, double velocity, double acceleration, double jerk,
+        double heading)
     {
         this.timeStep = timeStep;
         this.x = x;
@@ -98,6 +99,19 @@ public class TrcWaypoint
         this(0, position.x, position.y, 0,
              velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0, 0, 0, position.angle);
     }   //TrcWaypoint
+
+    /**
+     * This method returns the string containing the information of the waypoint.
+     *
+     * return waypoint string.
+     */
+    @Override
+    public String toString()
+    {
+        return String.format(
+            "TrcWaypoint(timestep=%.3f,x=%.2f,y=%.2f,heading=%.1f,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
+            timeStep, x, y, heading, velocity, encoderPosition, acceleration, jerk);
+    }   //toString
 
     /**
      * This method loads waypoint data from a CSV file either on the external file system or attached resources.
@@ -164,6 +178,11 @@ public class TrcWaypoint
 
         return waypoints;
     }   //loadPointsFromCsv
+
+    public TrcPose2D getPositionPose()
+    {
+        return new TrcPose2D(x, y, heading);
+    }   //getPositionPose
 
     /**
      * This method calculates the distance between this waypoint and the other waypoint.

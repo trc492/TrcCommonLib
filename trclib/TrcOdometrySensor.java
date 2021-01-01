@@ -25,24 +25,25 @@ package TrcCommonLib.trclib;
 import java.util.Locale;
 
 /**
- * This interface provides the definitions and methods for a sensor to be an odometry sensor. An odometry sensor will
- * report odometry data which contains both timestamp, position and velocity information.
+ * This interface provides the definitions and methods for a sensor to be an odometry sensor. An odometry sensor
+ * will report odometry data which contains both timestamp, position, velocity and acceleration information.
  */
 public interface TrcOdometrySensor
 {
     /**
-     * This class implements the generic sensor odometry. It consists of the position as well as velocity info. If
-     * the sensor does not support velocity data. This class keeps track of the previous timestamp and position so we
-     * can calculate the velocity ourselves.
+     * This class implements the generic sensor odometry. It consists of the position, velocity as well as
+     * acceleration info. If the sensor does not support velocity data. This class keeps track of the previous
+     * timestamp and position so we can calculate the velocity ourselves.
      */
     public class Odometry
     {
-        Object sensor;
-        double prevTimestamp;
-        double currTimestamp;
-        double prevPos;
-        double currPos;
-        double velocity;
+        public Object sensor;
+        public double prevTimestamp;
+        public double currTimestamp;
+        public double prevPos;
+        public double currPos;
+        public double velocity;
+        public double acceleration;
 
         /**
          * Constructor: Create an instance of the object.
@@ -55,10 +56,14 @@ public interface TrcOdometrySensor
          * @param velocity specifies the velocity data. This data may be considered redundant because one can derive
          *                 velocity from (deltaPosition/deltaTime). However, some sensors may support velocity data,
          *                 so this field may contain sensor reported velocity or derived velocity.
+         * @param acceleration specifies the acceleration data. This data may be considered redundant because one can
+         *                     derive velocity from (deltaVelocity/deltaTime). However, some sensors may support
+         *                     acceleration data, so this field may contain sensor reported acceleration or derived
+         *                     acceleration.
          */
         public Odometry(
                 Object sensor, double prevTimestamp, double currTimestamp, double prevPos, double currPos,
-                double velocity)
+                double velocity, double acceleration)
         {
             this.sensor = sensor;
             this.prevTimestamp = prevTimestamp;
@@ -66,6 +71,7 @@ public interface TrcOdometrySensor
             this.prevPos = prevPos;
             this.currPos = currPos;
             this.velocity = velocity;
+            this.acceleration = acceleration;
         }   //Odometry
 
         /**
@@ -77,7 +83,7 @@ public interface TrcOdometrySensor
         {
             this.sensor = sensor;
             this.prevTimestamp = this.currTimestamp = 0.0;
-            this.prevPos = this.currPos = this.velocity = 0.0;
+            this.prevPos = this.currPos = this.velocity = this.acceleration = 0.0;
         }   //Odometry
 
         /**
@@ -89,8 +95,8 @@ public interface TrcOdometrySensor
         public String toString()
         {
             return String.format(
-                    Locale.US, "name=%s,prevTime=%.3f,currTime=%.3f,prevPos=%.1f,currPos=%.1f,vel=%.1f",
-                    sensor, prevTimestamp, currTimestamp, prevPos, currPos, velocity);
+                    Locale.US, "name=%s,prevTime=%.3f,currTime=%.3f,prevPos=%.1f,currPos=%.1f,vel=%.1f,accel=%.1f",
+                    sensor, prevTimestamp, currTimestamp, prevPos, currPos, velocity, acceleration);
         }   //toString
 
         /**
@@ -100,7 +106,7 @@ public interface TrcOdometrySensor
          */
         public Odometry clone()
         {
-            return new Odometry(sensor, prevTimestamp, currTimestamp, prevPos, currPos, velocity);
+            return new Odometry(sensor, prevTimestamp, currTimestamp, prevPos, currPos, velocity, acceleration);
         }   //clone
 
     }   //class Odometry
@@ -114,11 +120,34 @@ public interface TrcOdometrySensor
     void resetOdometry(boolean resetHardware);
 
     /**
+     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
+     * the caller is accessing the data fields.
+     *
+     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor.
+     * @return a copy of the odometry data of the specified axis.
+     */
+    Odometry getOdometry(int axisIndex);
+
+    /**
      * This method returns a copy of the odometry data. It must be a copy so it won't change while the caller is
-     * accessing the data fields.
+     * accessing the data fields. This assumes the odometry sensor has only one axis.
      *
      * @return a copy of the odometry data.
      */
-    Odometry getOdometry();
+    default Odometry getOdometry()
+    {
+        return getOdometry(0);
+    }   //getOdometry
+
+    /**
+     * This method returns a copy of the odometry data of all axes. It must be a copy so it won't change while the
+     * caller is accessing the data fields.
+     *
+     * @return a copy of the odometry data of all axes.
+     */
+    default Odometry[] getOdometries()
+    {
+        return new Odometry[] {getOdometry(0)};
+    }   //getOdometry
 
 }   //interface TrcOdometrySensor

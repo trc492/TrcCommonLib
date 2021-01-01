@@ -423,11 +423,11 @@ public class TrcTaskMgr
         {
             final String funcName = "standaloneTask";
 
-            long startNanoTime = TrcUtil.getCurrentTimeNanos();
+            long startNanoTime = TrcUtil.getNanoTime();
 
             task.runTask(TaskType.STANDALONE_TASK, TrcRobot.getRunMode());
 
-            long elapsedTime = TrcUtil.getCurrentTimeNanos() - startNanoTime;
+            long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
             recordElapsedTime(TaskType.STANDALONE_TASK, elapsedTime);
 
             if (debugEnabled)
@@ -648,7 +648,7 @@ public class TrcTaskMgr
             if (taskObj.hasType(type))
             {
                 Task task = taskObj.getTask();
-                long startNanoTime = TrcUtil.getCurrentTimeNanos();
+                long startNanoTime = TrcUtil.getNanoTime();
 
                 switch (type)
                 {
@@ -688,7 +688,7 @@ public class TrcTaskMgr
                         break;
                 }
 
-                long elapsedTime = TrcUtil.getCurrentTimeNanos() - startNanoTime;
+                long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
                 taskObj.recordElapsedTime(type, elapsedTime);
 
                 if (debugEnabled)

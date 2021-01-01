@@ -44,7 +44,7 @@ public interface TrcExclusiveSubsystem
      */
     default boolean hasOwnership(String owner)
     {
-        return TrcOwnershipManager.getInstance().hasOwnership(owner, this);
+        return TrcOwnershipMgr.getInstance().hasOwnership(owner, this);
     }   //hasOwnership
 
     /**
@@ -60,7 +60,7 @@ public interface TrcExclusiveSubsystem
      */
     default boolean validateOwnership(String owner)
     {
-        return TrcOwnershipManager.getInstance().validateOwnership(owner, this);
+        return TrcOwnershipMgr.getInstance().validateOwnership(owner, this);
     }   //validateOnwership
 
     /**
@@ -71,7 +71,7 @@ public interface TrcExclusiveSubsystem
      */
     default boolean acquireExclusiveAccess(String owner)
     {
-        return TrcOwnershipManager.getInstance().acquireOwnership(owner, this);
+        return TrcOwnershipMgr.getInstance().acquireOwnership(owner, this);
     }   //acquireExclusiveAccess
 
     /**
@@ -82,7 +82,7 @@ public interface TrcExclusiveSubsystem
      */
     default boolean releaseExclusiveAccess(String owner)
     {
-        return TrcOwnershipManager.getInstance().releaseOwnership(owner, this);
+        return TrcOwnershipMgr.getInstance().releaseOwnership(owner, this);
     }   //releaseExclusiveAccess
 
 }   //interface TrcExclusiveSubsystem

@@ -454,7 +454,7 @@ public abstract class TrcRGBLight
                 case DONE:
                     if (notifyEvent != null)
                     {
-                        notifyEvent.set(true);
+                        notifyEvent.signal();
                     }
                     if (notifyReceiver != null)
                     {

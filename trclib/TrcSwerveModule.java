@@ -43,7 +43,6 @@ public class TrcSwerveModule implements TrcMotorController
     public final TrcPidMotor steerMotor;
     public final TrcEnhancedServo steerServo;
     private TrcWarpSpace warpSpace;
-    private double prevSteerAngle;
     private double optimizedWheelDir = 1.0;
     private boolean steerLimitsEnabled = false;
     private double steerLowLimit = 0.0;
@@ -73,7 +72,6 @@ public class TrcSwerveModule implements TrcMotorController
         this.steerMotor = steerMotor;
         this.steerServo = steerServo;
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
-        this.prevSteerAngle = getSteerAngle();
     }   //TrcSwerveModule
 
     /**
@@ -207,6 +205,7 @@ public class TrcSwerveModule implements TrcMotorController
     public void setSteerAngle(double angle, boolean optimize, boolean hold)
     {
         final String funcName = "setSteerAngle";
+        double prevSteerAngle = getSteerAngle();
         angle = warpSpace.getOptimizedTarget(angle, prevSteerAngle);
         double angleDelta = angle - prevSteerAngle;
         double newAngle = angle;
@@ -258,7 +257,6 @@ public class TrcSwerveModule implements TrcMotorController
             steerServo.setPosition(newAngle / 360.0);
 //            steerServo.setPosition(TrcUtil.modulo(newAngle, 360.0) / 360.0);
         }
-        prevSteerAngle = newAngle;
 
         if (debugEnabled)
         {
@@ -571,15 +569,18 @@ public class TrcSwerveModule implements TrcMotorController
     }   //resetOdometry
 
     /**
-     * This method returns a copy of the odometry data. It must be a copy so it won't change while the caller is
-     * accessing the data fields.
+     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
+     * the caller is accessing the data fields.
      *
-     * @return a copy of the odometry data.
+     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor.
+     * @return a copy of the odometry data of the specified axis.
      */
     @Override
-    public Odometry getOdometry()
+    public Odometry getOdometry(int axisIndex)
     {
-        return driveMotor.getOdometry();
+        Odometry odometry = driveMotor.getOdometry();
+        odometry.sensor = this;
+        return odometry;
     }   //getOdometry
 
 }   //class TrcSwerveModule

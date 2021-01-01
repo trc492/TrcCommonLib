@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Arrays;
+
 /**
  * This class implements a path. A path is consists of an array of waypoints, and can be used for path following,
  * such as motion profiling, pure pursuit, etc. Since heading could be in degrees or radians, each path object specifies
@@ -30,6 +32,19 @@ package TrcCommonLib.trclib;
  */
 public class TrcPath
 {
+    /**
+     * This method loads waypoints from a CSV file and create a path with them.
+     *
+     * @param inDegrees         specifies true if the heading values are in degrees, false if they are radians.
+     * @param path              specifies the file path or the resource name where we load the waypoints.
+     * @param loadFromResources specifies true if waypoints are loaded from resources, false if from file path.
+     * @return created path with the loaded waypoints.
+     */
+    public static TrcPath loadPathFromCsv(boolean inDegrees, String path, boolean loadFromResources)
+    {
+        return new TrcPath(inDegrees, TrcWaypoint.loadPointsFromCsv(path, loadFromResources));
+    }   //loadPathFromCsv
+
     private TrcWaypoint[] waypoints;
     private boolean inDegrees;
 
@@ -63,17 +78,214 @@ public class TrcPath
     }   //TrcPath
 
     /**
-     * This method loads waypoints from a CSV file and create a path with them.
+     * Translate the path by an x and y offset.
      *
-     * @param inDegrees specifies true if the heading values are in degrees, false if they are radians.
-     * @param path specifies the file path or the resource name where we load the waypoints.
-     * @param loadFromResources specifies true if waypoints are loaded from resources, false if from file path.
-     * @return created path with the loaded waypoints.
+     * @param x Amount to offset in x axis.
+     * @param y Amount to offset in y axis.
+     * @return new {@link TrcPath} object which is this path with an offset.
      */
-    public static TrcPath loadPathFromCsv(boolean inDegrees, String path, boolean loadFromResources)
+    public TrcPath translate(double x, double y)
     {
-        return new TrcPath(inDegrees, TrcWaypoint.loadPointsFromCsv(path, loadFromResources));
-    }   //loadPathFromCsv
+        TrcWaypoint[] points = new TrcWaypoint[waypoints.length];
+        for (int i = 0; i < waypoints.length; i++)
+        {
+            TrcWaypoint wp = new TrcWaypoint(waypoints[i]);
+            wp.x += x;
+            wp.y += y;
+            points[i] = wp;
+        }
+        return new TrcPath(inDegrees, points);
+    }   //translate
+
+    /**
+     * Insert a waypoint in the middle of the path.
+     *
+     * @param index    The index to insert the new point, in the range [0, <code>getSize()</code>]
+     * @param waypoint The waypoint to insert.
+     * @return A new {@link TrcPath} object with the waypoint inserted.
+     */
+    public TrcPath insertWaypoint(int index, TrcWaypoint waypoint)
+    {
+        TrcWaypoint[] newPoints = new TrcWaypoint[waypoints.length + 1];
+        System.arraycopy(waypoints, 0, newPoints, 0, index);
+        newPoints[index] = waypoint;
+        System.arraycopy(waypoints, index, newPoints, index + 1, waypoints.length - index);
+        return new TrcPath(inDegrees, newPoints);
+    }   //insertWaypoint
+
+    /**
+     * This method makes a copy of this waypoint.
+     *
+     * @return a copy of this waypoint.
+     */
+    public TrcPath clone()
+    {
+        TrcWaypoint[] points = new TrcWaypoint[waypoints.length];
+        for (int i = 0; i < points.length; i++)
+        {
+            points[i] = new TrcWaypoint(waypoints[i]);
+        }
+        return new TrcPath(inDegrees, points);
+    }   //clone
+
+    /**
+     * This method translates all the waypoints in the path relative to the first waypoint in the path.
+     *
+     * @return the translated path.
+     */
+    public TrcPath relativeToStart()
+    {
+        TrcWaypoint[] waypoints = inDegrees ? this.waypoints : toDegrees().waypoints;
+        TrcWaypoint[] newPoints = new TrcWaypoint[waypoints.length];
+        TrcPose2D start = null;
+        for (int i = 0; i < waypoints.length; i++)
+        {
+            TrcPose2D pos = new TrcPose2D(waypoints[i].x, waypoints[i].y, waypoints[i].heading);
+            if (start == null)
+            {
+                start = pos;
+            }
+            pos = pos.relativeTo(start, false);
+            newPoints[i] = new TrcWaypoint(waypoints[i]);
+            newPoints[i].x = pos.x;
+            newPoints[i].y = pos.y;
+        }
+        TrcPath path = new TrcPath(true, waypoints);
+        return inDegrees ? path : path.toRadians();
+    }   //relativeToStart
+
+    /**
+     * Set the velocity and accelerations of the waypoints in the path to follow a trapezoidal velocity profile.
+     * This is characterized by maxVel and maxAccel. Up to two points will be inserted into the path to make the
+     * robot accelerate at maxAccel. Between those two points, the robot velocity will be maxVel.
+     *
+     * @param maxVel   The maximum velocity of the path, with matching units.
+     * @param maxAccel The maximum acceleration of the path, with matching units.
+     * @return A new {@link TrcPath} object, with the velocities and accelerations matching the profile.
+     */
+    public TrcPath trapezoidVelocity(double maxVel, double maxAccel)
+    {
+        maxVel = Math.abs(maxVel);
+        maxAccel = Math.abs(maxAccel);
+        TrcPath path = clone();
+        for (TrcWaypoint waypoint : path.getAllWaypoints())
+        {
+            waypoint.velocity = maxVel;
+            waypoint.acceleration = 0;
+        }
+        path.waypoints[0].velocity = 0;
+        path.waypoints[0].acceleration = maxAccel;
+
+        // v/t = a, v*t/2 = d (constant acceleration from rest is a triangle)
+        // d = v^2/(2*a)
+        double dist = Math.pow(maxVel, 2) / (2 * maxAccel); // this is the distance required to get up to speed
+        double length = 0;
+        // Iterate forwards, ramping up the velocity to maxVel, at the rate maxAccel
+        // Stop when the partial arclength exceeds the speed up distance
+        // This creates the first "ramp up" of the trapezoid
+        for (int i = 0; i < path.getSize() - 1; i++)
+        {
+            TrcWaypoint from = path.waypoints[i];
+            TrcWaypoint to = path.waypoints[i + 1];
+            double segLength = from.distanceTo(to);
+            length += segLength;
+            if (length <= dist)
+            {
+                to.velocity = Math.sqrt(2 * length * maxAccel);
+                to.acceleration = maxAccel;
+            }
+            else
+            {
+                double prevDist = length - segLength;
+                TrcWaypoint inserted = interpolate(from, to, (dist - prevDist) / segLength);
+                inserted.velocity = maxVel;
+                inserted.acceleration = 0;
+                path = path.insertWaypoint(i + 1, inserted);
+                break;
+            }
+        }
+
+        // End at rest
+        path.waypoints[path.getSize() - 1].velocity = 0;
+        path.waypoints[path.getSize() - 1].acceleration = 0;
+        length = 0;
+        // Same as before, but backwards from the end. This creates the "ramp down" of the trapezoid.
+        for (int i = path.getSize() - 1; i > 0; i--)
+        {
+            TrcWaypoint from = path.waypoints[i - 1];
+            TrcWaypoint to = path.waypoints[i];
+            double segLength = from.distanceTo(to);
+            length += segLength;
+            if (length <= dist)
+            {
+                double vel = Math.sqrt(2 * length * maxAccel);
+                if (vel >= from.velocity)
+                    break;
+                from.velocity = vel;
+                from.acceleration = -maxAccel;
+            }
+            else
+            {
+                double prevDist = length - segLength;
+                TrcWaypoint inserted = interpolate(to, from, (dist - prevDist) / segLength);
+                inserted.velocity = maxVel;
+                inserted.acceleration = -maxAccel;
+                path = path.insertWaypoint(i, inserted);
+                break;
+            }
+        }
+        path.inferTimeSteps();
+        return path;
+    }   //trapezoidVelocity
+
+    /**
+     * This method returns a waypoint that is interpolated between the two specified waypoints with the specified
+     * weight between the points.
+     *
+     * @param point1 specifies the first waypoint.
+     * @param point2 specifies the second waypoint.
+     * @param weight specifies the weighted distance between the two points.
+     */
+    private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
+    {
+        double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
+        double x = interpolate(point1.x, point2.x, weight);
+        double y = interpolate(point1.y, point2.y, weight);
+        double position = interpolate(point1.encoderPosition, point2.encoderPosition, weight);
+        double velocity = interpolate(point1.velocity, point2.velocity, weight);
+        double acceleration = interpolate(point1.acceleration, point2.acceleration, weight);
+        double jerk = interpolate(point1.jerk, point2.jerk, weight);
+        double heading = interpolate(point1.heading,
+            TrcWarpSpace.getOptimizedTarget(point2.heading, point1.heading, 360), weight);
+        return new TrcWaypoint(timestep, x, y, position, velocity, acceleration, jerk, heading);
+    }   //interpolate
+
+    /**
+     * This method returns an interpolated value between the two specified values with the specified
+     * weight between the two values.
+     *
+     * @param start specifies the first value.
+     * @param end specifies the second value.
+     * @param weight specifies the weighted distance between the two values.
+     */
+    private double interpolate(double start, double end, double weight)
+    {
+        if (!TrcUtil.inRange(weight, 0.0, 1.0))
+        {
+            throw new IllegalArgumentException("Weight must be in range [0,1]!");
+        }
+        return (1.0 - weight) * start + weight * end;
+    }   //interpolate
+
+    /**
+     * This method returns the last waypoint in the path.
+     *
+     * @return last waypoint.
+     */
+    public TrcWaypoint getLastWaypoint()
+    {
+        return waypoints[waypoints.length - 1];
+    }   //getLastWaypoint
 
     /**
      * This method returns the waypoint at the given index of the path.
@@ -85,6 +297,16 @@ public class TrcPath
     {
         return waypoints[index];
     }   //getWaypoint
+
+    /**
+     * Check if this path defines heading using degrees.
+     *
+     * @return True if degrees are used, false if radians.
+     */
+    public boolean isInDegrees()
+    {
+        return inDegrees;
+    }   //isInDegrees
 
     /**
      * This method returns the number of waypoints in this path.
@@ -217,6 +439,25 @@ public class TrcPath
     }   //getArcLength
 
     /**
+     * This method calculates the acceleration of each waypoint in the path.
+     */
+    public void inferAccelerations()
+    {
+        for (int i = 0; i < waypoints.length - 1; i++)
+        {
+            TrcWaypoint point = waypoints[i];
+            TrcWaypoint next = waypoints[i + 1];
+            double displacement = point.distanceTo(next);
+            // Area of trapezoid: (v1+v2)/2 * t = d
+            // t = d / ((v1+v2)/2)
+            double t = displacement / TrcUtil.average(point.velocity, next.velocity);
+            point.acceleration = (next.velocity - point.velocity) / t;
+        }
+        // Assume last waypoint has 0 acceleration
+        waypoints[waypoints.length - 1].acceleration = 0;
+    }   //inferAccelerations
+
+    /**
      * Use velocity and position data to infer the timesteps of the waypoint.
      */
     public void inferTimeSteps()
@@ -233,5 +474,16 @@ public class TrcPath
         // Assume last waypoint has the same timestep as second to last
         waypoints[waypoints.length - 1].timeStep = waypoints[waypoints.length - 2].timeStep;
     }   //inferTimeSteps
+
+    /**
+     * This method returns the path info in string form.
+     *
+     * @return path info in string form.
+     */
+    @Override
+    public String toString()
+    {
+        return String.format("TrcPath(degrees=%b, %s)", isInDegrees(), Arrays.toString(waypoints));
+    }   //toString
 
 }   //class TrcPath

@@ -347,7 +347,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
      */
     @Override
     protected Odometry getOdometryDelta(
-            TrcOdometrySensor.Odometry prevOdometries[], TrcOdometrySensor.Odometry currOdometries[])
+            TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries)
     {
         final String funcName = "getOdometryDelta";
         Odometry delta = new Odometry();

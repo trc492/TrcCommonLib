@@ -28,9 +28,7 @@ package TrcCommonLib.trclib;
 public class TrcIIRFilter extends TrcFilter
 {
     private static final double DEF_WEIGHT = 0.9;
-
-    private final String instanceName;
-    private double weight;
+    private final double weight;
     private double filteredData;
 
     /**
@@ -39,7 +37,7 @@ public class TrcIIRFilter extends TrcFilter
      * @param instanceName specifies the instance name.
      * @param weight specifies the weight of the current data point.
      */
-    public TrcIIRFilter(final String instanceName, double weight)
+    public TrcIIRFilter(String instanceName, double weight)
     {
         super(instanceName);
 
@@ -48,9 +46,8 @@ public class TrcIIRFilter extends TrcFilter
             throw new IllegalArgumentException("Weight must be a positive fraction within 1.0.");
         }
 
-        this.instanceName = instanceName;
         this.weight = weight;
-        filteredData = 0.0;
+        reset();
     }   //TrcIIRFilter
 
     /**
@@ -63,20 +60,26 @@ public class TrcIIRFilter extends TrcFilter
         this(instanceName, DEF_WEIGHT);
     }   //TrcIIRFilter
 
-    /**
-     * This method returns the instance name.
-     *
-     * @return instance name.
-     */
-    @Override
-    public String toString()
-    {
-        return instanceName;
-    }   //toString
-
     //
     // Implements TrcFilter abstract methods.
     //
+
+    /**
+     * This method resets the filter.
+     */
+    @Override
+    public void reset()
+    {
+        final String funcName = "reset";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        filteredData = 0.0;
+    }   //reset
 
     /**
      * This method returns the filtered data.
@@ -89,12 +92,16 @@ public class TrcIIRFilter extends TrcFilter
     {
         final String funcName = "filterData";
 
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
+        }
+
         filteredData = filteredData*(1.0 - weight) + data*weight;
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "=%f", filteredData);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", filteredData);
         }
 
         return filteredData;

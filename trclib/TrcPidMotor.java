@@ -1125,7 +1125,7 @@ public class TrcPidMotor
                 stop(true);
                 if (notifyEvent != null)
                 {
-                    notifyEvent.set(true);
+                    notifyEvent.signal();
                     notifyEvent = null;
                 }
             }

@@ -25,8 +25,8 @@ package TrcCommonLib.trclib;
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
- * This class implements a song player that can parse a notated song in a string buffer and play the notes on a Tone
- * device.
+ * This class implements a song player that can parse a notated song in a string
+ * buffer and play the notes on a Tone device.
  */
 public class TrcSongPlayer
 {
@@ -599,7 +599,7 @@ public class TrcSongPlayer
                     setTaskEnabled(false);
                     if (event != null)
                     {
-                        event.set(true);
+                        event.signal();
                     }
                     if (receiver != null)
                     {

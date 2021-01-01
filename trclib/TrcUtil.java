@@ -22,6 +22,7 @@
 
 package TrcCommonLib.trclib;
 
+import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -37,8 +38,9 @@ import java.util.Locale;
  */
 public class TrcUtil
 {
-    public static final double INCHES_PER_CM = 0.393701;
     public static final double MM_PER_INCH = 25.4;
+    public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
+    public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
     private static long modeStartTimeNanos = 0;
 
@@ -78,17 +80,17 @@ public class TrcUtil
     }   //getModeElapsedTime
 
     /**
-     * This method returns the current time in seconds with nano-second precision.
+     * This method returns the current epoch time in seconds with millisecond precision.
      *
      * @return current time in seconds.
      */
     public static double getCurrentTime()
     {
-        return System.nanoTime() / 1000000000.0;
+        return getCurrentTimeMillis() / 1000.0;
     }   //getCurrentTime
 
     /**
-     * This method returns the current time in msec.
+     * This method returns the current epoch time in msec.
      *
      * @return current time in msec.
      */
@@ -98,14 +100,15 @@ public class TrcUtil
     }   //getCurrentTimeMillis
 
     /**
-     * This method returns the current time in nano second.
+     * This method returns the nano second timestamp since a fixed arbitrary time referenced by the Java VM.
+     * Note: this is not epoch time so it is not interchangeable with the time returned from getCurrentTime().
      *
      * @return current time in nano second.
      */
-    public static long getCurrentTimeNanos()
+    public static long getNanoTime()
     {
         return System.nanoTime();
-    }   //getCurrentTimeNanos
+    }   //getNanoTime
 
     /**
      * This method returns the current time stamp with the specified format.
@@ -273,14 +276,7 @@ public class TrcUtil
      */
     public static int leastSignificantSetBit(int data)
     {
-        int bitMask = 0;
-
-        if (data != 0)
-        {
-            bitMask = data & ~(data ^ -data);
-        }
-
-        return bitMask;
+        return Integer.lowestOneBit(data);  // basically data & -data
     }   //leastSignificantSetBit
 
     /**
@@ -295,18 +291,41 @@ public class TrcUtil
 
         if (data != 0)
         {
-            for (int i = 0; ; i++)
-            {
-                if ((data & (1 << i)) != 0)
-                {
-                    pos = i;
-                    break;
-                }
-            }
+            pos = Integer.numberOfTrailingZeros(data);
         }
 
         return pos;
     }   //leastSignificantSetBitPosition
+
+    /**
+     * This method returns a bit mask of the least significant set bit.
+     *
+     * @param data specifies the data to find the least significant set bit.
+     * @return bit mask that has only the least significant set bit.
+     */
+    public static int mostSignificantSetBit(int data)
+    {
+        // //
+        // // Duplicate the most significant set bit to all bits to the right.
+        // // Add one to result so all set bits are clear except one bit to the left of the most significant set bit.
+        // // Shift one bit to the right to adjust to final bit position.
+        // //
+        // if (data != 0)
+        // {
+        //     data |= data >>> 1;
+        //     data |= data >>> 2;
+        //     data |= data >>> 4;
+        //     data |= data >>> 8;
+        //     data |= data >>> 16;
+        //     data += 1;
+        //     // Take care of the sign bit corner case.
+        //     data = data == 0? 0x80000000: data >>> 1;
+        // }
+        //
+        // return data;
+
+        return Integer.highestOneBit(data);
+    }   //mostSignificantSetBit
 
     /**
      * This method returns the bit position of the most significant set bit of the given data.
@@ -320,14 +339,7 @@ public class TrcUtil
 
         if (data != 0)
         {
-            for (int i = 0; ; i++)
-            {
-                if ((data & (0x80000000 >> i)) != 0)
-                {
-                    pos = 31 - i;
-                    break;
-                }
-            }
+            pos = 31 - Integer.numberOfLeadingZeros(data);
         }
 
         return pos;
@@ -387,12 +399,24 @@ public class TrcUtil
     /**
      * This method rounds a double to the nearest integer.
      *
-     * @param num Number to round.
-     * @return Rounded to the nearest integer.
+     * @param num specifies the number to round.
+     * @return number rounded to the nearest integer.
      */
     public static int round(double num)
     {
         return (int) Math.floor(num + 0.5);
+    }   //round
+
+    /**
+     * This method rounds a double to the specified precision.
+     *
+     * @param num specifies the number to round.
+     * @param precision specifies the precision to round to.
+     * @return number rounded to the specified precision.
+     */
+    public static double round(double num, double precision)
+    {
+        return Math.round(num / precision) * precision;
     }   //round
 
     /**
@@ -594,7 +618,7 @@ public class TrcUtil
     /**
      * Convert a point from a polar coordinate system to a cartesian coordinate system.
      *
-     * @param r Magnitude of vector
+     * @param r     Magnitude of vector
      * @param theta Direction of vector, in degrees clockwise from 0 (+y)
      * @return Vector in a cartesian coordinate system representing the same point.
      */
@@ -603,6 +627,17 @@ public class TrcUtil
         double thetaRad = Math.toRadians(theta);
         return MatrixUtils.createRealVector(new double[] { r * Math.sin(thetaRad), r * Math.cos(thetaRad) });
     }   //polarToCartesian
+
+    /**
+     * Create an {@link ArrayRealVector} with the supplied numbers. This is just quality of life to reduce typing.
+     *
+     * @param vector The data to put in the vector.
+     * @return A new vector instance with the data.
+     */
+    public static RealVector createVector(double... vector)
+    {
+        return new ArrayRealVector(vector);
+    } //createVector
 
     /**
      * Rotate a point counter-clockwise about the origin.

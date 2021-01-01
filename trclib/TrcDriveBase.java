@@ -62,13 +62,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public static class Odometry
     {
-        TrcPose2D position;
-        TrcPose2D velocity;
+        public TrcPose2D position;
+        public TrcPose2D velocity;
 
         /**
          * Constructor: Create an instance of the object.
          */
-        Odometry()
+        public Odometry()
         {
             position = new TrcPose2D();
             velocity = new TrcPose2D();
@@ -80,7 +80,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
          * @param position specifies the initial position.
          * @param velocity specifies the initial velocity.
          */
-        Odometry(TrcPose2D position, TrcPose2D velocity)
+        public Odometry(TrcPose2D position, TrcPose2D velocity)
         {
             this.position = position;
             this.velocity = velocity;
@@ -154,7 +154,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * @return an Odometry object describing the odometry changes since the last update.
      */
     protected abstract Odometry getOdometryDelta(
-            TrcOdometrySensor.Odometry prevOdometries[], TrcOdometrySensor.Odometry currOdometries[]);
+            TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries);
 
     /**
      * This method implements tank drive where leftPower controls the left motors and right power controls the right
@@ -206,6 +206,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private boolean gyroAssistEnabled = false;
     private Stack<Odometry> referenceOdometryStack = new Stack<>();
     private Odometry referenceOdometry = null;
+    private boolean synchronizeOdometries = true;
     // Change of basis matrices to convert between coordinate systems
     private final RealMatrix enuToNwuChangeOfBasis = MatrixUtils
         .createRealMatrix(new double[][] { { 0, 1 }, { -1, 0 } });
@@ -258,6 +259,32 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         this(motors, null);
     }   //TrcDriveBase
+
+    /**
+     * This method checks if synchronize odometries is enabled.
+     *
+     * @return true if it is enabled, false if it is disabled.
+     */
+    public boolean isSynchronizeOdometriesEnabled()
+    {
+        synchronized (odometry)
+        {
+            return synchronizeOdometries;
+        }
+    }   //isSynchronizeOdometriesEnabled
+
+    /**
+     * This method enables/disables synchronize odometries.
+     *
+     * @param synchronizeOdometries specifies true to enable, false to disable.
+     */
+    public void setSynchronizeOdometriesEnabled(boolean synchronizeOdometries)
+    {
+        synchronized (odometry)
+        {
+            this.synchronizeOdometries = synchronizeOdometries;
+        }
+    }   //setSynchronizeOdometriesEnabled
 
     /**
      * This method is called to enable/disable the odometry task that keeps track of the robot position and orientation.
@@ -1552,7 +1579,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     }
                 }
 
-                synchronizeOdometries(motorsState.currMotorOdometries);
+                if (synchronizeOdometries)
+                {
+                    synchronizeOdometries(motorsState.currMotorOdometries);
+                }
                 //
                 // Calculate pose delta from last pose and update odometry accordingly.
                 //

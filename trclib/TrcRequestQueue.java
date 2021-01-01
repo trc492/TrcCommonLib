@@ -348,9 +348,9 @@ public class TrcRequestQueue<R>
                     dbgTrace.traceInfo(funcName, "[%.3f] processing request %s", TrcUtil.getCurrentTime(), entry);
                 }
 
-                long startNanoTime = TrcUtil.getCurrentTimeNanos();
+                long startNanoTime = TrcUtil.getNanoTime();
                 entry.requestHandler.notify(entry);
-                long elapsedTime = TrcUtil.getCurrentTimeNanos() - startNanoTime;
+                long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
         
                 totalNanoTime += elapsedTime;
                 totalRequests++;

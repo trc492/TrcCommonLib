@@ -260,9 +260,8 @@ public class TrcStateMachine<T>
                 // Count the number of signaled events.
                 //
                 int count = 0;
-                for (int i = 0; i < eventList.size(); i++)
+                for (TrcEvent event: eventList)
                 {
-                    TrcEvent event = eventList.get(i);
                     if (event.isSignaled() || event.isCanceled())
                     {
                         count++;

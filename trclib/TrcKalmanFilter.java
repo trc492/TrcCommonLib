@@ -30,9 +30,8 @@ public class TrcKalmanFilter extends TrcFilter
     private static double DEF_KQ = 0.022;
     private static double DEF_KR = 0.617;
 
-    private final String instanceName;
-    private double kQ;
-    private double kR;
+    private final double kQ;
+    private final double kR;
     private double prevP;
     private double prevXEst;
     private boolean initialized;
@@ -48,12 +47,9 @@ public class TrcKalmanFilter extends TrcFilter
     {
         super(instanceName);
 
-        this.instanceName = instanceName;
         this.kQ = kQ;
         this.kR = kR;
-        prevP = 0.0;
-        prevXEst = 0.0;
-        initialized = false;
+        reset();
     }   //TrcKalmanFilter
 
     /**
@@ -66,20 +62,28 @@ public class TrcKalmanFilter extends TrcFilter
         this(instanceName, DEF_KQ, DEF_KR);
     }   //TrcKalmanFilter
 
-    /**
-     * This method returns the instance name.
-     *
-     * @return instance name.
-     */
-    @Override
-    public String toString()
-    {
-        return instanceName;
-    }   //toString
-
     //
     // Implements TrcFilter abstract methods.
     //
+
+    /**
+     * This method resets the filter.
+     */
+    @Override
+    public void reset()
+    {
+        final String funcName = "reset";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        prevP = 0.0;
+        prevXEst = 0.0;
+        initialized = false;
+    }   //reset
 
     /**
      * This method returns the filtered data.
@@ -91,6 +95,11 @@ public class TrcKalmanFilter extends TrcFilter
     public double filterData(double data)
     {
         final String funcName = "filterData";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
+        }
 
         if (!initialized)
         {
@@ -107,7 +116,6 @@ public class TrcKalmanFilter extends TrcFilter
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "=%f", prevXEst);
         }
 

@@ -22,34 +22,18 @@
 
 package TrcCommonLib.trclib;
 
-/**
- * This interface provides a platform independent way to display info to the dashboard. It is mainly for TrcLib
- * which is platform agnostic. A platform dependent class will implement methods in this interface.
- */
-public abstract class TrcDashboard
+public interface TrcDistanceSensor
 {
-    /**
-     * This method displays a formatted message in the specified display line on the Driver Station.
-     *
-     * @param lineNum specifies the line number on the display.
-     * @param format  specifies the format string.
-     * @param args    specifies variable number of substitution arguments.
-     */
-    public abstract void displayPrintf(int lineNum, String format, Object... args);
+    double getDistanceInches();
 
-    public static final int MAX_NUM_TEXTLINES = 16;
-    protected static final String displayKeyFormat = "%02d";
-    protected static TrcDashboard instance = null;
-
-    /**
-     * This method allows any class to get an instance of the dashboard so that it can display information on its
-     * display.
-     *
-     * @return global instance of the dashboard object.
-     */
-    public static TrcDashboard getInstance()
+    default double getDistanceMillimeters()
     {
-        return instance;
-    }   //getInstance
+        return getDistanceInches() * TrcUtil.MM_PER_INCH;
+    } //getDistanceMillimeters
 
-}   //class TrcDashboard
+    default double getDistanceMeters()
+    {
+        return getDistanceInches() * TrcUtil.METERS_PER_INCH;
+    } //getDistanceMeters
+
+}   //interface TrcDistanceSensor

@@ -379,13 +379,13 @@ public class TrcPeriodicThread<T>
 
         while (!Thread.interrupted())
         {
-            long startNanoTime = TrcUtil.getCurrentTimeNanos();
+            long startNanoTime = TrcUtil.getNanoTime();
             long elapsedNanoTime;
 
             if (taskState.isTaskEnabled())
             {
                 task.runPeriodic(context);
-                elapsedNanoTime = TrcUtil.getCurrentTimeNanos() - startNanoTime;
+                elapsedNanoTime = TrcUtil.getNanoTime() - startNanoTime;
                 totalThreadNanoTime += elapsedNanoTime;
                 loopCount++;
 
@@ -398,7 +398,7 @@ public class TrcPeriodicThread<T>
 
             if (processingInterval > 0)
             {
-                long sleepTime = processingInterval - (TrcUtil.getCurrentTimeNanos() - startNanoTime)/1000000;
+                long sleepTime = processingInterval - (TrcUtil.getNanoTime() - startNanoTime)/1000000;
                 //
                 // If the processing time does not use up the processingInterval time, make the thread sleep the
                 // remaining time left.

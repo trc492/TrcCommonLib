@@ -28,9 +28,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcSpuriousFilter extends TrcFilter
 {
-    private final String instanceName;
     private final double distanceThreshold;
-    private TrcDbgTrace tracer;
+    private final TrcDbgTrace tracer;
     private Double prevData;
 
     /**
@@ -45,10 +44,9 @@ public class TrcSpuriousFilter extends TrcFilter
     {
         super(instanceName);
 
-        this.instanceName = instanceName;
         this.distanceThreshold = distanceThreshold;
         this.tracer = tracer;
-        prevData = null;
+        reset();
     }   //TrcSpuriousFilter
 
     /**
@@ -62,20 +60,26 @@ public class TrcSpuriousFilter extends TrcFilter
         this(instanceName, distanceThreshold, null);
     }   //TrcSpuriousFilter
 
-    /**
-     * This method returns the instance name.
-     *
-     * @return instance name.
-     */
-    @Override
-    public String toString()
-    {
-        return instanceName;
-    }   //toString
-
     //
     // Implements TrcFilter abstract methods.
     //
+
+    /**
+     * This method resets the filter.
+     */
+    @Override
+    public void reset()
+    {
+        final String funcName = "reset";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        prevData = null;
+    }   //reset
 
     /**
      * This method returns the filtered data.

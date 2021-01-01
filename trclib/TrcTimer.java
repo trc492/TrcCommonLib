@@ -220,7 +220,7 @@ public class TrcTimer
 
             if (notifyEvent != null)
             {
-                notifyEvent.set(true);
+                notifyEvent.signal();
                 notifyEvent = null;
             }
 
