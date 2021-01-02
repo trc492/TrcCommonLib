@@ -33,30 +33,20 @@ import java.util.ArrayList;
 public class TrcPathBuilder
 {
     private final ArrayList<TrcWaypoint> waypointList = new ArrayList<>();
-    private final boolean inDegrees;
     private final TrcPose2D referencePose;
+    private final boolean inDegrees;
 
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param inDegrees specifies true if waypoints have headings with degree unit, false with radian units.
      * @param referencePose specifies waypoints are relative to the reference point, null if relative to previous
      *                      points.
-     */
-    public TrcPathBuilder(boolean inDegrees, TrcPose2D referencePose)
-    {
-        this.inDegrees = inDegrees;
-        this.referencePose = referencePose;
-    }   //TrcPathBuilder
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
      * @param inDegrees specifies true if waypoints have headings with degree unit, false with radian units.
      */
-    public TrcPathBuilder(boolean inDegrees)
+    public TrcPathBuilder(TrcPose2D referencePose, boolean inDegrees)
     {
-        this(inDegrees, null);
+        this.referencePose = referencePose;
+        this.inDegrees = inDegrees;
     }   //TrcPathBuilder
 
     /**
@@ -67,7 +57,7 @@ public class TrcPathBuilder
      */
     public TrcPathBuilder(TrcPose2D referencePose)
     {
-        this(true, referencePose);
+        this(referencePose, true);
     }   //TrcPathBuilder
 
     /**
@@ -75,56 +65,8 @@ public class TrcPathBuilder
      */
     public TrcPathBuilder()
     {
-        this(true, null);
+        this(null, true);
     }   //TrcPathBuilder
-
-    /**
-     * Appends the specified pose to the path.
-     *
-     * @param pose specifies the pose to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(TrcPose2D pose)
-    {
-        if (referencePose == null)
-        {
-            //
-            // The pose is relative to the previous point for an INCREMENTAL_PATH.
-            //
-            if (waypointList.size() == 0)
-            {
-                waypointList.add(new TrcWaypoint(new TrcPose2D(0, 0), null));
-            }
-            TrcPose2D prevPose = waypointList.get(waypointList.size() - 1).pose;
-            waypointList.add(new TrcWaypoint(prevPose.addRelativePose(pose), null));
-        }
-        else
-        {
-            //
-            // The pose is relative to the referencePose. If referencePose is (0, 0), it is a
-            // RELATIVE_TO_START_PATH. If referencePose is non-zero, it is an ABSOLUTE_POSITION_PATH.
-            //
-            waypointList.add(new TrcWaypoint(pose.relativeTo(referencePose), null));
-        }
-
-        return this;
-    }   //append
-
-    /**
-     * Appends the specified poses to the path.
-     *
-     * @param poses specifies an array of poses to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(TrcPose2D... poses)
-    {
-        for (TrcPose2D pose: poses)
-        {
-            append(pose);
-        }
-
-        return this;
-    }   //append
 
     /**
      * Appends the specified waypoint to the path.
@@ -134,89 +76,47 @@ public class TrcPathBuilder
      */
     public TrcPathBuilder append(TrcWaypoint waypoint)
     {
-        return append(waypoint.pose);
-    }   //append
-
-    /**
-     * Appends the specified waypoints to the path.
-     *
-     * @param waypoints specifies the array of waypoints to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(TrcWaypoint... waypoints)
-    {
-        for (TrcWaypoint wp: waypoints)
+        if (referencePose == null)
         {
-            append(wp.pose);
+            //
+            // The pose is relative to the previous point for an INCREMENTAL_PATH.
+            //
+            if (waypointList.size() == 0)
+            {
+                waypointList.add(waypoint);
+            }
+            else
+            {
+                TrcPose2D prevPose = waypointList.get(waypointList.size() - 1).pose;
+                waypoint.pose.setAs(prevPose.addRelativePose(waypoint.pose));
+                waypointList.add(waypoint);
+            }
         }
 
         return this;
+    }   //append
+
+    /**
+     * Appends the specified pose and velocity to the path.
+     *
+     * @param pose specifies the pose to be added to the path.
+     * @param velocity specifies the velocity at the pose.
+     * @return this instance.
+     */
+    public TrcPathBuilder append(TrcPose2D pose, TrcPose2D velocity)
+    {
+        return append(new TrcWaypoint(pose, velocity));
     }   //append
 
     /**
      * Appends the specified pose to the path.
      *
-     * @param inDegrees specifies true if the pose heading is in degrees, false if in radians.
      * @param pose specifies the pose to be added to the path.
      * @return this instance.
      */
-    public TrcPathBuilder append(boolean inDegrees, TrcPose2D pose)
+    public TrcPathBuilder append(TrcPose2D pose)
     {
-        if (inDegrees != this.inDegrees)
-        {
-            pose.angle = inDegrees? Math.toRadians(pose.angle): Math.toDegrees(pose.angle);
-        }
-        append(pose);
-
-        return this;
-    }   //append
-
-    /**
-     * Appends the specified poses to the path.
-     *
-     * @param inDegrees specifies true if the pose heading is in degrees, false if in radians.
-     * @param poses specifies an array of poses to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(boolean inDegrees, TrcPose2D... poses)
-    {
-        for (TrcPose2D pose: poses)
-        {
-            append(inDegrees, pose);
-        }
-
-        return this;
-    }   //aopend
-
-    /**
-     * Appends the specified waypoint to the path.
-     *
-     * @param inDegrees specifies true if the pose heading is in degrees, false if in radians.
-     * @param waypoint specifies the waypoint to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(boolean inDegrees, TrcWaypoint waypoint)
-    {
-        append(inDegrees, waypoint.pose);
-
-        return this;
-    }   //append
-
-    /**
-     * Appends the specified waypoints to the path.
-     *
-     * @param inDegrees specifies true if the pose heading is in degrees, false if in radians.
-     * @param waypoints specifies the array of waypoints to be added to the path.
-     * @return this instance.
-     */
-    public TrcPathBuilder append(boolean inDegrees, TrcWaypoint... waypoints)
-    {
-        for (TrcWaypoint wp: waypoints)
-        {
-            append(inDegrees, wp.pose);
-        }
-
-        return this;
+        return append(new TrcWaypoint(pose, null));
     }   //append
 
     /**

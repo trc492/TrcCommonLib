@@ -88,7 +88,13 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(double timeout, TrcPose2D referencePose, TrcPose2D... poses)
     {
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(referencePose).append(poses);
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(referencePose);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+
         start(timeout, pathBuilder.toPath());
     }   //start
 
