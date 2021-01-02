@@ -120,7 +120,7 @@ public class TrcPathBuilder
             // waypoint is relative to the reference frame for a REFERENCE_FRAME_PATH.
             // Transform it to be relative to the initial robot location indicated by referencePose.
             //
-            waypoint.pose.setAs(waypoint.pose.relativeTo(referencePose));
+            waypoint.pose.setAs(waypoint.pose.relativeTo(referencePose, false));
             waypointList.add(waypoint);
         }
 
