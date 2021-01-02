@@ -26,8 +26,8 @@ import java.util.ArrayList;
 
 /**
  * This class builds a TrcPath for path following driving. The path can be built from two types of waypoints:
- * INCREMENTAL_PATH - points in the path are relative to their previous points.
- * REFERENCE_FRAME_PATH - points in the path are relative to the referencePose.
+ * INCREMENTAL_PATH - points in the path are relative to their previous points (referencePose is set to null).
+ * REFERENCE_FRAME_PATH - points in the path are relative to the referencePose (referencePose is non-null).
  */
 public class TrcPathBuilder
 {
@@ -38,9 +38,9 @@ public class TrcPathBuilder
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param referencePose specifies waypoints are relative to the reference point, null if relative to previous
-     *                      points.
-     * @param inDegrees specifies true if waypoints have headings with degree unit, false with radian units.
+     * @param referencePose specifies appended waypoints are relative to the reference point, null if relative to
+     *                      previous points.
+     * @param inDegrees specifies true if appended waypoints have headings with degree unit, false with radian units.
      */
     public TrcPathBuilder(TrcPose2D referencePose, boolean inDegrees)
     {
@@ -51,8 +51,8 @@ public class TrcPathBuilder
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param referencePose specifies waypoints are relative to the reference point, null if relative to previous
-     *                      points.
+     * @param referencePose specifies appended waypoints are relative to the reference point, null if relative to
+     *                      previous points.
      */
     public TrcPathBuilder(TrcPose2D referencePose)
     {
@@ -70,7 +70,8 @@ public class TrcPathBuilder
     /**
      * Appends the specified waypoint to the path.
      *
-     * @param waypoint specifies the waypoint to be added to the path.
+     * @param waypoint specifies the waypoint to be added to the path. If referencePose is null, waypoint is relative
+     *                 to the previous point, otherwise it is relative to the referencePose.
      * @return this instance.
      */
     public TrcPathBuilder append(TrcWaypoint waypoint)
@@ -106,7 +107,8 @@ public class TrcPathBuilder
     /**
      * Appends the specified pose and velocity to the path.
      *
-     * @param pose specifies the pose to be added to the path.
+     * @param pose specifies the pose to be added to the path. If referencePose is null, pose is relative to the
+     *             previous point, otherwise it is relative to the referencePose.
      * @param velocity specifies the velocity at the pose.
      * @return this instance.
      */
@@ -118,7 +120,8 @@ public class TrcPathBuilder
     /**
      * Appends the specified pose to the path.
      *
-     * @param pose specifies the pose to be added to the path.
+     * @param pose specifies the pose to be added to the path. If referencePose is null, pose is relative to the
+     *             previous point, otherwise it is relative to the referencePose.
      * @return this instance.
      */
     public TrcPathBuilder append(TrcPose2D pose)
