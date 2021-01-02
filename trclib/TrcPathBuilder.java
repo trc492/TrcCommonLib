@@ -25,10 +25,9 @@ package TrcCommonLib.trclib;
 import java.util.ArrayList;
 
 /**
- * This class builds a TrcPath for path following driving. The path can be built from three types of waypoints:
- * RELATIVE_PATH - points in the path are relative to their previous points.
- * RELATIVE_TO_START_PATH - points in the path are relative to the first point of the path.
- * ABSOLUTE_POSITION_PATH - points in the path are relative to an absolute reference point.
+ * This class builds a TrcPath for path following driving. The path can be built from two types of waypoints:
+ * INCREMENTAL_PATH - points in the path are relative to their previous points.
+ * REFERENCE_FRAME_PATH - points in the path are relative to the referencePose.
  */
 public class TrcPathBuilder
 {
@@ -79,7 +78,7 @@ public class TrcPathBuilder
         if (referencePose == null)
         {
             //
-            // The pose is relative to the previous point for an INCREMENTAL_PATH.
+            // waypoint is relative to the previous point for an INCREMENTAL_PATH.
             //
             if (waypointList.size() == 0)
             {
@@ -91,6 +90,14 @@ public class TrcPathBuilder
                 waypoint.pose.setAs(prevPose.addRelativePose(waypoint.pose));
                 waypointList.add(waypoint);
             }
+        }
+        else
+        {
+            //
+            // waypoint is relative to referencePose for a REFERENCE_FRAME_PATH.
+            //
+            waypoint.pose.setAs(waypoint.pose.relativeTo(referencePose));
+            waypointList.add(waypoint);
         }
 
         return this;
