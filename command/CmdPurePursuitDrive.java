@@ -93,6 +93,16 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
         start(0.0, referencePose, poses);
     }   //start
 
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(TrcPose2D... poses)
+    {
+        start(0.0, null, poses);
+    }   //start
+
     //
     // Implements the TrcRobot.RobotCommand interface.
     //
