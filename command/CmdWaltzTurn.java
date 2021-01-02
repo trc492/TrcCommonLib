@@ -45,9 +45,9 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
     }   //enum State
 
     private static final String moduleName = "CmdWaltzTurn";
-    private static final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
 
+    private final TrcDashboard dashboard = TrcDashboard.getInstance();
+    private final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private final TrcDriveBase driveBase;
     private final TrcPidDrive pidDrive;
     private final TrcEvent event;
