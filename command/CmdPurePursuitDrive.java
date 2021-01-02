@@ -26,10 +26,10 @@ import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
 import TrcCommonLib.trclib.TrcHolonomicPurePursuitDrive;
 import TrcCommonLib.trclib.TrcPath;
+import TrcCommonLib.trclib.TrcPathBuilder;
 import TrcCommonLib.trclib.TrcPidController;
 import TrcCommonLib.trclib.TrcPose2D;
 import TrcCommonLib.trclib.TrcRobot;
-import TrcCommonLib.trclib.TrcWaypoint;
 
 /**
  * This class implements a generic Pure Pursuit Drive command. It allows the caller to specify the drive path by
@@ -62,43 +62,35 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * This method starts the Pure Pursuit drive with the specified drive path.
      *
      * @param timeout specifies the maximum time allowed for this operation.
-     * @param incrementalPath specifies true if each point in the path is relative to its previous point, false if
-     *                        each point in the path is relative to the reference pose which is the pose when the
-     *                        path following starts.
-     * @param poses specifies an array of waypoint poses in the drive path.
+     * @param path specifies the drive path with waypoints.
      */
-    public void start(double timeout, boolean incrementalPath, TrcPose2D... poses)
+    public void start(double timeout, TrcPath path)
     {
-        TrcWaypoint[] waypoints = new TrcWaypoint[poses.length];
-
-        for (int i = 0; i < waypoints.length; i++)
-        {
-            waypoints[i] = new TrcWaypoint(incrementalPath? poses[i].relativeTo(poses[0]): poses[i], null);
-        }
-
-        purePursuitDrive.start(new TrcPath(true, waypoints), event, timeout);
+        purePursuitDrive.start(path, event, timeout);
     }   //start
 
     /**
-     * This method starts the Pure Pursuit drive with the specified drive path.
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
-     * @param absolutePoses specifies true if the poses in the array are relative to the first pose, false if
-     *                      relative to the previous pose in the array.
+     * @param timeout specifies the maximum time allowed for this operation.
+     * @param referencePose specifies the referencePose all points in the poses array is relative to.
      * @param poses specifies an array of waypoint poses in the drive path.
      */
-    public void start(boolean absolutePoses, TrcPose2D... poses)
+    public void start(double timeout, TrcPose2D referencePose, TrcPose2D... poses)
     {
-        start(0.0, absolutePoses, poses);
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(referencePose).append(poses);
+        start(timeout, pathBuilder.toPath());
     }   //start
 
     /**
-     * This method starts the Pure Pursuit drive with the specified drive path.
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
+     * @param referencePose specifies the referencePose all points in the poses array is relative to.
      * @param poses specifies an array of waypoint poses in the drive path.
      */
-    public void start(TrcPose2D... poses)
+    public void start(TrcPose2D referencePose, TrcPose2D... poses)
     {
-        start(0.0, false, poses);
+        start(0.0, referencePose, poses);
     }   //start
 
     //

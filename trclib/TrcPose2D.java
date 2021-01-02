@@ -109,8 +109,8 @@ public class TrcPose2D
         if (o == null || getClass() != o.getClass())
             return false;
         TrcPose2D pose2D = (TrcPose2D) o;
-        return Double.compare(pose2D.x, x) == 0 && Double.compare(pose2D.y, y) == 0
-            && Double.compare(pose2D.angle, angle) == 0;
+        return Double.compare(pose2D.x, x) == 0 && Double.compare(pose2D.y, y) == 0 &&
+               Double.compare(pose2D.angle, angle) == 0;
     }   //equals
 
     /**
@@ -222,5 +222,19 @@ public class TrcPose2D
 
         return newPose;
     }   //translatePose
+
+    /**
+     * This method adds a relative pose to the this pose and return the resulting pose. The relative pose has a
+     * relative vector and relative angle from this pose.
+     *
+     * @param relativePose specifies the pose relative to the previous pose.
+     * @return resulting pose.
+     */
+    public TrcPose2D addRelativePose(TrcPose2D relativePose)
+    {
+        RealVector vec = TrcUtil.createVector(this.x, this.y).add(
+                TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+        return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle + relativePose.angle);
+    }   //addRelativePose
 
 }   //class TrcPose2D

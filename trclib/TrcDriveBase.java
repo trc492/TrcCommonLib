@@ -94,7 +94,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return "position=" + position.toString() + ", velocity=" + velocity.toString();
+            return String.format("(pos=%s,vel=%s)", position, velocity);
         }   //toString
 
         /**
