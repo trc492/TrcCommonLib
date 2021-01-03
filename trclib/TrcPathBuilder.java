@@ -136,6 +136,7 @@ public class TrcPathBuilder
     /**
      * This method returns the TrcPath built. All waypoints in the path are in the same reference frame as
      * startingPose.
+     * Note: waypoint headings are relative to the field, regardless of reference frame.
      *
      * @return resulting TrcPath.
      */
@@ -146,6 +147,7 @@ public class TrcPathBuilder
 
     /**
      * This method returns the TrcPath built. All waypoints in the path are relative to startingPose.
+     *  Note: waypoint headings are relative to the field, regardless of reference frame.
      *
      * @return resulting TrcPath relative to startingPose.
      */
