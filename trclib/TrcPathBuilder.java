@@ -93,7 +93,8 @@ public class TrcPathBuilder
      */
     public TrcPathBuilder append(TrcWaypoint waypoint)
     {
-        if (incrementalPath) {
+        if (incrementalPath)
+        {
             //
             // waypoint is relative to the previous point for an INCREMENTAL_PATH.
             // Transform it to be in the same reference frame as startingPose by adding it cumulatively to the
@@ -133,7 +134,8 @@ public class TrcPathBuilder
     }   //append
 
     /**
-     * This method returns the TrcPath built. All waypoints in the path are relative to the initial robot position.
+     * This method returns the TrcPath built. All waypoints in the path are in the same reference frame as
+     * startingPose.
      *
      * @return resulting TrcPath.
      */
@@ -152,4 +154,4 @@ public class TrcPathBuilder
         return toPath().relativeTo(startingPose);
     }   //toRelativeStartPath
 
-}   //class TrcPathBuilding
+}   //class TrcPathBuilder
