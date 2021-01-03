@@ -37,8 +37,34 @@ import TrcCommonLib.trclib.TrcRobot;
  */
 public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
 {
+    private static final double DEF_FOLLOWING_DISTANCE = 6.0;
+    private static final double DEF_POS_TOLERANCE = 3.0;
+    private static final double DEF_TURN_TOLERANCE = 2.0;
+
     private final TrcHolonomicPurePursuitDrive purePursuitDrive;
     private final TrcEvent event;
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param driveBase specifies the drive base object.
+     * @param followingDistance specifies the following distance.
+     * @param posTolerance specifies the position tolerance
+     * @param turnTolerance specifies the turn tolerance.
+     * @param posPidCoeff specifies the PID coefficients for position control.
+     * @param turnPidCoeff specifies the PID coefficients for turn control.
+     * @param velPidCoeff specifies the PID coefficients for velocity control.
+     */
+    public CmdPurePursuitDrive(
+            TrcDriveBase driveBase, double followingDistance, double posTolerance, double turnTolerance,
+            TrcPidController.PidCoefficients posPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
+            TrcPidController.PidCoefficients velPidCoeff)
+    {
+        purePursuitDrive = new TrcHolonomicPurePursuitDrive(
+                "PurePursuitDrive", driveBase, followingDistance, posTolerance, turnTolerance,
+                posPidCoeff, turnPidCoeff, velPidCoeff);
+        event = new TrcEvent("event");
+    }   //CmdPurePursuitDrive
 
     /**
      * Constructor: Create an instance of the object.
@@ -52,10 +78,8 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
             TrcDriveBase driveBase, TrcPidController.PidCoefficients posPidCoeff,
             TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
-        purePursuitDrive = new TrcHolonomicPurePursuitDrive(
-                "PurePursuitDrive", driveBase, 6, 3.0, 2,
-                posPidCoeff, turnPidCoeff, velPidCoeff);
-        event = new TrcEvent("event");
+        this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE,
+             posPidCoeff, turnPidCoeff, velPidCoeff);
     }   //CmdPurePursuitDrive
 
     /**
