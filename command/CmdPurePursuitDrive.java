@@ -97,7 +97,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
             pathBuilder.append(pose);
         }
 
-        purePursuitDrive.start(pathBuilder.toPath(), event, timeout);
+        purePursuitDrive.start(pathBuilder.toRelativeStartPath(), event, timeout);
     }   //start
 
     /**

@@ -139,7 +139,17 @@ public class TrcPathBuilder
      */
     public TrcPath toPath()
     {
-        return new TrcPath(inDegrees, waypointList.toArray(new TrcWaypoint[0])).relativeTo(startingPose);
+        return new TrcPath(inDegrees, waypointList.toArray(new TrcWaypoint[0]));
     }   //toPath
+
+    /**
+     * This method returns the TrcPath built. All waypoints in the path are relative to startingPose.
+     *
+     * @return resulting TrcPath relative to startingPose.
+     */
+    public TrcPath toRelativeStartPath()
+    {
+        return toPath().relativeTo(startingPose);
+    }   //toRelativeStartPath
 
 }   //class TrcPathBuilding
