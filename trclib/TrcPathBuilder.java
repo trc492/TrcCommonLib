@@ -25,104 +25,84 @@ package TrcCommonLib.trclib;
 import java.util.ArrayList;
 
 /**
- * This class builds a TrcPath for path following driving. The path can be built from two types of waypoints:
- * INCREMENTAL_PATH - points in the path are relative to their previous points (referencePose is set to null).
- * REFERENCE_FRAME_PATH - points in the path are relative to the reference frame for which referencePose sets
- * the initial robot location relative to the same reference frame (referencePose is non-null).
+ * This class builds a TrcPath for path following drive. The path can be built from two types of waypoints:
+ * INCREMENTAL_PATH - points in the path are relative to their previous points.
+ * REFERENCE_FRAME_PATH - points in the path are in the same reference frame as the starting pose.
  *
- * For example:
+ * For example, in traditional PID drive:
  * If the robot starts at the absolute field position of (x=48.0, y=12.0, heading=0.0) and we would want to
  * specify a path with 3 segments of relative movement:
  * 1. move forward 24 inches.
  * 2. turn left 90 degrees.
  * 3. strafe right 36 inches.
+ * At the end, the robot will be at (x=48.0, y=72.0, heading=-90.0).
  *
  * In INCREMENTAL_PATH mode, we would do:
- * TrcPathBuilder pathBuilder = new TrcPathBuilder()
- *                                  .append(new TrcPose2D(0.0, 24.0, 0.0))
- *                                  .append(new TrcPose2D(0.0, 0.0, -90.0))
+ * TrcPathBuilder pathBuilder = new TrcPathBuilder(driveBase.getFieldPosition(), true)
+ *                                  .append(new TrcPose2D(0.0, 24.0, -90.0))
  *                                  .append(new TrcPose2D(36.0, 0.0, 0.0));
  *
  * In REFERENCE_FRAME_PATH mode, we would do:
- * TrcPathBuilder pathBuilder = new TrcPathBuilder(driveBase.getFieldPosition())
- *                                  .append(new TrcPose2D(48.0, 36.0, 0.0))
+ * TrcPathBuilder pathBuilder = new TrcPathBuilder(driveBase.getFieldPosition(), false)
+ *                                  .append(driveBase.getFieldPosition())
  *                                  .append(new TrcPose2D(48.0, 36.0, -90.0))
  *                                  .append(new TrcPose2D(48.0, 72.0, -90.0));
  */
 public class TrcPathBuilder
 {
     private final ArrayList<TrcWaypoint> waypointList = new ArrayList<>();
-    private final TrcPose2D referencePose;
+    private final TrcPose2D startingPose;
+    private final boolean incrementalPath;
     private final boolean inDegrees;
 
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param referencePose specifies the initial robot pose as the reference pose, null if waypoints are relative
-     *                      to previous points.
-     * @param inDegrees specifies true if appended waypoints have headings with degree unit, false with radian units.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param inDegrees specifies true if appending points have headings with degree unit, false with radian units.
      */
-    public TrcPathBuilder(TrcPose2D referencePose, boolean inDegrees)
+    public TrcPathBuilder(TrcPose2D startingPose, boolean incrementalPath, boolean inDegrees)
     {
-        this.referencePose = referencePose;
+        this.startingPose = startingPose;
+        this.incrementalPath = incrementalPath;
         this.inDegrees = inDegrees;
+        waypointList.add(new TrcWaypoint(startingPose, null));
     }   //TrcPathBuilder
 
     /**
      * Constructor: Create an instance of the object.
      *
-     * @param referencePose specifies the initial robot pose as the reference pose, null if waypoints are relative
-     *                      to previous points.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
      */
-    public TrcPathBuilder(TrcPose2D referencePose)
+    public TrcPathBuilder(TrcPose2D startingPose, boolean incrementalPath)
     {
-        this(referencePose, true);
-    }   //TrcPathBuilder
-
-    /**
-     * Constructor: Create an instance of the object.
-     */
-    public TrcPathBuilder()
-    {
-        this(null, true);
+        this(startingPose, incrementalPath, true);
     }   //TrcPathBuilder
 
     /**
      * Appends the specified waypoint to the path.
      *
-     * @param waypoint specifies the waypoint to be added to the path. If referencePose is null, waypoint is relative
-     *                 to the previous point, otherwise it is relative to the reference frame.
+     * @param waypoint specifies the waypoint to be added to the path. If incrementalPoth is true, waypoint is
+     *                 relative to the previous point, otherwise it is in the same reference frame as startingPose.
+     *                 Note: the waypoint will be modified to be in the reference frame of startingPose.
      * @return this instance.
      */
     public TrcPathBuilder append(TrcWaypoint waypoint)
     {
-        if (referencePose == null)
-        {
+        if (incrementalPath) {
             //
             // waypoint is relative to the previous point for an INCREMENTAL_PATH.
-            // Transform it to be relative to the initial robot location by adding it cumulatively to all previous
-            // points.
+            // Transform it to be in the same reference frame as startingPose by adding it cumulatively to the
+            // previous point.
             //
-            if (waypointList.size() == 0)
-            {
-                waypointList.add(waypoint);
-            }
-            else
-            {
-                TrcPose2D prevPose = waypointList.get(waypointList.size() - 1).pose;
-                waypoint.pose.setAs(prevPose.addRelativePose(waypoint.pose));
-                waypointList.add(waypoint);
-            }
+            TrcPose2D prevPose = waypointList.get(waypointList.size() - 1).pose;
+            waypoint.pose.setAs(prevPose.addRelativePose(waypoint.pose));
         }
-        else
-        {
-            //
-            // waypoint is relative to the reference frame for a REFERENCE_FRAME_PATH.
-            // Transform it to be relative to the initial robot location indicated by referencePose.
-            //
-            waypoint.pose.setAs(waypoint.pose.relativeTo(referencePose, false));
-            waypointList.add(waypoint);
-        }
+        waypointList.add(waypoint);
 
         return this;
     }   //append
@@ -130,8 +110,8 @@ public class TrcPathBuilder
     /**
      * Appends the specified pose and velocity to the path.
      *
-     * @param pose specifies the pose to be added to the path. If referencePose is null, pose is relative
-     *             to the previous point, otherwise it is relative to the reference frame.
+     * @param pose specifies the pose to be added to the path. If incrementalPoth is true, pose is relative to the
+     *             previous point, otherwise it is in the same reference frame as startingPose.
      * @param velocity specifies the velocity at the pose.
      * @return this instance.
      */
@@ -143,8 +123,8 @@ public class TrcPathBuilder
     /**
      * Appends the specified pose to the path.
      *
-     * @param pose specifies the pose to be added to the path. If referencePose is null, pose is relative
-     *             to the previous point, otherwise it is relative to the reference frame.
+     * @param pose specifies the pose to be added to the path. If incrementalPoth is true, pose is relative to the
+     *             previous point, otherwise it is in the same reference frame as startingPose.
      * @return this instance.
      */
     public TrcPathBuilder append(TrcPose2D pose)
@@ -159,7 +139,7 @@ public class TrcPathBuilder
      */
     public TrcPath toPath()
     {
-        return new TrcPath(inDegrees, (TrcWaypoint[])waypointList.toArray());
+        return new TrcPath(inDegrees, waypointList.toArray(new TrcWaypoint[0])).relativeTo(startingPose);
     }   //toPath
 
 }   //class TrcPathBuilding

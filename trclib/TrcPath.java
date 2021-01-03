@@ -129,29 +129,35 @@ public class TrcPath
     }   //clone
 
     /**
+     * This method translates all the waypoints in the path relative to the specified referencePose.
+     *
+     * @param referencePose specifies the reference pose to translate all waypoints to be referenced to.
+     * @return the translated path.
+     */
+    public TrcPath relativeTo(TrcPose2D referencePose)
+    {
+        TrcWaypoint[] waypoints = inDegrees ? this.waypoints : toDegrees().waypoints;
+        TrcWaypoint[] newPoints = new TrcWaypoint[waypoints.length];
+
+        for (int i = 0; i < waypoints.length; i++)
+        {
+            TrcWaypoint wp = waypoints[i].clone();
+            wp.pose.setAs(wp.pose.relativeTo(referencePose, false));
+            newPoints[i] = wp;
+        }
+        TrcPath path = new TrcPath(true, newPoints);
+
+        return inDegrees ? path : path.toRadians();
+    }   //relativeTo
+
+    /**
      * This method translates all the waypoints in the path relative to the first waypoint in the path.
      *
      * @return the translated path.
      */
     public TrcPath relativeToStart()
     {
-        TrcWaypoint[] waypoints = inDegrees ? this.waypoints : toDegrees().waypoints;
-        TrcWaypoint[] newPoints = new TrcWaypoint[waypoints.length];
-        TrcPose2D start = null;
-        for (int i = 0; i < waypoints.length; i++)
-        {
-            TrcPose2D pose = waypoints[i].pose.clone();
-            if (start == null)
-            {
-                start = pose;
-            }
-            pose = pose.relativeTo(start, false);
-            newPoints[i] = waypoints[i].clone();
-            newPoints[i].pose.x = pose.x;
-            newPoints[i].pose.y = pose.y;
-        }
-        TrcPath path = new TrcPath(true, waypoints);
-        return inDegrees ? path : path.toRadians();
+        return relativeTo(waypoints[0].getPositionPose());
     }   //relativeToStart
 
     /**
