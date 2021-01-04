@@ -26,7 +26,6 @@ import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
 import TrcCommonLib.trclib.TrcHolonomicPurePursuitDrive;
 import TrcCommonLib.trclib.TrcPath;
-import TrcCommonLib.trclib.TrcPathBuilder;
 import TrcCommonLib.trclib.TrcPidController;
 import TrcCommonLib.trclib.TrcPose2D;
 import TrcCommonLib.trclib.TrcRobot;
@@ -114,14 +113,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
-
-        for (TrcPose2D pose: poses)
-        {
-            pathBuilder.append(pose);
-        }
-
-        purePursuitDrive.start(pathBuilder.toRelativeStartPath(), event, timeout);
+        purePursuitDrive.start(event, timeout, startingPose, incrementalPath, poses);
     }   //start
 
     /**

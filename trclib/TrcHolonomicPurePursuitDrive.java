@@ -294,16 +294,6 @@ public class TrcHolonomicPurePursuitDrive
     }   //setRotOutputLimit
 
     /**
-     * Start following the supplied path using a pure pursuit controller.
-     *
-     * @param path The path to follow. Must start at (0,0). Velocity is per second.
-     */
-    public synchronized void start(TrcPath path)
-    {
-        start(path, null, 0.0);
-    }   //start
-
-    /**
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
@@ -341,6 +331,80 @@ public class TrcHolonomicPurePursuitDrive
 
         referencePose = driveBase.getFieldPosition();
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     */
+    public void start(TrcPath path, TrcEvent onFinishedEvent)
+    {
+        start(path, onFinishedEvent, 0.0);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path The path to follow. Must start at (0,0).
+     */
+    public void start(TrcPath path)
+    {
+        start(path, null, 0.0);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+            TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+            TrcPose2D... poses)
+    {
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+
+        start(pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
+    {
+        start(onFinishedEvent, 0.0, startingPose, incrementalPath, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
+    {
+        start(null, 0.0, startingPose, incrementalPath, poses);
     }   //start
 
     /**
