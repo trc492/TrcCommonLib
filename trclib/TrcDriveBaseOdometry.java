@@ -309,17 +309,19 @@ public class TrcDriveBaseOdometry
         count = 0;
         if (x1Odometry != null)
         {
-            avgXPos += adjustValueWithRotation(x1Odometry.currPos, x1Offset, angleDelta, 1.0);
+            avgXPos += adjustValueWithRotation(
+                    x1Odometry.currPos, x1Offset/xScale, angleDelta, 1.0);
             avgXVel += adjustValueWithRotation(
-                    x1Odometry.velocity, x1Offset, angleDelta,
+                    x1Odometry.velocity, x1Offset/xScale, angleDelta,
                     x1Odometry.currTimestamp - x1Odometry.currTimestamp);
             count++;
         }
         if (x2Odometry != null)
         {
-            avgXPos += adjustValueWithRotation(x2Odometry.currPos, x2Offset, angleDelta, 1.0);
+            avgXPos += adjustValueWithRotation(
+                    x2Odometry.currPos, x2Offset/xScale, angleDelta, 1.0);
             avgXVel += adjustValueWithRotation(
-                    x2Odometry.velocity, x2Offset, angleDelta,
+                    x2Odometry.velocity, x2Offset/xScale, angleDelta,
                     x2Odometry.currTimestamp - x2Odometry.currTimestamp);
             count++;
         }
