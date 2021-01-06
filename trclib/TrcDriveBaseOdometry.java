@@ -58,14 +58,49 @@ package TrcCommonLib.trclib;
 public class TrcDriveBaseOdometry
 {
     private final TrcOdometrySensor x1Sensor;
+    private final double x1Offset;
     private final TrcOdometrySensor y1Sensor;
     private final TrcOdometrySensor x2Sensor;
+    private final double x2Offset;
     private final TrcOdometrySensor y2Sensor;
     private final TrcOdometrySensor angleSensor;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
     private double prevAvgXPos, prevAvgYPos;
+
+    /**
+     * Constructor: Create an instance of the object (Configuration 4).
+     *
+     * @param x1Sensor specifies the first X sensor if any.
+     * @param x1Offset specifies the x1 sensor offset from robot centroid.
+     * @param y1Sensor specifies the first Y sensor.
+     * @param x2Sensor specifies the second X sensor if any.
+     * @param x2Offset specifies the x2 sensor offset from robot centroid.
+     * @param y2Sensor specifies the second Y sensor if any.
+     * @param angleSensor specifies the angle sensor.
+     */
+    public TrcDriveBaseOdometry(
+            TrcOdometrySensor x1Sensor, double x1Offset, TrcOdometrySensor y1Sensor,
+            TrcOdometrySensor x2Sensor, double x2Offset, TrcOdometrySensor y2Sensor,
+            TrcOdometrySensor angleSensor)
+    {
+        // y1 and angle sensors are the required minimum.
+        if (y1Sensor == null || angleSensor == null)
+        {
+            throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
+        }
+
+        this.x1Sensor = x1Sensor;
+        this.x1Offset = Math.abs(x1Offset);
+        this.y1Sensor = y1Sensor;
+        this.x2Sensor = x2Sensor;
+        this.x2Offset = Math.abs(x2Offset);
+        this.y2Sensor = y2Sensor;
+        this.angleSensor = angleSensor;
+
+        resetOdometry(true, true);
+    }   //TrcDriveBaseOdometry
 
     /**
      * Constructor: Create an instance of the object (Configuration 4).
@@ -81,19 +116,23 @@ public class TrcDriveBaseOdometry
             TrcOdometrySensor x2Sensor, TrcOdometrySensor y2Sensor,
             TrcOdometrySensor angleSensor)
     {
-        // y1 and angle sensors are the required minimum.
-        if (y1Sensor == null || angleSensor == null)
-        {
-            throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
-        }
+        this(x1Sensor, 0.0, y1Sensor, x2Sensor, 0.0, y2Sensor, angleSensor);
+    }   //TrcDriveBaseOdometry
 
-        this.x1Sensor = x1Sensor;
-        this.y1Sensor = y1Sensor;
-        this.x2Sensor = x2Sensor;
-        this.y2Sensor = y2Sensor;
-        this.angleSensor = angleSensor;
-
-        resetOdometry(true, true);
+    /**
+     * Constructor: Create an instance of the object (Configuration 3).
+     *
+     * @param x1Sensor specifies the first X sensor.
+     * @param x1Offset specifies the x sensor offset from robot centroid.
+     * @param y1Sensor specifies the first Y sensor.
+     * @param y2Sensor specifies the second Y sensor.
+     * @param angleSensor specifies the angle sensor.
+     */
+    public TrcDriveBaseOdometry(
+            TrcOdometrySensor x1Sensor, double x1Offset, TrcOdometrySensor y1Sensor,
+            TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
+    {
+        this(x1Sensor, x1Offset, y1Sensor, null, 0.0, y2Sensor, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
@@ -108,7 +147,7 @@ public class TrcDriveBaseOdometry
             TrcOdometrySensor x1Sensor, TrcOdometrySensor y1Sensor,
             TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
     {
-        this(x1Sensor, y1Sensor, null, y2Sensor, angleSensor);
+        this(x1Sensor, 0.0, y1Sensor, null, 0.0, y2Sensor, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
@@ -121,7 +160,7 @@ public class TrcDriveBaseOdometry
     public TrcDriveBaseOdometry(
             TrcOdometrySensor y1Sensor, TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
     {
-        this(null, y1Sensor, null, y2Sensor, angleSensor);
+        this(null, 0.0, y1Sensor, null, 0.0, y2Sensor, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
@@ -132,7 +171,7 @@ public class TrcDriveBaseOdometry
      */
     public TrcDriveBaseOdometry(TrcOdometrySensor ySensor, TrcOdometrySensor angleSensor)
     {
-        this(null, ySensor, null, null, angleSensor);
+        this(null, 0.0, ySensor, null, 0.0, null, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
@@ -215,8 +254,35 @@ public class TrcDriveBaseOdometry
             angleSensor.resetOdometry(resetHardware);
         }
 
-        prevAvgXPos = averageOdometry(x1Odometry, x2Odometry, true);
-        prevAvgYPos = averageOdometry(y1Odometry, y2Odometry, true);
+        int count;
+
+        prevAvgXPos = 0.0;
+        count = 0;
+        if (x1Odometry != null)
+        {
+            prevAvgXPos += x1Odometry.currPos;
+            count++;
+        }
+        if (x2Odometry != null)
+        {
+            prevAvgXPos += x2Odometry.currPos;
+            count++;
+        }
+        prevAvgXPos /= count;
+
+        prevAvgYPos = 0.0;
+        count = 0;
+        if (y1Odometry != null)
+        {
+            prevAvgYPos += y1Odometry.currPos;
+            count++;
+        }
+        if (y2Odometry != null)
+        {
+            prevAvgYPos += y2Odometry.currPos;
+            count++;
+        }
+        prevAvgYPos /= count;
     }   //resetOdometry
 
     /**
@@ -235,14 +301,52 @@ public class TrcDriveBaseOdometry
         TrcOdometrySensor.Odometry angleOdometry = angleSensor.getOdometry();
         TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
 
-        double avgXPos = averageOdometry(x1Odometry, x2Odometry, true);
-        double avgYPos = averageOdometry(y1Odometry, y2Odometry, true);
-        double avgXVel = averageOdometry(x1Odometry, x2Odometry, false);
-        double avgYVel = averageOdometry(y1Odometry, y2Odometry, false);
+        double angleDelta = angleOdometry.currPos - angleOdometry.prevPos;
+        int count;
+
+        double avgXPos = 0.0;
+        double avgXVel = 0.0;
+        count = 0;
+        if (x1Odometry != null)
+        {
+            avgXPos += adjustValueWithRotation(x1Odometry.currPos, x1Offset, angleDelta, 1.0);
+            avgXVel += adjustValueWithRotation(
+                    x1Odometry.velocity, x1Offset, angleDelta,
+                    x1Odometry.currTimestamp - x1Odometry.currTimestamp);
+            count++;
+        }
+        if (x2Odometry != null)
+        {
+            avgXPos += adjustValueWithRotation(x2Odometry.currPos, x2Offset, angleDelta, 1.0);
+            avgXVel += adjustValueWithRotation(
+                    x2Odometry.velocity, x2Offset, angleDelta,
+                    x2Odometry.currTimestamp - x2Odometry.currTimestamp);
+            count++;
+        }
+        avgXPos /= count;
+        avgXVel /= count;
+
+        double avgYPos = 0.0;
+        double avgYVel = 0.0;
+        count = 0;
+        if (y1Odometry != null)
+        {
+            avgYPos += y1Odometry.currPos;
+            avgYVel += y1Odometry.velocity;
+            count++;
+        }
+        if (y2Odometry != null)
+        {
+            avgYPos += y2Odometry.currPos;
+            avgYVel += y2Odometry.velocity;
+            count++;
+        }
+        avgYPos /= count;
+        avgYVel /= count;
 
         odometryDelta.position.x = (avgXPos - prevAvgXPos)*xScale;
         odometryDelta.position.y = (avgYPos - prevAvgYPos)*yScale;
-        odometryDelta.position.angle = (angleOdometry.currPos - angleOdometry.prevPos)*angleScale;
+        odometryDelta.position.angle = angleDelta*angleScale;
         odometryDelta.velocity.x = avgXVel*xScale;
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
@@ -254,32 +358,18 @@ public class TrcDriveBaseOdometry
     }   //getOdometryDelta
 
     /**
-     * This method is called to average two sensors of the same direction.
+     * This method adjusts the odometry value if the sensor has an offset from the robot centroid. This is only
+     * necessary if there is not a pair of odometry sensors for the axis that are equidistant from the robot
+     * centroid that will cancel each other out in an in-place rotation.
      *
-     * @param odometry1 specifies the odometry of the first sensor.
-     * @param odometry2 specifies the odometry of the second sensor.
-     * @param position specifies true to average the position data, false to average velocity data.
-     * @return sensor averaged value.
+     * @param value specifies the odometry value to be adjusted.
+     * @param sensorOffset specifies the sensor offset from the robot centroid.
+     * @param deltaDegrees specifies the rotation angle delta in degrees.
+     * @param deltaTime specifies the time delta if the adjusted value is velocity, specifies 1 for position.
      */
-    private double averageOdometry(
-            TrcOdometrySensor.Odometry odometry1, TrcOdometrySensor.Odometry odometry2, boolean position)
+    private double adjustValueWithRotation(double value, double sensorOffset, double deltaDegrees, double deltaTime)
     {
-        double value = 0.0;
-        int sensorCount = 0;
-
-        if (odometry1 != null)
-        {
-            value += position? odometry1.currPos: odometry1.velocity;
-            sensorCount++;
-        }
-
-        if (odometry2 != null)
-        {
-            value += position? odometry2.currPos: odometry2.velocity;
-            sensorCount++;
-        }
-
-        return value/sensorCount;
-    }   //averageOdometry
+        return value - sensorOffset * Math.toRadians(deltaDegrees) / deltaTime;
+    }   //adjustValueWithRotation
 
 }   //class TrcDriveBaseOdometry
