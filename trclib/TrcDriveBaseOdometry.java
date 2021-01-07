@@ -110,10 +110,11 @@ public class TrcDriveBaseOdometry
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
-    private TrcDbgTrace msgTracer = null;
+    private TrcDbgTrace debugTracer = null;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
+    private double prevAvgXPos, prevAvgYPos;
 
     /**
      * Constructor: Create an instance of the object. This is typically used for configuration 5.
@@ -182,15 +183,15 @@ public class TrcDriveBaseOdometry
     }   //TrcDriveBaseOdometry
 
     /**
-     * This method allows the caller to dynamically enable/disable message tracing of the odometry calculation.
+     * This method allows the caller to dynamically enable/disable debug tracing of the odometry calculation.
      * It is very useful for debugging odometry related issues.
      *
-     * @param tracer  specifies the tracer to be used for message tracing, null to disable message tracing.
+     * @param tracer  specifies the tracer to be used for debug tracing, null to disable debug tracing.
      */
-    public synchronized void setMsgTracer(TrcDbgTrace tracer)
+    public synchronized void setDebugTracer(TrcDbgTrace tracer)
     {
-        this.msgTracer = tracer;
-    }   //setMsgTracer
+        this.debugTracer = tracer;
+    }   //setDebugTracer
 
     /**
      * This method sets the scaling factors for both X, Y and angle data. This is typically used to scale encoder
@@ -227,22 +228,28 @@ public class TrcDriveBaseOdometry
      */
     public synchronized void resetOdometry(boolean resetHardware, boolean resetAngle)
     {
+        prevAvgXPos = 0.0;
         if (xSensors != null)
         {
             for (AxisSensor s: xSensors)
             {
                 s.sensor.resetOdometry(resetHardware);
                 s.odometry = s.sensor.getOdometry();
+                prevAvgXPos += s.odometry.currPos;
             }
+            prevAvgXPos /= xSensors.length;
         }
 
+        prevAvgYPos = 0.0;
         if (ySensors != null)
         {
             for (AxisSensor s: ySensors)
             {
                 s.sensor.resetOdometry(resetHardware);
                 s.odometry = s.sensor.getOdometry();
+                prevAvgYPos += s.odometry.currPos;
             }
+            prevAvgYPos /= ySensors.length;
         }
 
         if (angleSensor != null && resetAngle)
@@ -265,22 +272,24 @@ public class TrcDriveBaseOdometry
         updateAxisOdometries(ySensors);
         angleOdometry = angleSensor.getOdometry();
 
-        double angleDelta = angleOdometry.currPos - angleOdometry.prevPos;
-        double avgDeltaXPos = averageSensorValues(xSensors, xScale, angleDelta, true);
-        double avgDeltaYPos = averageSensorValues(ySensors, yScale, angleDelta, true);
-        double avgXVel = averageSensorValues(xSensors, xScale, angleDelta, false);
-        double avgYVel = averageSensorValues(ySensors, yScale, angleDelta, false);
+        double avgXPos = averageSensorValues(xSensors, xScale, true);
+        double avgYPos = averageSensorValues(ySensors, yScale, true);
+        double avgXVel = averageSensorValues(xSensors, xScale, false);
+        double avgYVel = averageSensorValues(ySensors, yScale, false);
         //
         // Note: In odometryDelta, only position data is really a delta from previous position.
         // Velocity data IS NOT a delta.
         //
         TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
-        odometryDelta.position.x = avgDeltaXPos*xScale;
-        odometryDelta.position.y = avgDeltaYPos*yScale;
-        odometryDelta.position.angle = angleDelta*angleScale;
+        odometryDelta.position.x = (avgXPos - prevAvgXPos)*xScale;
+        odometryDelta.position.y = (avgYPos - prevAvgYPos)*yScale;
+        odometryDelta.position.angle = (angleOdometry.currPos - angleOdometry.prevPos)*angleScale;
         odometryDelta.velocity.x = avgXVel*xScale;
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
+
+        prevAvgXPos = avgXPos;
+        prevAvgYPos = avgYPos;
 
         return odometryDelta;
     }   //getOdometryDelta
@@ -307,11 +316,10 @@ public class TrcDriveBaseOdometry
      *
      * @param axisSensors specifies the axis sensor array to be averaged.
      * @param scale specifies the odometry sensor scale.
-     * @param angleDelta specifies angle delta in degrees for rotational adjustment.
      * @param position specifies true to average position data, false to average velocity data.
      * @return averaged value.
      */
-    private double averageSensorValues(AxisSensor[] axisSensors, double scale, double angleDelta, boolean position)
+    private double averageSensorValues(AxisSensor[] axisSensors, double scale, boolean position)
     {
         double value = 0.0;
 
@@ -322,42 +330,25 @@ public class TrcDriveBaseOdometry
 
             if (position)
             {
-                data = adjustValueWithRotation(
-                        s.odometry.currPos - s.odometry.prevPos, s.axisOffset/scale, angleDelta, 1.0);
+                data = s.odometry.currPos - s.axisOffset/scale * Math.toRadians(angleOdometry.currPos);
             }
             else
             {
-                data = adjustValueWithRotation(
-                        s.odometry.velocity, s.axisOffset/scale, angleDelta,
-                        s.odometry.currTimestamp - s.odometry.prevTimestamp);
+                data = s.odometry.velocity -
+                       s.axisOffset/scale * Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos) /
+                       (angleOdometry.currTimestamp - angleOdometry.prevTimestamp);
             }
             value += data;
 
-            if (msgTracer != null)
+            if (debugTracer != null)
             {
-                msgTracer.traceInfo(moduleName, "%s[%d] angleDelta=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
-                        position? "Pos": "Vel", i, angleDelta,
-                        position? s.odometry.currPos - s.odometry.prevPos: s.odometry.velocity,
-                        data, value/(i + 1));
+                debugTracer.traceInfo(moduleName, "%s[%d] timestamp=%.3f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
+                        position? "Pos": "Vel", i, s.odometry.currTimestamp, angleOdometry.currPos,
+                        position? s.odometry.currPos: s.odometry.velocity, data, value/(i + 1));
             }
         }
 
         return value/axisSensors.length;
     }   //averageSensorValues
-
-    /**
-     * This method adjusts the odometry value if the sensor has an offset from the robot centroid. This is only
-     * necessary if there is not a pair of odometry sensors for the axis that are equidistant from the robot
-     * centroid that will cancel each other out in an in-place rotation.
-     *
-     * @param value specifies the odometry value to be adjusted.
-     * @param sensorOffset specifies the sensor offset from the robot centroid in sensor unit (e.g. encoder counts).
-     * @param deltaDegrees specifies the rotation angle delta in degrees.
-     * @param deltaTime specifies the time delta if the adjusted value is velocity, specifies 1 for position.
-     */
-    private double adjustValueWithRotation(double value, double sensorOffset, double deltaDegrees, double deltaTime)
-    {
-        return value - sensorOffset * Math.toRadians(deltaDegrees) / deltaTime;
-    }   //adjustValueWithRotation
 
 }   //class TrcDriveBaseOdometry
