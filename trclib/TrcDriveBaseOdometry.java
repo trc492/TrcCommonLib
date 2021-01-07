@@ -351,7 +351,7 @@ public class TrcDriveBaseOdometry
      * centroid that will cancel each other out in an in-place rotation.
      *
      * @param value specifies the odometry value to be adjusted.
-     * @param sensorOffset specifies the sensor offset from the robot centroid.
+     * @param sensorOffset specifies the sensor offset from the robot centroid in sensor unit (e.g. encoder counts).
      * @param deltaDegrees specifies the rotation angle delta in degrees.
      * @param deltaTime specifies the time delta if the adjusted value is velocity, specifies 1 for position.
      */
