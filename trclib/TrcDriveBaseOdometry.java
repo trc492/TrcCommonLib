@@ -71,11 +71,16 @@ package TrcCommonLib.trclib;
  */
 public class TrcDriveBaseOdometry
 {
+    private static final String moduleName = "TrcDriveBaseOdometry";
+
+    /**
+     * This class encapsulates an axis sensor with its axis offset.
+     */
     public static class AxisSensor
     {
         final TrcOdometrySensor sensor;
         final double axisOffset;
-        TrcOdometrySensor.Odometry odometry = null;
+        private TrcOdometrySensor.Odometry odometry = null;
 
         /**
          * Constructor: Create an instance of the object.
@@ -105,6 +110,7 @@ public class TrcDriveBaseOdometry
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
+    private TrcDbgTrace debugTracer = null;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
@@ -175,6 +181,18 @@ public class TrcDriveBaseOdometry
     {
         this((AxisSensor[])null, new AxisSensor[] {ySensor}, angleSensor);
     }   //TrcDriveBaseOdometry
+
+    /**
+     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
+     * very useful for debugging or tuning PID control.
+     *
+     * @param tracer  specifies the tracer to be used for debug tracing.
+     * @param enabled specifies true to enable the debug tracer, false to disable.
+     */
+    public synchronized void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
+    {
+        debugTracer = enabled ? tracer : null;
+    }   //setDebugTraceEnabled
 
     /**
      * This method sets the scaling factors for both X, Y and angle data. This is typically used to scale encoder
@@ -304,17 +322,28 @@ public class TrcDriveBaseOdometry
     {
         double value = 0.0;
 
-        for (AxisSensor s: axisSensors)
+        for (int i = 0; i < axisSensors.length; i++)
         {
+            AxisSensor s = axisSensors[i];
+            double data;
+
             if (position)
             {
-                value += adjustValueWithRotation(s.odometry.currPos, s.axisOffset, angleDelta, 1.0);
+                data = adjustValueWithRotation(s.odometry.currPos, s.axisOffset, angleDelta, 1.0);
             }
             else
             {
-                value += adjustValueWithRotation(
+                data = adjustValueWithRotation(
                         s.odometry.velocity, s.axisOffset, angleDelta,
                         s.odometry.currTimestamp - s.odometry.prevTimestamp);
+            }
+            value += data;
+
+            if (debugTracer != null)
+            {
+                debugTracer.traceInfo(moduleName, "%s[%d] angleDelta=%f, data=%f, adjData=%f, value=%f",
+                        position? "Pos": "Vel", i, angleDelta, position? s.odometry.currPos: s.odometry.velocity,
+                        data, value/(i + 1));
             }
         }
 
