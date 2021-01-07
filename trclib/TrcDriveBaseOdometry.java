@@ -114,7 +114,6 @@ public class TrcDriveBaseOdometry
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
-    private double prevAvgXPos, prevAvgYPos;
 
     /**
      * Constructor: Create an instance of the object. This is typically used for configuration 5.
@@ -229,28 +228,22 @@ public class TrcDriveBaseOdometry
      */
     public synchronized void resetOdometry(boolean resetHardware, boolean resetAngle)
     {
-        prevAvgXPos = 0.0;
         if (xSensors != null)
         {
             for (AxisSensor s: xSensors)
             {
                 s.sensor.resetOdometry(resetHardware);
                 s.odometry = s.sensor.getOdometry();
-                prevAvgXPos += s.odometry.currPos;
             }
-            prevAvgXPos /= xSensors.length;
         }
 
-        prevAvgYPos = 0.0;
         if (ySensors != null)
         {
             for (AxisSensor s: ySensors)
             {
                 s.sensor.resetOdometry(resetHardware);
                 s.odometry = s.sensor.getOdometry();
-                prevAvgYPos += s.odometry.currPos;
             }
-            prevAvgYPos /= ySensors.length;
         }
 
         if (angleSensor != null && resetAngle)
@@ -274,21 +267,18 @@ public class TrcDriveBaseOdometry
         angleOdometry = angleSensor.getOdometry();
 
         double angleDelta = angleOdometry.currPos - angleOdometry.prevPos;
-        double avgXPos = averageSensorValues(xSensors, xScale, angleDelta, true);
-        double avgYPos = averageSensorValues(ySensors, yScale, angleDelta, true);
+        double avgDeltaXPos = averageSensorValues(xSensors, xScale, angleDelta, true);
+        double avgDeltaYPos = averageSensorValues(ySensors, yScale, angleDelta, true);
         double avgXVel = averageSensorValues(xSensors, xScale, angleDelta, false);
         double avgYVel = averageSensorValues(ySensors, yScale, angleDelta, false);
 
         TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
-        odometryDelta.position.x = (avgXPos - prevAvgXPos)*xScale;
-        odometryDelta.position.y = (avgYPos - prevAvgYPos)*yScale;
+        odometryDelta.position.x = avgDeltaXPos*xScale;
+        odometryDelta.position.y = avgDeltaYPos*yScale;
         odometryDelta.position.angle = angleDelta*angleScale;
         odometryDelta.velocity.x = avgXVel*xScale;
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
-
-        prevAvgXPos = avgXPos;
-        prevAvgYPos = avgYPos;
 
         return odometryDelta;
     }   //getOdometryDelta
@@ -331,7 +321,7 @@ public class TrcDriveBaseOdometry
             if (position)
             {
                 data = adjustValueWithRotation(
-                        s.odometry.currPos, s.axisOffset/scale, angleDelta, 1.0);
+                        s.odometry.currPos - s.odometry.prevPos, s.axisOffset/scale, angleDelta, 1.0);
             }
             else
             {
