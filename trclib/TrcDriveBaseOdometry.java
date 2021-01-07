@@ -110,7 +110,7 @@ public class TrcDriveBaseOdometry
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
-    private TrcDbgTrace debugTracer = null;
+    private TrcDbgTrace msgTracer = null;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
@@ -182,16 +182,15 @@ public class TrcDriveBaseOdometry
     }   //TrcDriveBaseOdometry
 
     /**
-     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
-     * very useful for debugging or tuning PID control.
+     * This method allows the caller to dynamically enable/disable message tracing of the odometry calculation.
+     * It is very useful for debugging odometry related issues.
      *
-     * @param tracer  specifies the tracer to be used for debug tracing.
-     * @param enabled specifies true to enable the debug tracer, false to disable.
+     * @param tracer  specifies the tracer to be used for message tracing, null to disable message tracing.
      */
-    public synchronized void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
+    public synchronized void setMsgTracer(TrcDbgTrace tracer)
     {
-        debugTracer = enabled ? tracer : null;
-    }   //setDebugTraceEnabled
+        this.msgTracer = tracer;
+    }   //setMsgTracer
 
     /**
      * This method sets the scaling factors for both X, Y and angle data. This is typically used to scale encoder
@@ -331,10 +330,11 @@ public class TrcDriveBaseOdometry
             }
             value += data;
 
-            if (debugTracer != null)
+            if (msgTracer != null)
             {
-                debugTracer.traceInfo(moduleName, "%s[%d] angleDelta=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
-                        position? "Pos": "Vel", i, angleDelta, position? s.odometry.currPos: s.odometry.velocity,
+                msgTracer.traceInfo(moduleName, "%s[%d] angleDelta=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
+                        position? "Pos": "Vel", i, angleDelta,
+                        position? s.odometry.currPos - s.odometry.prevPos: s.odometry.velocity,
                         data, value/(i + 1));
             }
         }
