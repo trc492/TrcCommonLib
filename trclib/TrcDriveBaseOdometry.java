@@ -23,155 +23,157 @@
 package TrcCommonLib.trclib;
 
 /**
- * This class implements a platform independent drive base odometry device. A drive base odometry device consists of
- * two to five sensors, zero to two for the X direction and one to two for Y, and an angle sensor for orientation.
- * All sensors must be able to report position as well as velocity data. This class supports four different odometry
- * configurations.
+ * This class implements a platform independent drive base odometry device. A drive base odometry device generally
+ * consists of two to five sensors: zero to two for the X-axis, one to two for the Y-axis and one rotational sensor.
+ * All sensors must be able to report position as well as velocity data. If the sensor does not provide velocity
+ * data natively, it must calculate velocity data by differentiating position data against time. For axis sensors,
+ * they must be oriented parallel to the axis and installed tangential to the drive base centroid. They can have an
+ * offset from the centroid of the drive base. For X-axis, the front sensor must have a positive offset value, the
+ * back sensor must have a negative offset value. For Y-axis, the left sensor must have a positive offset value, the
+ * right sensor must have a negative offset value. Some typical configurations are listed below.
  *
  * Configuration 1:
- * This configuration has 2 sensors, 1 for Y and one for angle. The Y sensor must be installed at the centroid
- * of the robot so that an in-place turn will not produce any displacement in Y. It is most likely an encoder on
- * passive omni-wheels. The angle sensor is most likely a gyro. This configuration is not for holonomic drive base
- * since it doesn't provide X odometry.
+ * This configuration has 2 sensors: one for Y-axis and one for rotation. The Y-axis sensor is most likely an encoder
+ * on passive omni-wheels installed parallel to the Y-axis. The angle sensor is most likely a gyro. This configuration
+ * does not support holonomic drive base since it doesn't provide X odometry. The Y sensor is typically installed
+ * inline with either the left or the right wheels and tangential to the centroid of the drive base.
  *
  * Configuration 2:
- * This configuration has 3 sensors, two for Y and one for angle. The two Y sensors must be installed in-line
- * with and equidistant from the centroid of the robot and are most likely installed in the middle between the front
- * and back wheels, one on the left and one on the right. The installation locations of the Y sensors are such that
- * if the robot is doing an in-place turn, the two Y sensors will cancel each other out netting a zero displacement.
- * Just like the first configuration, this configuration is not for holonomic drive base since it doesn't provide X
- * odometry.
+ * This configuration has 3 sensors: one for X-axis, one for Y-axis and one for rotation. The X and Y sensors are most
+ * likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor is
+ * most likely a gyro. This configuration can support holonomic drive base. The Y sensor is typically installed
+ * inline with either the left or the right wheels and tangential to the drive base centroid. The X sensor is
+ * typically installed on the front or the back of the drive base tangential to the centroid of the drive base.
  *
  * Configuration 3:
- * This configuration has 4 sensors, two for Y, one for X and one for angle. The two Y sensors must be installed
- * just like the 3-sensor configuration. The X sensor must be installed at the centroid of the robot so in-place
- * turning will not produce any displacement in X. The X and Y sensors form an H-configuration. This is the minimum
- * configuration for drive base that's capable of holonomic drive.
+ * This configuration also has 3 sensors: two for Y-axis and one for rotation. The Y sensors are most likely encoders
+ * on passive omni-wheels installed parallel to the Y axis. The angle sensor is most likely a gyro. This configuration
+ * does not support holonomic drive base since it doesn't provide X odometry. The two Y sensors are typically
+ * installed on the left and right sides of the drive base equidistant to the centroid most likely inline with the
+ * left and right wheels and tangential to the centroid of the drive base.
  *
  * Configuration 4:
- * This configuration has 5 sensors, two for Y, two for X and one for angle. The two Y sensors must be installed
- * just like the configurations with 3 or 4 sensors. The two X sensors must also be installed in-line with and
- * equidistant from the centroid of the robot and it must be orthogonal to the two Y sensors most likely one in mid
- * front and the other in mid back. With this configuration, the X and Y sensor pairs will cancel each other out
- * during an in-place turn producing net zero X and Y displacements.
+ * This configuration has 4 sensors: one for X-axis, two for Y-axis and one for rotation. The three axes sensors are
+ * most likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor
+ * is most likely a gyro. This configuration can support holonomic drive base. The two Y sensors are typically
+ * installed on the left and right sides of the drive base equidistant to the centroid most likely inline with the
+ * left and right wheels and tangential to the centroid of the drive base. The X sensor is typically installed on
+ * the front or the back of the drive base and tangential to the centroid of the drive base.
+ *
+ * Configuration 5:
+ * This configuration has 5 sensors: two for X-axis, two for Y-axis and one for rotation. The four axes sensors are
+ * most likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor
+ * is most likely a gyro. This configuration can support holonmic drive base. The two Y sensors are typically
+ * installed on the left and right sides of the drive base equidistant to the centroid most likely inline with the
+ * left and right wheels and tangential to the centroid of the drive base. The two X sensors are typically installed
+ * on the front or the back of the drive base equidistant to the centroid and tangential to the centroid of the drive
+ * base.
  */
 public class TrcDriveBaseOdometry
 {
-    private final TrcOdometrySensor x1Sensor;
-    private final double x1Offset;
-    private final TrcOdometrySensor y1Sensor;
-    private final TrcOdometrySensor x2Sensor;
-    private final double x2Offset;
-    private final TrcOdometrySensor y2Sensor;
+    public static class AxisSensor
+    {
+        final TrcOdometrySensor sensor;
+        final double axisOffset;
+        TrcOdometrySensor.Odometry odometry = null;
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param sensor specifies the odometry sensor.
+         * @param axisOffset specifies the axis offset from centroid.
+         */
+        public AxisSensor(TrcOdometrySensor sensor, double axisOffset)
+        {
+            this.sensor = sensor;
+            this.axisOffset = axisOffset;
+        }   //AxisSensor
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param sensor specifies the odometry sensor.
+         */
+        public AxisSensor(TrcOdometrySensor sensor)
+        {
+            this(sensor, 0.0);
+        }   //AxisSensor
+
+    }   //class AxisSensor
+
+    private final AxisSensor[] xSensors;
+    private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
+    private TrcOdometrySensor.Odometry angleOdometry;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
     private double prevAvgXPos, prevAvgYPos;
 
     /**
-     * Constructor: Create an instance of the object (Configuration 4).
+     * Constructor: Create an instance of the object. This is typically used for configuration 5.
      *
-     * @param x1Sensor specifies the first X sensor if any.
-     * @param x1Offset specifies the x1 sensor offset from robot centroid.
-     * @param y1Sensor specifies the first Y sensor.
-     * @param x2Sensor specifies the second X sensor if any.
-     * @param x2Offset specifies the x2 sensor offset from robot centroid.
-     * @param y2Sensor specifies the second Y sensor if any.
-     * @param angleSensor specifies the angle sensor.
+     * @param xSensors specifies an array of Odometry sensors for the X-axis.
+     * @param ySensors specifies an array of Odometry sensors for the Y-axis.
+     * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(
-            TrcOdometrySensor x1Sensor, double x1Offset, TrcOdometrySensor y1Sensor,
-            TrcOdometrySensor x2Sensor, double x2Offset, TrcOdometrySensor y2Sensor,
-            TrcOdometrySensor angleSensor)
+    public TrcDriveBaseOdometry(AxisSensor[] xSensors, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
-        // y1 and angle sensors are the required minimum.
-        if (y1Sensor == null || angleSensor == null)
+        if (ySensors == null || angleSensor == null || ySensors.length < 1)
         {
             throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
         }
 
-        this.x1Sensor = x1Sensor;
-        this.x1Offset = Math.abs(x1Offset);
-        this.y1Sensor = y1Sensor;
-        this.x2Sensor = x2Sensor;
-        this.x2Offset = Math.abs(x2Offset);
-        this.y2Sensor = y2Sensor;
+        this.xSensors = xSensors;
+        this.ySensors = ySensors;
         this.angleSensor = angleSensor;
-
         resetOdometry(true, true);
     }   //TrcDriveBaseOdometry
 
     /**
-     * Constructor: Create an instance of the object (Configuration 4).
+     * Constructor: Create an instance of the object. This is typically used for configuration 4.
      *
-     * @param x1Sensor specifies the first X sensor if any.
-     * @param y1Sensor specifies the first Y sensor.
-     * @param x2Sensor specifies the second X sensor if any.
-     * @param y2Sensor specifies the second Y sensor if any.
-     * @param angleSensor specifies the angle sensor.
+     * @param xSensor specifies an Odometry sensors for the X-axis.
+     * @param ySensors specifies an array of Odometry sensors for the Y-axis.
+     * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(
-            TrcOdometrySensor x1Sensor, TrcOdometrySensor y1Sensor,
-            TrcOdometrySensor x2Sensor, TrcOdometrySensor y2Sensor,
-            TrcOdometrySensor angleSensor)
+    public TrcDriveBaseOdometry(AxisSensor xSensor, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
-        this(x1Sensor, 0.0, y1Sensor, x2Sensor, 0.0, y2Sensor, angleSensor);
+        this(new AxisSensor[] {xSensor}, ySensors, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
-     * Constructor: Create an instance of the object (Configuration 3).
+     * Constructor: Create an instance of the object. This is typically used for configuration 3.
      *
-     * @param x1Sensor specifies the first X sensor.
-     * @param x1Offset specifies the x sensor offset from robot centroid.
-     * @param y1Sensor specifies the first Y sensor.
-     * @param y2Sensor specifies the second Y sensor.
-     * @param angleSensor specifies the angle sensor.
+     * @param ySensors specifies an array of Odometry sensors for the Y-axis.
+     * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(
-            TrcOdometrySensor x1Sensor, double x1Offset, TrcOdometrySensor y1Sensor,
-            TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
+    public TrcDriveBaseOdometry(AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
-        this(x1Sensor, x1Offset, y1Sensor, null, 0.0, y2Sensor, angleSensor);
+        this((AxisSensor[])null, ySensors, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
-     * Constructor: Create an instance of the object (Configuration 3).
+     * Constructor: Create an instance of the object. This is typically use for configuration 2.
      *
-     * @param x1Sensor specifies the first X sensor.
-     * @param y1Sensor specifies the first Y sensor.
-     * @param y2Sensor specifies the second Y sensor.
-     * @param angleSensor specifies the angle sensor.
+     * @param xSensor specifies an Odometry sensors for the X-axis.
+     * @param ySensor specifies an Odometry sensors for the Y-axis.
+     * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(
-            TrcOdometrySensor x1Sensor, TrcOdometrySensor y1Sensor,
-            TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
+    public TrcDriveBaseOdometry(AxisSensor xSensor, AxisSensor ySensor, TrcOdometrySensor angleSensor)
     {
-        this(x1Sensor, 0.0, y1Sensor, null, 0.0, y2Sensor, angleSensor);
+        this(new AxisSensor[] {xSensor}, new AxisSensor[] {ySensor}, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
-     * Constructor: Create an instance of the object (Configuration 2).
+     * Constructor: Create an instance of the object. This is typically use for configuration 1.
      *
-     * @param y1Sensor specifies the first Y sensor.
-     * @param y2Sensor specifies the second Y sensor.
-     * @param angleSensor specifies the angle sensor.
+     * @param ySensor specifies an Odometry sensors for the Y-axis.
+     * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(
-            TrcOdometrySensor y1Sensor, TrcOdometrySensor y2Sensor, TrcOdometrySensor angleSensor)
+    public TrcDriveBaseOdometry(AxisSensor ySensor, TrcOdometrySensor angleSensor)
     {
-        this(null, 0.0, y1Sensor, null, 0.0, y2Sensor, angleSensor);
-    }   //TrcDriveBaseOdometry
-
-    /**
-     * Constructor: Create an instance of the object (Configuration 1).
-     *
-     * @param ySensor specifies the Y sensor.
-     * @param angleSensor specifies the angle sensor.
-     */
-    public TrcDriveBaseOdometry(TrcOdometrySensor ySensor, TrcOdometrySensor angleSensor)
-    {
-        this(null, 0.0, ySensor, null, 0.0, null, angleSensor);
+        this((AxisSensor[])null, new AxisSensor[] {ySensor}, angleSensor);
     }   //TrcDriveBaseOdometry
 
     /**
@@ -193,23 +195,12 @@ public class TrcDriveBaseOdometry
      * This method sets the scaling factors for Y and angle data. This is typically used to scale encoder
      * counts to physical units such as inches. If the scale of a direction is not provided, it must be set to 1.0.
      *
-     * @param yScale specifies the scale factor for the Y direction.
-     * @param angleScale specifies the scale factor the the angle.
-     */
-    public void setOdometryScales(double yScale, double angleScale)
-    {
-        this.setOdometryScales(1.0, yScale, angleScale);
-    }   //setOdometryScales
-
-    /**
-     * This method sets the scaling factors for Y data. This is typically used to scale encoder counts to
-     * physical units such as inches. If the scale of a direction is not provided, it must be set to 1.0.
-     *
+     * @param xScale specifies the scale factor for the X direction.
      * @param yScale specifies the scale factor for the Y direction.
      */
-    public void setOdometryScales(double yScale)
+    public void setOdometryScales(double xScale, double yScale)
     {
-        this.setOdometryScales(1.0, yScale, 1.0);
+        this.setOdometryScales(xScale, yScale, 1.0);
     }   //setOdometryScales
 
     /**
@@ -220,69 +211,35 @@ public class TrcDriveBaseOdometry
      */
     public synchronized void resetOdometry(boolean resetHardware, boolean resetAngle)
     {
-        TrcOdometrySensor.Odometry x1Odometry = null;
-        TrcOdometrySensor.Odometry x2Odometry = null;
-        TrcOdometrySensor.Odometry y1Odometry = null;
-        TrcOdometrySensor.Odometry y2Odometry = null;
-
-        if (x1Sensor != null)
+        prevAvgXPos = 0.0;
+        if (xSensors != null)
         {
-            x1Sensor.resetOdometry(resetHardware);
-            x1Odometry = x1Sensor.getOdometry();
+            for (AxisSensor s: xSensors)
+            {
+                s.sensor.resetOdometry(resetHardware);
+                s.odometry = s.sensor.getOdometry();
+                prevAvgXPos += s.odometry.currPos;
+            }
+            prevAvgXPos /= xSensors.length;
         }
 
-        if (y1Sensor != null)
+        prevAvgYPos = 0.0;
+        if (ySensors != null)
         {
-            y1Sensor.resetOdometry(resetHardware);
-            y1Odometry = y1Sensor.getOdometry();
-        }
-
-        if (x2Sensor != null)
-        {
-            x2Sensor.resetOdometry(resetHardware);
-            x2Odometry = x2Sensor.getOdometry();
-        }
-
-        if (y2Sensor != null)
-        {
-            y2Sensor.resetOdometry(resetHardware);
-            y2Odometry = y2Sensor.getOdometry();
+            for (AxisSensor s: ySensors)
+            {
+                s.sensor.resetOdometry(resetHardware);
+                s.odometry = s.sensor.getOdometry();
+                prevAvgYPos += s.odometry.currPos;
+            }
+            prevAvgYPos /= ySensors.length;
         }
 
         if (angleSensor != null && resetAngle)
         {
             angleSensor.resetOdometry(resetHardware);
+            angleOdometry = angleSensor.getOdometry();
         }
-
-        int count;
-
-        prevAvgXPos = 0.0;
-        count = 0;
-        if (x1Odometry != null)
-        {
-            prevAvgXPos += x1Odometry.currPos;
-            count++;
-        }
-        if (x2Odometry != null)
-        {
-            prevAvgXPos += x2Odometry.currPos;
-            count++;
-        }
-        prevAvgXPos /= count;
-
-        prevAvgYPos = 0.0;
-        count = 0;
-        if (y1Odometry != null)
-        {
-            prevAvgYPos += y1Odometry.currPos;
-            count++;
-        }
-        if (y2Odometry != null)
-        {
-            prevAvgYPos += y2Odometry.currPos;
-            count++;
-        }
-        prevAvgYPos /= count;
     }   //resetOdometry
 
     /**
@@ -294,58 +251,17 @@ public class TrcDriveBaseOdometry
      */
     public synchronized TrcDriveBase.Odometry getOdometryDelta()
     {
-        TrcOdometrySensor.Odometry x1Odometry = x1Sensor != null? x1Sensor.getOdometry(): null;
-        TrcOdometrySensor.Odometry x2Odometry = x2Sensor != null? x2Sensor.getOdometry(): null;
-        TrcOdometrySensor.Odometry y1Odometry = y1Sensor != null? y1Sensor.getOdometry(): null;
-        TrcOdometrySensor.Odometry y2Odometry = y2Sensor != null? y2Sensor.getOdometry(): null;
-        TrcOdometrySensor.Odometry angleOdometry = angleSensor.getOdometry();
-        TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
+        updateAxisOdometries(xSensors);
+        updateAxisOdometries(ySensors);
+        angleOdometry = angleSensor.getOdometry();
 
         double angleDelta = angleOdometry.currPos - angleOdometry.prevPos;
-        int count;
+        double avgXPos = averageSensorValues(xSensors, angleDelta, true);
+        double avgYPos = averageSensorValues(ySensors, angleDelta, true);
+        double avgXVel = averageSensorValues(xSensors, angleDelta, false);
+        double avgYVel = averageSensorValues(ySensors, angleDelta, false);
 
-        double avgXPos = 0.0;
-        double avgXVel = 0.0;
-        count = 0;
-        if (x1Odometry != null)
-        {
-            avgXPos += adjustValueWithRotation(
-                    x1Odometry.currPos, x1Offset/xScale, angleDelta, 1.0);
-            avgXVel += adjustValueWithRotation(
-                    x1Odometry.velocity, x1Offset/xScale, angleDelta,
-                    x1Odometry.currTimestamp - x1Odometry.currTimestamp);
-            count++;
-        }
-        if (x2Odometry != null)
-        {
-            avgXPos += adjustValueWithRotation(
-                    x2Odometry.currPos, x2Offset/xScale, angleDelta, 1.0);
-            avgXVel += adjustValueWithRotation(
-                    x2Odometry.velocity, x2Offset/xScale, angleDelta,
-                    x2Odometry.currTimestamp - x2Odometry.currTimestamp);
-            count++;
-        }
-        avgXPos /= count;
-        avgXVel /= count;
-
-        double avgYPos = 0.0;
-        double avgYVel = 0.0;
-        count = 0;
-        if (y1Odometry != null)
-        {
-            avgYPos += y1Odometry.currPos;
-            avgYVel += y1Odometry.velocity;
-            count++;
-        }
-        if (y2Odometry != null)
-        {
-            avgYPos += y2Odometry.currPos;
-            avgYVel += y2Odometry.velocity;
-            count++;
-        }
-        avgYPos /= count;
-        avgYVel /= count;
-
+        TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
         odometryDelta.position.x = (avgXPos - prevAvgXPos)*xScale;
         odometryDelta.position.y = (avgYPos - prevAvgYPos)*yScale;
         odometryDelta.position.angle = angleDelta*angleScale;
@@ -358,6 +274,52 @@ public class TrcDriveBaseOdometry
 
         return odometryDelta;
     }   //getOdometryDelta
+
+    /**
+     * This method is called to update the odometry data for all sensors of the given axis.
+     *
+     * @param axisSensors specifies the axis sensor array to be updated.
+     */
+    private void updateAxisOdometries(AxisSensor[] axisSensors)
+    {
+        if (axisSensors != null)
+        {
+            for (AxisSensor s: axisSensors)
+            {
+                s.odometry = s.sensor.getOdometry();
+            }
+        }
+    }   //updateAxisOdometries
+
+    /**
+     * This method calculates the average of either position or velocity odometry data of all sensors in the given
+     * axis.
+     *
+     * @param axisSensors specifies the axis sensor array to be averaged.
+     * @param angleDelta specifies angle delta in degrees for rotational adjustment.
+     * @param position specifies true to average position data, false to average velocity data.
+     * @return averaged value.
+     */
+    private double averageSensorValues(AxisSensor[] axisSensors, double angleDelta, boolean position)
+    {
+        double value = 0.0;
+
+        for (AxisSensor s: axisSensors)
+        {
+            if (position)
+            {
+                value += adjustValueWithRotation(s.odometry.currPos, s.axisOffset, angleDelta, 1.0);
+            }
+            else
+            {
+                value += adjustValueWithRotation(
+                        s.odometry.velocity, s.axisOffset, angleDelta,
+                        s.odometry.currTimestamp - s.odometry.prevTimestamp);
+            }
+        }
+
+        return value/axisSensors.length;
+    }   //averageSensorValues
 
     /**
      * This method adjusts the odometry value if the sensor has an offset from the robot centroid. This is only
