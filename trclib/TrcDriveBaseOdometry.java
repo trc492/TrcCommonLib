@@ -274,10 +274,10 @@ public class TrcDriveBaseOdometry
         angleOdometry = angleSensor.getOdometry();
 
         double angleDelta = angleOdometry.currPos - angleOdometry.prevPos;
-        double avgXPos = averageSensorValues(xSensors, angleDelta, true);
-        double avgYPos = averageSensorValues(ySensors, angleDelta, true);
-        double avgXVel = averageSensorValues(xSensors, angleDelta, false);
-        double avgYVel = averageSensorValues(ySensors, angleDelta, false);
+        double avgXPos = averageSensorValues(xSensors, xScale, angleDelta, true);
+        double avgYPos = averageSensorValues(ySensors, yScale, angleDelta, true);
+        double avgXVel = averageSensorValues(xSensors, xScale, angleDelta, false);
+        double avgYVel = averageSensorValues(ySensors, yScale, angleDelta, false);
 
         TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
         odometryDelta.position.x = (avgXPos - prevAvgXPos)*xScale;
@@ -314,11 +314,12 @@ public class TrcDriveBaseOdometry
      * axis.
      *
      * @param axisSensors specifies the axis sensor array to be averaged.
+     * @param scale specifies the odometry sensor scale.
      * @param angleDelta specifies angle delta in degrees for rotational adjustment.
      * @param position specifies true to average position data, false to average velocity data.
      * @return averaged value.
      */
-    private double averageSensorValues(AxisSensor[] axisSensors, double angleDelta, boolean position)
+    private double averageSensorValues(AxisSensor[] axisSensors, double scale, double angleDelta, boolean position)
     {
         double value = 0.0;
 
@@ -329,19 +330,20 @@ public class TrcDriveBaseOdometry
 
             if (position)
             {
-                data = adjustValueWithRotation(s.odometry.currPos, s.axisOffset, angleDelta, 1.0);
+                data = adjustValueWithRotation(
+                        s.odometry.currPos, s.axisOffset/scale, angleDelta, 1.0);
             }
             else
             {
                 data = adjustValueWithRotation(
-                        s.odometry.velocity, s.axisOffset, angleDelta,
+                        s.odometry.velocity, s.axisOffset/scale, angleDelta,
                         s.odometry.currTimestamp - s.odometry.prevTimestamp);
             }
             value += data;
 
             if (debugTracer != null)
             {
-                debugTracer.traceInfo(moduleName, "%s[%d] angleDelta=%f, data=%f, adjData=%f, value=%f",
+                debugTracer.traceInfo(moduleName, "%s[%d] angleDelta=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
                         position? "Pos": "Vel", i, angleDelta, position? s.odometry.currPos: s.odometry.velocity,
                         data, value/(i + 1));
             }
