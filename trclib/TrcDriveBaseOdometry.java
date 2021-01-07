@@ -270,7 +270,10 @@ public class TrcDriveBaseOdometry
         double avgDeltaYPos = averageSensorValues(ySensors, yScale, angleDelta, true);
         double avgXVel = averageSensorValues(xSensors, xScale, angleDelta, false);
         double avgYVel = averageSensorValues(ySensors, yScale, angleDelta, false);
-
+        //
+        // Note: In odometryDelta, only position data is really a delta from previous position.
+        // Velocity data IS NOT a delta.
+        //
         TrcDriveBase.Odometry odometryDelta = new TrcDriveBase.Odometry();
         odometryDelta.position.x = avgDeltaXPos*xScale;
         odometryDelta.position.y = avgDeltaYPos*yScale;
