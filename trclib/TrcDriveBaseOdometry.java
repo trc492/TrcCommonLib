@@ -334,9 +334,13 @@ public class TrcDriveBaseOdometry
             }
             else
             {
-                data = s.odometry.velocity -
-                       s.axisOffset/scale * Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos) /
-                       (angleOdometry.currTimestamp - angleOdometry.prevTimestamp);
+                double deltaTime = angleOdometry.currTimestamp - angleOdometry.prevTimestamp;
+                data = s.odometry.velocity;
+                if (deltaTime != 0)
+                {
+                    data -= s.axisOffset/scale *
+                            Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
+                }
             }
             value += data;
 
