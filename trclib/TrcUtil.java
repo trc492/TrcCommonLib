@@ -42,7 +42,9 @@ public class TrcUtil
     public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
-    private static long modeStartTimeNanos = 0;
+    private static volatile long modeStartTimeNanos = 0;
+    private static volatile long timestampNano = System.nanoTime();
+    private static volatile long currentTimeMilli = System.currentTimeMillis();
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -63,7 +65,7 @@ public class TrcUtil
      * This method is called at the start of a competition mode to set the mode start timestamp so that
      * getModeElapsedTime can calculate the mode elapsed time.
      */
-    public static void recordModeStartTime()
+    public static synchronized void recordModeStartTime()
     {
         modeStartTimeNanos = System.nanoTime();
     }   //recordModeStartTime
@@ -74,30 +76,44 @@ public class TrcUtil
      *
      * @return mode elapsed time in seconds.
      */
-    public static double getModeElapsedTime()
+    public static synchronized double getModeElapsedTime()
     {
         return (System.nanoTime() - modeStartTimeNanos) / 1000000000.0;
     }   //getModeElapsedTime
 
     /**
-     * This method returns the current epoch time in seconds with millisecond precision.
-     *
-     * @return current time in seconds.
+     * This method is called to take a snapshot of the current nano time as the start timestamp and the corresponding
+     * current time in milliseconds.
      */
-    public static double getCurrentTime()
+    public static synchronized void recordTimestamp()
     {
-        return getCurrentTimeMillis() / 1000.0;
-    }   //getCurrentTime
+        timestampNano = System.nanoTime();
+        currentTimeMilli = System.currentTimeMillis();
+    }   //recordTimestamp
 
     /**
-     * This method returns the current epoch time in msec.
+     * This method returns the elapsed time in seconds since the last recorded timestamp.
      *
-     * @return current time in msec.
+     * @return elapsed time in seconds.
      */
-    public static long getCurrentTimeMillis()
+    public static synchronized double getElapsedTime()
     {
-        return System.currentTimeMillis();
-    }   //getCurrentTimeMillis
+        return (System.nanoTime() - timestampNano)/1000000000.0;
+    }   //getElapsedTime
+
+    /**
+     * Returns the current time in seconds.  Note that while the unit of time of the return value is in seconds,
+     * the precision is in nanoseconds but not necessarily nanosecond resolution (that is, how frequently the value
+     * changes). There is no guarantee except that the resolution is at least as good as that of
+     * System.currentTimeMillis().
+     *
+     * @return the time difference in seconds, between the current time and midnight, January 1, 1970 UTC with
+     *         nanosecond precision.
+     */
+    public static synchronized double getCurrentTime()
+    {
+        return currentTimeMilli/1000.0 + getElapsedTime();
+    }   //getCurrentTime
 
     /**
      * This method returns the nano second timestamp since a fixed arbitrary time referenced by the Java VM.
@@ -111,26 +127,36 @@ public class TrcUtil
     }   //getNanoTime
 
     /**
+     * This method returns the current epoch time in msec.
+     *
+     * @return current time in msec.
+     */
+    public static long getCurrentTimeMillis()
+    {
+        return System.currentTimeMillis();
+    }   //getCurrentTimeMillis
+
+    /**
      * This method returns the current time stamp with the specified format.
      *
      * @param format specifies the time stamp format.
      * @return current time stamp string with the specified format.
      */
-    public static String getTimestamp(String format)
+    public static String getCurrentTimeString(String format)
     {
         SimpleDateFormat dateFormat = new SimpleDateFormat(format, Locale.US);
         return dateFormat.format(new Date());
-    }   //getTimestamp
+    }   //getCurrentTimeString
 
     /**
      * This method returns the current time stamp with the default format.
      *
      * @return current time stamp string with the default format.
      */
-    public static String getTimestamp()
+    public static String getCurrentTimeString()
     {
-        return getTimestamp("yyyyMMdd@HHmmss");
-    }   //getTimestamp
+        return getCurrentTimeString("yyyyMMdd@HHmmss");
+    }   //getCurrentTimeString
 
     /**
      * This method puts the current thread to sleep for the given time in msec. It handles InterruptException where

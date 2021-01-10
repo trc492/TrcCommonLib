@@ -216,7 +216,7 @@ public class TrcDbgTrace
         //
         // Create full log file path.
         //
-        String logFileName = folderPath + File.separator + TrcUtil.getTimestamp();
+        String logFileName = folderPath + File.separator + TrcUtil.getCurrentTimeString();
 
         if (fileName != null)
         {
