@@ -44,7 +44,7 @@ public class TrcUtil
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
     private static volatile long modeStartTimeNanos = 0;
     private static volatile long timestampNano = System.nanoTime();
-    private static volatile long currentTimeMilli = System.currentTimeMillis();
+    private static volatile long currentTimeNano = System.currentTimeMillis()*1000;
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -88,7 +88,7 @@ public class TrcUtil
     public static synchronized void recordTimestamp()
     {
         timestampNano = System.nanoTime();
-        currentTimeMilli = System.currentTimeMillis();
+        currentTimeNano = System.currentTimeMillis()*1000;
     }   //recordTimestamp
 
     /**
@@ -112,7 +112,7 @@ public class TrcUtil
      */
     public static synchronized double getCurrentTime()
     {
-        return currentTimeMilli/1000.0 + getElapsedTime();
+        return (System.nanoTime() - timestampNano + currentTimeNano)/1000000000.0;
     }   //getCurrentTime
 
     /**
