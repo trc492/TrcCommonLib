@@ -347,8 +347,9 @@ public class TrcDriveBaseOdometry
             if (debugTracer != null)
             {
                 debugTracer.traceInfo(moduleName, "%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
-                        position? "Pos": "Vel", i, s.odometry.currTimestamp, angleOdometry.currPos,
-                        position? s.odometry.currPos: s.odometry.velocity, data, value/(i + 1));
+                        position? "Pos": "Vel", i, TrcUtil.getModeElapsedTime(s.odometry.currTimestamp),
+                        angleOdometry.currPos, position? s.odometry.currPos: s.odometry.velocity, data,
+                        value/(i + 1));
             }
         }
 

@@ -42,9 +42,7 @@ public class TrcUtil
     public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
-    private static volatile long modeStartTimeNanos = 0;
-    private static volatile long timestampNano = System.nanoTime();
-    private static volatile long currentTimeNano = System.currentTimeMillis()*1000;
+    public static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -65,9 +63,9 @@ public class TrcUtil
      * This method is called at the start of a competition mode to set the mode start timestamp so that
      * getModeElapsedTime can calculate the mode elapsed time.
      */
-    public static synchronized void recordModeStartTime()
+    public static void recordModeStartTime()
     {
-        modeStartTimeNanos = System.nanoTime();
+        modeStartTime.recordTimestamp();
     }   //recordModeStartTime
 
     /**
@@ -76,30 +74,22 @@ public class TrcUtil
      *
      * @return mode elapsed time in seconds.
      */
-    public static synchronized double getModeElapsedTime()
+    public static double getModeElapsedTime()
     {
-        return (System.nanoTime() - modeStartTimeNanos) / 1000000000.0;
+        return modeStartTime.getElapsedTime();
     }   //getModeElapsedTime
 
     /**
-     * This method is called to take a snapshot of the current nano time as the start timestamp and the corresponding
-     * current time in milliseconds.
-     */
-    public static synchronized void recordTimestamp()
-    {
-        timestampNano = System.nanoTime();
-        currentTimeNano = System.currentTimeMillis()*1000;
-    }   //recordTimestamp
-
-    /**
-     * This method returns the elapsed time in seconds since the last recorded timestamp.
+     * This method returns the elapsed time in seconds of the specified epoch time from the competition mode start
+     * epoch time.
      *
-     * @return elapsed time in seconds.
+     * @param epochTime specifies the epoch time to compute the elapsed time from the mode start time.
+     * @return elapsed time in seconds from last mode start time.
      */
-    public static synchronized double getElapsedTime()
+    public static double getModeElapsedTime(double epochTime)
     {
-        return (System.nanoTime() - timestampNano)/1000000000.0;
-    }   //getElapsedTime
+        return modeStartTime.getElapsedTime(epochTime);
+    }   //getModeElapsedTime
 
     /**
      * Returns the current time in seconds.  Note that while the unit of time of the return value is in seconds,
@@ -110,9 +100,9 @@ public class TrcUtil
      * @return the time difference in seconds, between the current time and midnight, January 1, 1970 UTC with
      *         nanosecond precision.
      */
-    public static synchronized double getCurrentTime()
+    public static double getCurrentTime()
     {
-        return (System.nanoTime() - timestampNano + currentTimeNano)/1000000000.0;
+        return modeStartTime.getCurrentTime();
     }   //getCurrentTime
 
     /**
