@@ -42,6 +42,7 @@ public class TrcWaypoint
     public double velocity;
     public double acceleration;
     public double jerk;
+    private boolean simpleWaypoint = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -96,6 +97,7 @@ public class TrcWaypoint
         this.velocity = other.velocity;
         this.acceleration = other.acceleration;
         this.jerk = other.jerk;
+        this.simpleWaypoint = other.simpleWaypoint;
     }   //TrcWaypoint
 
     /**
@@ -109,6 +111,7 @@ public class TrcWaypoint
         // Codereview: should pose be cloned?
         this(0, pose, 0.0, velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0,
                 0, 0);
+        simpleWaypoint = true;
     }   //TrcWaypoint
 
     /**
@@ -119,9 +122,16 @@ public class TrcWaypoint
     @Override
     public String toString()
     {
-        return String.format(
-            "TrcWaypoint(timestep=%.3f,pose=%s,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
-            timeStep, pose, velocity, encoderPosition, acceleration, jerk);
+        if (!simpleWaypoint)
+        {
+            return String.format(
+                    "TrcWaypoint(simple=%s,timestep=%.3f,pose=%s,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
+                    simpleWaypoint, timeStep, pose, velocity, encoderPosition, acceleration, jerk);
+        }
+        else
+        {
+            return String.format("TrcWaypoint(pose=%s,vel=%.2f)", pose, velocity);
+        }
     }   //toString
 
     @Override
