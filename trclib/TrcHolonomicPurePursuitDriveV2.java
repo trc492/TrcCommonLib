@@ -592,5 +592,5 @@ public class TrcHolonomicPurePursuitDriveV2
         return path.getWaypoint(pathIndex);
     }   //getFollowingPoint
 
-}   //class TrcPurePursuitDriveV2
+}   //class TrcHolonomicPurePursuitDriveV2
 
