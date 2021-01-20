@@ -26,11 +26,11 @@ import org.apache.commons.math3.linear.RealVector;
 
 /**
  * This class implements a platform independent Pure Pursuit drive for holonomic robots.
- * Essentially, a pure pursuit drive navigates the robot to chase a point along the path. The point to chase
- * is chosen by intersecting a circle centered on the robot with a specific radius with the path, and chasing the
- * "furthest" intersection. The smaller the radius is, the more "tightly" the robot will follow a path, but it will be
- * more prone to oscillation and sharp turns. A larger radius will tend to smooth out turns and corners. Note that the
- * error tolerance must be less than the following distance, so choose them accordingly.
+ * Essentially, a pure pursuit drive navigates the robot to chase a point along the path. The point to chase is
+ * chosen by intersecting a proximity circle centered on the robot with a specific radius with the path, and chasing
+ * the "furthest" intersection. The smaller the radius is, the more "tightly" the robot will follow a path, but it
+ * will be more prone to oscillation and sharp turns. A larger radius will tend to smooth out turns and corners. Note
+ * that the error tolerance must be less than the proximity radius, so choose them accordingly.
  * <p>
  * A path consists of an array of waypoints, specifying position, velocity, and optionally heading. All other properties
  * of the TrcWaypoint object may be ignored.The path may be low resolution, as this automatically interpolates between
@@ -45,11 +45,11 @@ import org.apache.commons.math3.linear.RealVector;
  * Note that this paper is for non-holonomic robots. This means that all the turning radius stuff isn't very relevant.
  * Technically, we could impose limits on the turning radius as a function of robot velocity and max rot vel, but that's
  * unnecessarily complicated, in my view. Additionally, it does point injection instead of interpolation, and path
- * smoothing, which we don't do, since a nonzero following distance will naturally smooth it anyway.
+ * smoothing, which we don't do, since a nonzero proximity radius will naturally smooth it anyway.
  */
 public class TrcHolonomicPurePursuitDriveV2
 {
-    private static final boolean debugEnabled = true;
+    private static final boolean debugEnabled = false;
 
     private final String instanceName;
     private final TrcDriveBase driveBase;
@@ -57,7 +57,7 @@ public class TrcHolonomicPurePursuitDriveV2
     private final TrcPidController turnPidCtrl, velPidCtrl;
     private volatile double velTolerance; // TODO: create setter
     private volatile double posTolerance; // Volatile so it can be changed at runtime
-    private volatile double followingDistance; // Volatile so it can be changed at runtime
+    private volatile double proximityRadius; // Volatile so it can be changed at runtime
     private TrcPath path;
     private int pathIndex = 1;
     private TrcEvent onFinishedEvent;
@@ -69,15 +69,22 @@ public class TrcHolonomicPurePursuitDriveV2
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private double accelFF; // acceleration feedforward
 
-    public TrcHolonomicPurePursuitDriveV2(String instanceName, TrcDriveBase driveBase, double followingDistance,
-        double posTolerance, double velTolerance, TrcPidController.PidCoefficients velPidCoeff, double accelFF)
-    {
-        this(instanceName, driveBase, followingDistance, posTolerance, 180, velTolerance,
-            new TrcPidController.PidCoefficients(0), velPidCoeff, accelFF);
-    }   //TrcHolonomicPurePursuitDrive
-
-    public TrcHolonomicPurePursuitDriveV2(String instanceName, TrcDriveBase driveBase, double followingDistance,
-        double posTolerance, double turnTolerance, double velTolerance, TrcPidController.PidCoefficients turnPidCoeff,
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param driveBase specifies the reference to the drive base.
+     * @param proximityRadius specifies the distance between the robot and next following point.
+     * @param posTolerance specifies the position tolerance.
+     * @param turnTolerance specifies the turn tolerance.
+     * @param velTolerance specifies the velocity tolerance.
+     * @param turnPidCoeff specifies the turn PID coefficients.
+     * @param velPidCoeff specifies the velocity PID coefficients.
+     * @param accelFF specifies the acceleration Feed Forward value.
+     */
+    public TrcHolonomicPurePursuitDriveV2(
+        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance,
+        double turnTolerance, double velTolerance, TrcPidController.PidCoefficients turnPidCoeff,
         TrcPidController.PidCoefficients velPidCoeff, double accelFF)
     {
         if (driveBase.supportsHolonomicDrive())
@@ -94,7 +101,7 @@ public class TrcHolonomicPurePursuitDriveV2
         this.accelFF = accelFF;
         this.velTolerance = velTolerance;
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
-        setPositionToleranceAndFollowingDistance(posTolerance, followingDistance);
+        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
 
         this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, turnTolerance,
             driveBase::getHeading);
@@ -107,7 +114,26 @@ public class TrcHolonomicPurePursuitDriveV2
         turnPidCtrl.setNoOscillation(true);
 
         this.driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
-    }   //TrcHolonomicPurePursuitDrive
+    }   //TrcHolonomicPurePursuitDriveV2
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param driveBase specifies the reference to the drive base.
+     * @param proximityRadius specifies the distance between the robot and next following point.
+     * @param posTolerance specifies the position tolerance.
+     * @param velTolerance specifies the velocity tolerance.
+     * @param velPidCoeff specifies the velocity PID coefficients.
+     * @param accelFF specifies the acceleration Feed Forward value.
+     */
+    public TrcHolonomicPurePursuitDriveV2(
+        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance,
+        double velTolerance, TrcPidController.PidCoefficients velPidCoeff, double accelFF)
+    {
+        this(instanceName, driveBase, proximityRadius, posTolerance, 180.0, velTolerance,
+             new TrcPidController.PidCoefficients(0.0), velPidCoeff, accelFF);
+    }   //TrcHolonomicPurePursuitDriveV2
 
     /**
      * This method returns the instance name.
@@ -141,21 +167,21 @@ public class TrcHolonomicPurePursuitDriveV2
     }
 
     /**
-     * Set both the position tolerance and following distance.
+     * Set both the position tolerance and proximity radius.
      *
-     * @param posTolerance      The distance at which the controller will stop itself.
-     * @param followingDistance The distance between the robot and following point.
+     * @param posTolerance    specifies the distance at which the controller will stop itself.
+     * @param proximityRadius specifies the distance between the robot and next following point.
      */
-    public void setPositionToleranceAndFollowingDistance(double posTolerance, double followingDistance)
+    public void setPositionToleranceAndProximityRadius(double posTolerance, double proximityRadius)
     {
-        if (posTolerance >= followingDistance)
+        if (posTolerance >= proximityRadius)
         {
-            throw new IllegalArgumentException("Position tolerance must be less than followingDistance!");
+            throw new IllegalArgumentException("Position tolerance must be less than proximityRadius!");
         }
 
-        this.followingDistance = followingDistance;
+        this.proximityRadius = proximityRadius;
         this.posTolerance = posTolerance;
-    }   //setPositionToleranceAndFollowingDistance
+    }   //setPositionToleranceAndProximityRadius
 
     /**
      * Set the position tolerance to end the path. Units need to be consistent.
@@ -164,18 +190,18 @@ public class TrcHolonomicPurePursuitDriveV2
      */
     public void setPositionTolerance(double posTolerance)
     {
-        setPositionToleranceAndFollowingDistance(posTolerance, followingDistance);
+        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
     }   //setPositionTolerance
 
     /**
-     * Set the following distance for the pure pursuit controller.
+     * Set the proximity radius for the pure pursuit controller.
      *
-     * @param followingDistance The distance between the robot and following point.
+     * @param proximityRadius specifies the distance between the robot and next following point.
      */
-    public void setFollowingDistance(double followingDistance)
+    public void setProximityRadius(double proximityRadius)
     {
-        setPositionToleranceAndFollowingDistance(posTolerance, followingDistance);
-    }   //setFollowingDistance
+        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+    }   //setProximityRadius
 
     /**
      * Sets the pid coefficients for the turn controller. This will work in the middle of an operation as well.
@@ -198,25 +224,25 @@ public class TrcHolonomicPurePursuitDriveV2
         velPidCtrl.setPidCoefficients(pidCoefficients);
     }   //setVelocityPidCoefficients
 
+    /**
+     * Sets the movement output power limit.
+     *
+     * @param limit specifies the output power limit for movement (X and Y).
+     */
     public void setMoveOutputLimit(double limit)
     {
         moveOutputLimit = Math.abs(limit);
     }   //setMoveOutputLimit
 
+    /**
+     * Sets the rotation output power limit.
+     *
+     * @param limit specifies the output power limit for rotation.
+     */
     public void setRotOutputLimit(double limit)
     {
         rotOutputLimit = Math.abs(limit);
     }   //setRotOutputLimit
-
-    /**
-     * Start following the supplied path using a pure pursuit controller.
-     *
-     * @param path The path to follow. Must start at (0,0). Velocity is per second.
-     */
-    public synchronized void start(TrcPath path)
-    {
-        start(path, null, 0.0);
-    }   //start
 
     /**
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
@@ -254,6 +280,79 @@ public class TrcHolonomicPurePursuitDriveV2
     }   //start
 
     /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     */
+    public void start(TrcPath path, TrcEvent onFinishedEvent)
+    {
+        start(path, onFinishedEvent, 0.0);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller.
+     *
+     * @param path The path to follow. Must start at (0,0). Velocity is per second.
+     */
+    public synchronized void start(TrcPath path)
+    {
+        start(path, null, 0.0);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        TrcPose2D... poses)
+    {
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+
+        start(pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
+    {
+        start(onFinishedEvent, 0.0, startingPose, incrementalPath, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
+    {
+        start(null, 0.0, startingPose, incrementalPath, poses);
+    }   //start
+
+    /**
      * Checks if the robot is currently following a path.
      *
      * @return True if the pure pursuit controller is active, false otherwise.
@@ -279,17 +378,33 @@ public class TrcHolonomicPurePursuitDriveV2
         }
     }   //cancel
 
+    /**
+     * This method is called by the Velocity PID controller to get the polar magnitude of the robot's velocity.
+     *
+     * @return robot's velocity magnitude.
+     */
     private double getVelocityInput()
     {
         return TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
     }   //getVelocityInput
 
+    /**
+     * Stops PurePursuit drive.
+     */
     private synchronized void stop()
     {
         driveTaskObj.unregisterTask();
         driveBase.stop();
     }   //stop
 
+    /**
+     * This task is called periodically to calculate the next target point on the path. The next target point on
+     * the path has a distance of followDistance from the current robot position intersecting with the path segment
+     * towards the end of the endpoint of the path segment.
+     *
+     * @param taskType specifies the type of task being run.
+     * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     */
     private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         TrcPose2D pose = driveBase.getPositionRelativeTo(referencePose, false);
@@ -313,11 +428,11 @@ public class TrcHolonomicPurePursuitDriveV2
 
         if (debugEnabled)
         {
-            //            TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDriveV2.driveTask",
-            //                "[%.3f] pos=%s, followingPoint=%s, targetPoint=%s, vel=%.2f, targetVel=%.2f, targetAccel=%.2f, pathIndex=%d, r,theta=(%.2f,%.2f)",
-            //                TrcUtil.getModeElapsedTime(), pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(),
-            //                velocity, targetVel, targetPoint.acceleration, pathIndex, r, theta);
-            System.out.printf("%.3f, %.2f, %.2f\n", TrcUtil.getModeElapsedTime(), velocity, targetVel);
+            TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDriveV2.driveTask",
+                "[%.3f] pos=%s, followingPoint=%s, targetPoint=%s, vel=%.2f, targetVel=%.2f, " +
+                "targetAccel=%.2f, pathIndex=%d, r=%.2f, theta=%.2f",
+                TrcUtil.getModeElapsedTime(), pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(),
+                velocity, targetVel, targetPoint.acceleration, pathIndex, r, theta);
         }
 
         // If we have timed out or finished, stop the operation.
@@ -340,6 +455,14 @@ public class TrcHolonomicPurePursuitDriveV2
         }
     }   //driveTask
 
+    /**
+     * Interpolates a waypoint that's weighted between two given waypoints.
+     *
+     * @param point1 specifies the start point of the path segment.
+     * @param point2 specifies the end point of the path segment.
+     * @param weight specifies the weight between the two provided points.
+     * @return weighted interpolated waypoint.
+     */
     private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
     {
         double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
@@ -354,6 +477,14 @@ public class TrcHolonomicPurePursuitDriveV2
         return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //interpolate
 
+    /**
+     * Returns a weighted value between given values.
+     *
+     * @param start specifies the start value.
+     * @param end specifies the end value.
+     * @param weight specifies the weight between the values.
+     * @return weighted value between the given values.
+     */
     private double interpolate(double start, double end, double weight)
     {
         if (!TrcUtil.inRange(weight, 0.0, 1.0))
@@ -363,9 +494,19 @@ public class TrcHolonomicPurePursuitDriveV2
         return (1.0 - weight) * start + weight * end;
     }   //interpolate
 
+    /**
+     * This method calculates the waypoint on the path segment that intersects the robot's proximity circle that is
+     * closest to the end point of the path segment. The algorithm is based on this article:
+     * https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+     *
+     * @param prev specifies the start point of the path segment.
+     * @param point specifies the end point of the path segment.
+     * @param robotPose specifies the robot's position.
+     * @return calculated waypoint.
+     */
     private TrcWaypoint getFollowingPointOnSegment(TrcWaypoint prev, TrcWaypoint point, TrcPose2D robotPose)
     {
-        // Find intersection of path segment with circle with radius followingDistance and center at robot
+        // Find intersection of path segment with the proximity circle of the robot.
         RealVector start = prev.getPositionPose().toPosVector();
         RealVector end = point.getPositionPose().toPosVector();
         RealVector robot = robotPose.toPosVector();
@@ -375,7 +516,7 @@ public class TrcHolonomicPurePursuitDriveV2
         // Solve quadratic formula
         double a = startToEnd.dotProduct(startToEnd);
         double b = 2 * robotToStart.dotProduct(startToEnd);
-        double c = robotToStart.dotProduct(robotToStart) - followingDistance * followingDistance;
+        double c = robotToStart.dotProduct(robotToStart) - proximityRadius * proximityRadius;
 
         double discriminant = b * b - 4 * a * c;
         if (discriminant < 0)
@@ -397,9 +538,9 @@ public class TrcHolonomicPurePursuitDriveV2
             }
             return interpolate(prev, point, t);
         }
-    }   //interpolatePoints
+    }   //getFollowingPointOnSegment
 
-    TrcWaypoint getTargetPointDistParameterized(TrcPose2D robotPose)
+    private TrcWaypoint getTargetPointDistParameterized(TrcPose2D robotPose)
     {
         RealVector robotPos = robotPose.toPosVector();
         double closestDist = Double.MAX_VALUE;
@@ -420,43 +561,36 @@ public class TrcHolonomicPurePursuitDriveV2
             }
         }
         return closestPoint;
-    }
+    }   //getTargetPointDistParameterized
 
-    TrcWaypoint getFollowingPoint(TrcPose2D robotPose)
+    /**
+     * Determines the next target point for Pure Pursuit Drive to follow.
+     *
+     * @param robotPose specifies the robot's location.
+     * @return next target point for the robot to follow.
+     */
+    private TrcWaypoint getFollowingPoint(TrcPose2D robotPose)
     {
-        TrcWaypoint last = path.getLastWaypoint();
-        if (last.getPositionPose().distanceTo(robotPose) < followingDistance)
-        {
-            pathIndex = path.getSize() - 1;
-            return last;
-        }
-
+        //
+        // Find the next segment that intersects with the proximity circle of the robot.
+        // If there are tiny segments that are completely within the proximity circle, we will skip them all.
+        //
         for (int i = Math.max(pathIndex, 1); i < path.getSize(); i++)
         {
             // If there is a valid intersection, return it.
-            TrcWaypoint interpolated = getFollowingPointOnSegment(path.getWaypoint(i - 1), path.getWaypoint(i),
-                robotPose);
+            TrcWaypoint interpolated = getFollowingPointOnSegment(
+                path.getWaypoint(i - 1), path.getWaypoint(i), robotPose);
             if (interpolated != null)
             {
                 pathIndex = i;
                 return interpolated;
             }
         }
-
-        // There are no points where the distance to any point is followingDistance.
-        // Choose the one closest to followingDistance.
-        TrcWaypoint closestPoint = path.getWaypoint(pathIndex);
-        for (int i = pathIndex; i < path.getSize(); i++)
-        {
-            TrcWaypoint point = path.getWaypoint(i);
-            if (Math.abs(closestPoint.getPositionPose().distanceTo(robotPose) - followingDistance) >= Math
-                .abs(point.getPositionPose().distanceTo(robotPose) - followingDistance))
-            {
-                closestPoint = point;
-                pathIndex = i;
-            }
-        }
-        return closestPoint;
+        //
+        // Found no intersection. The robot must be off-path. Just proceed to the immediate next waypoint.
+        //
+        return path.getWaypoint(pathIndex);
     }   //getFollowingPoint
-}   //class TrcPurePursuitDrive
+
+}   //class TrcPurePursuitDriveV2
 
