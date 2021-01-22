@@ -660,20 +660,29 @@ public class TrcHolonomicPurePursuitDrive
         }
         else
         {
-            // line is a parametric equation, where t=0 is start, t=1 is end.
+            // line is a parametric equation, where t=0 is start waypoint, t=1 is end waypoint of the line segment.
             discriminant = Math.sqrt(discriminant);
+            //
+            // t1 and t2 represent the relative positions of the intersection points on the line segment. If they are
+            // in the range of 0.0 and 1.0, they are on the line segment. Otherwise, the intersection points are
+            // outside of the line segment. If the relative position is towards 0.0, it is closer to the start
+            // waypoint of the line segment. If the relative position is towards 1.0, it is closer to the end
+            // waypoint of the line segment.
+            //
+            // t represents the furthest intersection point (the one closest to the end waypoint of the line segment).
+            //
             double t1 = (-b - discriminant) / (2 * a);
             double t2 = (-b + discriminant) / (2 * a);
-            double t = Math.max(t1, t2); // We want the furthest intersection
-            // If the intersection is not on the line segment, it's invalid.
+            double t = Math.max(t1, t2);
+
             if (!TrcUtil.inRange(t, 0.0, 1.0))
             {
                 //
-                // There is only one valid intersection. The valid intersection is closer to the previous point. The
-                // other one which is closer to the next waypoint is outside of the segment.
+                // The furthest intersection point is not on the line segment, so skip this segment.
                 //
                 return null;
             }
+
             return interpolate(prev, point, t);
         }
     }   //getFollowingPointOnSegment
