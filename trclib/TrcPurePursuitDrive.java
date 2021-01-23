@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Titan Robotics Club (http://www.titanrobotics.com)
+ * Copyright (c) 2020 Titan Robotics Club (http://www.titanrobotics.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,18 +25,19 @@ package TrcCommonLib.trclib;
 import org.apache.commons.math3.linear.RealVector;
 
 /**
- * This class implements a platform independent Pure Pursuit drive for holonomic robots.
+ * This class implements a platform independent Pure Pursuit drive for holonomic or non-holonomic robots.
  * Essentially, a pure pursuit drive navigates the robot to chase a point along the path. The point to chase is
  * chosen by intersecting a proximity circle centered on the robot with a specific radius with the path, and chasing
  * the "furthest" intersection. The smaller the radius is, the more "tightly" the robot will follow a path, but it
  * will be more prone to oscillation and sharp turns. A larger radius will tend to smooth out turns and corners. Note
  * that the error tolerance must be less than the proximity radius, so choose them accordingly.
  * <p>
- * A path consists of an array of waypoints, specifying position, velocity, and optionally heading. All other properties
+ * A path consists of an array of waypoints, specifying position, velocity, and heading. All other properties
  * of the TrcWaypoint object may be ignored.The path may be low resolution, as this automatically interpolates between
  * waypoints. If you want the robot to maintain heading, call setMaintainHeading(true) and it will ignore all the
  * heading values. Otherwise, call setMaintainHeading(false), ensure that the heading tolerance and pid coefficients
- * are set, and it will follow the heading values specified by the path.
+ * are set, and it will follow the heading values specified by the path. Note that MaintainHeading is only supported
+ * for holonomic robots.
  * <p>
  * A somewhat similar idea is here:
  * https://www.chiefdelphi.com/t/paper-implementation-of-the-adaptive-pure-pursuit-controller/166552 or
@@ -47,16 +48,22 @@ import org.apache.commons.math3.linear.RealVector;
  * unnecessarily complicated, in my view. Additionally, it does point injection instead of interpolation, and path
  * smoothing, which we don't do, since a nonzero proximity radius will naturally smooth it anyway.
  */
-public class TrcHolonomicPurePursuitDrive
+public class TrcPurePursuitDrive
 {
+    private static final String moduleName = "TrcPurePursuitDrive";
     private static final boolean debugEnabled = false;
+    private static final boolean tracingEnabled = false;
+    private static final boolean useGlobalTracer = true;
+    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
+    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private static final boolean verbosePidInfo = false;
+    private TrcDbgTrace dbgTrace = null;
 
     public enum InterpolationType
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
 
-        private int value;
+        private final int value;
 
         InterpolationType(int value)
         {
@@ -72,26 +79,26 @@ public class TrcHolonomicPurePursuitDrive
 
     private final String instanceName;
     private final TrcDriveBase driveBase;
+    private volatile double proximityRadius; // Volatile so it can be changed at runtime
+    private volatile double posTolerance; // Volatile so it can be changed at runtime
+    private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
+    private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
-    private final TrcPidController posPidCtrl, turnPidCtrl, velPidCtrl;
+    private double moveOutputLimit = Double.POSITIVE_INFINITY;
+    private double rotOutputLimit = Double.POSITIVE_INFINITY;
+    private volatile boolean maintainHeading = false;
+    private InterpolationType interpolationType = InterpolationType.LINEAR;
+
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
     private boolean logRobotPoseEvents = false;
     private boolean tracePidInfo = false;
-    private volatile double posTolerance; // Volatile so it can be changed at runtime
-    private volatile double proximityRadius; // Volatile so it can be changed at runtime
+
     private TrcPath path;
-    private int pathIndex = 1;
-    private double positionInput;
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
-    private TrcWarpSpace warpSpace;
-    private InterpolationType interpolationType = InterpolationType.LINEAR;
-    private volatile boolean maintainHeading = false;
-    private double startHeading;
+    private int pathIndex = 1;
     private TrcPose2D referencePose;
-    private double moveOutputLimit = Double.POSITIVE_INFINITY;
-    private double rotOutputLimit = Double.POSITIVE_INFINITY;
 
     /**
      * Constructor: Create an instance of the object.
@@ -101,41 +108,56 @@ public class TrcHolonomicPurePursuitDrive
      * @param proximityRadius specifies the distance between the robot and next following point.
      * @param posTolerance specifies the position tolerance.
      * @param turnTolerance specifies the turn tolerance.
-     * @param posPidCoeff specifies the position PID coefficients.
+     * @param xPosPidCoeff specifies the position PID coefficients for X.
+     * @param yPosPidCoeff specifies the position PID coefficients for Y.
      * @param turnPidCoeff specifies the turn PID coefficients.
      * @param velPidCoeff specifies the velocity PID coefficients.
      */
-    public TrcHolonomicPurePursuitDrive(String instanceName, TrcDriveBase driveBase, double proximityRadius,
-        double posTolerance, double turnTolerance, TrcPidController.PidCoefficients posPidCoeff,
-        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
+    public TrcPurePursuitDrive(String instanceName, TrcDriveBase driveBase, double proximityRadius,
+                               double posTolerance, double turnTolerance,
+                               TrcPidController.PidCoefficients xPosPidCoeff,
+                               TrcPidController.PidCoefficients yPosPidCoeff,
+                               TrcPidController.PidCoefficients turnPidCoeff,
+                               TrcPidController.PidCoefficients velPidCoeff)
     {
-        if (driveBase.supportsHolonomicDrive())
+        if (debugEnabled)
+        {
+            dbgTrace = useGlobalTracer?
+                TrcDbgTrace.getGlobalTracer():
+                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
+        }
+
+        this.instanceName = instanceName;
+
+        if (xPosPidCoeff == null || driveBase.supportsHolonomicDrive())
         {
             this.driveBase = driveBase;
         }
         else
         {
             throw new IllegalArgumentException(
-                "Only holonomic drive bases supported for this pure pursuit implementation!");
+                "xPosPidCoeff is provided but drive base does not support holonomic drive!");
         }
 
-        this.instanceName = instanceName;
-        warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
 
-        this.posPidCtrl = new TrcPidController(instanceName + ".posPid", posPidCoeff, 0.0, this::getPositionInput);
-        this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, turnTolerance,
-            driveBase::getHeading);
-        this.velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
+        //CodeReview: why tolerances are zero?
+        xPosPidCtrl = xPosPidCoeff == null? null:
+            new TrcPidController(instanceName + ".posPid", xPosPidCoeff, 0.0, driveBase::getXPosition);
+        yPosPidCtrl = new TrcPidController(
+            instanceName + ".posPid", yPosPidCoeff, 0.0, driveBase::getYPosition);
+        turnPidCtrl = new TrcPidController(
+            instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
+        velPidCtrl = new TrcPidController(
+            instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
 
-        posPidCtrl.setAbsoluteSetPoint(true);
         turnPidCtrl.setAbsoluteSetPoint(true);
         velPidCtrl.setAbsoluteSetPoint(true);
-
         turnPidCtrl.setNoOscillation(true);
 
-        this.driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
-    }   //TrcHolonomicPurePursuitDrive
+        warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
+        driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
+    }   //TrcPurePursuitDrive
 
     /**
      * Constructor: Create an instance of the object.
@@ -144,17 +166,22 @@ public class TrcHolonomicPurePursuitDrive
      * @param driveBase specifies the reference to the drive base.
      * @param proximityRadius specifies the distance between the robot and next following point.
      * @param posTolerance specifies the position tolerance.
-     * @param posPidCoeff specifies the position PID coefficients.
+     * @param xPosPidCoeff specifies the position PID coefficients for X.
+     * @param yPosPidCoeff specifies the position PID coefficients for Y.
      * @param turnPidCoeff specifies the turn PID coefficients.
      * @param velPidCoeff specifies the velocity PID coefficients.
      */
-    public TrcHolonomicPurePursuitDrive(String instanceName, TrcDriveBase driveBase, double proximityRadius,
-        double posTolerance, TrcPidController.PidCoefficients posPidCoeff,
-        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
+    public TrcPurePursuitDrive(String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance,
+                               TrcPidController.PidCoefficients xPosPidCoeff,
+                               TrcPidController.PidCoefficients yPosPidCoeff,
+                               TrcPidController.PidCoefficients turnPidCoeff,
+                               TrcPidController.PidCoefficients velPidCoeff)
     {
-        this(instanceName, driveBase, proximityRadius, posTolerance, 5.0, posPidCoeff, turnPidCoeff, velPidCoeff);
-        setMaintainHeading(true);
-    }   //TrcHolonomicPurePursuitDrive
+        // CodeReview: why do you have a constructor that sets turnTolerance default to 5? Abhay, please explain!
+        this(instanceName, driveBase, proximityRadius, posTolerance, 5.0,
+             xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
+        setMaintainHeading(true);   //CodeReview: why? Can't do this with non-holonmic drivebase
+    }   //TrcPurePursuitDrive
 
     /**
      * This method returns the instance name.
@@ -168,74 +195,14 @@ public class TrcHolonomicPurePursuitDrive
     }   //toString
 
     /**
-     * This method sets the message tracer for logging trace messages.
+     * Set the following distance for the pure pursuit controller.
      *
-     * @param tracer specifies the tracer for logging messages.
-     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
-     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
-     * @param battery specifies the battery object to get battery info for the message.
+     * @param proximityRadius specifies the distance between the robot and next following point.
      */
-    public synchronized void setMsgTracer(
-        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    public void setProximityRadius(double proximityRadius)
     {
-        this.msgTracer = tracer;
-        this.logRobotPoseEvents = logRobotPoseEvents;
-        this.tracePidInfo = tracePidInfo;
-        this.battery = battery;
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
-     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
-    {
-        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer)
-    {
-        setMsgTracer(tracer, false, false, null);
-    }   //setMsgTracer
-
-    /**
-     * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
-     * remember to set the heading tolerance!
-     *
-     * @param maintainHeading If true, maintain heading. If false, use closed loop to control heading.
-     */
-    public void setMaintainHeading(boolean maintainHeading)
-    {
-        this.maintainHeading = maintainHeading;
-    }   //setMaintainHeading
-
-    /**
-     * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
-     *
-     * @param turnTolerance The turn tolerance, in degrees. Should be positive.
-     */
-    public void setTurnTolerance(double turnTolerance)
-    {
-        turnPidCtrl.setTargetTolerance(turnTolerance);
-    }   //setTurnTolerance
-
-    /**
-     * Configure the method of interpolating between waypoints. Methods ending with INV will favor the ending point.
-     *
-     * @param interpolationType The type of interpolation to use.
-     */
-    public void setInterpolationType(InterpolationType interpolationType)
-    {
-        this.interpolationType = interpolationType == null ? InterpolationType.LINEAR : interpolationType;
-    }   //setInterpolationType
+        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+    }   //setProximityRadius
 
     /**
      * Set both the position tolerance and proximity radius.
@@ -265,24 +232,37 @@ public class TrcHolonomicPurePursuitDrive
     }   //setPositionTolerance
 
     /**
-     * Set the following distance for the pure pursuit controller.
+     * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
      *
-     * @param proximityRadius specifies the distance between the robot and next following point.
+     * @param turnTolerance The turn tolerance, in degrees. Should be positive.
      */
-    public void setProximityRadius(double proximityRadius)
+    public void setTurnTolerance(double turnTolerance)
     {
-        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
-    }   //setProximityRadius
+        turnPidCtrl.setTargetTolerance(turnTolerance);
+    }   //setTurnTolerance
 
     /**
-     * Sets the pid coefficients for the position controller. This will work in the middle of an operation as well.
+     * Sets the pid coefficients for the X position controller. This will work in the middle of an operation as well.
      *
-     * @param pidCoefficients The new PID coefficients for the position controller.
+     * @param xPidCoefficients The new PID coefficients for the X position controller.
      */
-    public void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
+    public void setXPositionPidCoefficients(TrcPidController.PidCoefficients xPidCoefficients)
     {
-        posPidCtrl.setPidCoefficients(pidCoefficients);
-    }   //setPositionPidCoefficients
+        if (xPosPidCtrl != null)
+        {
+            xPosPidCtrl.setPidCoefficients(xPidCoefficients);
+        }
+    }   //setXPositionPidCoefficients
+
+    /**
+     * Sets the pid coefficients for the Y position controller. This will work in the middle of an operation as well.
+     *
+     * @param yPidCoefficients The new PID coefficients for the Y position controller.
+     */
+    public void setYPositionPidCoefficients(TrcPidController.PidCoefficients yPidCoefficients)
+    {
+        yPosPidCtrl.setPidCoefficients(yPidCoefficients);
+    }   //setYPositionPidCoefficients
 
     /**
      * Sets the pid coefficients for the turn controller. This will work in the middle of an operation as well.
@@ -326,6 +306,73 @@ public class TrcHolonomicPurePursuitDrive
     }   //setRotOutputLimit
 
     /**
+     * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
+     * remember to set the heading tolerance!
+     *
+     * @param maintainHeading If true, maintain heading. If false, use closed loop to control heading.
+     */
+    public void setMaintainHeading(boolean maintainHeading)
+    {
+        if (xPosPidCtrl != null)
+        {
+            this.maintainHeading = maintainHeading;
+        }
+        else
+        {
+            throw new IllegalArgumentException("Non-holonomic drive base does not support maintain heading.");
+        }
+    }   //setMaintainHeading
+
+    /**
+     * Configure the method of interpolating between waypoints. Methods ending with INV will favor the ending point.
+     *
+     * @param interpolationType The type of interpolation to use.
+     */
+    public void setInterpolationType(InterpolationType interpolationType)
+    {
+        this.interpolationType = interpolationType == null ? InterpolationType.LINEAR : interpolationType;
+    }   //setInterpolationType
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
+     */
+    public synchronized void setMsgTracer(
+        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    {
+        this.msgTracer = tracer;
+        this.logRobotPoseEvents = logRobotPoseEvents;
+        this.tracePidInfo = tracePidInfo;
+        this.battery = battery;
+    }   //setMsgTracer
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     */
+    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
+    {
+        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
+    }   //setMsgTracer
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     */
+    public void setMsgTracer(TrcDbgTrace tracer)
+    {
+        setMsgTracer(tracer, false, false, null);
+    }   //setMsgTracer
+
+    /**
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
@@ -342,24 +389,24 @@ public class TrcHolonomicPurePursuitDrive
 
         cancel();
 
+        this.path = path;
         if (onFinishedEvent != null)
         {
             onFinishedEvent.clear();
         }
         this.onFinishedEvent = onFinishedEvent;
-
-        this.path = path;
         timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
         pathIndex = 1;
-        positionInput = 0;
-        startHeading = driveBase.getHeading();
 
-        posPidCtrl.reset();
+        if (xPosPidCtrl != null)
+        {
+            xPosPidCtrl.reset();
+        }
+        yPosPidCtrl.reset();
         turnPidCtrl.reset();
         velPidCtrl.reset();
 
-        posPidCtrl.setTarget(0.0);
-        turnPidCtrl.setTarget(startHeading); // Maintain heading to start
+        turnPidCtrl.setTarget(driveBase.getHeading()); // Maintain heading to start
 
         referencePose = driveBase.getFieldPosition();
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
@@ -466,16 +513,13 @@ public class TrcHolonomicPurePursuitDrive
     }   //cancel
 
     /**
-     * This method is called by the Position PID controller to get the current position of the robot. Since the
-     * position target is always zero, getPositionInput returns the negative distance of the robot from the next
-     * target point.
-     *
-     * @return negative distance of the robot from the next target point.
+     * Stops PurePursuit drive.
      */
-    private double getPositionInput()
+    private synchronized void stop()
     {
-        return positionInput;
-    }   //getPositionInput
+        driveTaskObj.unregisterTask();
+        driveBase.stop();
+    }   //stop
 
     /**
      * This method is called by the Velocity PID controller to get the polar magnitude of the robot's velocity.
@@ -488,15 +532,6 @@ public class TrcHolonomicPurePursuitDrive
     }   //getVelocityInput
 
     /**
-     * Stops PurePursuit drive.
-     */
-    private synchronized void stop()
-    {
-        driveTaskObj.unregisterTask();
-        driveBase.stop();
-    }   //stop
-
-    /**
      * This task is called periodically to calculate the next target point on the path. The next target point on
      * the path has a distance of followDistance from the current robot position intersecting with the path segment
      * towards the end of the endpoint of the path segment.
@@ -506,43 +541,48 @@ public class TrcHolonomicPurePursuitDrive
      */
     private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        TrcPose2D pose = driveBase.getPositionRelativeTo(referencePose, false);
-        double robotX = pose.x;
-        double robotY = pose.y;
-        TrcWaypoint point = getFollowingPoint(pose);
+        final String funcName = moduleName + ".driveTask";
+        TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, false);
+        TrcWaypoint point = getFollowingPoint(robotPose);
+        TrcPose2D relativePose = point.pose.relativeTo(robotPose, true);
 
-        double dist = TrcUtil.magnitude(robotX - point.pose.x, robotY - point.pose.y);
-        positionInput = -dist; // Make this negative so the control effort is positive.
-        velPidCtrl.setTarget(point.velocity);
+        if (xPosPidCtrl != null)
+        {
+            xPosPidCtrl.setTarget(relativePose.x);
+        }
+        yPosPidCtrl.setTarget(relativePose.y);
         // Only follow heading if we're not maintaining heading
         if (!maintainHeading)
         {
-            turnPidCtrl.setTarget(warpSpace.getOptimizedTarget(point.pose.angle, pose.angle));
+            turnPidCtrl.setTarget(warpSpace.getOptimizedTarget(point.pose.angle, robotPose.angle));
         }
+        velPidCtrl.setTarget(point.velocity);
 
-        double posPower = posPidCtrl.getOutput();
+        double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
+        double yPosPower = yPosPidCtrl.getOutput();
         double turnPower = turnPidCtrl.getOutput();
         double velPower = velPidCtrl.getOutput();
+        double theta = Math.atan2(relativePose.y, relativePose.x);
+        xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.cos(theta),
+                                                                -moveOutputLimit, moveOutputLimit);
+        yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.sin(theta), -moveOutputLimit, moveOutputLimit);
         turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
-
-        double r = posPower + velPower;
-        r = TrcUtil.clipRange(r, -moveOutputLimit, moveOutputLimit);
-        double theta = Math.toDegrees(Math.atan2(point.pose.x - robotX, point.pose.y - robotY));
-
-        double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
         if (debugEnabled)
         {
-            TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDrive.driveTask",
-                "[%.6f] Robot:(%.2f,%.2f),RobotVel:%.2f,RobotHeading:%.2f,TargetPose=%s,TargetVel:%.2f,pathIndex=%d,r=%.2f,theta=%.1f",
-                TrcUtil.getModeElapsedTime(), robotX, robotY, velocity, pose.angle, point.pose, point.velocity, pathIndex, r,
-                theta);
+            dbgTrace.traceInfo(
+                funcName,
+                "[%d:%.6f] RobotPose=%s,TargetPose=%s,RobotVel=%.1f,TargetVel=%.1f,xTarget=%.1f,yTarget=%.1f," +
+                "turnTarget=%.1f,velTarget=%.1f,theta=%.1f",
+                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, point.pose, getVelocityInput(), point.velocity,
+                xPosPidCtrl != null? xPosPidCtrl.getTarget(): 0.0, yPosPidCtrl.getTarget(), turnPidCtrl.getTarget(),
+                velPidCtrl.getTarget(), Math.toDegrees(theta));
         }
 
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
-        boolean posOnTarget = dist <= posTolerance;
-        boolean headingOnTarget = maintainHeading || (!maintainHeading && turnPidCtrl.isOnTarget());
+        boolean posOnTarget = yPosPidCtrl.isOnTarget() && (xPosPidCtrl == null || xPosPidCtrl.isOnTarget());
+        boolean headingOnTarget = turnPidCtrl.isOnTarget();
         if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
             if (onFinishedEvent != null)
@@ -551,9 +591,13 @@ public class TrcHolonomicPurePursuitDrive
             }
             stop();
         }
+        else if (xPosPidCtrl != null)
+        {
+            driveBase.holonomicDrive(xPosPower, yPosPower, turnPower);
+        }
         else
         {
-            driveBase.holonomicDrive_Polar(r, theta, turnPower, pose.angle - startHeading);
+            driveBase.arcadeDrive(yPosPower, turnPower);
         }
 
         if (msgTracer != null)
@@ -565,9 +609,10 @@ public class TrcHolonomicPurePursuitDrive
 
             if (tracePidInfo)
             {
-                if (posPidCtrl != null) posPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (velPidCtrl != null) velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                if (yPosPidCtrl != null) yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
                 if (turnPidCtrl != null) turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                if (velPidCtrl != null) velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
             }
         }
     }   //driveTask
@@ -578,9 +623,10 @@ public class TrcHolonomicPurePursuitDrive
      * @param point1 specifies the start point of the path segment.
      * @param point2 specifies the end point of the path segment.
      * @param weight specifies the weight between the two provided points.
+     * @param robotPose specifies the robot's position, set to null for holonomic drivebase.
      * @return weighted interpolated waypoint.
      */
-    private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight)
+    private TrcWaypoint interpolate(TrcWaypoint point1, TrcWaypoint point2, double weight, TrcPose2D robotPose)
     {
         double timestep = interpolate(point1.timeStep, point2.timeStep, weight);
         double x = interpolate(point1.pose.x, point2.pose.x, weight);
@@ -589,8 +635,32 @@ public class TrcHolonomicPurePursuitDrive
         double velocity = interpolate(point1.velocity, point2.velocity, weight);
         double acceleration = interpolate(point1.acceleration, point2.acceleration, weight);
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
-        double heading = interpolate(
+
+        double heading;
+        if (robotPose == null || robotPose.distanceTo(point2.pose) <= proximityRadius)
+        {
+            if (robotPose != null)
+            {
+                //
+                // For non-holonomic drivebase and the end-waypoint is within the robot's proximity circle, we will
+                // interpolate the heading weight differently than holonomic drivebase.
+                // The heading weight is the percentage distance of the robot position to the end-waypoint over
+                // proximity radius.
+                //
+                weight = 1 - point2.pose.distanceTo(point1.pose)*(1 - weight)/proximityRadius;
+            }
+            heading = interpolate(
                 point1.pose.angle, warpSpace.getOptimizedTarget(point2.pose.angle, point1.pose.angle), weight);
+        }
+        else
+        {
+            //
+            // For non-holonomic drivebase, maintain the robot heading the same as start-waypoint heading unless
+            // the end-waypoint is within the robot's proximity circle.
+            //
+            heading = point1.pose.angle;
+        }
+
         return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
     }   //interpolate
 
@@ -683,7 +753,7 @@ public class TrcHolonomicPurePursuitDrive
                 return null;
             }
 
-            return interpolate(prev, point, t);
+            return interpolate(prev, point, t, xPosPidCtrl == null? robotPose: null);
         }
     }   //getFollowingPointOnSegment
 
@@ -716,4 +786,4 @@ public class TrcHolonomicPurePursuitDrive
         return path.getWaypoint(pathIndex);
     }   //getFollowingPoint
 
-}   //class TrcHolonomicPurePursuitDrive
+}   //class TrcPurePursuitDrive
