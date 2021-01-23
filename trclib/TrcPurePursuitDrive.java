@@ -53,7 +53,7 @@ public class TrcPurePursuitDrive
     private static final String moduleName = "TrcPurePursuitDrive";
     private static final boolean debugEnabled = false;
     private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = true;
+    private static final boolean useGlobalTracer = false;
     private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private static final boolean verbosePidInfo = false;
