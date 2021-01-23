@@ -261,6 +261,16 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //TrcDriveBase
 
     /**
+     * This method returns an array of motors on the drive base.
+     *
+     * @return motor array.
+     */
+    public TrcMotorController[] getMotors()
+    {
+        return motors;
+    }   //getMotors
+
+    /**
      * This method checks if synchronize odometries is enabled.
      *
      * @return true if it is enabled, false if it is disabled.
