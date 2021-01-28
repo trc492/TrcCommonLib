@@ -80,6 +80,7 @@ public class TrcPurePursuitDrive
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private volatile double proximityRadius; // Volatile so it can be changed at runtime
+    private volatile double posTolerance; // Volatile so it can be changed at runtime
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
@@ -137,8 +138,6 @@ public class TrcPurePursuitDrive
                 "xPosPidCoeff is provided but drive base does not support holonomic drive!");
         }
 
-        setProximityRadius(proximityRadius);
-
         xPosPidCtrl = xPosPidCoeff == null? null:
             new TrcPidController(instanceName + ".posPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
         yPosPidCtrl = new TrcPidController(
@@ -148,6 +147,8 @@ public class TrcPurePursuitDrive
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
         velPidCtrl = new TrcPidController(
             instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
+
+        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
 
         turnPidCtrl.setAbsoluteSetPoint(true);
         velPidCtrl.setAbsoluteSetPoint(true);
@@ -199,6 +200,7 @@ public class TrcPurePursuitDrive
             {
                 xPosPidCtrl.setTargetTolerance(posTolerance);
             }
+            this.posTolerance = posTolerance;
         }
     }   //setPositionToleranceAndProximityRadius
 
@@ -612,7 +614,7 @@ public class TrcPurePursuitDrive
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
 
         double heading;
-        if (robotPose == null || robotPose.distanceTo(point2.pose) <= proximityRadius)
+        if (robotPose == null || robotPose.distanceTo(point2.pose) <= proximityRadius + posTolerance)
         {
             if (robotPose != null)
             {
