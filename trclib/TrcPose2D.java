@@ -179,10 +179,16 @@ public class TrcPose2D
     {
         double deltaX = x - pose.x;
         double deltaY = y - pose.y;
-        RealVector newPos =
-            TrcUtil.rotateCCW(MatrixUtils.createRealVector(new double[] { deltaX, deltaY }), pose.angle);
+        double newAngle = angle;
 
-        return new TrcPose2D(newPos.getEntry(0), newPos.getEntry(1), transformAngle ? angle - pose.angle : angle);
+        RealVector newPos =
+            TrcUtil.rotateCCW(MatrixUtils.createRealVector(new double[]{deltaX, deltaY}), pose.angle);
+        if (transformAngle)
+        {
+            newAngle -= pose.angle;
+        }
+
+        return new TrcPose2D(newPos.getEntry(0), newPos.getEntry(1), newAngle);
     }   //relativeTo
 
     /**

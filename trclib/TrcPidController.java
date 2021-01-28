@@ -173,6 +173,7 @@ public class TrcPidController
     private Stack<Double> outputLimitStack = new Stack<>();
 
     private double prevTime = 0.0;
+    private double deltaTime = 0.0;
     private double currError = 0.0;
     private double totalError = 0.0;
     private double settlingStartTime = 0.0;
@@ -278,14 +279,15 @@ public class TrcPidController
             StringBuilder msg = new StringBuilder();
 
             msg.append(String.format(
-                    Locale.US, "[%.3f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
+                    Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
                     TrcUtil.getModeElapsedTime(), instanceName, setPoint, currInput, currError, output, minOutput,
                     maxOutput));
 
             if (verbose)
             {
                 msg.append(String.format(
-                        Locale.US, ", PIDTerms=%6.3f/%6.3f/%6.3f/%6.3f", pTerm, iTerm, dTerm, fTerm));
+                        Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
+                        pTerm, iTerm, dTerm, fTerm, deltaTime, TrcUtil.getModeElapsedTime(prevTime)));
             }
 
             if (battery != null)
@@ -865,7 +867,7 @@ public class TrcPidController
             final String funcName = "getOutput";
             double prevError = currError;
             double currTime = TrcUtil.getCurrentTime();
-            double deltaTime = currTime - prevTime;
+            deltaTime = currTime - prevTime;
 
             if (debugEnabled)
             {
