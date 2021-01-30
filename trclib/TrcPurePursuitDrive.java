@@ -571,7 +571,7 @@ public class TrcPurePursuitDrive
 
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
-        boolean posOnTarget = yPosPidCtrl.isOnTarget() && (xPosPidCtrl == null || xPosPidCtrl.isOnTarget());
+        boolean posOnTarget = TrcUtil.magnitude(relativePose.x, relativePose.y) <= posTolerance;
         boolean headingOnTarget = turnPidCtrl.isOnTarget();
         if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
