@@ -22,6 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Arrays;
+import java.util.Locale;
+
 /**
  * This class implements a platform independent drive base odometry device. A drive base odometry device generally
  * consists of two to five sensors: zero to two for the X-axis, one to two for the Y-axis and one rotational sensor.
@@ -72,6 +75,12 @@ package TrcCommonLib.trclib;
 public class TrcDriveBaseOdometry
 {
     private static final String moduleName = "TrcDriveBaseOdometry";
+    private static final boolean debugEnabled = false;
+    private static final boolean tracingEnabled = false;
+    private static final boolean useGlobalTracer = false;
+    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
+    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
+    private TrcDbgTrace dbgTrace = null;
 
     /**
      * This class encapsulates an axis sensor with its axis offset.
@@ -104,6 +113,17 @@ public class TrcDriveBaseOdometry
             this(sensor, 0.0);
         }   //AxisSensor
 
+        /**
+         * This method returns the sensor info in string forma.
+         *
+         * @return string form of sensor info.
+         */
+        @Override
+        public String toString()
+        {
+            return String.format(Locale.US, "(%s:offset=%.1f,odometry=%s)", sensor, axisOffset, odometry);
+        }   //toString
+
     }   //class AxisSensor
 
     private final AxisSensor[] xSensors;
@@ -125,6 +145,13 @@ public class TrcDriveBaseOdometry
      */
     public TrcDriveBaseOdometry(AxisSensor[] xSensors, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
+        if (debugEnabled)
+        {
+            dbgTrace = useGlobalTracer?
+                TrcDbgTrace.getGlobalTracer():
+                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
+        }
+
         if (ySensors == null || angleSensor == null || ySensors.length < 1)
         {
             throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
@@ -268,6 +295,8 @@ public class TrcDriveBaseOdometry
      */
     public synchronized TrcDriveBase.Odometry getOdometryDelta()
     {
+        final String funcName = "getOdometryDelta";
+
         updateAxisOdometries(xSensors);
         updateAxisOdometries(ySensors);
         angleOdometry = angleSensor.getOdometry();
@@ -287,6 +316,14 @@ public class TrcDriveBaseOdometry
         odometryDelta.velocity.x = avgXVel*xScale;
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceInfo(
+                funcName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
+                Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
+                odometryDelta.position.y, odometryDelta.position.angle);
+        }
 
         prevAvgXPos = avgXPos;
         prevAvgYPos = avgYPos;

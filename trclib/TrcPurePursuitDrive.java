@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Titan Robotics Club (http://www.titanrobotics.com)
+ * Copyright (c) 2021 Titan Robotics Club (http://www.titanrobotics.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,8 +79,8 @@ public class TrcPurePursuitDrive
 
     private final String instanceName;
     private final TrcDriveBase driveBase;
-    private volatile double proximityRadius; // Volatile so it can be changed at runtime
-    private volatile double posTolerance; // Volatile so it can be changed at runtime
+    private volatile double proximityRadius;    // Volatile so it can be changed at runtime
+    private volatile double posTolerance;       // Volatile so it can be changed at runtime
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
@@ -139,9 +139,9 @@ public class TrcPurePursuitDrive
         }
 
         xPosPidCtrl = xPosPidCoeff == null? null:
-            new TrcPidController(instanceName + ".posPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
+            new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
         yPosPidCtrl = new TrcPidController(
-            instanceName + ".posPid", yPosPidCoeff, posTolerance, driveBase::getYPosition);
+            instanceName + ".yPosPid", yPosPidCoeff, posTolerance, driveBase::getYPosition);
         turnPidCtrl = new TrcPidController(
             instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
@@ -170,29 +170,18 @@ public class TrcPurePursuitDrive
     }   //toString
 
     /**
-     * Set the following distance for the pure pursuit controller.
-     *
-     * @param proximityRadius specifies the distance between the robot and next following point.
-     */
-    public void setProximityRadius(double proximityRadius)
-    {
-        setPositionToleranceAndProximityRadius(null, proximityRadius);
-    }   //setProximityRadius
-
-    /**
      * Set both the position tolerance and proximity radius.
      *
      * @param posTolerance    sepcifies the distance at which the controller will stop itself.
      * @param proximityRadius specifies the distance between the robot and next following point.
      */
-    public void setPositionToleranceAndProximityRadius(Double posTolerance, double proximityRadius)
+    public synchronized void setPositionToleranceAndProximityRadius(Double posTolerance, Double proximityRadius)
     {
-        if (posTolerance != null && posTolerance >= proximityRadius)
+        if (posTolerance != null && proximityRadius != null && posTolerance >= proximityRadius)
         {
             throw new IllegalArgumentException("Position tolerance must be less than proximityRadius!");
         }
 
-        this.proximityRadius = proximityRadius;
         if (posTolerance != null)
         {
             yPosPidCtrl.setTargetTolerance(posTolerance);
@@ -201,6 +190,11 @@ public class TrcPurePursuitDrive
                 xPosPidCtrl.setTargetTolerance(posTolerance);
             }
             this.posTolerance = posTolerance;
+        }
+
+        if (proximityRadius != null)
+        {
+            this.proximityRadius = proximityRadius;
         }
     }   //setPositionToleranceAndProximityRadius
 
@@ -211,15 +205,25 @@ public class TrcPurePursuitDrive
      */
     public void setPositionTolerance(double posTolerance)
     {
-        setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+        setPositionToleranceAndProximityRadius(posTolerance, null);
     }   //setPositionTolerance
+
+    /**
+     * Set the following distance for the pure pursuit controller.
+     *
+     * @param proximityRadius specifies the distance between the robot and next following point.
+     */
+    public void setProximityRadius(double proximityRadius)
+    {
+        setPositionToleranceAndProximityRadius(null, proximityRadius);
+    }   //setProximityRadius
 
     /**
      * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
      *
      * @param turnTolerance The turn tolerance, in degrees. Should be positive.
      */
-    public void setTurnTolerance(double turnTolerance)
+    public synchronized void setTurnTolerance(double turnTolerance)
     {
         turnPidCtrl.setTargetTolerance(turnTolerance);
     }   //setTurnTolerance
@@ -229,7 +233,7 @@ public class TrcPurePursuitDrive
      *
      * @param xPidCoefficients The new PID coefficients for the X position controller.
      */
-    public void setXPositionPidCoefficients(TrcPidController.PidCoefficients xPidCoefficients)
+    public synchronized void setXPositionPidCoefficients(TrcPidController.PidCoefficients xPidCoefficients)
     {
         if (xPosPidCtrl != null)
         {
@@ -242,7 +246,7 @@ public class TrcPurePursuitDrive
      *
      * @param yPidCoefficients The new PID coefficients for the Y position controller.
      */
-    public void setYPositionPidCoefficients(TrcPidController.PidCoefficients yPidCoefficients)
+    public synchronized void setYPositionPidCoefficients(TrcPidController.PidCoefficients yPidCoefficients)
     {
         yPosPidCtrl.setPidCoefficients(yPidCoefficients);
     }   //setYPositionPidCoefficients
@@ -253,7 +257,7 @@ public class TrcPurePursuitDrive
      *
      * @param pidCoefficients The new PID coefficients for both X and Y position controllers.
      */
-    public void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
+    public synchronized void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
         setXPositionPidCoefficients(pidCoefficients);
         setYPositionPidCoefficients(pidCoefficients);
@@ -264,7 +268,7 @@ public class TrcPurePursuitDrive
      *
      * @param pidCoefficients The new PID coefficients for the heading controller.
      */
-    public void setTurnPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
+    public synchronized void setTurnPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
         turnPidCtrl.setPidCoefficients(pidCoefficients);
     }   //setTurnPidCoefficients
@@ -275,7 +279,7 @@ public class TrcPurePursuitDrive
      *
      * @param pidCoefficients The new PIDF coefficients for the velocity controller.
      */
-    public void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
+    public synchronized void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
         velPidCtrl.setPidCoefficients(pidCoefficients);
     }   //setVelocityPidCoefficients
@@ -285,7 +289,7 @@ public class TrcPurePursuitDrive
      *
      * @param limit specifies the output power limit for movement (X and Y).
      */
-    public void setMoveOutputLimit(double limit)
+    public synchronized void setMoveOutputLimit(double limit)
     {
         moveOutputLimit = Math.abs(limit);
     }   //setMoveOutputLimit
@@ -295,7 +299,7 @@ public class TrcPurePursuitDrive
      *
      * @param limit specifies the output power limit for rotation.
      */
-    public void setRotOutputLimit(double limit)
+    public synchronized void setRotOutputLimit(double limit)
     {
         rotOutputLimit = Math.abs(limit);
     }   //setRotOutputLimit
@@ -305,7 +309,7 @@ public class TrcPurePursuitDrive
      *
      * @param interpolationType The type of interpolation to use.
      */
-    public void setInterpolationType(InterpolationType interpolationType)
+    public synchronized void setInterpolationType(InterpolationType interpolationType)
     {
         this.interpolationType = interpolationType == null ? InterpolationType.LINEAR : interpolationType;
     }   //setInterpolationType
@@ -520,16 +524,16 @@ public class TrcPurePursuitDrive
     {
         final String funcName = moduleName + ".driveTask";
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, false);
-        TrcWaypoint point = getFollowingPoint(robotPose);
-        TrcPose2D relativePose = point.pose.relativeTo(robotPose, true);
+        TrcWaypoint targetPoint = getFollowingPoint(robotPose);
+        TrcPose2D relativePose = targetPoint.pose.relativeTo(robotPose, true);
 
         if (xPosPidCtrl != null)
         {
             xPosPidCtrl.setTarget(relativePose.x);
         }
         yPosPidCtrl.setTarget(relativePose.y);
-        turnPidCtrl.setTarget(point.pose.angle, warpSpace);
-        velPidCtrl.setTarget(point.velocity);
+        turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace);
+        velPidCtrl.setTarget(targetPoint.velocity);
 
         double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
         double yPosPower = yPosPidCtrl.getOutput();
@@ -543,17 +547,26 @@ public class TrcPurePursuitDrive
 
         if (debugEnabled)
         {
+//            TrcMotorController[] motors = driveBase.getMotors();
+//            StringBuilder msg = new StringBuilder("motors=(");
+//            for (TrcMotorController motor: motors)
+//            {
+//                msg.append(String.format("%s=%.0f ", motor, motor.getPosition()));
+//            }
+//            msg.append(")");
+//            dbgTrace.traceInfo(funcName, msg.toString());
             dbgTrace.traceInfo(
                 funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
-                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, point.pose, relativePose);
+                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, targetPoint.pose, relativePose);
             dbgTrace.traceInfo(
                 funcName,
                 "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
                 "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
-                getVelocityInput(), point.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
+                getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
                 yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
                 xPosPower, yPosPower, turnPower, velPower);
-            yPosPidCtrl.printPidInfo(dbgTrace, true);
+//            // Temp debugging
+//            yPosPidCtrl.printPidInfo(dbgTrace, true);
         }
 
         // If we have timed out or finished, stop the operation.
@@ -587,12 +600,46 @@ public class TrcPurePursuitDrive
             if (tracePidInfo)
             {
                 if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (yPosPidCtrl != null) yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (turnPidCtrl != null) turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (velPidCtrl != null) velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
             }
         }
     }   //driveTask
+
+    /**
+     * Returns a weighted value between given values.
+     *
+     * @param startValue specifies the start value.
+     * @param endValue specifies the end value.
+     * @param weight specifies the weight between the values.
+     * @return weighted value between the given values.
+     */
+    private double interpolate(double startValue, double endValue, double weight)
+    {
+        if (!TrcUtil.inRange(weight, 0.0, 1.0))
+        {
+            throw new IllegalArgumentException("Weight must be in range [0,1]!");
+        }
+
+        switch (interpolationType)
+        {
+            case LINEAR:
+            case QUADRATIC:
+            case CUBIC:
+            case QUARTIC:
+                weight = Math.pow(weight, interpolationType.getValue());
+                break;
+
+            case QUADRATIC_INV:
+            case CUBIC_INV:
+            case QUARTIC_INV:
+                weight = Math.pow(weight, 1.0 / interpolationType.getValue());
+                break;
+        }
+
+        return (1.0 - weight) * startValue + weight * endValue;
+    }   //interpolate
 
     /**
      * Interpolates a waypoint that's weighted between two given waypoints.
@@ -619,8 +666,8 @@ public class TrcPurePursuitDrive
             if (robotPose != null)
             {
                 //
-                // For non-holonomic drivebase and the end-waypoint is within the robot's proximity circle, we will
-                // interpolate the heading weight differently than holonomic drivebase.
+                // For non-holonomic drivebase and the end-waypoint is within the robot's proximity circle +
+                // posTolerance, we will interpolate the heading weight differently than holonomic drivebase.
                 // The heading weight is the percentage distance of the robot position to the end-waypoint over
                 // proximity radius.
                 //
@@ -642,58 +689,25 @@ public class TrcPurePursuitDrive
     }   //interpolate
 
     /**
-     * Returns a weighted value between given values.
-     *
-     * @param start specifies the start value.
-     * @param end specifies the end value.
-     * @param weight specifies the weight between the values.
-     * @return weighted value between the given values.
-     */
-    private double interpolate(double start, double end, double weight)
-    {
-        if (!TrcUtil.inRange(weight, 0.0, 1.0))
-        {
-            throw new IllegalArgumentException("Weight must be in range [0,1]!");
-        }
-
-        switch (interpolationType)
-        {
-            case LINEAR:
-            case QUADRATIC:
-            case CUBIC:
-            case QUARTIC:
-                weight = Math.pow(weight, interpolationType.getValue());
-                break;
-
-            case QUADRATIC_INV:
-            case CUBIC_INV:
-            case QUARTIC_INV:
-                weight = Math.pow(weight, 1.0 / interpolationType.getValue());
-                break;
-        }
-
-        return (1.0 - weight) * start + weight * end;
-    }   //interpolate
-
-    /**
      * This method calculates the waypoint on the path segment that intersects the robot's proximity circle that is
      * closest to the end point of the path segment. The algorithm is based on this article:
      * https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
      *
-     * @param prev specifies the start point of the path segment.
-     * @param point specifies the end point of the path segment.
+     * @param startWaypoint specifies the start point of the path segment.
+     * @param endWaypoint specifies the end point of the path segment.
      * @param robotPose specifies the robot's position.
      * @return calculated waypoint.
      */
-    private TrcWaypoint getFollowingPointOnSegment(TrcWaypoint prev, TrcWaypoint point, TrcPose2D robotPose)
+    private TrcWaypoint getFollowingPointOnSegment(
+        TrcWaypoint startWaypoint, TrcWaypoint endWaypoint, TrcPose2D robotPose)
     {
         // Find intersection of path segment with the proximity circle of the robot.
-        RealVector start = prev.getPositionPose().toPosVector();
-        RealVector end = point.getPositionPose().toPosVector();
-        RealVector robot = robotPose.toPosVector();
+        RealVector startVector = startWaypoint.getPositionPose().toPosVector();
+        RealVector endVector = endWaypoint.getPositionPose().toPosVector();
+        RealVector robotVector = robotPose.toPosVector();
 
-        RealVector startToEnd = end.subtract(start);
-        RealVector robotToStart = start.subtract(robot);
+        RealVector startToEnd = endVector.subtract(startVector);
+        RealVector robotToStart = startVector.subtract(robotVector);
         // Solve quadratic formula
         double a = startToEnd.dotProduct(startToEnd);
         double b = 2 * robotToStart.dotProduct(startToEnd);
@@ -730,7 +744,7 @@ public class TrcPurePursuitDrive
                 return null;
             }
 
-            return interpolate(prev, point, t, xPosPidCtrl == null? robotPose: null);
+            return interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
         }
     }   //getFollowingPointOnSegment
 

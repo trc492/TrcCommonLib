@@ -141,7 +141,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         public String toString()
         {
-            return String.format(Locale.US, "odometry=%s", Arrays.toString(currMotorOdometries));
+            return String.format(Locale.US, "odometry%s", Arrays.toString(currMotorOdometries));
         }   //toString
 
     }   //class MotorsState
@@ -206,7 +206,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private boolean gyroAssistEnabled = false;
     private Stack<Odometry> referenceOdometryStack = new Stack<>();
     private Odometry referenceOdometry = null;
-    private boolean synchronizeOdometries = true;
+    private boolean synchronizeOdometries = false;
     // Change of basis matrices to convert between coordinate systems
     private final RealMatrix enuToNwuChangeOfBasis = MatrixUtils
         .createRealMatrix(new double[][] { { 0, 1 }, { -1, 0 } });
@@ -810,6 +810,21 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             resetOdometry(false, true);
         }
     }   //setDriveBaseOdometry
+
+    /**
+     * This method is called to print the state info of all motors on the drive base for debugging purpose.
+     *
+     * @param tracer specifies the tracer to use to print the state info.
+     */
+    public void printMotorsState(TrcDbgTrace tracer)
+    {
+        final String funcName = "printMotorsState";
+
+        synchronized (odometry)
+        {
+            tracer.traceInfo(funcName, "motorsState=%s", motorsState);
+        }
+    }   //printMotorsState
 
     /**
      * This method sets a motor power mapper. If null, it unsets the previously set mapper.

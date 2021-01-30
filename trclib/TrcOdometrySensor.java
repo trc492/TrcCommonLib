@@ -35,8 +35,9 @@ public interface TrcOdometrySensor
      * acceleration info. If the sensor does not support velocity data. This class keeps track of the previous
      * timestamp and position so we can calculate the velocity ourselves.
      */
-    public class Odometry
+    class Odometry
     {
+        private static final boolean VERBOSE = false;
         public Object sensor;
         public double prevTimestamp;
         public double currTimestamp;
@@ -94,9 +95,19 @@ public interface TrcOdometrySensor
         @Override
         public String toString()
         {
-            return String.format(
-                    Locale.US, "name=%s,prevTime=%.3f,currTime=%.3f,prevPos=%.1f,currPos=%.1f,vel=%.1f,accel=%.1f",
-                    sensor, prevTimestamp, currTimestamp, prevPos, currPos, velocity, acceleration);
+            if (VERBOSE)
+            {
+                return String.format(
+                    Locale.US, "(name=%s,prevTime=%.6f,currTime=%.6f,prevPos=%.0f,currPos=%.0f,vel=%.0f,accel=%.0f)",
+                    sensor, TrcUtil.getModeElapsedTime(prevTimestamp), TrcUtil.getModeElapsedTime(currTimestamp),
+                    prevPos, currPos, velocity, acceleration);
+            }
+            else
+            {
+                return String.format(
+                    Locale.US, "(name=%s,timeStamp=%.6f,pos=%.0f,vel=%.0f,accel=%.0f)",
+                    sensor, TrcUtil.getModeElapsedTime(currTimestamp), currPos, velocity, acceleration);
+            }
         }   //toString
 
         /**
