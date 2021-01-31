@@ -24,10 +24,11 @@ package TrcCommonLib.command;
 
 import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
-import TrcCommonLib.trclib.TrcHolonomicPurePursuitDrive;
 import TrcCommonLib.trclib.TrcPath;
+import TrcCommonLib.trclib.TrcPathBuilder;
 import TrcCommonLib.trclib.TrcPidController;
 import TrcCommonLib.trclib.TrcPose2D;
+import TrcCommonLib.trclib.TrcPurePursuitDrive;
 import TrcCommonLib.trclib.TrcRobot;
 
 /**
@@ -37,10 +38,11 @@ import TrcCommonLib.trclib.TrcRobot;
 public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
 {
     private static final double DEF_FOLLOWING_DISTANCE = 6.0;
-    private static final double DEF_POS_TOLERANCE = 3.0;
-    private static final double DEF_TURN_TOLERANCE = 2.0;
+    private static final double DEF_POS_TOLERANCE = 2.0;
+    private static final double DEF_TURN_TOLERANCE = 1.0;
 
-    private final TrcHolonomicPurePursuitDrive purePursuitDrive;
+    private final TrcPurePursuitDrive purePursuitDrive;
+    private final Double maxVelocity, maxAcceleration;
     private final TrcEvent event;
 
     /**
@@ -50,18 +52,24 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * @param followingDistance specifies the following distance.
      * @param posTolerance specifies the position tolerance
      * @param turnTolerance specifies the turn tolerance.
-     * @param posPidCoeff specifies the PID coefficients for position control.
-     * @param turnPidCoeff specifies the PID coefficients for turn control.
-     * @param velPidCoeff specifies the PID coefficients for velocity control.
+     * @param xPosPidCoeff specifies the PID coefficients for X position PID controller.
+     * @param yPosPidCoeff specifies the PID coefficients for Y position PID controller.
+     * @param turnPidCoeff specifies the PID coefficients for turn PID controller.
+     * @param velPidCoeff specifies the PID coefficients for velocity PID controller.
+     * @param maxVelocity specifies the maximum velocity of the robot.
+     * @param maxAcceleration specifies the maximum acceleration of the robot.
      */
     public CmdPurePursuitDrive(
             TrcDriveBase driveBase, double followingDistance, double posTolerance, double turnTolerance,
-            TrcPidController.PidCoefficients posPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
-            TrcPidController.PidCoefficients velPidCoeff)
+            TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
+            TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff,
+            Double maxVelocity, Double maxAcceleration)
     {
-        purePursuitDrive = new TrcHolonomicPurePursuitDrive(
+        purePursuitDrive = new TrcPurePursuitDrive(
                 "PurePursuitDrive", driveBase, followingDistance, posTolerance, turnTolerance,
-                posPidCoeff, turnPidCoeff, velPidCoeff);
+                xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
+        this.maxVelocity = maxVelocity;
+        this.maxAcceleration = maxAcceleration;
         event = new TrcEvent("event");
     }   //CmdPurePursuitDrive
 
@@ -69,16 +77,38 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * Constructor: Create an instance of the object.
      *
      * @param driveBase specifies the drive base object.
-     * @param posPidCoeff specifies the PID coefficients for position control.
-     * @param turnPidCoeff specifies the PID coefficients for turn control.
-     * @param velPidCoeff specifies the PID coefficients for velocity control.
+     * @param xPosPidCoeff specifies the PID coefficients for X position PID controller.
+     * @param yPosPidCoeff specifies the PID coefficients for Y position PID controller.
+     * @param turnPidCoeff specifies the PID coefficients for turn PID controller.
+     * @param velPidCoeff specifies the PID coefficients for velocity PID controller.
+     * @param maxVelocity specifies the maximum velocity of the robot.
+     * @param maxAcceleration specifies the maximum acceleration of the robot.
      */
     public CmdPurePursuitDrive(
-            TrcDriveBase driveBase, TrcPidController.PidCoefficients posPidCoeff,
-            TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
+            TrcDriveBase driveBase, TrcPidController.PidCoefficients xPosPidCoeff,
+            TrcPidController.PidCoefficients yPosPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
+            TrcPidController.PidCoefficients velPidCoeff, Double maxVelocity, Double maxAcceleration)
     {
-        this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE,
-             posPidCoeff, turnPidCoeff, velPidCoeff);
+        this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE, xPosPidCoeff, yPosPidCoeff,
+             turnPidCoeff, velPidCoeff, maxVelocity, maxAcceleration);
+    }   //CmdPurePursuitDrive
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param driveBase specifies the drive base object.
+     * @param xPosPidCoeff specifies the PID coefficients for X position PID controller.
+     * @param yPosPidCoeff specifies the PID coefficients for Y position PID controller.
+     * @param turnPidCoeff specifies the PID coefficients for turn PID controller.
+     * @param velPidCoeff specifies the PID coefficients for velocity PID controller.
+     */
+    public CmdPurePursuitDrive(
+        TrcDriveBase driveBase, TrcPidController.PidCoefficients xPosPidCoeff,
+        TrcPidController.PidCoefficients yPosPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
+        TrcPidController.PidCoefficients velPidCoeff)
+    {
+        this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE, xPosPidCoeff, yPosPidCoeff,
+             turnPidCoeff, velPidCoeff, null, null);
     }   //CmdPurePursuitDrive
 
     /**
@@ -89,6 +119,10 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(TrcPath path, double timeout)
     {
+        if (maxVelocity != null && maxAcceleration != null)
+        {
+            path.trapezoidVelocity(maxVelocity, maxAcceleration);
+        }
         purePursuitDrive.start(path, event, timeout);
     }   //start
 
@@ -99,7 +133,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(TrcPath path)
     {
-        purePursuitDrive.start(path, event, 0.0);
+        start(path, 0.0);
     }   //start
 
     /**
@@ -113,7 +147,13 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        purePursuitDrive.start(event, timeout, startingPose, incrementalPath, poses);
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+        start(pathBuilder.toRelativeStartPath(), timeout);
     }   //start
 
     /**
