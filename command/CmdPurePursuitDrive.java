@@ -60,14 +60,14 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * @param maxAcceleration specifies the maximum acceleration of the robot.
      */
     public CmdPurePursuitDrive(
-            TrcDriveBase driveBase, double followingDistance, double posTolerance, double turnTolerance,
-            TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
-            TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff,
-            Double maxVelocity, Double maxAcceleration)
+        TrcDriveBase driveBase, double followingDistance, double posTolerance, double turnTolerance,
+        TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
+        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff,
+        Double maxVelocity, Double maxAcceleration)
     {
         purePursuitDrive = new TrcPurePursuitDrive(
-                "PurePursuitDrive", driveBase, followingDistance, posTolerance, turnTolerance,
-                xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
+            "PurePursuitDrive", driveBase, followingDistance, posTolerance, turnTolerance,
+            xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
         this.maxVelocity = maxVelocity;
         this.maxAcceleration = maxAcceleration;
         event = new TrcEvent("event");
@@ -85,9 +85,9 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * @param maxAcceleration specifies the maximum acceleration of the robot.
      */
     public CmdPurePursuitDrive(
-            TrcDriveBase driveBase, TrcPidController.PidCoefficients xPosPidCoeff,
-            TrcPidController.PidCoefficients yPosPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
-            TrcPidController.PidCoefficients velPidCoeff, Double maxVelocity, Double maxAcceleration)
+        TrcDriveBase driveBase, TrcPidController.PidCoefficients xPosPidCoeff,
+        TrcPidController.PidCoefficients yPosPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
+        TrcPidController.PidCoefficients velPidCoeff, Double maxVelocity, Double maxAcceleration)
     {
         this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE, xPosPidCoeff, yPosPidCoeff,
              turnPidCoeff, velPidCoeff, maxVelocity, maxAcceleration);

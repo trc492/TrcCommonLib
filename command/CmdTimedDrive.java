@@ -67,12 +67,13 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
      * @param yDrivePower specifies the motor power in the Y direction.
      * @param turnPower specifies the motor power for turning.
      */
-    public CmdTimedDrive(TrcDriveBase driveBase, double delay, double driveTime, double xDrivePower,
-            double yDrivePower, double turnPower)
+    public CmdTimedDrive(
+        TrcDriveBase driveBase, double delay, double driveTime,
+        double xDrivePower, double yDrivePower, double turnPower)
     {
         globalTracer.traceInfo(
-                moduleName, "delay=%.3f, time=%.1f, xPower=%.1f, yPower=%.1f, turnPower=%.1f",
-                delay, driveTime, xDrivePower, yDrivePower, turnPower);
+            moduleName, "delay=%.3f, time=%.1f, xPower=%.1f, yPower=%.1f, turnPower=%.1f",
+            delay, driveTime, xDrivePower, yDrivePower, turnPower);
 
         this.driveBase = driveBase;
         this.delay = delay;
