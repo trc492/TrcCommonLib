@@ -360,8 +360,11 @@ public class TrcPurePursuitDrive
      * @param path            The path to follow. Must start at (0,0).
      * @param onFinishedEvent When finished, signal this event.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
-    public synchronized void start(TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    public synchronized void start(
+        TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
     {
         if (path == null || path.getSize() == 0)
         {
@@ -371,6 +374,12 @@ public class TrcPurePursuitDrive
         cancel();
 
         this.path = path;
+
+        if (maxVel != null && maxAccel != null)
+        {
+            path.trapezoidVelocity(maxVel, maxAccel);
+        }
+
         if (onFinishedEvent != null)
         {
             onFinishedEvent.clear();
@@ -387,10 +396,48 @@ public class TrcPurePursuitDrive
         turnPidCtrl.reset();
         velPidCtrl.reset();
 
-        turnPidCtrl.setTarget(driveBase.getHeading()); // Maintain heading to start
-
         referencePose = driveBase.getFieldPosition();
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     */
+    public void start(TrcPath path, TrcEvent onFinishedEvent, Double maxVel, Double maxAccel)
+    {
+        start(path, onFinishedEvent, 0.0, maxVel, maxAccel);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     */
+    public void start(TrcPath path, Double maxVel, Double maxAccel)
+    {
+        start(path, null, 0.0, maxVel, maxAccel);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
+     */
+    public synchronized void start(TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    {
+        start(path, onFinishedEvent, timeout, null, null);
     }   //start
 
     /**
@@ -402,7 +449,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path, TrcEvent onFinishedEvent)
     {
-        start(path, onFinishedEvent, 0.0);
+        start(path, onFinishedEvent, 0.0, null, null);
     }   //start
 
     /**
@@ -413,7 +460,67 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path)
     {
-        start(path, null, 0.0);
+        start(path, null, 0.0, null, null);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+            TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+            Double maxVel, Double maxAccel, TrcPose2D... poses)
+    {
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+
+        start(pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout, maxVel, maxAccel);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param onFinishedEvent When finished, signal this event.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel,
+        TrcPose2D... poses)
+    {
+        start(onFinishedEvent, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel, TrcPose2D... poses)
+    {
+        start(null, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
@@ -427,17 +534,9 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-            TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
-            TrcPose2D... poses)
+        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
-
-        for (TrcPose2D pose: poses)
-        {
-            pathBuilder.append(pose);
-        }
-
-        start(pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout);
+        start(onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -451,7 +550,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(onFinishedEvent, 0.0, startingPose, incrementalPath, poses);
+        start(onFinishedEvent, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -464,7 +563,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(null, 0.0, startingPose, incrementalPath, poses);
+        start(null, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
