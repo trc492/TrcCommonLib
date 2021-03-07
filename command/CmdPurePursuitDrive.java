@@ -25,7 +25,6 @@ package TrcCommonLib.command;
 import TrcCommonLib.trclib.TrcDriveBase;
 import TrcCommonLib.trclib.TrcEvent;
 import TrcCommonLib.trclib.TrcPath;
-import TrcCommonLib.trclib.TrcPathBuilder;
 import TrcCommonLib.trclib.TrcPidController;
 import TrcCommonLib.trclib.TrcPose2D;
 import TrcCommonLib.trclib.TrcPurePursuitDrive;
@@ -42,7 +41,6 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
     private static final double DEF_TURN_TOLERANCE = 1.0;
 
     private final TrcPurePursuitDrive purePursuitDrive;
-    private final Double maxVelocity, maxAcceleration;
     private final TrcEvent event;
 
     /**
@@ -56,41 +54,16 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      * @param yPosPidCoeff specifies the PID coefficients for Y position PID controller.
      * @param turnPidCoeff specifies the PID coefficients for turn PID controller.
      * @param velPidCoeff specifies the PID coefficients for velocity PID controller.
-     * @param maxVelocity specifies the maximum velocity of the robot.
-     * @param maxAcceleration specifies the maximum acceleration of the robot.
      */
     public CmdPurePursuitDrive(
         TrcDriveBase driveBase, double followingDistance, double posTolerance, double turnTolerance,
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
-        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff,
-        Double maxVelocity, Double maxAcceleration)
+        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
         purePursuitDrive = new TrcPurePursuitDrive(
             "PurePursuitDrive", driveBase, followingDistance, posTolerance, turnTolerance,
             xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
-        this.maxVelocity = maxVelocity;
-        this.maxAcceleration = maxAcceleration;
         event = new TrcEvent("event");
-    }   //CmdPurePursuitDrive
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param driveBase specifies the drive base object.
-     * @param xPosPidCoeff specifies the PID coefficients for X position PID controller.
-     * @param yPosPidCoeff specifies the PID coefficients for Y position PID controller.
-     * @param turnPidCoeff specifies the PID coefficients for turn PID controller.
-     * @param velPidCoeff specifies the PID coefficients for velocity PID controller.
-     * @param maxVelocity specifies the maximum velocity of the robot.
-     * @param maxAcceleration specifies the maximum acceleration of the robot.
-     */
-    public CmdPurePursuitDrive(
-        TrcDriveBase driveBase, TrcPidController.PidCoefficients xPosPidCoeff,
-        TrcPidController.PidCoefficients yPosPidCoeff, TrcPidController.PidCoefficients turnPidCoeff,
-        TrcPidController.PidCoefficients velPidCoeff, Double maxVelocity, Double maxAcceleration)
-    {
-        this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE, xPosPidCoeff, yPosPidCoeff,
-             turnPidCoeff, velPidCoeff, maxVelocity, maxAcceleration);
     }   //CmdPurePursuitDrive
 
     /**
@@ -108,8 +81,33 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
         TrcPidController.PidCoefficients velPidCoeff)
     {
         this(driveBase, DEF_FOLLOWING_DISTANCE, DEF_POS_TOLERANCE, DEF_TURN_TOLERANCE, xPosPidCoeff, yPosPidCoeff,
-             turnPidCoeff, velPidCoeff, null, null);
+             turnPidCoeff, velPidCoeff);
     }   //CmdPurePursuitDrive
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified drive path.
+     *
+     * @param path specifies the drive path with waypoints.
+     * @param timeout specifies the maximum time allowed for this operation.
+     * @param maxVel specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     */
+    public void start(TrcPath path, double timeout, Double maxVel, Double maxAccel)
+    {
+        purePursuitDrive.start(path, event, timeout, maxVel, maxAccel);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified drive path.
+     *
+     * @param path specifies the drive path with waypoints.
+     * @param maxVel specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     */
+    public void start(TrcPath path, Double maxVel, Double maxAccel)
+    {
+        purePursuitDrive.start(path, event, 0.0, maxVel, maxAccel);
+    }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified drive path.
@@ -119,11 +117,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(TrcPath path, double timeout)
     {
-        if (maxVelocity != null && maxAcceleration != null)
-        {
-            path.trapezoidVelocity(maxVelocity, maxAcceleration);
-        }
-        purePursuitDrive.start(path, event, timeout);
+        purePursuitDrive.start(path, event, timeout, null, null);
     }   //start
 
     /**
@@ -133,7 +127,41 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(TrcPath path)
     {
-        start(path, 0.0);
+        purePursuitDrive.start(path, event, 0.0, null, null);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param timeout specifies the maximum time allowed for this operation.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        double timeout, TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel,
+        TrcPose2D... poses)
+    {
+        purePursuitDrive.start(event, timeout, startingPose, incrementalPath, maxVel, maxAccel, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel, TrcPose2D... poses)
+    {
+        purePursuitDrive.start(event, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
@@ -147,13 +175,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
-
-        for (TrcPose2D pose: poses)
-        {
-            pathBuilder.append(pose);
-        }
-        start(pathBuilder.toRelativeStartPath(), timeout);
+        purePursuitDrive.start(event, timeout, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -166,7 +188,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
      */
     public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(0.0, startingPose, incrementalPath, poses);
+        purePursuitDrive.start(event, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     //
