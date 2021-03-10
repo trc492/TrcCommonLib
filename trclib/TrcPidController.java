@@ -184,6 +184,7 @@ public class TrcPidController
     private double prevOutputTime = 0.0; // time that getOutput() was called last. Used for ramp rates.
 
     private TrcDbgTrace debugTracer = null;
+    private boolean verboseTrace = false;
     private double pTerm;
     private double iTerm;
     private double dTerm;
@@ -337,10 +338,24 @@ public class TrcPidController
      *
      * @param tracer  specifies the tracer to be used for debug tracing.
      * @param enabled specifies true to enable the debug tracer, false to disable.
+     * @param verbose specifies true to enable verbose trace mode, false to disable.
      */
-    public synchronized void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
+    public synchronized void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled, boolean verbose)
     {
         debugTracer = enabled ? tracer : null;
+        verboseTrace = enabled && verbose;
+    }   //setDebugTraceEnabled
+
+    /**
+     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
+     * very useful for debugging or tuning PID control.
+     *
+     * @param tracer  specifies the tracer to be used for debug tracing.
+     * @param enabled specifies true to enable the debug tracer, false to disable.
+     */
+    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
+    {
+        setDebugTraceEnabled(tracer, enabled, false);
     }   //setDebugTraceEnabled
 
     /**
@@ -926,7 +941,7 @@ public class TrcPidController
 
             if (debugTracer != null)
             {
-                printPidInfo(debugTracer);
+                printPidInfo(debugTracer, verboseTrace);
             }
 
             if (debugEnabled)
