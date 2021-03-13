@@ -638,10 +638,10 @@ public class TrcPurePursuitDrive
         double yPosPower = yPosPidCtrl.getOutput();
         double turnPower = turnPidCtrl.getOutput();
         double velPower = velPidCtrl.getOutput();
-        double theta = Math.atan2(relativePose.y, relativePose.x);
-        xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.cos(theta),
+        double theta = Math.atan2(relativePose.x, relativePose.y);
+        xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.sin(theta),
                                                                 -moveOutputLimit, moveOutputLimit);
-        yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.sin(theta), -moveOutputLimit, moveOutputLimit);
+        yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
         turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
 
         if (debugEnabled)
@@ -760,7 +760,8 @@ public class TrcPurePursuitDrive
         double jerk = interpolate(point1.jerk, point2.jerk, weight);
 
         double heading;
-        if (robotPose == null || robotPose.distanceTo(point2.pose) <= proximityRadius + posTolerance)
+        double turningRadius = proximityRadius + posTolerance;
+        if (robotPose == null || robotPose.distanceTo(point2.pose) <= turningRadius)
         {
             if (robotPose != null)
             {
@@ -770,7 +771,7 @@ public class TrcPurePursuitDrive
                 // The heading weight is the percentage distance of the robot position to the end-waypoint over
                 // proximity radius.
                 //
-                weight = 1 - point2.pose.distanceTo(point1.pose)*(1 - weight)/proximityRadius;
+                weight = 1 - point2.pose.distanceTo(point1.pose)*(1 - weight)/turningRadius;
             }
             heading = interpolate(
                 point1.pose.angle, warpSpace.getOptimizedTarget(point2.pose.angle, point1.pose.angle), weight);
