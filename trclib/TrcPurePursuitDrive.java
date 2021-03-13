@@ -392,6 +392,21 @@ public class TrcPurePursuitDrive
         {
             xPosPidCtrl.reset();
         }
+        else
+        {
+            //
+            // For non-holonomic drive base, the robot heading must be pointing to the endpoint of the line segment.
+            // So, we must ignore the provided startpoint heading and compute our own based on the startpoint heading
+            // and the relative angle of the startpoint from the endpoint.
+            //
+            for (int i = 0; i < path.getSize() - 1; i++)
+            {
+                TrcWaypoint startPoint = path.getWaypoint(i);
+                TrcWaypoint endPoint = path.getWaypoint(i + 1);
+                startPoint.pose.angle = Math.toDegrees(Math.atan2(endPoint.pose.x - startPoint.pose.x,
+                                                                  endPoint.pose.y - startPoint.pose.y));
+            }
+        }
         yPosPidCtrl.reset();
         turnPidCtrl.reset();
         velPidCtrl.reset();
@@ -779,10 +794,12 @@ public class TrcPurePursuitDrive
         else
         {
             //
-            // For non-holonomic drivebase, maintain the robot heading the same as start-waypoint heading unless
-            // the end-waypoint is within the robot's proximity circle.
+            // For non-holonomic drivebase, maintain the robot heading pointing to the end-waypoint unless the
+            // end-waypoint is within the robot's proximity circle.
             //
-            heading = point1.pose.angle;
+            TrcPose2D endpointPose = point2.pose.clone();
+            endpointPose.angle = point1.pose.angle;
+            heading = point1.pose.angle + endpointPose.relativeTo(robotPose).angle;
         }
 
         return new TrcWaypoint(timestep, new TrcPose2D(x, y, heading), position, velocity, acceleration, jerk);
