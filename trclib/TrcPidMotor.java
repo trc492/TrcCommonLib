@@ -493,7 +493,11 @@ public class TrcPidMotor
     }   //setStallProtection
 
     /**
-     * This method starts a PID operation by setting the PID target.
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
      *
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
@@ -556,17 +560,19 @@ public class TrcPidMotor
     }   //setTarget
 
     /**
-     * This method starts a PID operation by setting the PID target.
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
      *
      * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
-     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
-     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
-     *                specified, it should be set to zero.
      */
-    public void setTarget(double target, TrcEvent event, double timeout)
+    public void setTarget(double target, boolean holdTarget, TrcEvent event)
     {
-        setTarget(target, false, event, timeout);
+        setTarget(target, holdTarget, event, 0.0);
     }   //setTarget
 
     /**
