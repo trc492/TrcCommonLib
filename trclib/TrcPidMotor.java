@@ -502,7 +502,7 @@ public class TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    private synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setTarget";
 
@@ -1112,9 +1112,9 @@ public class TrcPidMotor
         }
         else
         {
-            if (stalled ||
-                !holdTarget && pidCtrl.isOnTarget() ||
-                expiredTime != 0.0 && TrcUtil.getCurrentTime() >= expiredTime)
+            boolean timedOut = expiredTime != 0.0 && TrcUtil.getCurrentTime() >= expiredTime;
+            boolean onTarget = pidCtrl.isOnTarget();
+            if (stalled || timedOut || !holdTarget && onTarget)
             {
                 //
                 // We stop the motor if we either:
@@ -1131,6 +1131,15 @@ public class TrcPidMotor
             }
             else
             {
+                //
+                // If we are trying to hold target, we will continue to PID control the motor but we will also signal
+                // the notifyEvent.
+                //
+                if (notifyEvent != null && holdTarget && onTarget)
+                {
+                    notifyEvent.signal();
+                    notifyEvent = null;
+                }
                 //
                 // We are still in business. Call PID controller to calculate the motor power and set it.
                 //
