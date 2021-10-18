@@ -96,6 +96,7 @@ public abstract class TrcMotor implements TrcMotorController
     private final String instanceName;
     private final Odometry odometry;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
+    private final TrcTimer timer;
     private TrcDigitalInputTrigger digitalTrigger = null;
     private boolean odometryEnabled = false;
     protected double maxMotorVelocity = 0.0;
@@ -134,6 +135,7 @@ public abstract class TrcMotor implements TrcMotorController
             cleanupTaskObj.registerTask(TaskType.STOP_TASK);
         }
         velocityCtrlTaskObj = taskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
+        timer = new TrcTimer("motorTimer." + instanceName);
     }   //TrcMotor
 
     /**
@@ -759,6 +761,38 @@ public abstract class TrcMotor implements TrcMotorController
         }
     }   //set
 
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     */
+    public void set(double value, double time)
+    {
+        final String funcName = "set";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f,time=%.3f", value, time);
+        }
+
+        if (value != 0.0)
+        {
+            set(value);
+            if (time > 0.0)
+            {
+                timer.set(time, this::notify);
+            }
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+    }   //set
+
     //
     // Implements TrcOdometrySensor interface.
     //
@@ -801,6 +835,20 @@ public abstract class TrcMotor implements TrcMotorController
             return odometry.clone();
         }
     }   //getOdometry
+
+    //
+    // Implements TrcNotifier.Receiver.
+    //
+
+    /**
+     * This method is called when the motor power set timer has expired. It will turn the motor off.
+     *
+     * @param context specifies the timer object (not used).
+     */
+    void notify(Object context)
+    {
+        set(0.0);
+    }   //notify
 
     //
     // Implements TrcDigitalInputTrigger.TriggerHandler.
