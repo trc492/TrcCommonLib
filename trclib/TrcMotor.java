@@ -97,6 +97,7 @@ public abstract class TrcMotor implements TrcMotorController
     private final Odometry odometry;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
     private final TrcTimer timer;
+    private TrcEvent notifyEvent;
     private TrcDigitalInputTrigger digitalTrigger = null;
     private boolean odometryEnabled = false;
     protected double maxMotorVelocity = 0.0;
@@ -768,14 +769,16 @@ public abstract class TrcMotor implements TrcMotorController
      *
      * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      * @param time specifies the time period in seconds to have power set.
+     * @param event specifies the event to signal when time has expired.
      */
-    public void set(double value, double time)
+    public void set(double value, double time, TrcEvent event)
     {
         final String funcName = "set";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f,time=%.3f", value, time);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "value=%f,time=%.3f,event=%s", value, time, event);
         }
 
         if (value != 0.0)
@@ -784,6 +787,7 @@ public abstract class TrcMotor implements TrcMotorController
             if (time > 0.0)
             {
                 timer.set(time, this::notify);
+                notifyEvent = event;
             }
         }
 
@@ -791,6 +795,19 @@ public abstract class TrcMotor implements TrcMotorController
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
+    }   //set
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     */
+    public void set(double value, double time)
+    {
+        set(value, time, null);
     }   //set
 
     //
@@ -848,6 +865,11 @@ public abstract class TrcMotor implements TrcMotorController
     void notify(Object context)
     {
         set(0.0);
+        if (notifyEvent != null)
+        {
+            notifyEvent.signal();
+            notifyEvent = null;
+        }
     }   //notify
 
     //
