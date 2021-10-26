@@ -781,15 +781,13 @@ public abstract class TrcMotor implements TrcMotorController
                 funcName, TrcDbgTrace.TraceLevel.API, "value=%f,time=%.3f,event=%s", value, time, event);
         }
 
-        if (value != 0.0)
+        timer.cancel();     // cancel old unexpired timer if any.
+        if (value != 0.0 && time > 0.0)
         {
-            set(value);
-            if (time > 0.0)
-            {
-                timer.set(time, this::notify);
-                notifyEvent = event;
-            }
+            notifyEvent = event;
+            timer.set(time, this::notify);
         }
+        set(value);
 
         if (debugEnabled)
         {

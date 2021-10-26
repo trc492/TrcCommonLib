@@ -45,6 +45,7 @@ public class TrcTimerMgr
     //
     // The following class variables need to be thread-safe protected.
     //
+    private TrcTimer nextTimerToExpire = null;
     private long nextExpireTimeInMsec = 0;
     private TrcTimer preemptingTimer = null;
 
@@ -214,7 +215,16 @@ public class TrcTimerMgr
             {
                 if (securityKey == key)
                 {
-                    success = timerList.remove(timer);
+                    if (timer == nextTimerToExpire)
+                    {
+                        nextTimerToExpire = null;
+                        nextExpireTimeInMsec = 0;
+                        success = true;
+                    }
+                    else
+                    {
+                        success = timerList.remove(timer);
+                    }
                 }
                 else
                 {
@@ -248,14 +258,13 @@ public class TrcTimerMgr
 
         while (!Thread.currentThread().isInterrupted())
         {
-            TrcTimer nextTimerToExpire = null;
-
             try
             {
                 long sleepTimeInMsec;
 
                 synchronized (timerList)
                 {
+                    nextTimerToExpire = null;
                     if (preemptingTimer == null && timerList.isEmpty())
                     {
                         //
@@ -302,11 +311,12 @@ public class TrcTimerMgr
                     Thread.sleep(sleepTimeInMsec);
                 }
 
-                if (debugEnabled)
+                if (debugEnabled && nextTimerToExpire != null)
                 {
                     dbgTrace.traceInfo(funcName, "[%.3f]: timer=%s expired.",
                             TrcUtil.getCurrentTime(), nextTimerToExpire);
                 }
+
                 synchronized (timerList)
                 {
                     //
@@ -318,7 +328,10 @@ public class TrcTimerMgr
                 //
                 // Timer has expired, signal it.
                 //
-                nextTimerToExpire.setExpired(securityKeyMap.get(nextTimerToExpire));
+                if (nextTimerToExpire != null)
+                {
+                    nextTimerToExpire.setExpired(securityKeyMap.get(nextTimerToExpire));
+                }
             }
             catch (InterruptedException e)
             {
@@ -326,17 +339,21 @@ public class TrcTimerMgr
                 {
                     if (preemptingTimer != null)
                     {
-                        //
-                        // Somebody just added a timer that will expire sooner than the one we are sleeping on. Push
-                        // this timer back to the front of the list and continue the next loop so the preempting timer
-                        // will be processed first.
-                        //
-                        if (debugEnabled)
+                        if (nextTimerToExpire != null)
                         {
-                            dbgTrace.traceInfo(funcName, "Timer %s is preempting %s.",
-                                    preemptingTimer, nextTimerToExpire);
+                            //
+                            // Somebody just added a timer that will expire sooner than the one we are sleeping on.
+                            // Push this timer back to the front of the list and continue the next loop so the
+                            // preempting timer will be processed first. If nextTimerToExpire is null, it means
+                            // the current timer has been canceled, so don't put it back in the timer queue.
+                            //
+                            if (debugEnabled)
+                            {
+                                dbgTrace.traceInfo(funcName, "Timer %s is preempting %s.",
+                                                   preemptingTimer, nextTimerToExpire);
+                            }
+                            timerList.add(0, nextTimerToExpire);
                         }
-                        timerList.add(0, nextTimerToExpire);
                         nextExpireTimeInMsec = 0;
                     }
                     else

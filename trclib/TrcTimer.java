@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+
 /**
  * This class implements a timer that will signal an event or make a notification callback when the time has expired.
  * This is useful for doing delays in autonomous.
@@ -230,9 +232,15 @@ public class TrcTimer
                 notifyReceiver = null;
             }
         }
-        else
+        else if (this.securityKey != -1.0)
         {
-            throw new SecurityException("Only TrcTimerMgr is allowed to call this method.");
+            //
+            // If this timer's security key is -1.0, it means it was already canceled. In this case, ignore it.
+            //
+            throw new SecurityException(
+                String.format(Locale.US,
+                              "Only TrcTimerMgr is allowed to call this method (TimerMgr key=%f, Timer key=%f)",
+                              securityKey, this.securityKey));
         }
     }   //setExpired
 
