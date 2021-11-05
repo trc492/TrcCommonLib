@@ -807,7 +807,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         synchronized (odometry)
         {
             this.driveBaseOdometry = driveBaseOdometry;
-            resetOdometry(false, true);
         }
     }   //setDriveBaseOdometry
 

@@ -160,7 +160,26 @@ public class TrcDriveBaseOdometry
         this.xSensors = xSensors;
         this.ySensors = ySensors;
         this.angleSensor = angleSensor;
-        resetOdometry(true, true);
+        //
+        // Hardware reset all odometry sensors.
+        //
+        if (xSensors != null)
+        {
+            for (AxisSensor s: xSensors)
+            {
+                s.sensor.resetOdometry(true);
+            }
+        }
+
+        if (ySensors != null)
+        {
+            for (AxisSensor s: ySensors)
+            {
+                s.sensor.resetOdometry(true);
+            }
+        }
+
+        angleSensor.resetOdometry(true);
     }   //TrcDriveBaseOdometry
 
     /**
