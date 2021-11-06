@@ -137,11 +137,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         TrcOdometrySensor.Odometry[] prevMotorOdometries;
         TrcOdometrySensor.Odometry[] currMotorOdometries;
+        boolean[] isOdometryMotor;
         double[] stallStartTimes;
 
         public String toString()
         {
-            return String.format(Locale.US, "odometry%s", Arrays.toString(currMotorOdometries));
+            return String.format(Locale.US, "odometry%s,isUsed=%s",
+                                 Arrays.toString(currMotorOdometries), Arrays.toString(isOdometryMotor));
         }   //toString
 
     }   //class MotorsState
@@ -234,9 +236,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         motorsState = new MotorsState();
         motorsState.prevMotorOdometries = new TrcOdometrySensor.Odometry[motors.length];
         motorsState.currMotorOdometries = new TrcOdometrySensor.Odometry[motors.length];
+        motorsState.isOdometryMotor = new boolean[motors.length];
         motorsState.stallStartTimes = new double[motors.length];
         for (int i = 0; i < motors.length; i++)
         {
+            motorsState.isOdometryMotor[i] = true;
             motorsState.prevMotorOdometries[i] = null;
             motorsState.currMotorOdometries[i] = new TrcOdometrySensor.Odometry(motors[i]);
         }
@@ -746,15 +750,18 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             {
                 for (int i = 0; i < motors.length; i++)
                 {
-                    motors[i].resetPosition(resetHardware);
-                    motorsState.prevMotorOdometries[i] = null;
-                    motorsState.currMotorOdometries[i].prevTimestamp
+                    if (motorsState.isOdometryMotor[i])
+                    {
+                        motors[i].resetPosition(resetHardware);
+                        motorsState.prevMotorOdometries[i] = null;
+                        motorsState.currMotorOdometries[i].prevTimestamp
                             = motorsState.currMotorOdometries[i].currTimestamp
                             = motorsState.stallStartTimes[i]
                             = TrcUtil.getCurrentTime();
-                    motorsState.currMotorOdometries[i].prevPos
+                        motorsState.currMotorOdometries[i].prevPos
                             = motorsState.currMotorOdometries[i].currPos
                             = motorsState.currMotorOdometries[i].velocity = 0.0;
+                    }
                 }
 
                 if (resetAngle)
@@ -807,6 +814,17 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         synchronized (odometry)
         {
             this.driveBaseOdometry = driveBaseOdometry;
+            //
+            // Check to see if any of the motors are not used as odometry motors and mark them so. This will prevent
+            // us from checking those motors for stall condition.
+            //
+            for (int i = 0; i < motorsState.isOdometryMotor.length; i++)
+            {
+                if (!driveBaseOdometry.isSensorUsed((TrcOdometrySensor)motorsState.currMotorOdometries[i].sensor))
+                {
+                    motorsState.isOdometryMotor[i] = false;
+                }
+            }
         }
     }   //setDriveBaseOdometry
 
@@ -1015,9 +1033,16 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         double currTime = TrcUtil.getCurrentTime();
         final boolean stalled;
 
-        synchronized (odometry)
+        if (!motorsState.isOdometryMotor[index])
         {
-            stalled = currTime - motorsState.stallStartTimes[index] > stallTime;
+            stalled = false;
+        }
+        else
+        {
+            synchronized (odometry)
+            {
+                stalled = currTime - motorsState.stallStartTimes[index] > stallTime;
+            }
         }
 
         if (debugEnabled)

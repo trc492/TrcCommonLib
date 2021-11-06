@@ -229,6 +229,47 @@ public class TrcDriveBaseOdometry
     }   //TrcDriveBaseOdometry
 
     /**
+     * This method checks if the given sensor is used as part of the Odometry sensors.
+     *
+     * @param sensor specifies the sensor to be checked.
+     * @return true if the sensor is part of the odometry sensors, false otherwise.
+     */
+    public boolean isSensorUsed(TrcOdometrySensor sensor)
+    {
+        boolean isUsed = false;
+
+        if (xSensors != null)
+        {
+            for (AxisSensor s: xSensors)
+            {
+                if (sensor == s.sensor)
+                {
+                    isUsed = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isUsed && ySensors != null)
+        {
+            for (AxisSensor s: ySensors)
+            {
+                if (sensor == s.sensor)
+                {
+                    isUsed = true;
+                }
+            }
+        }
+
+        if (!isUsed && angleSensor != null && sensor == angleSensor)
+        {
+            isUsed = true;
+        }
+
+        return isUsed;
+    }   //isSensorUsed
+
+    /**
      * This method allows the caller to dynamically enable/disable debug tracing of the odometry calculation.
      * It is very useful for debugging odometry related issues.
      *
