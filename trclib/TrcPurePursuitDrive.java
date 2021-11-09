@@ -354,6 +354,24 @@ public class TrcPurePursuitDrive
     }   //setMsgTracer
 
     /**
+     * This method returns the field position of the target waypoint of the path (i.e. the last waypoint in the path).
+     *
+     * @param startFieldPose specifies the field position of the first waypoint.
+     * @return field position of the last waypoint in the path.
+     */
+    public TrcPose2D getTargetFieldPosition(TrcPose2D startFieldPose)
+    {
+        TrcPose2D targetPose = null;
+
+        if (path != null && path.getSize() > 0)
+        {
+            targetPose = startFieldPose.addRelativePose(path.getLastWaypoint().pose);
+        }
+
+        return targetPose;
+    }   //getTargetFieldPosition
+
+    /**
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *

@@ -1054,6 +1054,86 @@ public class TrcPidDrive
     /**
      * This method sets the PID controlled absolute drive targets.
      *
+     * @param owner specifies the ID string of the caller requesting exclusive access.
+     * @param targetPose specifies the target position.
+     * @param holdTarget specifies true for holding the target position at the end, false otherwise.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setAbsoluteTarget(
+        String owner, TrcPose2D targetPose, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setAbsoluteTarget(owner, targetPose.x, targetPose.y, targetPose.angle, holdTarget, event, timeout);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
+     * @param targetPose specifies the target position.
+     * @param holdTarget specifies true for holding the target position at the end, false otherwise.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setAbsoluteTarget(TrcPose2D targetPose, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setAbsoluteTarget(null, targetPose.x, targetPose.y, targetPose.angle, holdTarget, event, timeout);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
+     * @param targetPose specifies the target position.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setAbsoluteTarget(TrcPose2D targetPose, TrcEvent event, double timeout)
+    {
+        setAbsoluteTarget(null, targetPose.x, targetPose.y, targetPose.angle, false, event, timeout);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
+     * @param targetPose specifies the target position.
+     * @param event specifies an event object to signal when done.
+     */
+    public void setAbsoluteTarget(TrcPose2D targetPose, TrcEvent event)
+    {
+        setAbsoluteTarget(null, targetPose.x, targetPose.y, targetPose.angle, false, event, 0.0);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
+     * @param targetPose specifies the target position.
+     * @param holdTarget specifies true for holding the target position at the end, false otherwise.
+     * @param event specifies an event object to signal when done.
+     */
+    public void setAbsoluteTarget(TrcPose2D targetPose, boolean holdTarget, TrcEvent event)
+    {
+        setAbsoluteTarget(null, targetPose.x, targetPose.y, targetPose.angle, holdTarget, event, 0.0);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
+     * @param targetPose specifies the target position.
+     * @param holdTarget specifies true for holding the target position at the end, false otherwise.
+     */
+    public void setAbsoluteTarget(TrcPose2D targetPose, boolean holdTarget)
+    {
+        setAbsoluteTarget(null, targetPose.x, targetPose.y, targetPose.angle, holdTarget, null, 0.0);
+    }   //setAbsoluteTarget
+
+    /**
+     * This method sets the PID controlled absolute drive targets.
+     *
      * @param absX specifies the absolute X target position.
      * @param absY specifies the absolute Y target position.
      * @param event specifies an event object to signal when done.
