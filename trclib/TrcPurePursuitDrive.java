@@ -356,16 +356,15 @@ public class TrcPurePursuitDrive
     /**
      * This method returns the field position of the target waypoint of the path (i.e. the last waypoint in the path).
      *
-     * @param startFieldPose specifies the field position of the first waypoint.
      * @return field position of the last waypoint in the path.
      */
-    public TrcPose2D getTargetFieldPosition(TrcPose2D startFieldPose)
+    public TrcPose2D getTargetFieldPosition()
     {
         TrcPose2D targetPose = null;
 
-        if (path != null && path.getSize() > 0)
+        if (referencePose != null && path != null && path.getSize() > 0)
         {
-            targetPose = startFieldPose.addRelativePose(path.getLastWaypoint().pose);
+            targetPose = referencePose.addRelativePose(path.getLastWaypoint().pose);
         }
 
         return targetPose;
