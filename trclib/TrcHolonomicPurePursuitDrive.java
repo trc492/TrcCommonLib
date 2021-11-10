@@ -207,6 +207,23 @@ public class TrcHolonomicPurePursuitDrive
     }   //setMsgTracer
 
     /**
+     * This method returns the field position of the target waypoint of the path (i.e. the last waypoint in the path).
+     *
+     * @return field position of the last waypoint in the path.
+     */
+    public TrcPose2D getTargetFieldPosition()
+    {
+        TrcPose2D targetPose = null;
+
+        if (referencePose != null && path != null && path.getSize() > 0)
+        {
+            targetPose = referencePose.addRelativePose(path.getLastWaypoint().pose);
+        }
+
+        return targetPose;
+    }   //getTargetFieldPosition
+
+    /**
      * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
      * remember to set the heading tolerance!
      *
