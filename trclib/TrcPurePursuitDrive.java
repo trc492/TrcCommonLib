@@ -654,7 +654,7 @@ public class TrcPurePursuitDrive
     private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = moduleName + ".driveTask";
-        TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, false);
+        TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
         TrcPose2D relativePose = targetPoint.pose.relativeTo(robotPose, true);
 
@@ -678,14 +678,6 @@ public class TrcPurePursuitDrive
 
         if (debugEnabled)
         {
-//            TrcMotorController[] motors = driveBase.getMotors();
-//            StringBuilder msg = new StringBuilder("motors=(");
-//            for (TrcMotorController motor: motors)
-//            {
-//                msg.append(String.format("%s=%.0f ", motor, motor.getPosition()));
-//            }
-//            msg.append(")");
-//            dbgTrace.traceInfo(funcName, msg.toString());
             dbgTrace.traceInfo(
                 funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
                 pathIndex, TrcUtil.getModeElapsedTime(), robotPose, targetPoint.pose, relativePose);
@@ -696,8 +688,6 @@ public class TrcPurePursuitDrive
                 getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
                 yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
                 xPosPower, yPosPower, turnPower, velPower);
-//            // Temp debugging
-//            yPosPidCtrl.printPidInfo(dbgTrace, true);
         }
 
         // If we have timed out or finished, stop the operation.
