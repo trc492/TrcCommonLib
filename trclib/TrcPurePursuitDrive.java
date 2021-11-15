@@ -390,12 +390,7 @@ public class TrcPurePursuitDrive
 
         cancel();
 
-        this.path = path;
-
-        if (maxVel != null && maxAccel != null)
-        {
-            path.trapezoidVelocity(maxVel, maxAccel);
-        }
+        this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
         if (onFinishedEvent != null)
         {
