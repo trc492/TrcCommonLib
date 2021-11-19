@@ -25,9 +25,6 @@ package TrcCommonLib.trclib;
 import java.util.Arrays;
 import java.util.Locale;
 
-import trclib.TrcDbgTrace;
-import trclib.TrcPriorityIndicator;
-
 /**
  * This class implements a platform independent Addressable LED device. It is intended to be extended by a platform
  * dependent Addressable LED device to provides platform dependent methods to set the color pattern of the LED strip.
