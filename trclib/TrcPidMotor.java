@@ -73,18 +73,20 @@ public class TrcPidMotor
     private final String instanceName;
     private final TrcMotor motor1;
     private final TrcMotor motor2;
+    private final double syncGain;
     private final TrcPidController pidCtrl;
     private final double defCalPower;
     private final PowerCompensation powerCompensation;
     private final TrcTaskMgr.TaskObject pidMotorTaskObj;
     private final TrcTaskMgr.TaskObject stopMotorTaskObj;
     private boolean active = false;
-    private double syncGain;
     private double positionScale = 1.0;
     private double positionOffset = 0.0;
+    private TrcTimer timer = null;
+    private double target = 0.0;
     private boolean holdTarget = false;
     private TrcEvent notifyEvent = null;
-    private double expiredTime = 0.0;
+    private double timeout = 0.0;
     private boolean calibrating = false;
     private double calPower = 0.0;
     private double motorPower = 0.0;
@@ -115,14 +117,14 @@ public class TrcPidMotor
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcPidController pidCtrl,
-        double defCalPower, PowerCompensation powerCompensation)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
+        TrcPidController.PidParameters pidParams, double defCalPower, PowerCompensation powerCompensation)
     {
         if (debugEnabled)
         {
@@ -136,16 +138,16 @@ public class TrcPidMotor
             throw new IllegalArgumentException("Must have at least one motor.");
         }
 
-        if (pidCtrl == null)
+        if (pidParams == null)
         {
-            throw new IllegalArgumentException("Must provide a PID controller.");
+            throw new IllegalArgumentException("Must provide PID parameters.");
         }
 
         this.instanceName = instanceName;
         this.motor1 = motor1;
         this.motor2 = motor2;
         this.syncGain = syncGain;
-        this.pidCtrl = pidCtrl;
+        this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams, this::getPosition);
         this.defCalPower = -Math.abs(defCalPower);
         this.powerCompensation = powerCompensation;
         TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
@@ -159,16 +161,16 @@ public class TrcPidMotor
      * @param instanceName specifies the instance name.
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController pidCtrl, double defCalPower,
-        PowerCompensation powerCompensation)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
+        double defCalPower, PowerCompensation powerCompensation)
     {
-        this(instanceName, motor1, motor2, 0.0, pidCtrl, defCalPower, powerCompensation);
+        this(instanceName, motor1, motor2, 0.0, pidParams, defCalPower, powerCompensation);
     }   //TrcPidMotor
 
     /**
@@ -176,16 +178,16 @@ public class TrcPidMotor
      *
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor, TrcPidController pidCtrl, double defCalPower,
+        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams, double defCalPower,
         PowerCompensation powerCompensation)
     {
-        this(instanceName, motor, null, 0.0, pidCtrl, defCalPower, powerCompensation);
+        this(instanceName, motor, null, 0.0, pidParams, defCalPower, powerCompensation);
     }   //TrcPidMotor
 
     /**
@@ -195,14 +197,14 @@ public class TrcPidMotor
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcPidController pidCtrl,
-        double defCalPower)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
+        TrcPidController.PidParameters pidParams, double defCalPower)
     {
-        this(instanceName, motor1, motor2, syncGain, pidCtrl, defCalPower, null);
+        this(instanceName, motor1, motor2, syncGain, pidParams, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -211,13 +213,14 @@ public class TrcPidMotor
      * @param instanceName specifies the instance name.
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
-            String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController pidCtrl, double defCalPower)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
+        double defCalPower)
     {
-        this(instanceName, motor1, motor2, 0.0, pidCtrl, defCalPower, null);
+        this(instanceName, motor1, motor2, 0.0, pidParams, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -225,12 +228,13 @@ public class TrcPidMotor
      *
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
-     * @param pidCtrl specifies the PID controller object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param defCalPower specifies the default motor power for the calibration.
      */
-    public TrcPidMotor(String instanceName, TrcMotor motor, TrcPidController pidCtrl, double defCalPower)
+    public TrcPidMotor(
+        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams, double defCalPower)
     {
-        this(instanceName, motor, null, 0.0, pidCtrl, defCalPower, null);
+        this(instanceName, motor, null, 0.0, pidParams, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -308,6 +312,16 @@ public class TrcPidMotor
     {
         return getMotor(true);
     }   //getMotor
+
+    /**
+     * This method returns the PID controller.
+     *
+     * @return PID controller.
+     */
+    public TrcPidController getPidController()
+    {
+        return pidCtrl;
+    }   //getPidController
 
     /**
      * This method returns the state of the PID motor.
@@ -499,6 +513,7 @@ public class TrcPidMotor
      * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
      * holding position.
      *
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
@@ -506,15 +521,15 @@ public class TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setTarget";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "target=%f,hold=%s,event=%s,timeout=%f",
-                                target, Boolean.toString(holdTarget), event != null? event.toString(): "null", timeout);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "target=%f,hold=%s,event=%s,timeout=%f",
+                target, Boolean.toString(holdTarget), event != null ? event.toString() : "null", timeout);
         }
 
         if (active)
@@ -525,33 +540,44 @@ public class TrcPidMotor
             stop(false);
         }
 
-        //
-        // Set a new PID target.
-        //
-        pidCtrl.setTarget(target);
-
-        //
-        // If a notification event is provided, clear it.
-        //
-        if (event != null)
+        if (delay > 0.0)
         {
-            event.clear();
+            this.target = target;
+            this.holdTarget = holdTarget;
+            this.notifyEvent = event;
+            this.timeout = timeout;
+            if (timer == null)
+            {
+                timer = new TrcTimer(instanceName);
+            }
+            timer.set(delay, this::timerExpired);
         }
-
-        notifyEvent = event;
-        expiredTime = timeout;
-        this.holdTarget = holdTarget;
-        //
-        // If a timeout is provided, set the expired time.
-        //
-        if (timeout != 0.0)
+        else
         {
-            expiredTime += TrcUtil.getCurrentTime();
+            //
+            // Set a new PID target.
+            //
+            pidCtrl.setTarget(target);
+
+            //
+            // If a notification event is provided, clear it.
+            //
+            if (event != null)
+            {
+                event.clear();
+            }
+
+            this.holdTarget = holdTarget;
+            this.notifyEvent = event;
+            //
+            // If a timeout is provided, set the expired time.
+            //
+            this.timeout = timeout > 0.0? timeout + TrcUtil.getCurrentTime(): 0.0;
+            //
+            // Set the PID motor task enabled.
+            //
+            setTaskEnabled(true);
         }
-        //
-        // Set the PID motor task enabled.
-        //
-        setTaskEnabled(true);
 
         if (debugEnabled)
         {
@@ -569,10 +595,29 @@ public class TrcPidMotor
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setTarget(0.0, target, holdTarget, event, timeout);
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
+     *
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
      */
     public void setTarget(double target, boolean holdTarget, TrcEvent event)
     {
-        setTarget(target, holdTarget, event, 0.0);
+        setTarget(0.0, target, holdTarget, event, 0.0);
     }   //setTarget
 
     /**
@@ -583,8 +628,28 @@ public class TrcPidMotor
      */
     public void setTarget(double target, boolean holdTarget)
     {
-        setTarget(target, holdTarget, null, 0.0);
+        setTarget(0.0, target, holdTarget, null, 0.0);
     }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target.
+     *
+     * @param target specifies the PID target.
+     */
+    public void setTarget(double target)
+    {
+        setTarget(0.0, target, true, null, 0.0);
+    }   //setTarget
+
+    /**
+     * This method is called when the setTarget delay timer has expired. It will perform the setTarget.
+     *
+     * @param timer not used.
+     */
+    private void timerExpired(Object timer)
+    {
+        setTarget(0.0, target, holdTarget, notifyEvent, timeout);
+    }   //timerExpired
 
     /**
      * This method performs motor stall detection to protect the motor from burning out. A motor is considered stalled
@@ -1118,7 +1183,7 @@ public class TrcPidMotor
         }
         else
         {
-            boolean timedOut = expiredTime != 0.0 && TrcUtil.getCurrentTime() >= expiredTime;
+            boolean timedOut = timeout != 0.0 && TrcUtil.getCurrentTime() >= timeout;
             boolean onTarget = pidCtrl.isOnTarget();
             if (stalled || timedOut || !holdTarget && onTarget)
             {

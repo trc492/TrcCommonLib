@@ -38,9 +38,140 @@ package TrcCommonLib.trclib;
  */
 public class TrcPidActuator extends TrcPidMotor
 {
-    private double minPos;
-    private double maxPos;
+    /**
+     * This class contains all the parameters related to the motor actuator.
+     */
+    public static class Parameters
+    {
+        public double minPos = 0.0, maxPos = 1.0;
+        public double scale = 1.0, offset = 0.0;
+        public TrcPidController.PidParameters pidParams;
+        public boolean motorInverted = false;
+        public boolean hasLowerLimitSwitch = false;
+        public boolean lowerLimitInverted = false;
+        public boolean hasUpperLimitSwitch = false;
+        public boolean upperLimitInverted = false;
+        public double calPower = 0.3;
+        public double stallMinPower = 0.0;
+        public double stallTimeout = 0.0;
+        public double resetTimeout = 0.0;
+        public double[] posPresets = null;
+        public PowerCompensation powerCompensation = null;
+
+        /**
+         * This method sets the position range limits of the motor actuator.
+         *
+         * @param minPos specifies the minimum position of the actuator in scaled unit.
+         * @param maxPos specifies the maximum position of the actuator in scaled unit.
+         * @return this parameter object.
+         */
+        public Parameters setPosRange(double minPos, double maxPos)
+        {
+            this.minPos = minPos;
+            this.maxPos = maxPos;
+            return this;
+        }   //setPosRange
+
+        /**
+         * This method sets the scale and offset of the motor actuator. It allows the actuator to report real world
+         * position units such as inches or degrees instead of sensor units.
+         *
+         * @param scale specifies the scale multiplier to convert position sensor unit to real world unit.
+         * @param offset specifies the offset value to add to the scaled real world unit.
+         * @return this parameter object.
+         */
+        public Parameters setScaleOffset(double scale, double offset)
+        {
+            this.scale = scale;
+            this.offset = offset;
+            return this;
+        }   //setScaleOffset
+
+        /**
+         * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
+         *
+         * @param pidParams specifies the PID parameters.
+         * @return this parameter object.
+         */
+        public Parameters setPidParams(TrcPidController.PidParameters pidParams)
+        {
+            this.pidParams = pidParams;
+            return this;
+        }   //setPidParams
+
+        /**
+         * This method sets the motor parameters of the motor actuator.
+         *
+         * @param motorInverted specifies true if the motor direction should be reverse, false otherwise.
+         * @param hasLowerLimitSwitch specifies true if it has a lower limit switch, false otherwise.
+         * @param lowerLimitInverted specifies true if lower limit switch is inverted, false otherwise.
+         * @param hasUpperLimitSwitch specifies true if it has an upper limit switch, false otherwise.
+         * @param upperLimitInverted specifies true if upper limit switch is inverted, false otherwise.
+         * @param calPower specifies the motor power to use for zero calibration.
+         * @return this parameter object.
+         */
+        public Parameters setMotorParams(
+            boolean motorInverted, boolean hasLowerLimitSwitch, boolean lowerLimitInverted,
+            boolean hasUpperLimitSwitch, boolean upperLimitInverted, double calPower)
+        {
+            this.motorInverted = motorInverted;
+            this.hasLowerLimitSwitch = hasLowerLimitSwitch;
+            this.lowerLimitInverted = lowerLimitInverted;
+            this.hasUpperLimitSwitch = hasUpperLimitSwitch;
+            this.upperLimitInverted = upperLimitInverted;
+            this.calPower = calPower;
+            return this;
+        }   //setMotorParams
+
+        /**
+         * This method sets the stall protection parameters of the motor actuator.
+         *
+         * @param stallMinPower specifies the minimum power applied to the motor before stall detection will kick in.
+         * @param stallTimeout specifies the minimum time the motor has to stall to trigger the stalled condition.
+         * @param resetTimeout specifies the minimum time has to pass with no power applied to the motor to reset
+         *                     stalled condition.
+         * @return this parameter object.
+         */
+        public Parameters setStallProtectionParams(double stallMinPower, double stallTimeout, double resetTimeout)
+        {
+            this.stallMinPower = stallMinPower;
+            this.stallTimeout = stallTimeout;
+            this.resetTimeout = resetTimeout;
+            return this;
+        }   //setStallProtectionParams
+
+        /**
+         * This method sets an array of preset positions for the motor actuator.
+         *
+         * @param posPresets specifies an array of preset positions in scaled unit.
+         * @return this parameter object.
+         */
+        public Parameters setPosPresets(double... posPresets)
+        {
+            this.posPresets = posPresets;
+            return this;
+        }   //setPosPresets
+
+        /**
+         * This method sets the power compensation callback method. When specified, the power compensation method will
+         * be called periodically to calculate the motor power to compensation for gravity.
+         *
+         * @param powerCompensation specifies the motor power compensation method.
+         * @return this parameter object.
+         */
+        public Parameters setPowerCompensation(TrcPidMotor.PowerCompensation powerCompensation)
+        {
+            this.powerCompensation = powerCompensation;
+            return this;
+        }   //setPowerCompensation
+
+    }   //class Parameters
+
+    private final Parameters params;
+    private final TrcDigitalInput lowerLimitSwitch;
+    private final TrcDigitalInput upperLimitSwitch;
     private boolean manualOverride = false;
+    private int positionLevel = 0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -51,26 +182,49 @@ public class TrcPidActuator extends TrcPidMotor
      * @param syncGain specifies the sync gain between the primary and secondary motors (i.e. Kp).
      * @param lowerLimitSwitch specifies the optional lower limit switch. Required only for auto zero calibration
      *        whenever it is active.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     * @param minPos specifies the minimum position of the actuator range.
-     * @param maxPos specifies the maximum position of the actuator range.
-     * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
-     *                          provided.
+     * @param upperLimitSwitch specifies the optional upper limit switch.
+     * @param params specifies the parameters for the PID actuator.
      */
     public TrcPidActuator(
-            String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
-            TrcPidController pidCtrl, double calPower, double minPos, double maxPos,
-            PowerCompensation powerCompensation)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
+        TrcDigitalInput upperLimitSwitch, Parameters params)
     {
-        super(instanceName, motor1, motor2, syncGain, pidCtrl, calPower, powerCompensation);
-        this.minPos = minPos;
-        this.maxPos = maxPos;
+        super(instanceName, motor1, motor2, syncGain, params.pidParams, params.calPower, params.powerCompensation);
+        this.lowerLimitSwitch = lowerLimitSwitch;
+        this.upperLimitSwitch = upperLimitSwitch;
+        this.params = params;
+
         if (lowerLimitSwitch != null)
         {
             motor1.resetPositionOnDigitalInput(lowerLimitSwitch);
         }
-        pidCtrl.setAbsoluteSetPoint(true);
+
+        setPositionScale(params.scale, params.offset);
+
+        if (params.stallMinPower != 0.0)
+        {
+            setStallProtection(params.stallMinPower, params.stallTimeout, params.resetTimeout);
+        }
+
+        super.getPidController().setAbsoluteSetPoint(true);
+    }   //TrcPidActuator
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param motor1 specifies the primary motor in the actuator.
+     * @param motor2 specifies the secondary motor in the actuator.
+     * @param lowerLimitSwitch specifies the optional lower limit switch. Required only for auto zero calibration
+     *        whenever it is active.
+     * @param upperLimitSwitch specifies the optional upper limit switch.
+     * @param params specifies the parameters for the PID actuator.
+     */
+    public TrcPidActuator(
+        String instanceName, TrcMotor motor1, TrcMotor motor2, TrcDigitalInput lowerLimitSwitch,
+        TrcDigitalInput upperLimitSwitch, Parameters params)
+    {
+        this(instanceName, motor1, motor2, 0.0, lowerLimitSwitch, upperLimitSwitch, params);
     }   //TrcPidActuator
 
     /**
@@ -80,105 +234,35 @@ public class TrcPidActuator extends TrcPidMotor
      * @param motor specifies the motor in the actuator.
      * @param lowerLimitSwitch specifies the optional lower limit switch. Required only for auto zero calibration
      *        whenever it is active.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     * @param minPos specifies the minimum position of the actuator range.
-     * @param maxPos specifies the maximum position of the actuator range.
-     * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
-     *                          provided.
+     * @param upperLimitSwitch specifies the optional upper limit switch.
+     * @param params specifies the parameters for the PID actuator.
      */
     public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcDigitalInput lowerLimitSwitch, TrcPidController pidCtrl,
-            double calPower, double minPos, double maxPos, PowerCompensation powerCompensation)
+        String instanceName, TrcMotor motor, TrcDigitalInput lowerLimitSwitch, TrcDigitalInput upperLimitSwitch,
+        Parameters params)
     {
-        this(instanceName, motor, null, 0.0, lowerLimitSwitch, pidCtrl, calPower, minPos, maxPos, powerCompensation);
+        this(instanceName, motor, null, 0.0, lowerLimitSwitch, upperLimitSwitch, params);
     }   //TrcPidActuator
 
     /**
-     * Constructor: Create an instance of the object.
+     * This method checks if the lower limit switch is activated.
      *
-     * @param instanceName specifies the instance name.
-     * @param motor specifies the motor in the actuator.
-     * @param lowerLimitSwitch specifies the optional lower limit switch. Required only for auto zero calibration
-     *        whenever it is active.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     * @param minPos specifies the minimum position of the actuator range.
-     * @param maxPos specifies the maximum position of the actuator range.
+     * @return true if the lower limit switch is activated, false otherwise.
      */
-    public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcDigitalInput lowerLimitSwitch, TrcPidController pidCtrl,
-            double calPower, double minPos, double maxPos)
+    public boolean isLowerLimitSwitchActive()
     {
-        this(instanceName, motor, null, 0.0, lowerLimitSwitch, pidCtrl, calPower, minPos, maxPos, null);
-    }   //TrcPidActuator
+        return lowerLimitSwitch != null && lowerLimitSwitch.isActive();
+    }   //isLowerLimitSwitchActive
 
     /**
-     * Constructor: Create an instance of the object.
+     * This method checks if the upper limit switch is activated.
      *
-     * @param instanceName specifies the instance name.
-     * @param motor specifies the motor in the actuator.
-     * @param lowerLimitSwitch specifies the optional lower limit switch. Required only for auto zero calibration
-     *        whenever it is active.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
+     * @return true if the upper limit switch is activated, false otherwise.
      */
-    public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcDigitalInput lowerLimitSwitch, TrcPidController pidCtrl,
-            double calPower)
+    public boolean isUpperLimitSwitchActive()
     {
-        this(instanceName, motor, null, 0.0, lowerLimitSwitch, pidCtrl, calPower, 0.0, 0.0, null);
-    }   //TrcPidActuator
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param motor specifies the motor in the actuator.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     * @param minPos specifies the minimum position of the actuator range.
-     * @param maxPos specifies the maximum position of the actuator range.
-     * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
-     *                          provided.
-     */
-    public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcPidController pidCtrl, double calPower, double minPos,
-            double maxPos, PowerCompensation powerCompensation)
-    {
-        this(instanceName, motor, null, 0.0, null, pidCtrl, calPower, minPos, maxPos, powerCompensation);
-    }   //TrcPidActuator
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param motor specifies the motor in the actuator.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     * @param minPos specifies the minimum position of the actuator range.
-     * @param maxPos specifies the maximum position of the actuator range.
-     */
-    public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcPidController pidCtrl, double calPower, double minPos,
-            double maxPos)
-    {
-        this(instanceName, motor, null, 0.0, null, pidCtrl, calPower, minPos, maxPos, null);
-    }   //TrcPidActuator
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param motor specifies the motor in the actuator.
-     * @param pidCtrl specifies the PID controller for PID controlled movement.
-     * @param calPower specifies the motor power for the calibration.
-     */
-    public TrcPidActuator(
-            String instanceName, TrcMotor motor, TrcPidController pidCtrl, double calPower)
-    {
-        this(instanceName, motor, null, 0.0, null, pidCtrl, calPower, 0.0, 0.0, null);
-    }   //TrcPidActuator
+        return upperLimitSwitch != null && upperLimitSwitch.isActive();
+    }   //isUpperLimitSwitchActive
 
     /**
      * This method returns the state of manual override.
@@ -236,14 +320,14 @@ public class TrcPidActuator extends TrcPidMotor
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%s", power);
         }
 
-        if (manualOverride || minPos == 0.0 && maxPos == 0.0)
+        if (manualOverride || params.minPos == 0.0 && params.maxPos == 0.0)
         {
             cancel();
             super.setPower(power);
         }
         else
         {
-            setPowerWithinPosRange(power, minPos, maxPos, hold);
+            setPowerWithinPosRange(power, params.minPos, params.maxPos, hold);
         }
 
         if (debugEnabled)
@@ -263,5 +347,109 @@ public class TrcPidActuator extends TrcPidMotor
     {
         setPower(power, false);
     }   //setPower
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
+     * @param level specifies the index to the preset position array.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setLevel(double delay, int level, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        if (params.posPresets != null)
+        {
+            if (level < 0)
+            {
+                positionLevel = 0;
+            }
+            else if (level >= params.posPresets.length)
+            {
+                positionLevel = params.posPresets.length - 1;
+            }
+            else
+            {
+                positionLevel = level;
+            }
+
+            setTarget(delay, params.posPresets[positionLevel], holdTarget, event, timeout);
+        }
+    }   //setLevel
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param level specifies the index to the preset position array.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setLevel(int level, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setLevel(0.0, level, holdTarget, event, timeout);
+    }   //setLevel
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param level specifies the index to the preset position array.
+     */
+    public void setLevel(int level, TrcEvent event)
+    {
+        setLevel(0.0, level, true, event, 0.0);
+    }   //setLevel
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
+     * @param level specifies the index to the preset position array.
+     */
+    public void setLevel(double delay, int level)
+    {
+        setLevel(delay, level, true, null, 0.0);
+    }   //setLevel
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param level specifies the index to the preset position array.
+     */
+    public void setLevel(int level)
+    {
+        setLevel(0.0, level, true, null, 0.0);
+    }   //setLevel
+
+    /**
+     * This method sets the actuator to the next preset position up.
+     */
+    public void levelUp()
+    {
+        setLevel(positionLevel + 1);
+    }   //levelUp
+
+    /**
+     * This method sets the actuator to the next preset position down.
+     */
+    public void levelDown()
+    {
+        setLevel(positionLevel - 1);
+    }   //levelDown
+
+    /**
+     * This method returns the last preset level that is set to the actuator.
+     *
+     * @return last preset level set.
+     */
+    public int getLevel()
+    {
+        return positionLevel;
+    }   //getLevel
 
 }   //class TrcPidActuator
