@@ -83,10 +83,8 @@ public class TrcTimer
      * @param time specifies the expire time in seconds relative to the current time.
      * @param event specifies the event to signal when time has expired.
      * @param receiver specifies the notification receiver to call when time has expired.
-     * @throws IllegalStateException when set is called more than once without a call to {@link #cancel()} between them.
      */
     public synchronized void set(double time, TrcEvent event, TrcNotifier.Receiver receiver)
-            throws IllegalStateException
     {
         final String funcName = "set";
 
@@ -98,8 +96,10 @@ public class TrcTimer
 
         if (expiredTimeInMsec > 0)
         {
-            throw new IllegalStateException("Set called on a timer that is currently running. " +
-                    "Wait for the timer to expire or call cancel first.");
+            //
+            // A previously set timer has not expired, cancel it first.
+            //
+            cancel(false);
         }
 
         expiredTimeInMsec = TrcUtil.getCurrentTimeMillis() + (long)(time*1000);
@@ -236,6 +236,7 @@ public class TrcTimer
         {
             //
             // If this timer's security key is -1.0, it means it was already canceled. In this case, ignore it.
+            // Otherwise, somebody other than TimerMgr is trying to call this which is not allowed.
             //
             throw new SecurityException(
                 String.format(Locale.US,
@@ -264,8 +265,11 @@ public class TrcTimer
 
     /**
      * This method cancels the timer if it's set but has not expired. If the timer is canceled, the event is signaled.
+     *
+     * @param doNotify specifies true to notify the timer owner of the cancellation, false if called internally to
+     *                 to re-arm the previous non-expired timer.
      */
-    public synchronized void cancel()
+    private synchronized void cancel(boolean doNotify)
     {
         final String funcName = "cancel";
 
@@ -283,16 +287,19 @@ public class TrcTimer
             canceled = true;
             securityKey = -1.0;
 
-            if (notifyEvent != null)
+            if (doNotify)
             {
-                notifyEvent.cancel();
-                notifyEvent = null;
-            }
+                if (notifyEvent != null)
+                {
+                    notifyEvent.cancel();
+                    notifyEvent = null;
+                }
 
-            if (notifyReceiver != null)
-            {
-                notifyReceiver.notify(this);
-                notifyReceiver = null;
+                if (notifyReceiver != null)
+                {
+                    notifyReceiver.notify(this);
+                    notifyReceiver = null;
+                }
             }
         }
 
@@ -300,6 +307,14 @@ public class TrcTimer
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
+    }   //cancel
+
+    /**
+     * This method cancels the timer if it's set but has not expired. If the timer is canceled, the event is signaled.
+     */
+    public void cancel()
+    {
+        cancel(true);
     }   //cancel
 
 }   //class TrcTimer
