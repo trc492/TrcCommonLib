@@ -142,7 +142,7 @@ public class TrcOwnershipMgr
     public synchronized boolean releaseOwnership(String owner, TrcExclusiveSubsystem subsystem)
     {
         // Only release the subsystem if this is called by the owner
-        if (owner.equals(ownershipMap.get(subsystem)))
+        if (owner != null && owner.equals(ownershipMap.get(subsystem)))
         {
             ownershipMap.remove(subsystem);
             return true;
