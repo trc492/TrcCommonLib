@@ -21,7 +21,7 @@
  */
 
 package TrcCommonLib.trclib;
-//Testing abcde...
+
 /**
  * This class implements a platform independent accelerometer. Typically, this class is extended by a platform
  * dependent accelerometer class. The platform dependent accelerometer class must implement the abstract methods
