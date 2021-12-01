@@ -59,6 +59,16 @@ public class TrcPurePursuitDrive
     private static final boolean verbosePidInfo = false;
     private TrcDbgTrace dbgTrace = null;
 
+    public interface WaypointEventHandler
+    {
+        /**
+         * This method is called when Pure Pursuit crosses a waypoint or the path is completed.
+         *
+         * @param index specifies the index of the waypoint in the path, -1 if the path is completed or canceled.
+         */
+        void waypointEvent(int index);
+    }   //interface WaypointEventHandler
+
     public enum InterpolationType
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
@@ -87,6 +97,7 @@ public class TrcPurePursuitDrive
     private double moveOutputLimit = Double.POSITIVE_INFINITY;
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
+    private WaypointEventHandler waypointEventHandler = null;
 
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
@@ -371,6 +382,19 @@ public class TrcPurePursuitDrive
     }   //getTargetFieldPosition
 
     /**
+     * This method sets the waypoint event handler that gets called when the robot crosses each waypoint. This allows
+     * the caller to perform actions when each waypoint is reached. Waypoint handler is cleared when the start method
+     * is called. In other words, this method should only be called after the start method is called and the Waypoint
+     * event handler is only valid for the path started by the start method.
+     *
+     * @param handler specifies the waypoint event handler, can be null to clear the event handler.
+     */
+    public synchronized void setWaypointEventHandler(WaypointEventHandler handler)
+    {
+        this.waypointEventHandler = handler;
+    }   //setWaypointEventHandler
+
+    /**
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
@@ -616,6 +640,14 @@ public class TrcPurePursuitDrive
                 onFinishedEvent.cancel();
             }
             stop();
+        }
+        //
+        // Either the path is done or canceled, call the event handler one last time with index -1 and be done.
+        //
+        if (waypointEventHandler != null)
+        {
+            waypointEventHandler.waypointEvent(-1);
+            waypointEventHandler = null;
         }
     }   //cancel
 
@@ -886,6 +918,10 @@ public class TrcPurePursuitDrive
                 path.getWaypoint(i - 1), path.getWaypoint(i), robotPose);
             if (interpolated != null)
             {
+                if (waypointEventHandler != null)
+                {
+                    waypointEventHandler.waypointEvent(pathIndex);
+                }
                 pathIndex = i;
                 return interpolated;
             }
