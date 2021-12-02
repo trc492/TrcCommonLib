@@ -97,8 +97,8 @@ public class TrcPurePursuitDrive
     private final TrcTaskMgr.TaskObject driveTaskObj;
     private double moveOutputLimit = Double.POSITIVE_INFINITY;
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
-    private InterpolationType interpolationType = InterpolationType.LINEAR;
     private WaypointEventHandler waypointEventHandler = null;
+    private InterpolationType interpolationType = InterpolationType.LINEAR;
 
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
@@ -641,14 +641,14 @@ public class TrcPurePursuitDrive
                 onFinishedEvent.cancel();
             }
             stop();
-        }
-        //
-        // Either the path is done or canceled, call the event handler one last time with index -1 and be done.
-        //
-        if (waypointEventHandler != null)
-        {
-            waypointEventHandler.waypointEvent(-1, null);
-            waypointEventHandler = null;
+            //
+            // Either the path is done or canceled, call the event handler one last time with index -1 and be done.
+            //
+            if (waypointEventHandler != null)
+            {
+                waypointEventHandler.waypointEvent(-1, null);
+                waypointEventHandler = null;
+            }
         }
     }   //cancel
 

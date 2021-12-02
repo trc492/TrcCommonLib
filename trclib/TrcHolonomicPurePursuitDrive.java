@@ -52,6 +52,16 @@ public class TrcHolonomicPurePursuitDrive
     private static final boolean debugEnabled = false;
     private static final boolean verbosePidInfo = false;
 
+    public interface WaypointEventHandler
+    {
+        /**
+         * This method is called when Pure Pursuit crosses a waypoint or the path is completed.
+         *
+         * @param index specifies the index of the waypoint in the path, -1 if the path is completed or canceled.
+         */
+        void waypointEvent(int index);
+    }   //interface WaypointEventHandler
+
     public enum InterpolationType
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
@@ -86,6 +96,7 @@ public class TrcHolonomicPurePursuitDrive
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
     private TrcWarpSpace warpSpace;
+    private TrcPurePursuitDrive.WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean maintainHeading = false;
     private double startHeading;
@@ -222,6 +233,19 @@ public class TrcHolonomicPurePursuitDrive
 
         return targetPose;
     }   //getTargetFieldPosition
+
+    /**
+     * This method sets the waypoint event handler that gets called when the robot crosses each waypoint. This allows
+     * the caller to perform actions when each waypoint is reached. Waypoint handler is cleared when the start method
+     * is called. In other words, this method should only be called after the start method is called and the Waypoint
+     * event handler is only valid for the path started by the start method.
+     *
+     * @param handler specifies the waypoint event handler, can be null to clear the event handler.
+     */
+    public synchronized void setWaypointEventHandler(TrcPurePursuitDrive.WaypointEventHandler handler)
+    {
+        this.waypointEventHandler = handler;
+    }   //setWaypointEventHandler
 
     /**
      * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
@@ -587,6 +611,14 @@ public class TrcHolonomicPurePursuitDrive
                 onFinishedEvent.cancel();
             }
             stop();
+            //
+            // Either the path is done or canceled, call the event handler one last time with index -1 and be done.
+            //
+            if (waypointEventHandler != null)
+            {
+                waypointEventHandler.waypointEvent(-1, null);
+                waypointEventHandler = null;
+            }
         }
     }   //cancel
 
@@ -635,6 +667,11 @@ public class TrcHolonomicPurePursuitDrive
         double robotX = pose.x;
         double robotY = pose.y;
         TrcWaypoint point = getFollowingPoint(pose);
+
+        if (waypointEventHandler != null)
+        {
+            waypointEventHandler.waypointEvent(pathIndex - 1, point);
+        }
 
         double dist = TrcUtil.magnitude(robotX - point.pose.x, robotY - point.pose.y);
         positionInput = -dist; // Make this negative so the control effort is positive.
