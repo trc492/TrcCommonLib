@@ -65,8 +65,9 @@ public class TrcPurePursuitDrive
          * This method is called when Pure Pursuit crosses a waypoint or the path is completed.
          *
          * @param index specifies the index of the waypoint in the path, -1 if the path is completed or canceled.
+         * @param waypoint specifies the current target waypoint.
          */
-        void waypointEvent(int index);
+        void waypointEvent(int index, TrcWaypoint waypoint);
     }   //interface WaypointEventHandler
 
     public enum InterpolationType
@@ -646,7 +647,7 @@ public class TrcPurePursuitDrive
         //
         if (waypointEventHandler != null)
         {
-            waypointEventHandler.waypointEvent(-1);
+            waypointEventHandler.waypointEvent(-1, null);
             waypointEventHandler = null;
         }
     }   //cancel
@@ -684,6 +685,11 @@ public class TrcPurePursuitDrive
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
         TrcPose2D relativePose = targetPoint.pose.relativeTo(robotPose, true);
+
+        if (waypointEventHandler != null)
+        {
+            waypointEventHandler.waypointEvent(pathIndex - 1, targetPoint);
+        }
 
         if (xPosPidCtrl != null)
         {
@@ -918,10 +924,6 @@ public class TrcPurePursuitDrive
                 path.getWaypoint(i - 1), path.getWaypoint(i), robotPose);
             if (interpolated != null)
             {
-                if (waypointEventHandler != null)
-                {
-                    waypointEventHandler.waypointEvent(pathIndex);
-                }
                 pathIndex = i;
                 return interpolated;
             }
