@@ -105,7 +105,7 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
     }   //class Parameters
 
     private final String instanceName;
-    public final TrcMotor motor;
+    private final TrcMotor motor;
     private final Parameters params;
     private final TrcSensor<D> sensor;
     private final int sensorIndex;
@@ -410,12 +410,13 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
      */
     public double getSensorData()
     {
-        TrcSensor.SensorData<?> sensorData =
-            sensor != null? sensor.getRawData(sensorIndex, sensorDataType) : null;
-        return sensorData != null? (double)sensorData.value: 0.0;
+        @SuppressWarnings("unchecked") TrcSensor.SensorData<Double> sensorData =
+            sensor != null? (TrcSensor.SensorData<Double>) sensor.getRawData(sensorIndex, sensorDataType) : null;
+        return sensorData != null ? sensorData.value : 0.0;
     }   //getSensorData
 
     /**
+     *
      * This method checks if object is detected in the intake.
      *
      * @return true if object is detected in the intake, false otherwise.
