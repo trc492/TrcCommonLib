@@ -112,8 +112,7 @@ public class TrcTimerMgr
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "timer=%s,callerID=%f", timer, callerID);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "timer=%s,callerID=%f", timer, callerID);
         }
 
         synchronized (timerList)
@@ -217,8 +216,7 @@ public class TrcTimerMgr
                 {
                     if (timer == nextTimerToExpire)
                     {
-                        nextTimerToExpire = null;
-                        nextExpireTimeInMsec = 0;
+                        timerThread.interrupt();
                         success = true;
                     }
                     else
@@ -354,6 +352,15 @@ public class TrcTimerMgr
                             }
                             timerList.add(0, nextTimerToExpire);
                         }
+                        nextExpireTimeInMsec = 0;
+                    }
+                    else if (nextTimerToExpire != null && nextTimerToExpire.isCanceled())
+                    {
+                        if (debugEnabled)
+                        {
+                            dbgTrace.traceInfo(funcName, "timer %s was canceled.", nextTimerToExpire);
+                        }
+                        nextTimerToExpire = null;
                         nextExpireTimeInMsec = 0;
                     }
                     else

@@ -362,8 +362,8 @@ public abstract class TrcMotor implements TrcMotorController
                         low = Math.max(low, 1);
                         if (Math.getExponent(high / low) >= 27)
                         {
-                            TrcDbgTrace.getGlobalTracer()
-                                .traceWarn(funcName, "WARNING: Spurious encoder detected on motor %s! odometry=%s", motor, motor.odometry);
+                            globalTracer.traceWarn(
+                                funcName, "WARNING: Spurious encoder detected on motor %s! odometry=%s", motor, motor.odometry);
                             motor.odometry.currPos = motor.odometry.prevPos;
                         }
                     }
@@ -889,8 +889,8 @@ public abstract class TrcMotor implements TrcMotorController
                 Boolean.toString(active));
         }
 
-        TrcDbgTrace.getGlobalTracer()
-            .traceInfo("triggerEvent", "TrcMotor encoder reset! motor=%s,pos=%.2f", instanceName, getMotorPosition());
+        globalTracer.traceInfo(
+            "triggerEvent", "TrcMotor encoder reset! motor=%s,pos=%.2f", instanceName, getMotorPosition());
 
         if (calibrating)
         {

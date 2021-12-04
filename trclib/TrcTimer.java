@@ -281,10 +281,10 @@ public class TrcTimer
         // Only do this if the timer is actually armed and not expired.
         if (securityKey != -1.0)
         {
-            timerMgr.remove(this, securityKey);
             expiredTimeInMsec = 0;
             expired = false;
             canceled = true;
+            timerMgr.remove(this, securityKey);
             securityKey = -1.0;
 
             if (doNotify)
