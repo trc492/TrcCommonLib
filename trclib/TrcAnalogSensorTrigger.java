@@ -25,47 +25,21 @@ package TrcCommonLib.trclib;
 import java.util.Arrays;
 
 /**
- * This class implements an AnalogTrigger. It monitors the value of the analog sensor against an array of threshold
- * values. If the sensor reading crosses any of the thresholds in the array, it will call a notification handler so
- * that an action could be performed.
+ * This class implements an AnalogSensorTrigger. It monitors the value of the analog sensor against an array of
+ * threshold values. If the sensor reading crosses any of the thresholds in the array, it will call a notification
+ * handler so that an action could be performed.
  */
-public class TrcAnalogSensorTrigger<D>
+public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
 {
-    private static final String moduleName = "TrcAnalogSensorTrigger";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
-    /**
-     * This interface contains the notification handler to be called when the sensor reading crosses a threshold in
-     * the array.
-     */
-    public interface TriggerHandler
-    {
-        /**
-         * This method is called when a threshold has been crossed.
-         *
-         * @param currZone specifies the zone it is going into.
-         * @param prevZone specifies the zone it is coming out of.
-         * @param zoneValue specifies the actual sensor value.
-         */
-        void triggerEvent(int currZone, int prevZone, double zoneValue);
-
-    }   //interface TriggerHandler
-
-    private final String instanceName;
     private final TrcSensor<D> sensor;
     private final int index;
     private final D dataType;
-    private final TriggerHandler triggerHandler;
+    private final AnalogTriggerHandler triggerHandler;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
     private double[] thresholds;
+    private int sensorZone;
+    private double sensorValue;
     private boolean enabled = false;
-    private int zone = -1;
-    private double value = 0.0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -77,23 +51,24 @@ public class TrcAnalogSensorTrigger<D>
      * @param dataPoints specifies an array of trigger points or an array of thresholds if dataIsTrigger is true.
      * @param triggerHandler specifies the object to handle the trigger event.
      * @param dataIsTrigger specifies true if dataPoints specifies an array of trigger points, false if it is an
-     *                      array of thresholds.
+     *                      array of thresholds. Trigger points will be converted to threshold points.
      */
     public TrcAnalogSensorTrigger(
-        final String instanceName, final TrcSensor<D> sensor, final int index, final D dataType,
-        final double[] dataPoints, final TriggerHandler triggerHandler, boolean dataIsTrigger)
+        String instanceName, TrcSensor<D> sensor, int index, D dataType, double[] dataPoints,
+        AnalogTriggerHandler triggerHandler, boolean dataIsTrigger)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
+        super(instanceName);
 
         if (sensor == null || triggerHandler == null)
         {
             throw new NullPointerException("Sensor/TriggerHandler cannot be null");
         }
+
+        this.sensor = sensor;
+        this.index = index;
+        this.dataType = dataType;
+        this.triggerHandler = triggerHandler;
+        triggerTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".triggerTask", this::triggerTask);
 
         if (dataIsTrigger)
         {
@@ -103,41 +78,10 @@ public class TrcAnalogSensorTrigger<D>
         {
             setThresholds(dataPoints);
         }
-        this.instanceName = instanceName;
-        this.sensor = sensor;
-        this.index = index;
-        this.dataType = dataType;
-        this.triggerHandler = triggerHandler;
-        triggerTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".triggerTask", this::triggerTask);
-    }   //TrcAnalogSensorTrigger
 
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param sensor specifies the sensor that is used to detect the trigger.
-     * @param index specifies the data index of the sensor to read the sensor value.
-     * @param dataType specifies the data type of the sensor to read the sensor value.
-     * @param dataPoints specifies an array of trigger points.
-     * @param triggerHandler specifies the object to handle the trigger event.
-     */
-    public TrcAnalogSensorTrigger(
-            final String instanceName, final TrcSensor<D> sensor, final int index, final D dataType,
-            final double[] dataPoints, final TriggerHandler triggerHandler)
-    {
-        this(instanceName, sensor, index, dataType, dataPoints, triggerHandler, true);
+        sensorValue = getSensorValue();
+        sensorZone = getValueZone(sensorValue);
     }   //TrcAnalogSensorTrigger
-
-    /**
-     * This method returns the instance name.
-     *
-     * @return instance name.
-     */
-    @Override
-    public String toString()
-    {
-        return instanceName;
-    }   //toString
 
     /**
      * This method creates and threshold array and calculates all the threshold values. A threshold value is the
@@ -145,14 +89,14 @@ public class TrcAnalogSensorTrigger<D>
      *
      * @param triggerPoints specifies the array of trigger points.
      */
-    public synchronized void setTriggerPoints(double[] triggerPoints)
+    private synchronized void setTriggerPoints(double[] triggerPoints)
     {
         final String funcName = "setTriggerPoints";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                    funcName, TrcDbgTrace.TraceLevel.API, "triggerPts=%s", Arrays.toString(triggerPoints));
+                    funcName, TrcDbgTrace.TraceLevel.FUNC, "triggerPts=%s", Arrays.toString(triggerPoints));
         }
 
         if (triggerPoints == null)
@@ -173,7 +117,7 @@ public class TrcAnalogSensorTrigger<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Arrays.toString(thresholds));
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%s", Arrays.toString(thresholds));
         }
     }   //setTriggerPoints
 
@@ -182,14 +126,14 @@ public class TrcAnalogSensorTrigger<D>
      *
      * @param thresholds specifies the array of thresholds.
      */
-    public synchronized void setThresholds(double[] thresholds)
+    private synchronized void setThresholds(double[] thresholds)
     {
         final String funcName = "setThresholds";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                    funcName, TrcDbgTrace.TraceLevel.API, "thresholds=%s", Arrays.toString(thresholds));
+                    funcName, TrcDbgTrace.TraceLevel.FUNC, "thresholds=%s", Arrays.toString(thresholds));
         }
 
         if (thresholds == null)
@@ -206,76 +150,148 @@ public class TrcAnalogSensorTrigger<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //setThresholds
-
-    /**
-     * This method enables/disables the task that monitors the sensor value.
-     *
-     * @param enabled specifies true to enable, false to disable.
-     */
-    public synchronized void setEnabled(boolean enabled)
-    {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
-        this.enabled = enabled;
-
-        if (enabled)
-        {
-            zone = -1;
-            value = 0.0;
-            triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);    //TODO: should use INPUT_TASK
-        }
-        else
-        {
-            triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);
-        }
-
-        if (debugEnabled)
-        {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
-    }   //setEnabled
-
-    /**
-     * This method checks if the task is enabled.
-     *
-     * @return true if enabled, false otherwise.
-     */
-    public synchronized boolean isEnabled()
-    {
-        return enabled;
-    }   //isActive
+    }   //setThresholds
 
     /**
      * This method returns the current zone it is in.
      *
      * @return current zone index.
      */
-    public synchronized int getZone()
+    public synchronized int getCurrentZone()
     {
-        return zone;
-    }   //getZone
+        return sensorZone;
+    }   //getCurrentZone
 
     /**
      * This method returns the last sensor value.
      *
      * @return last sensor value.
      */
-    public synchronized double getValue()
+    public synchronized double getCurrentValue()
     {
-        return value;
-    }   //getValue
+        return sensorValue;
+    }   //getCurrentValue
+
+    //
+    // Implements TrcSensorTrigger abstract methods.
+    //
+
+    /**
+     * This method enables/disables the task that monitors the sensor value.
+     *
+     * @param enabled specifies true to enable, false to disable.
+     */
+    @Override
+    public synchronized void setEnabled(boolean enabled)
+    {
+        final String funcName = "setEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
+        }
+
+        if (enabled)
+        {
+            sensorValue = getSensorValue();
+            sensorZone = getValueZone(sensorValue);
+            triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+        }
+        else
+        {
+            triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
+        }
+        this.enabled = enabled;
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+    }   //setEnabled
+
+    /**
+     * This method checks if the trigger task is enabled.
+     *
+     * @return true if enabled, false otherwise.
+     */
+    public boolean isEnabled()
+    {
+        return enabled;
+    }   //isEnabled
+
+    /**
+     * This method reads the current analog sensor value. It may return null if it failed to read the sensor.
+     *
+     * @return current sensor value, null if it failed to read the sensor.
+     */
+    @Override
+    public double getSensorValue()
+    {
+        TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
+        return data != null && data.value != null? data.value: 0.0;
+    }   //getSensorValue
+
+    /**
+     * This method reads the current digital sensor state (not supported).
+     *
+     * @return current sensor state.
+     */
+    @Override
+    public boolean getSensorState()
+    {
+        throw new RuntimeException("Analog sensor does not support digital state.");
+    }   //getSensorState
+
+    /**
+     * This method determines the sensor zone with the given sensor value.
+     *
+     * @param value specifies the sensor value.
+     * @return sensor zone the value is in.
+     */
+    private int getValueZone(double value)
+    {
+        final String funcName = "getValueZone";
+        int zone = -1;
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "value=%f", value);
+        }
+
+        if (value < thresholds[0])
+        {
+            zone = 0;
+        }
+        else
+        {
+            for (int i = 0; i < thresholds.length - 1; i++)
+            {
+                if (value >= thresholds[i] && value < thresholds[i + 1])
+                {
+                    zone = i + 1;
+                    break;
+                }
+            }
+
+            if (zone == -1)
+            {
+                zone = thresholds.length;
+            }
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%d", zone);
+        }
+
+        return zone;
+    }   //getValueZone
 
     /**
      * This method is called periodically to check the current sensor value against the threshold array to see it
-     * crosses a new threshold.
+     * crosses any thresholds and the triggerHandler will be notified.
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
@@ -283,59 +299,32 @@ public class TrcAnalogSensorTrigger<D>
     private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
+        double currValue = getSensorValue();
+        int currZone = getValueZone(currValue);
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
         }
 
-        if (data != null && data.value != null)
+        if (currZone != sensorZone)
         {
-            double sample = data.value;
-            int currZone = -1;
-
-            if (sample < thresholds[0])
+            //
+            // We have crossed to another zone, let's notify somebody.
+            //
+            if (triggerHandler != null)
             {
-                currZone = 0;
-            }
-            else
-            {
-                for (int i = 0; i < thresholds.length - 1; i++)
-                {
-                    if (sample >= thresholds[i] && sample < thresholds[i + 1])
-                    {
-                        currZone = i + 1;
-                        break;
-                    }
-                }
-
-                if (currZone == -1)
-                {
-                    currZone = thresholds.length;
-                }
+                triggerHandler.analogTriggerEvent(sensorZone, currZone, currValue);
             }
 
-            if (currZone != zone)
+            if (debugEnabled)
             {
-                //
-                // We have crossed to another zone, let's notify somebody.
-                //
-                if (triggerHandler != null)
-                {
-                    triggerHandler.triggerEvent(currZone, zone, sample);
-                }
-
-                if (debugEnabled)
-                {
-                    dbgTrace.traceInfo(funcName, "%s going to zone %d from zone %d (value=%f)",
-                        instanceName, currZone, zone, value);
-                }
-
-                zone = currZone;
-                value = sample;
+                dbgTrace.traceInfo(funcName, "%s crossing zones %d->%d (value=%f)",
+                                   instanceName, sensorZone, currZone, currValue);
             }
         }
+        sensorValue = currValue;
+        sensorZone = currZone;
 
         if (debugEnabled)
         {

@@ -33,7 +33,7 @@ import java.util.Locale;
  * callers' access to the subsystem. While one caller starts the intake for an operation, nobody can access it until
  * the previous caller is done with the operation.
  */
-public class TrcIntake<D> implements TrcExclusiveSubsystem
+public class TrcIntake implements TrcExclusiveSubsystem
 {
     private static final String moduleName = "TrcIntake";
     private static final boolean debugEnabled = false;
@@ -45,37 +45,10 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
 
     public static class Parameters
     {
-        public boolean motorInverted = false;
-        public double sensorThreshold = 0.0;
-        public boolean detectedBelowThreshold = false;
         public TrcDbgTrace msgTracer = null;
-
-        /**
-         * This method sets the direction of the motor.
-         *
-         * @param inverted specifies true if motor is inverted, false otherwise.
-         * @return this parameter object.
-         */
-        public Parameters setMotorInverted(boolean inverted)
-        {
-            this.motorInverted = inverted;
-            return this;
-        }   //setMotorInverted
-
-        /**
-         * This method sets the sensor threshold value.
-         *
-         * @param threshold specifies the sensor threshold value.
-         * @param detectedBelowThreshold specifies true if object is detected when below threshold, false if object is
-         *        detected when above threshold.
-         * @return this parameter object.
-         */
-        public Parameters setSensorThreshold(double threshold, boolean detectedBelowThreshold)
-        {
-            this.sensorThreshold = threshold;
-            this.detectedBelowThreshold = detectedBelowThreshold;
-            return this;
-        }   //setSensorThreshold
+        public boolean motorInverted = false;
+        public boolean triggerInverted = false;
+        public Double analogThreshold = null;
 
         /**
          * This method sets the message tracer for logging trace messages.
@@ -90,6 +63,44 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
         }   //setMsgTracer
 
         /**
+         * This method sets the direction of the motor.
+         *
+         * @param inverted specifies true if motor is inverted, false otherwise.
+         * @return this parameter object.
+         */
+        public Parameters setMotorInverted(boolean inverted)
+        {
+            this.motorInverted = inverted;
+            return this;
+        }   //setMotorInverted
+
+        /**
+         * This method sets the trigger to be inverted. If it is an analog trigger, inverted means triggering when
+         * sensor value is lower than threshold. If it is a digital trigger, inverted means triggering on inactive
+         * state.
+         *
+         * @param inverted specifies true to invert the trigger, false otherwise.
+         * @return this parameter object.
+         */
+        public Parameters setTriggerInverted(boolean inverted)
+        {
+            this.triggerInverted = inverted;
+            return this;
+        }   //setTriggerInverted
+
+        /**
+         * This method sets the anlog sensor threshold value.
+         *
+         * @param threshold specifies the sensor threshold value.
+         * @return this parameter object.
+         */
+        public Parameters setAnalogThreshold(double threshold)
+        {
+            this.analogThreshold = threshold;
+            return this;
+        }   //setAnalogThreshold
+
+        /**
          * This method returns the string form of all the parameters.
          *
          * @return string form of all the parameters.
@@ -98,8 +109,8 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
         public String toString()
         {
            return String.format(
-               Locale.US, "motorInverted=%s,sensorThreshold=%.2f,detectedBelowThreshold=%s",
-               motorInverted, sensorThreshold, detectedBelowThreshold);
+               Locale.US, "motorInverted=%s,triggerInverted=%s,analogThreshold=%s",
+               motorInverted, triggerInverted, analogThreshold);
         }   //toString
 
     }   //class Parameters
@@ -107,10 +118,7 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
     private final String instanceName;
     private final TrcMotor motor;
     private final Parameters params;
-    private final TrcSensor<D> sensor;
-    private final int sensorIndex;
-    private final D sensorDataType;
-    private final TrcAnalogSensorTrigger<D> sensorTrigger;
+    private final TrcSensorTrigger sensorTrigger;
     private final TrcTimer timer;
     private TrcEvent onFinishEvent = null;
     private TrcNotifier.Receiver onFinishCallback = null;
@@ -122,12 +130,9 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
      * @param params specifies the parameters object.
-     * @param sensor specifies the sensor object, can be null if no sensor is used.
-     * @param sensorIndex specifies the sensor index to access the data.
-     * @param sensorDataType specifies the sensor data type.
+     * @param sensorTrigger specifies the sensor trigger object.
      */
-    public TrcIntake(
-        String instanceName, TrcMotor motor, Parameters params, TrcSensor<D> sensor, int sensorIndex, D sensorDataType)
+    public TrcIntake(String instanceName, TrcMotor motor, Parameters params, TrcSensorTrigger sensorTrigger)
     {
         if (debugEnabled)
         {
@@ -139,23 +144,9 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
         this.instanceName = instanceName;
         this.motor = motor;
         this.params = params;
-        this.sensor = sensor;
-        this.sensorIndex = sensorIndex;
-        this.sensorDataType = sensorDataType;
-
+        this.sensorTrigger = sensorTrigger;
         motor.setInverted(params.motorInverted);
-        if (sensor != null)
-        {
-            sensorTrigger = new TrcAnalogSensorTrigger<>(
-                instanceName + ".sensorTrigger", sensor, sensorIndex, sensorDataType,
-                new double[] {params.sensorThreshold}, this::triggerHandler, false);
-            timer = new TrcTimer(moduleName + "Timer");
-        }
-        else
-        {
-            sensorTrigger = null;
-            timer = null;
-        }
+        timer = sensorTrigger != null? new TrcTimer(instanceName): null;
     }   //TrcIntake
 
     /**
@@ -167,7 +158,7 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
      */
     public TrcIntake(String instanceName, TrcMotor motor, Parameters params)
     {
-        this(instanceName, motor, params, null, 0, null);
+        this(instanceName, motor, params, null);
     }   //TrcIntake
 
     /**
@@ -286,8 +277,8 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is detected in the intake at which time the given event will be signaled
-     * or it will notify the caller's handler.
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
@@ -309,7 +300,7 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
                 owner, power, event, timeout);
         }
 
-        if (sensor == null || power == 0.0)
+        if (sensorTrigger == null || power == 0.0)
         {
             throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist.");
         }
@@ -346,7 +337,7 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
                 // Picking up object but we already have one, or dumping object but there isn't any.
                 if (params.msgTracer != null)
                 {
-                    params.msgTracer.traceInfo(funcName, "Already done: hasFreight=%s", hasObject());
+                    params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", hasObject());
                 }
 
                 if (event != null)
@@ -364,11 +355,12 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is detected in the intake at which time the given event will be signaled
-     * or it will notify the caller's handler.
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-     * @param power specifies the power value to spin the intake.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
      */
     public void autoAssist(String owner, double power)
     {
@@ -377,14 +369,15 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is detected in the intake at which time the given event will be signaled
-     * or it will notify the caller's handler.
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
      *
-     * @param power specifies the power value to spin the intake.
-     * @param event specifies the event to signal when there is freight detected in the intake.
-     * @param callback specifies the callback handler to call when there is freight detected in the intake.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param callback specifies the callback handler to call when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-     *                must call hasFreight to figure out if it has given up.
+     *                must call hasObject() to figure out if it has given up.
      */
     public void autoAssist(double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
@@ -393,10 +386,11 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is detected in the intake at which time the given event will be signaled
-     * or it will notify the caller's handler.
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
      *
-     * @param power specifies the power value to spin the intake.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
      */
     public void autoAssist(double power)
     {
@@ -404,16 +398,24 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
     }   //autoAssist
 
     /**
-     * This method returns the sensor data read from the sensor.
+     * This method returns the sensor value read from the analog sensor.
      *
-     * @return value read from the sensor.
+     * @return analog sensor value.
      */
-    public double getSensorData()
+    public double getSensorValue()
     {
-        @SuppressWarnings("unchecked") TrcSensor.SensorData<Double> sensorData =
-            sensor != null? (TrcSensor.SensorData<Double>) sensor.getRawData(sensorIndex, sensorDataType) : null;
-        return sensorData != null ? sensorData.value : 0.0;
-    }   //getSensorData
+        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getSensorValue(): 0.0;
+    }   //getSensorValue
+
+    /**
+     * This method returns the sensor state read from the digital sensor.
+     *
+     * @return digital sensor state.
+     */
+    public boolean getSensorState()
+    {
+        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getSensorState();
+    }   //getSensorState
 
     /**
      *
@@ -423,7 +425,26 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
      */
     public boolean hasObject()
     {
-        return params.detectedBelowThreshold ^ getSensorData() >= params.sensorThreshold;
+        boolean gotObject = false;
+
+        if (sensorTrigger != null)
+        {
+            if (params.analogThreshold != null)
+            {
+                gotObject = getSensorValue() > params.analogThreshold;
+            }
+            else
+            {
+                gotObject = getSensorState();
+            }
+
+            if (params.triggerInverted)
+            {
+                gotObject = !gotObject;
+            }
+        }
+
+        return gotObject;
     }   //hasObject
 
     /**
@@ -462,33 +483,6 @@ public class TrcIntake<D> implements TrcExclusiveSubsystem
             autoAssistPower = 0.0;
         }
     }   //cancelAutoAssist
-
-    /**
-     * This method is called when object is detected in the intake.
-     *
-     * @param currZone specifies the current threshold zone.
-     * @param prevZone specifies the previous threshold zone.
-     * @param zoneValue specifies the sensor value.
-     */
-    private synchronized void triggerHandler(int currZone, int prevZone, double zoneValue)
-    {
-        final String funcName = "triggerHandler";
-
-        if (params.msgTracer != null)
-        {
-            params.msgTracer.traceInfo(funcName, "Zone=%d->%d, value=%.3f", prevZone, currZone, zoneValue);
-        }
-
-        if (isAutoAssistActive() && prevZone != -1)
-        {
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(funcName, "Trigger: hasObject=%s", hasObject());
-            }
-
-            cancelAutoAssist();
-        }
-    }   //triggerHandler
 
     /**
      * This method is called when timeout expires.

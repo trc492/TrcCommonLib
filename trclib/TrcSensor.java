@@ -103,11 +103,11 @@ public abstract class TrcSensor<D>
     private static final long CAL_INTERVAL      = 10;   //in msec.
 
     private final String instanceName;
-    private int numAxes;
-    private TrcFilter[] filters;
-    private int[] signs;
-    private double[] scales;
-    private double[] offsets;
+    private final int numAxes;
+    private final TrcFilter[] filters;
+    private final int[] signs;
+    private final double[] scales;
+    private final double[] offsets;
     private TrcSensorCalibrator<D> calibrator = null;
 
     /**

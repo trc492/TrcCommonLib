@@ -26,92 +26,140 @@ package TrcCommonLib.trclib;
  * This class implements a trigger for a digital input device. A digital input trigger consists of a digital input
  * device. It monitors the device state and calls the notification handler if the state changes.
  */
-public class TrcDigitalInputTrigger extends TrcTrigger
+public class TrcDigitalInputTrigger extends TrcSensorTrigger
 {
-    /**
-     * This interface contains the method for the trigger event handler.
-     */
-    public interface TriggerHandler
-    {
-        /**
-         * This method is called when the digital input device has changed state.
-         *
-         * @param active specifies true if the digital device state is active, false otherwise.
-         */
-        void triggerEvent(boolean active);
-
-    }   //interface TriggerHandler
-
-    private final TrcDigitalInput digitalInput;
-    private final TriggerHandler eventHandler;
-    private Boolean prevState = null;
+    private final TrcDigitalInput sensor;
+    private final DigitalTriggerHandler triggerHandler;
+    private final TrcTaskMgr.TaskObject triggerTaskObj;
+    private boolean sensorState;
+    private boolean enabled = false;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param digitalInput specifies the digital input device.
-     * @param eventHandler specifies the object that will be called to handle the digital input device state change.
+     * @param sensor specifies the digital input device.
+     * @param triggerHandler specifies the object that will be called to handle the digital input device state change.
      */
-    public TrcDigitalInputTrigger(
-        final String instanceName, final TrcDigitalInput digitalInput, final TriggerHandler eventHandler)
+    public TrcDigitalInputTrigger(String instanceName, TrcDigitalInput sensor, DigitalTriggerHandler triggerHandler)
     {
-        super(instanceName, null, null);
+        super(instanceName);
 
-        if (digitalInput == null || eventHandler == null)
+        if (sensor == null || triggerHandler == null)
         {
-            throw new NullPointerException("DigitalInput/EventHandler must be provided");
+            throw new NullPointerException("Sensor/TriggerHandler cannot be null");
         }
 
-        this.digitalInput = digitalInput;
-        this.eventHandler = eventHandler;
+        this.sensor = sensor;
+        this.triggerHandler = triggerHandler;
+        triggerTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".triggerTask", this::triggerTask);
+
+        sensorState = sensor.isActive();
     }   //TrcDigitalInputTrigger
 
+    //
+    // Implements TrcSensorTrigger abstract methods.
+    //
+
     /**
-     * This method enables/disables the task that monitors the device state.
+     * This method enables/disables the task that monitors the sensor value.
      *
-     * @param enabled specifies true to enable the task, false to disable.
+     * @param enabled specifies true to enable, false to disable.
      */
     @Override
     public synchronized void setEnabled(boolean enabled)
     {
+        final String funcName = "setEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
+        }
+
         if (enabled)
         {
-            super.setInputAndNotifier(this::isTriggered, this::notifyEvent);
-            prevState = null;
+            sensorState = sensor.isActive();
+            triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
-        super.setEnabled(enabled);
+        else
+        {
+            triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
+        }
+        this.enabled = enabled;
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
     }   //setEnabled
 
     /**
-     * This method is called periodically to check if the digital input device has changed state.
+     * This method checks if the trigger task is enabled.
+     *
+     * @return true if enabled, false otherwise.
      */
-    private synchronized boolean isTriggered()
+    public boolean isEnabled()
     {
-        final String funcName = "isTriggered";
-        boolean triggered = false;
-        boolean currState = digitalInput.isActive();
+        return enabled;
+    }   //isEnabled
 
-        if (prevState == null || currState != prevState)
+    /**
+     * This method reads the current analog sensor value (not supported).
+     *
+     * @return current sensor value, null if it failed to read the sensor.
+     */
+    @Override
+    public double getSensorValue()
+    {
+        throw new RuntimeException("Digital sensor does not support analog value.");
+    }   //getSensorValue
+
+    /**
+     * This method reads the current digital sensor state.
+     *
+     * @return current sensor state.
+     */
+    @Override
+    public boolean getSensorState()
+    {
+        return sensor.isActive();
+    }   //getSensorState
+
+    /**
+     * This method is called periodically to check the current sensor state. If it has changed from the previous
+     * state, the triggerHandler will be notified.
+     *
+     * @param taskType specifies the type of task being run.
+     * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     */
+    private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    {
+        final String funcName = "triggerTask";
+        boolean currState = getSensorState();
+
+        if (debugEnabled)
         {
-            triggered = true;
-            prevState = currState;
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
+        }
+
+        if (currState != sensorState)
+        {
+            if (triggerHandler != null)
+            {
+                triggerHandler.digitalTriggerEvent(currState);
+            }
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "%s triggered (state=%s)", instanceName, currState);
+                dbgTrace.traceInfo(funcName, "%s changes state %s->%s", instanceName, sensorState, currState);
             }
         }
+        sensorState = currState;
 
-        return triggered;
-    }   //isTriggered
-
-    /**
-     * This method is called when the trigger condition is met and it will in turn call the trigger event handler.
-     */
-    private synchronized void notifyEvent()
-    {
-        eventHandler.triggerEvent(prevState);
-    }   //notifyEvent;
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
+        }
+    }   //triggerTask
 
 }   //class TrcDigitalInputTrigger
