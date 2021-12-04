@@ -47,7 +47,7 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
 
         if (sensor == null || triggerHandler == null)
         {
-            throw new NullPointerException("Sensor/TriggerHandler cannot be null");
+            throw new NullPointerException("Sensor/TriggerHandler cannot be null.");
         }
 
         this.sensor = sensor;
