@@ -201,8 +201,7 @@ public class TrcTimerMgr
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "timer=%s,securityKey=%f", timer, securityKey);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "timer=%s,securityKey=%f", timer, securityKey);
             dbgTrace.traceInfo(funcName, "Removing timer %s.", timer);
         }
 
