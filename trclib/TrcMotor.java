@@ -745,8 +745,8 @@ public abstract class TrcMotor implements TrcMotorController
         }
 
         calibrating = false;
-        if (motorSetElapsedTimer != null)
-            motorSetElapsedTimer.recordStartTime();
+
+        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
         if (velocityPidCtrl != null)
         {
             velocityPidCtrl.setTarget(value);
