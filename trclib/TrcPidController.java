@@ -40,7 +40,7 @@ public class TrcPidController
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
-    public static final double DEF_SETTLING_TIME = 0.2;
+    public static final double DEF_SETTLING_TIME = 0.05;
 
     /**
      * This class encapsulates all the PID coefficients into a single object and makes it more efficient to pass them
@@ -158,8 +158,8 @@ public class TrcPidController
         public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime)
         {
             this.pidCoeff = pidCoeff;
-            this.tolerance = tolerance;
-            this.settlingTime = settlingTime;
+            this.tolerance = Math.abs(tolerance);
+            this.settlingTime = Math.abs(settlingTime);
         }   //PidParameters
 
         /**
@@ -240,7 +240,8 @@ public class TrcPidController
         @Override
         public String toString()
         {
-            return String.format("pidCoeff=%s,tolerance=%.3f,settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
+            return String.format(
+                Locale.US, "pidCoeff=%s,tolerance=%.3f,settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
         }   //toString
 
     }   //class PidParameters
@@ -281,6 +282,7 @@ public class TrcPidController
     private double deltaTime = 0.0;
     private double currError = 0.0;
     private double totalError = 0.0;
+    private double errorRate = 0.0;
     private double settlingStartTime = 0.0;
     private double setPoint = 0.0;
     private double setPointSign = 1.0;
@@ -302,7 +304,7 @@ public class TrcPidController
      * @param pidParams specifies the PID parameters.
      * @param pidInput specifies the method to call to get input value.
      */
-    public TrcPidController(final String instanceName, PidParameters pidParams, PidInput pidInput)
+    public TrcPidController(String instanceName, PidParameters pidParams, PidInput pidInput)
     {
         if (debugEnabled)
         {
@@ -329,8 +331,7 @@ public class TrcPidController
      * @param pidInput specifies the input provider.
      */
     public TrcPidController(
-            final String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime,
-            PidInput pidInput)
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
     {
         this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime), pidInput);
     }   //TrcPidController
@@ -346,8 +347,7 @@ public class TrcPidController
      * @param tolerance specifies the target tolerance.
      * @param pidInput specifies the input provider.
      */
-    public TrcPidController(
-        final String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
+    public TrcPidController(String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
         this(instanceName, new PidParameters(pidCoeff, tolerance), pidInput);
     }   //TrcPidController
@@ -923,8 +923,8 @@ public class TrcPidController
 
     /**
      * This method determines if we have reached the set point target. It is considered on target if the previous
-     * error is smaller than the tolerance and is maintained for at least settling time. If NoOscillation mode is
-     * set, it is considered on target if we are within tolerance or pass target regardless of setting time.
+     * error is smaller than the tolerance and there is no movement for at least settling time. If NoOscillation mode
+     * is set, it is considered on target if we are within tolerance or pass target regardless of setting time.
      *
      * @return true if we reached target, false otherwise.
      */
@@ -953,7 +953,11 @@ public class TrcPidController
                 onTarget = true;
             }
         }
-        else if (Math.abs(currError) > pidParams.tolerance)
+        //
+        // We consider it on-target if error is within tolerance or there is no movement for a period of settling
+        // time.
+        //
+        else if (Math.abs(currError) > pidParams.tolerance && errorRate != 0.0)
         {
             settlingStartTime = TrcUtil.getCurrentTime();
         }
@@ -1034,9 +1038,10 @@ public class TrcPidController
                 }
             }
 
+            errorRate = deltaTime > 0.0 ? (currError - prevError)/deltaTime: 0.0;
             pTerm = pidParams.pidCoeff.kP * currError;
             iTerm = pidParams.pidCoeff.kI * totalError;
-            dTerm = deltaTime > 0.0 ? pidParams.pidCoeff.kD * (currError - prevError) / deltaTime : 0.0;
+            dTerm = pidParams.pidCoeff.kD * errorRate;
             fTerm = pidParams.pidCoeff.kF * setPoint;
             double lastOutput = output;
             output = pTerm + iTerm + dTerm + fTerm;
