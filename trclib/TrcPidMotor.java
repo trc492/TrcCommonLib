@@ -943,6 +943,7 @@ public class TrcPidMotor
         calibrating = true;
         motor1ZeroCalDone = false;
         motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
+        prevTime = TrcUtil.getCurrentTime();
         setTaskEnabled(true);
 
         if (debugEnabled)

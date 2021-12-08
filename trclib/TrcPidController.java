@@ -938,6 +938,7 @@ public class TrcPidController
         }
 
         boolean onTarget = false;
+        double currTime = TrcUtil.getCurrentTime();
 
         if (noOscillation)
         {
@@ -957,12 +958,17 @@ public class TrcPidController
         // We consider it on-target if error is within tolerance or there is no movement for a period of settling
         // time.
         //
-        else if (Math.abs(currError) > pidParams.tolerance && errorRate != 0.0)
+        else if (Math.abs(currError) > pidParams.tolerance) // && errorRate != 0.0)
         {
             settlingStartTime = TrcUtil.getCurrentTime();
         }
-        else if (TrcUtil.getCurrentTime() >= settlingStartTime + pidParams.settlingTime)
+        else if (currTime >= settlingStartTime + pidParams.settlingTime)
         {
+            if (debugEnabled)
+            {
+                dbgTrace.traceInfo(funcName, "startTime=%.3f, currTime=%.3f, err=%.3f, errRate=%.3f",
+                                   settlingStartTime, currTime, currError, errorRate);
+            }
             onTarget = true;
         }
 
