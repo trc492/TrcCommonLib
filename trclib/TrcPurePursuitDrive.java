@@ -110,6 +110,7 @@ public class TrcPurePursuitDrive
     private double timedOutTime;
     private int pathIndex;
     private TrcPose2D referencePose;
+    private boolean fastModeEnabled = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -178,6 +179,11 @@ public class TrcPurePursuitDrive
     {
         return instanceName;
     }   //toString
+
+    public synchronized void setFastModeEnabled(boolean enabled)
+    {
+        this.fastModeEnabled = enabled;
+    }   //setFastModeEnabled
 
     /**
      * Set both the position tolerance and proximity radius.
@@ -853,7 +859,7 @@ public class TrcPurePursuitDrive
     private TrcWaypoint getFollowingPointOnSegment(
         TrcWaypoint startWaypoint, TrcWaypoint endWaypoint, TrcPose2D robotPose)
     {
-        if (robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
+        if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
             return interpolate(startWaypoint, endWaypoint, 1.0, xPosPidCtrl == null? robotPose: null);
         }
