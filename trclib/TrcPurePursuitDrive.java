@@ -108,7 +108,7 @@ public class TrcPurePursuitDrive
     private TrcPath path;
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
-    private int pathIndex = 1;
+    private int pathIndex;
     private TrcPose2D referencePose;
 
     /**
@@ -124,12 +124,10 @@ public class TrcPurePursuitDrive
      * @param turnPidCoeff specifies the turn PID coefficients.
      * @param velPidCoeff specifies the velocity PID coefficients.
      */
-    public TrcPurePursuitDrive(String instanceName, TrcDriveBase driveBase, double proximityRadius,
-                               double posTolerance, double turnTolerance,
-                               TrcPidController.PidCoefficients xPosPidCoeff,
-                               TrcPidController.PidCoefficients yPosPidCoeff,
-                               TrcPidController.PidCoefficients turnPidCoeff,
-                               TrcPidController.PidCoefficients velPidCoeff)
+    public TrcPurePursuitDrive(
+        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance, double turnTolerance,
+        TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
+        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
         if (debugEnabled)
         {
@@ -424,7 +422,7 @@ public class TrcPurePursuitDrive
         this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
         timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
-        pathIndex = 1;
+        pathIndex = 0;
 
         if (xPosPidCtrl != null)
         {
@@ -687,11 +685,6 @@ public class TrcPurePursuitDrive
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
         TrcPose2D relativePose = targetPoint.pose.relativeTo(robotPose, true);
 
-        if (waypointEventHandler != null)
-        {
-            waypointEventHandler.waypointEvent(pathIndex - 1, targetPoint);
-        }
-
         if (xPosPidCtrl != null)
         {
             xPosPidCtrl.setTarget(relativePose.x);
@@ -860,50 +853,57 @@ public class TrcPurePursuitDrive
     private TrcWaypoint getFollowingPointOnSegment(
         TrcWaypoint startWaypoint, TrcWaypoint endWaypoint, TrcPose2D robotPose)
     {
-        // Find intersection of path segment with the proximity circle of the robot.
-        RealVector startVector = startWaypoint.getPositionPose().toPosVector();
-        RealVector endVector = endWaypoint.getPositionPose().toPosVector();
-        RealVector robotVector = robotPose.toPosVector();
-
-        RealVector startToEnd = endVector.subtract(startVector);
-        RealVector robotToStart = startVector.subtract(robotVector);
-        // Solve quadratic formula
-        double a = startToEnd.dotProduct(startToEnd);
-        double b = 2 * robotToStart.dotProduct(startToEnd);
-        double c = robotToStart.dotProduct(robotToStart) - proximityRadius * proximityRadius;
-
-        double discriminant = b * b - 4 * a * c;
-        if (discriminant < 0)
+        if (robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
-            // No valid intersection.
-            return null;
+            return interpolate(startWaypoint, endWaypoint, 1.0, xPosPidCtrl == null? robotPose: null);
         }
         else
         {
-            // line is a parametric equation, where t=0 is start waypoint, t=1 is end waypoint of the line segment.
-            discriminant = Math.sqrt(discriminant);
-            //
-            // t1 and t2 represent the relative positions of the intersection points on the line segment. If they are
-            // in the range of 0.0 and 1.0, they are on the line segment. Otherwise, the intersection points are
-            // outside of the line segment. If the relative position is towards 0.0, it is closer to the start
-            // waypoint of the line segment. If the relative position is towards 1.0, it is closer to the end
-            // waypoint of the line segment.
-            //
-            // t represents the furthest intersection point (the one closest to the end waypoint of the line segment).
-            //
-            double t1 = (-b - discriminant) / (2 * a);
-            double t2 = (-b + discriminant) / (2 * a);
-            double t = Math.max(t1, t2);
+            // Find intersection of path segment with the proximity circle of the robot.
+            RealVector startVector = startWaypoint.getPositionPose().toPosVector();
+            RealVector endVector = endWaypoint.getPositionPose().toPosVector();
+            RealVector robotVector = robotPose.toPosVector();
 
-            if (!TrcUtil.inRange(t, 0.0, 1.0))
+            RealVector startToEnd = endVector.subtract(startVector);
+            RealVector robotToStart = startVector.subtract(robotVector);
+            // Solve quadratic formula
+            double a = startToEnd.dotProduct(startToEnd);
+            double b = 2 * robotToStart.dotProduct(startToEnd);
+            double c = robotToStart.dotProduct(robotToStart) - proximityRadius * proximityRadius;
+
+            double discriminant = b * b - 4 * a * c;
+            if (discriminant < 0)
             {
-                //
-                // The furthest intersection point is not on the line segment, so skip this segment.
-                //
+                // No valid intersection.
                 return null;
             }
+            else
+            {
+                // line is a parametric equation, where t=0 is start waypoint, t=1 is end waypoint of the line segment.
+                discriminant = Math.sqrt(discriminant);
+                //
+                // t1 and t2 represent the relative positions of the intersection points on the line segment. If they are
+                // in the range of 0.0 and 1.0, they are on the line segment. Otherwise, the intersection points are
+                // outside of the line segment. If the relative position is towards 0.0, it is closer to the start
+                // waypoint of the line segment. If the relative position is towards 1.0, it is closer to the end
+                // waypoint of the line segment.
+                //
+                // t represents the furthest intersection point (the one closest to the end waypoint of the line segment).
+                //
+                double t1 = (-b - discriminant) / (2 * a);
+                double t2 = (-b + discriminant) / (2 * a);
+                double t = Math.max(t1, t2);
 
-            return interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+                if (!TrcUtil.inRange(t, 0.0, 1.0))
+                {
+                    //
+                    // The furthest intersection point is not on the line segment, so skip this segment.
+                    //
+                    return null;
+                }
+
+                return interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+            }
         }
     }   //getFollowingPointOnSegment
 
@@ -915,17 +915,35 @@ public class TrcPurePursuitDrive
      */
     private TrcWaypoint getFollowingPoint(TrcPose2D robotPose)
     {
+        final String funcName = "getFollowingPoint";
         //
         // Find the next segment that intersects with the proximity circle of the robot.
         // If there are tiny segments that are completely within the proximity circle, we will skip them all.
         //
         for (int i = Math.max(pathIndex, 1); i < path.getSize(); i++)
         {
+            TrcWaypoint segmentStart = path.getWaypoint(i - 1);
+            TrcWaypoint segmentEnd = path.getWaypoint(i);
             // If there is a valid intersection, return it.
-            TrcWaypoint interpolated = getFollowingPointOnSegment(
-                path.getWaypoint(i - 1), path.getWaypoint(i), robotPose);
+            TrcWaypoint interpolated = getFollowingPointOnSegment(segmentStart, segmentEnd, robotPose);
             if (interpolated != null)
             {
+                if (pathIndex != i)
+                {
+                    //
+                    // We are moving to the next waypoint.
+                    //
+                    if (waypointEventHandler != null)
+                    {
+                        waypointEventHandler.waypointEvent(i - 1, segmentStart);
+                    }
+
+                    if (msgTracer != null)
+                    {
+                        msgTracer.traceInfo(funcName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
+                                            i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
+                    }
+                }
                 pathIndex = i;
                 return interpolated;
             }
