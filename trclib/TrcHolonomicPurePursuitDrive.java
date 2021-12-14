@@ -394,7 +394,6 @@ public class TrcHolonomicPurePursuitDrive
 
         this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
-        this.path = path;
         timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
         pathIndex = 1;
         positionInput = 0;
