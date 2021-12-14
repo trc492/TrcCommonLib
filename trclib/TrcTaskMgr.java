@@ -179,7 +179,9 @@ public class TrcTaskMgr
         private final String taskName;
         private final Task task;
         private HashSet<TaskType> taskTypes;
-        private long[] taskTotalNanoTimes = new long[TaskType.values().length];
+        private long[] taskStartTimes = new long[TaskType.values().length];
+        private long[] taskTotalIntervals = new long[TaskType.values().length];
+        private long[] taskTotalElapsedTimes = new long[TaskType.values().length];
         private int[] taskTimeSlotCounts = new int[TaskType.values().length];
         private TrcPeriodicThread<Object> taskThread = null;
 
@@ -197,7 +199,9 @@ public class TrcTaskMgr
             taskTypes = new HashSet<>();
             for (int i = 0; i < TaskType.values().length; i++)
             {
-                taskTotalNanoTimes[i] = 0;
+                taskStartTimes[i] = 0;
+                taskTotalIntervals[i] = 0;
+                taskTotalElapsedTimes[i] = 0;
                 taskTimeSlotCounts[i] = 0;
             }
         }   //TaskObject
@@ -421,37 +425,46 @@ public class TrcTaskMgr
          */
         private void standaloneTask(Object context)
         {
-            final String funcName = "standaloneTask";
-
-            long startNanoTime = TrcUtil.getNanoTime();
-
+            recordStartTime(TaskType.STANDALONE_TASK);
             task.runTask(TaskType.STANDALONE_TASK, TrcRobot.getRunMode());
-
-            long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
-            recordElapsedTime(TaskType.STANDALONE_TASK, elapsedTime);
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceVerbose(funcName, "Task %s: start=%.6f, elapsed=%.6f",
-                        taskName, startNanoTime/1000000000.0, elapsedTime/1000000000.0);
-            }
+            recordElapsedTime(TaskType.STANDALONE_TASK);
         }   //standaloneTask
+
+        /**
+         * This method records the task start timestamp in the task performance arrays. It is used to calculate
+         * task elapsed time after the execution of a task.
+         *
+         * @param taskType specifies the task type to index into the task performance arrays.
+         */
+        private synchronized void recordStartTime(TaskType taskType)
+        {
+            long currNanoTime = TrcUtil.getNanoTime();
+            long taskInterval = taskStartTimes[taskType.value] > 0 ? currNanoTime - taskStartTimes[taskType.value] : 0;
+
+            taskStartTimes[taskType.value] = currNanoTime;
+            taskTotalIntervals[taskType.value] += taskInterval;
+        }   //recordStartTime
 
         /**
          * This method records the task elapsed time in the task performance arrays.
          *
          * @param taskType specifies the task type to index into the task performance arrays.
-         * @param elapsedTime specifies the task elapsed time in nano seconds.
          */
-        private synchronized void recordElapsedTime(TaskType taskType, long elapsedTime)
+        private synchronized void recordElapsedTime(TaskType taskType)
         {
             final String funcName = "recordElapsedTime";
+            long currNanoTime = TrcUtil.getNanoTime();
+            long startTime = taskStartTimes[taskType.value];
+            long elapsedTime = currNanoTime - startTime;
 
-            taskTotalNanoTimes[taskType.value] += elapsedTime;
+            taskTotalElapsedTimes[taskType.value] += elapsedTime;
             taskTimeSlotCounts[taskType.value]++;
 
             if (debugEnabled)
             {
+                dbgTrace.traceVerbose(
+                    funcName, "Task %s.%s: start=%.6f, elapsed=%.6f",
+                    taskName, taskType, startTime/1000000000.0, elapsedTime/1000000000.0);
                 long timeThreshold = getTaskInterval()*1000000; //convert to nanoseconds.
                 if (timeThreshold == 0) timeThreshold = defTaskTimeThreshold;
                 if (elapsedTime > timeThreshold)
@@ -460,7 +473,7 @@ public class TrcTaskMgr
                             taskName, taskType, elapsedTime/1000000000.0);
                 }
             }
-        }   //recordElapsedTimeNanos
+        }   //recordElapsedTime
 
         /**
          * This method returns the average task elapsed time in seconds.
@@ -472,8 +485,21 @@ public class TrcTaskMgr
         {
             int slotCount = taskTimeSlotCounts[taskType.value];
 
-            return slotCount == 0 ? 0.0 : (double)taskTotalNanoTimes[taskType.value]/slotCount/1000000000.0;
+            return slotCount == 0 ? 0.0 : (double)taskTotalElapsedTimes[taskType.value]/slotCount/1000000000.0;
         } //getAverageTaskElapsedTime
+
+        /**
+         * This method returns the average task interval time in seconds.
+         *
+         * @param taskType specifies the task type to index into the task performance arrays.
+         * @return average task interval time in seconds.
+         */
+        private synchronized double getAverageTaskInterval(TaskType taskType)
+        {
+            int slotCount = taskTimeSlotCounts[taskType.value];
+
+            return slotCount == 0 ? 0.0 : (double)taskTotalIntervals[taskType.value]/slotCount/1000000000.0;
+        }   //getAverageTaskInterval
 
     }   //class TaskObject
 
@@ -637,7 +663,6 @@ public class TrcTaskMgr
      */
     public void executeTaskType(TaskType type, TrcRobot.RunMode mode)
     {
-        final String funcName = "executeTaskType";
         //
         // Traverse the list backward because we are removing task objects from the list on STOP_TASK.
         // This way the list order won't be messed up.
@@ -648,8 +673,8 @@ public class TrcTaskMgr
             if (taskObj.hasType(type))
             {
                 Task task = taskObj.getTask();
-                long startNanoTime = TrcUtil.getNanoTime();
 
+                taskObj.recordStartTime(type);
                 switch (type)
                 {
                     case START_TASK:
@@ -687,15 +712,7 @@ public class TrcTaskMgr
                     default:
                         break;
                 }
-
-                long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
-                taskObj.recordElapsedTime(type, elapsedTime);
-
-                if (debugEnabled)
-                {
-                    dbgTrace.traceVerbose(funcName, "Task %s: start=%.6f, elapsed=%.6f",
-                            taskObj.taskName, startNanoTime/1000000000.0, elapsedTime/1000000000.0);
-                }
+                taskObj.recordElapsedTime(type);
             }
         }
     }   //executeTaskType
@@ -731,18 +748,28 @@ public class TrcTaskMgr
         {
             tracer.traceInfo(
                     "TaskPerformance",
-                    "%16s: Start=%.6f, Stop=%.6f, PrePeriodic=%.6f, PostPeriodic=%.6f, " +
-                    "PreContinuous=%.6f, PostContinous=%.6f, Standalone=%.6f, Input=%.6f, Output=%.6f",
+                    "%16s: Start=%.6f/%.6f, Stop=%.6f/%.6f, PrePeriodic=%.6f/%.6f, PostPeriodic=%.6f/%.6f, " +
+                    "PreContinuous=%.6f/%.6f, PostContinous=%.6f/%.6f, Standalone=%.6f/%.6f, Input=%.6f/%.6f, " +
+                    "Output=%.6f/%.6f",
                     taskObj.taskName,
                     taskObj.getAverageTaskElapsedTime(TaskType.START_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.START_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.STOP_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.STOP_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.PREPERIODIC_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.PREPERIODIC_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.POSTPERIODIC_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.POSTPERIODIC_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.PRECONTINUOUS_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.PRECONTINUOUS_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.POSTCONTINUOUS_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.POSTCONTINUOUS_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.STANDALONE_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.STANDALONE_TASK),
                     taskObj.getAverageTaskElapsedTime(TaskType.INPUT_TASK),
-                    taskObj.getAverageTaskElapsedTime(TaskType.OUTPUT_TASK));
+                    taskObj.getAverageTaskInterval(TaskType.INPUT_TASK),
+                    taskObj.getAverageTaskElapsedTime(TaskType.OUTPUT_TASK),
+                    taskObj.getAverageTaskInterval(TaskType.OUTPUT_TASK));
         }
     }   //printTaskPerformanceMetrics
 

@@ -66,7 +66,7 @@ public class TrcElapsedTimer
     public String toString()
     {
         return String.format(Locale.US, "%s: avgElapsed=%.6f, minElapsed=%.6f, maxElapsed=%.6f",
-                instanceName, getAverageElapsedTime(), getMaxElapsedTime(), getMaxElapsedTime());
+                instanceName, getAverageElapsedTime(), getMinElapsedTime(), getMaxElapsedTime());
     }   //toString
 
     /**
@@ -106,7 +106,8 @@ public class TrcElapsedTimer
             if (elapsedTime < minElapsedTime)
             {
                 minElapsedTime = elapsedTime;
-            } else if (elapsedTime > maxElapsedTime)
+            }
+            else if (elapsedTime > maxElapsedTime)
             {
                 maxElapsedTime = elapsedTime;
             }
@@ -127,15 +128,11 @@ public class TrcElapsedTimer
      */
     public synchronized void recordPeriodTime()
     {
-        if (startTime == 0L)
-        {
-            recordStartTime();
-        }
-        else
+        if (startTime != 0L)
         {
             recordEndTime();
-            recordStartTime();
         }
+        recordStartTime();
     }   //recordPeriodTime
 
     /**

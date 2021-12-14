@@ -123,7 +123,7 @@ public class TrcPidController
         @Override
         public String toString()
         {
-            return String.format("(%f,%f,%f,%f,%f)", kP, kI, kD, kF, iZone);
+            return String.format(Locale.US, "(%f,%f,%f,%f,%f)", kP, kI, kD, kF, iZone);
         }   //toString
 
         /**
@@ -262,6 +262,43 @@ public class TrcPidController
 
     }   //interface PidInput
 
+    /**
+     * This class stores the PID controller state.
+     */
+    private static class PidCtrlState
+    {
+        double timestamp = 0.0;
+        double deltaTime = 0.0;
+        double settlingStartTime = 0.0;
+        double setPoint = 0.0;
+        double setPointSign = 1.0;
+        double input = 0.0;
+        double error = 0.0;
+        double totalError = 0.0;
+        double errorRate = 0.0;
+        double pTerm = 0.0;
+        double iTerm = 0.0;
+        double dTerm = 0.0;
+        double fTerm = 0.0;
+        double output = 0.0;
+        double prevOutputTime = 0.0;     // time that getOutput() was called last. Used for ramp rates.
+
+        /**
+         * This method resets the PID controller state.
+         */
+        void reset()
+        {
+            timestamp = 0.0;
+            setPoint = 0.0;
+            setPointSign = 1.0;
+            error = 0.0;
+            totalError = 0.0;
+            output = 0.0;
+            prevOutputTime = 0.0;
+        }   //reset
+
+    }   //class PidCtrlState
+
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
     private final String instanceName;
     private final PidParameters pidParams;
@@ -277,25 +314,10 @@ public class TrcPidController
     private double outputLimit = 1.0;
     private Double rampRate = null;
     private final Stack<Double> outputLimitStack = new Stack<>();
-
-    private double prevTime = 0.0;
-    private double deltaTime = 0.0;
-    private double currError = 0.0;
-    private double totalError = 0.0;
-    private double errorRate = 0.0;
-    private double settlingStartTime = 0.0;
-    private double setPoint = 0.0;
-    private double setPointSign = 1.0;
-    private double currInput = 0.0;
-    private double output = 0.0;
-    private double prevOutputTime = 0.0; // time that getOutput() was called last. Used for ramp rates.
+    private final PidCtrlState pidCtrlState = new PidCtrlState();
 
     private TrcDbgTrace debugTracer = null;
     private boolean verboseTrace = false;
-    private double pTerm;
-    private double iTerm;
-    private double dTerm;
-    private double fTerm;
 
     /**
      * Constructor: Create an instance of the object.
@@ -372,9 +394,11 @@ public class TrcPidController
     public synchronized void displayPidInfo(int lineNum)
     {
         dashboard.displayPrintf(
-                lineNum, "%s:Target=%.1f,Input=%.1f,Error=%.1f", instanceName, setPoint, currInput, currError);
+                lineNum, "%s:Target=%.1f,Input=%.1f,Error=%.1f",
+                instanceName, pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.error);
         dashboard.displayPrintf(
-                lineNum + 1, "minOutput=%.1f,Output=%.1f,maxOutput=%.1f", minOutput, output, maxOutput);
+                lineNum + 1, "minOutput=%.1f,Output=%.1f,maxOutput=%.1f",
+                minOutput, pidCtrlState.output, maxOutput);
     }   //displayPidInfo
 
     /**
@@ -400,14 +424,15 @@ public class TrcPidController
 
             msg.append(String.format(
                     Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
-                    TrcUtil.getModeElapsedTime(), instanceName, setPoint, currInput, currError, output, minOutput,
-                    maxOutput));
+                    TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                    pidCtrlState.error, pidCtrlState.output, minOutput, maxOutput));
 
             if (verbose)
             {
                 msg.append(String.format(
                         Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
-                        pTerm, iTerm, dTerm, fTerm, deltaTime, TrcUtil.getModeElapsedTime(prevTime)));
+                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
+                        pidCtrlState.deltaTime, TrcUtil.getModeElapsedTime(pidCtrlState.timestamp)));
             }
 
             if (battery != null)
@@ -783,10 +808,10 @@ public class TrcPidController
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", setPoint);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.setPoint);
         }
 
-        return setPoint;
+        return pidCtrlState.setPoint;
     }   //getTarget
 
     /**
@@ -816,52 +841,52 @@ public class TrcPidController
                 //
                 // Set point is relative, add target to current input to get absolute set point.
                 //
-                setPoint = input + target;
-                currError = target;
+                pidCtrlState.setPoint = input + target;
+                pidCtrlState.error = target;
             }
             else
             {
                 //
                 // Set point is absolute, use as is but optimize it if it is in warp space.
                 //
-                setPoint = target;
+                pidCtrlState.setPoint = target;
                 if (warpSpace != null)
                 {
-                    setPoint = warpSpace.getOptimizedTarget(setPoint, input);
+                    pidCtrlState.setPoint = warpSpace.getOptimizedTarget(pidCtrlState.setPoint, input);
                 }
-                currError = setPoint - input;
+                pidCtrlState.error = pidCtrlState.setPoint - input;
             }
 
             if (inverted)
             {
-                currError = -currError;
+                pidCtrlState.error *= -1.0;
             }
 
-            setPointSign = Math.signum(currError);
+            pidCtrlState.setPointSign = Math.signum(pidCtrlState.error);
             //
             // If there is a valid target range, limit the set point to this range.
             //
             if (maxTarget > minTarget)
             {
-                if (setPoint > maxTarget)
+                if (pidCtrlState.setPoint > maxTarget)
                 {
-                    setPoint = maxTarget;
+                    pidCtrlState.setPoint = maxTarget;
                 }
-                else if (setPoint < minTarget)
+                else if (pidCtrlState.setPoint < minTarget)
                 {
-                    setPoint = minTarget;
+                    pidCtrlState.setPoint = minTarget;
                 }
             }
 
-            totalError = 0.0;
-            prevTime = settlingStartTime = TrcUtil.getCurrentTime();
+            pidCtrlState.totalError = 0.0;
+            pidCtrlState.timestamp = pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
             //
             // Only init the prevOutputTime if this setTarget is called after a reset()
             // If it's called mid-operation, we don't want to reset the prevOutputTime clock
             //
-            if (prevOutputTime == 0.0)
+            if (pidCtrlState.prevOutputTime == 0.0)
             {
-                prevOutputTime = prevTime;
+                pidCtrlState.prevOutputTime = pidCtrlState.timestamp;
             }
         }
 
@@ -893,10 +918,10 @@ public class TrcPidController
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", currError);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.error);
         }
 
-        return currError;
+        return pidCtrlState.error;
     }   //getError
 
     /**
@@ -912,13 +937,7 @@ public class TrcPidController
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        currError = 0.0;
-        prevTime = 0.0;
-        prevOutputTime = 0.0;
-        totalError = 0.0;
-        setPoint = 0.0;
-        setPointSign = 1.0;
-        output = 0.0;
+        pidCtrlState.reset();
     }   //reset
 
     /**
@@ -949,7 +968,7 @@ public class TrcPidController
             // If setPointSign is negative, it means the target is "backward". So if -currError <= tolerance,
             // it means we are either within tolerance or have passed the target.
             //
-            if (currError * setPointSign <= pidParams.tolerance)
+            if (pidCtrlState.error * pidCtrlState.setPointSign <= pidParams.tolerance)
             {
                 onTarget = true;
             }
@@ -958,16 +977,17 @@ public class TrcPidController
         // We consider it on-target if error is within tolerance or there is no movement for a period of settling
         // time.
         //
-        else if (Math.abs(currError) > pidParams.tolerance) // && errorRate != 0.0)
+        else if (Math.abs(pidCtrlState.error) > pidParams.tolerance) // && errorRate != 0.0)
         {
-            settlingStartTime = TrcUtil.getCurrentTime();
+            pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
         }
-        else if (currTime >= settlingStartTime + pidParams.settlingTime)
+        else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
         {
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "startTime=%.3f, currTime=%.3f, err=%.3f, errRate=%.3f",
-                                   settlingStartTime, currTime, currError, errorRate);
+                dbgTrace.traceInfo(
+                    funcName, "startTime=%.3f, currTime=%.3f, err=%.3f, errRate=%.3f",
+                    pidCtrlState.settlingStartTime, currTime, pidCtrlState.error, pidCtrlState.errorRate);
             }
             onTarget = true;
         }
@@ -998,73 +1018,76 @@ public class TrcPidController
      */
     public double getOutput()
     {
+        final String funcName = "getOutput";
         //
         // Read from input device without holding a lock on this object, since this could
         // be a long-running call.
         //
-        final double currentInputValue = pidInput.get();
+        final double currInput = pidInput.get();
 
         synchronized (this)
         {
-            final String funcName = "getOutput";
-            double prevError = currError;
-            double currTime = TrcUtil.getCurrentTime();
-            deltaTime = currTime - prevTime;
-
             if (debugEnabled)
             {
                 dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
             }
 
-            prevTime = currTime;
-            currInput = currentInputValue;
-            currError = setPoint - currInput;
+            double currTime = TrcUtil.getCurrentTime();
+            pidCtrlState.deltaTime = currTime - pidCtrlState.timestamp;
+            pidCtrlState.timestamp = currTime;
+
+            double prevError = pidCtrlState.error;
+            pidCtrlState.input = currInput;
+            pidCtrlState.error = pidCtrlState.setPoint - pidCtrlState.input;
             if (inverted)
             {
-                currError = -currError;
+                pidCtrlState.error *= -1.0;
             }
 
             if (pidParams.pidCoeff.kI != 0.0)
             {
                 //
                 // Make sure the total error doesn't get wound up too much exceeding maxOutput.
+                // This is essentially capping the I-term to within the range of minOutput and maxOutput.
                 //
-                double potentialGain = (totalError + currError * deltaTime) * pidParams.pidCoeff.kI;
+                double potentialGain =
+                    (pidCtrlState.totalError + pidCtrlState.error * pidCtrlState.deltaTime) * pidParams.pidCoeff.kI;
                 if (potentialGain >= maxOutput)
                 {
-                    totalError = maxOutput / pidParams.pidCoeff.kI;
+                    pidCtrlState.totalError = maxOutput / pidParams.pidCoeff.kI;
                 }
                 else if (potentialGain > minOutput)
                 {
-                    totalError += currError * deltaTime;
+                    pidCtrlState.totalError += pidCtrlState.error * pidCtrlState.deltaTime;
                 }
                 else
                 {
-                    totalError = minOutput / pidParams.pidCoeff.kI;
+                    pidCtrlState.totalError = minOutput / pidParams.pidCoeff.kI;
                 }
             }
 
-            errorRate = deltaTime > 0.0 ? (currError - prevError)/deltaTime: 0.0;
-            pTerm = pidParams.pidCoeff.kP * currError;
-            iTerm = pidParams.pidCoeff.kI * totalError;
-            dTerm = pidParams.pidCoeff.kD * errorRate;
-            fTerm = pidParams.pidCoeff.kF * setPoint;
-            double lastOutput = output;
-            output = pTerm + iTerm + dTerm + fTerm;
+            pidCtrlState.errorRate =
+                pidCtrlState.deltaTime > 0.0 ? (pidCtrlState.error - prevError)/pidCtrlState.deltaTime: 0.0;
+            pidCtrlState.pTerm = pidParams.pidCoeff.kP * pidCtrlState.error;
+            pidCtrlState.iTerm = pidParams.pidCoeff.kI * pidCtrlState.totalError;
+            pidCtrlState.dTerm = pidParams.pidCoeff.kD * pidCtrlState.errorRate;
+            pidCtrlState.fTerm = pidParams.pidCoeff.kF * pidCtrlState.setPoint;
 
-            output = TrcUtil.clipRange(output, minOutput, maxOutput);
+            double prevOutput = pidCtrlState.output;
 
+            pidCtrlState.output = TrcUtil.clipRange(
+                pidCtrlState.pTerm + pidCtrlState.iTerm + pidCtrlState.dTerm + pidCtrlState.fTerm,
+                minOutput, maxOutput);
             if (rampRate != null)
             {
-                if (prevOutputTime != 0.0)
+                if (pidCtrlState.prevOutputTime != 0.0)
                 {
-                    double dt = currTime - prevOutputTime;
+                    double dt = currTime - pidCtrlState.prevOutputTime;
                     double maxChange = rampRate * dt;
-                    double change = output - lastOutput;
-                    change = TrcUtil.clipRange(change, -maxChange, maxChange);
-                    output = lastOutput + change;
+                    double change = TrcUtil.clipRange(pidCtrlState.output - prevOutput, -maxChange, maxChange);
+                    pidCtrlState.output = prevOutput + change;
                 }
-                prevOutputTime = currTime;
+                pidCtrlState.prevOutputTime = currTime;
             }
 
             if (debugTracer != null)
@@ -1074,10 +1097,10 @@ public class TrcPidController
 
             if (debugEnabled)
             {
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", output);
+                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.output);
             }
 
-            return output;
+            return pidCtrlState.output;
         }
     }   //getOutput
 
