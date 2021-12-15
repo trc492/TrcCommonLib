@@ -164,7 +164,7 @@ public abstract class TrcMotor implements TrcMotorController
                 motorGetPosElapsedTimer = new TrcElapsedTimer("TrcMotor.getPos", 2.0);
             }
 
-            if (motorSetElapsedTimer != null)
+            if (motorSetElapsedTimer == null)
             {
                 motorSetElapsedTimer = new TrcElapsedTimer("TrcMotor.set", 2.0);
             }
@@ -755,6 +755,7 @@ public abstract class TrcMotor implements TrcMotorController
         {
             setMotorPower(value);
         }
+        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
 
         if (debugEnabled)
         {
