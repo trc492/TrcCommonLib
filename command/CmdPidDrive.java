@@ -288,20 +288,33 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
 
                     if (pathIndex < pathPoints.length)
                     {
+                        State nextState;
+
                         if (useSensorOdometry)
                         {
+                            // If we are tuning PID for sensor drive, we are doing just one movement and be done.
+                            nextState = tunePidCoeff != null? State.DONE: State.PID_DRIVE;
                             pidDrive.setSensorTarget(
                                 pathPoints[pathIndex].x, pathPoints[pathIndex].y, pathPoints[pathIndex].angle, event);
                             pathIndex++;
-                            // If we are tuning PID for sensor drive, we are doing just one movement and be done.
-                            sm.waitForSingleEvent(event, tunePidCoeff != null? State.DONE: State.PID_DRIVE);
                         }
                         else
                         {
+                            //
+                            // When we are done driving the specified distance, check if the current path point has
+                            // a non-zero angle. If so, go to PID_TURN, else advance to the next path point.
+                            //
+                            nextState = tunePidCoeff != null? State.DONE:
+                                        pathPoints[pathIndex].angle != 0.0? State.PID_TURN: State.PID_DRIVE;
                             pidDrive.setRelativeTarget(
                                 pathPoints[pathIndex].x, pathPoints[pathIndex].y, 0.0, event);
-                            sm.waitForSingleEvent(event, State.PID_TURN);
+                            if (nextState == State.PID_DRIVE)
+                            {
+                                pathIndex++;
+                            }
                         }
+
+                        sm.waitForSingleEvent(event, nextState);
                     }
                     else
                     {
