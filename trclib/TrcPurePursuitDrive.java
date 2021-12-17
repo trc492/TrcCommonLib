@@ -56,8 +56,9 @@ public class TrcPurePursuitDrive
     private static final boolean useGlobalTracer = false;
     private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private static final boolean verbosePidInfo = false;
     private TrcDbgTrace dbgTrace = null;
+    private static final boolean verbosePidInfo = false;
+    private static final boolean invertedTarget = false;
 
     public interface WaypointEventHandler
     {
@@ -99,6 +100,7 @@ public class TrcPurePursuitDrive
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
+    private volatile boolean maintainHeading = false;
 
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
@@ -110,7 +112,9 @@ public class TrcPurePursuitDrive
     private double timedOutTime;
     private int pathIndex;
     private TrcPose2D referencePose;
+    private TrcPose2D relativeTargetPose;
     private boolean fastModeEnabled = false;
+    private boolean pathStarted = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -149,21 +153,38 @@ public class TrcPurePursuitDrive
                 "xPosPidCoeff is provided but drive base does not support holonomic drive!");
         }
 
-        xPosPidCtrl = xPosPidCoeff == null? null:
-            new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
-        yPosPidCtrl = new TrcPidController(
-            instanceName + ".yPosPid", yPosPidCoeff, posTolerance, driveBase::getYPosition);
+        if (invertedTarget)
+        {
+            xPosPidCtrl = xPosPidCoeff == null ? null :
+                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, this::getXPosition);
+            yPosPidCtrl = new TrcPidController(
+                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, this::getYPosition);
+            if (xPosPidCtrl != null)
+            {
+                xPosPidCtrl.setAbsoluteSetPoint(true);
+            }
+            xPosPidCtrl.setInverted(true);
+            yPosPidCtrl.setAbsoluteSetPoint(true);
+            yPosPidCtrl.setInverted(true);
+        }
+        else
+        {
+            xPosPidCtrl = xPosPidCoeff == null ? null :
+                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
+            yPosPidCtrl = new TrcPidController(
+                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, driveBase::getYPosition);
+        }
+
         turnPidCtrl = new TrcPidController(
             instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
+        turnPidCtrl.setAbsoluteSetPoint(true);
+        turnPidCtrl.setNoOscillation(true);
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
         velPidCtrl = new TrcPidController(
             instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
+        velPidCtrl.setAbsoluteSetPoint(true);
 
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
-
-        turnPidCtrl.setAbsoluteSetPoint(true);
-        velPidCtrl.setAbsoluteSetPoint(true);
-        turnPidCtrl.setNoOscillation(true);
 
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
@@ -184,6 +205,21 @@ public class TrcPurePursuitDrive
     {
         this.fastModeEnabled = enabled;
     }   //setFastModeEnabled
+
+    /**
+     * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
+     * remember to set the heading tolerance!
+     *
+     * @param maintainHeading If true, maintain heading. If false, use closed loop to control heading.
+     */
+    public synchronized void setMaintainHeading(boolean maintainHeading)
+    {
+        if (maintainHeading && xPosPidCtrl == null)
+        {
+            throw new UnsupportedOperationException("MaintainHeading is only support on holonomic drive base.");
+        }
+        this.maintainHeading = maintainHeading;
+    }   //setMaintainHeading
 
     /**
      * Set both the position tolerance and proximity radius.
@@ -428,6 +464,7 @@ public class TrcPurePursuitDrive
         this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
         timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
+        referencePose = driveBase.getFieldPosition();
         pathIndex = 0;
 
         if (xPosPidCtrl != null)
@@ -453,7 +490,17 @@ public class TrcPurePursuitDrive
         turnPidCtrl.reset();
         velPidCtrl.reset();
 
-        referencePose = driveBase.getFieldPosition();
+        if (invertedTarget)
+        {
+            if (xPosPidCtrl != null)
+            {
+                xPosPidCtrl.setTarget(0.0);
+            }
+            yPosPidCtrl.setTarget(0.0);
+            turnPidCtrl.setTarget(driveBase.getHeading());
+        }
+
+        pathStarted = false;
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
     }   //start
 
@@ -667,11 +714,29 @@ public class TrcPurePursuitDrive
     }   //stop
 
     /**
+     * This method is called by xPosPidCtrl only in invertedTarget mode for getting the X distance to target.
+     * @return x distance to target.
+     */
+    private synchronized double getXPosition()
+    {
+        return relativeTargetPose != null? relativeTargetPose.x: 0.0;
+    }   //getXPosition
+
+    /**
+     * This method is called by yPosPidCtrl only in invertedTarget mode for getting the Y distance to target.
+     * @return y distance to target.
+     */
+    private synchronized double getYPosition()
+    {
+        return relativeTargetPose != null? relativeTargetPose.y: 0.0;
+    }   //getYPosition
+
+    /**
      * This method is called by the Velocity PID controller to get the polar magnitude of the robot's velocity.
      *
      * @return robot's velocity magnitude.
      */
-    private double getVelocityInput()
+    private synchronized double getVelocityInput()
     {
         return TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
     }   //getVelocityInput
@@ -689,21 +754,36 @@ public class TrcPurePursuitDrive
         final String funcName = moduleName + ".driveTask";
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
-        TrcPose2D relativePose = targetPoint.pose.relativeTo(robotPose, true);
+        relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
 
-        if (xPosPidCtrl != null)
+        if (!invertedTarget)
         {
-            xPosPidCtrl.setTarget(relativePose.x);
+            //
+            // We only initialize the PID controller error state at the beginning. Once the path following has started,
+            // all subsequent setTarget calls should not re-initialize PID controller error states because we are just
+            // updating the target and do not really want to destroy totalError or previous error that will screw up
+            // the subsequent getOutput() calls where it needs the previous error states to compute the I and D terms
+            // correctly.
+            //
+            if (xPosPidCtrl != null)
+            {
+                xPosPidCtrl.setTarget(relativeTargetPose.x, pathStarted);
+            }
+            yPosPidCtrl.setTarget(relativeTargetPose.y, pathStarted);
         }
-        yPosPidCtrl.setTarget(relativePose.y);
-        turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace);
-        velPidCtrl.setTarget(targetPoint.velocity);
+
+        if (!maintainHeading)
+        {
+            turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace, pathStarted);
+        }
+        velPidCtrl.setTarget(targetPoint.velocity, pathStarted);
+        pathStarted = true;
 
         double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
         double yPosPower = yPosPidCtrl.getOutput();
         double turnPower = turnPidCtrl.getOutput();
         double velPower = velPidCtrl.getOutput();
-        double theta = Math.atan2(relativePose.x, relativePose.y);
+        double theta = Math.atan2(relativeTargetPose.x, relativeTargetPose.y);
         xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.sin(theta),
                                                                 -moveOutputLimit, moveOutputLimit);
         yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
@@ -713,7 +793,7 @@ public class TrcPurePursuitDrive
         {
             dbgTrace.traceInfo(
                 funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
-                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, targetPoint.pose, relativePose);
+                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, targetPoint.pose, relativeTargetPose);
             dbgTrace.traceInfo(
                 funcName,
                 "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
@@ -725,9 +805,8 @@ public class TrcPurePursuitDrive
 
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
-        boolean posOnTarget = TrcUtil.magnitude(relativePose.x, relativePose.y) <= posTolerance;
-//        boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
-        boolean headingOnTarget = turnPidCtrl.isOnTarget();
+        boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
+        boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget();
         if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
             if (onFinishedEvent != null)
