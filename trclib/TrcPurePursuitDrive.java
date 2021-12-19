@@ -782,7 +782,7 @@ public class TrcPurePursuitDrive
         double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
         double yPosPower = yPosPidCtrl.getOutput();
         double turnPower = turnPidCtrl.getOutput();
-        double velPower = velPidCtrl.getOutput();
+        double velPower = targetPoint.velocity > 0.0? velPidCtrl.getOutput(): 0.0;
         double theta = Math.atan2(relativeTargetPose.x, relativeTargetPose.y);
         xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.sin(theta),
                                                                 -moveOutputLimit, moveOutputLimit);
