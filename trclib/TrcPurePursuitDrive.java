@@ -114,7 +114,7 @@ public class TrcPurePursuitDrive
     private TrcPose2D referencePose;
     private TrcPose2D relativeTargetPose;
     private boolean fastModeEnabled = false;
-    private boolean pathStarted = false;
+    private boolean resetError = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -500,7 +500,7 @@ public class TrcPurePursuitDrive
             turnPidCtrl.setTarget(driveBase.getHeading());
         }
 
-        pathStarted = false;
+        resetError = true;
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
     }   //start
 
@@ -767,17 +767,17 @@ public class TrcPurePursuitDrive
             //
             if (xPosPidCtrl != null)
             {
-                xPosPidCtrl.setTarget(relativeTargetPose.x, pathStarted);
+                xPosPidCtrl.setTarget(relativeTargetPose.x, resetError);
             }
-            yPosPidCtrl.setTarget(relativeTargetPose.y, pathStarted);
+            yPosPidCtrl.setTarget(relativeTargetPose.y, resetError);
         }
 
         if (!maintainHeading)
         {
-            turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace, pathStarted);
+            turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace, resetError);
         }
-        velPidCtrl.setTarget(targetPoint.velocity, pathStarted);
-        pathStarted = true;
+        velPidCtrl.setTarget(targetPoint.velocity, resetError);
+        resetError = false;
 
         double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
         double yPosPower = yPosPidCtrl.getOutput();
@@ -1028,8 +1028,8 @@ public class TrcPurePursuitDrive
                         msgTracer.traceInfo(funcName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
                                             i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
                     }
+                    pathIndex = i;
                 }
-                pathIndex = i;
                 return interpolated;
             }
         }
