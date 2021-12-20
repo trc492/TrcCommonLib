@@ -40,6 +40,7 @@ public class TrcPidController
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
+    public static final double DEF_STALL_TOLERANCE_SCALE = 2.0;
     public static final double DEF_SETTLING_TIME = 0.2;
 
     /**
@@ -146,6 +147,7 @@ public class TrcPidController
     {
         public PidCoefficients pidCoeff;
         public double tolerance;
+        public double stallTolerance;
         public double settlingTime;
 
         /**
@@ -153,12 +155,14 @@ public class TrcPidController
          *
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
+         * @param stallTolerance specifies the tolerance for detecting stall condition.
          * @param settlingTime specifies the minimum on target settling time.
          */
-        public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime)
+        public PidParameters(PidCoefficients pidCoeff, double tolerance, double stallTolerance, double settlingTime)
         {
             this.pidCoeff = pidCoeff;
             this.tolerance = Math.abs(tolerance);
+            this.stallTolerance = stallTolerance;
             this.settlingTime = Math.abs(settlingTime);
         }   //PidParameters
 
@@ -170,7 +174,7 @@ public class TrcPidController
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance)
         {
-            this(pidCoeff, tolerance, DEF_SETTLING_TIME);
+            this(pidCoeff, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
         }   //PidParameters
 
         /**
@@ -182,12 +186,14 @@ public class TrcPidController
          * @param kF specifies the Feed forward constant.
          * @param iZone specifies the integral zone.
          * @param tolerance specifies the tolerance.
+         * @param stallTolerance specifies the tolerance for detecting stall condition.
          * @param settlingTime specifies the minimum on target settling time.
          */
         public PidParameters(
-            double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime)
+            double kP, double kI, double kD, double kF, double iZone, double tolerance, double stallTolerance,
+            double settlingTime)
         {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime);
+            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, stallTolerance, settlingTime);
         }   //PidParameters
 
         /**
@@ -202,7 +208,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance, double settlingTime)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime);
+            this(kP, kI, kD, kF, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, settlingTime);
         }   //PidParameters
 
         /**
@@ -216,7 +222,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME);
+            this(kP, kI, kD, kF, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
         }   //PidParameters
 
         /**
@@ -229,7 +235,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double tolerance)
         {
-            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME);
+            this(kP, kI, kD, 0.0, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
         }   //PidParameters
 
         /**
@@ -355,13 +361,33 @@ public class TrcPidController
      * @param instanceName specifies the instance name.
      * @param pidCoeff specifies the PID constants.
      * @param tolerance specifies the target tolerance.
+     * @param stallTolerance specifies the tolerance for detecting stall condition.
      * @param settlingTime specifies the minimum on target settling time.
      * @param pidInput specifies the input provider.
      */
     public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double stallTolerance, double settlingTime,
+        PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, stallTolerance, settlingTime), pidInput);
+    }   //TrcPidController
+
+    /**
+     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
+     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
+     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
+     * set the PidInput outside of the super() call.
+     *
+     * @param instanceName specifies the instance name.
+     * @param pidCoeff specifies the PID constants.
+     * @param tolerance specifies the target tolerance.
+     * @param stallTolerance specifies the tolerance for detecting stall condition.
+     * @param pidInput specifies the input provider.
+     */
+    public TrcPidController(
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double stallTolerance, PidInput pidInput)
+    {
+        this(instanceName, new PidParameters(pidCoeff, tolerance, stallTolerance, DEF_SETTLING_TIME), pidInput);
     }   //TrcPidController
 
     /**
@@ -375,9 +401,11 @@ public class TrcPidController
      * @param tolerance specifies the target tolerance.
      * @param pidInput specifies the input provider.
      */
-    public TrcPidController(String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
+    public TrcPidController(
+        String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance), pidInput);
+        this(instanceName, new PidParameters(
+            pidCoeff, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME), pidInput);
     }   //TrcPidController
 
     /**
@@ -1103,6 +1131,7 @@ public class TrcPidController
         synchronized (pidCtrlState)
         {
             double currTime = TrcUtil.getCurrentTime();
+            double absErr = Math.abs(pidCtrlState.currError);
 
             if (noOscillation)
             {
@@ -1119,10 +1148,11 @@ public class TrcPidController
                 }
             }
             //
-            // We consider it on-target if error is within tolerance or there is no movement for a period of settling
-            // time.
+            // We consider it on-target if error is within tolerance for the settling period or if error is within two
+            // times of tolerance and there is no movement for the period of settling time.
             //
-            else if (Math.abs(pidCtrlState.currError) > pidParams.tolerance) // && pidCtrlState.errorRate != 0.0)
+            else if (absErr > pidParams.stallTolerance || absErr > pidParams.tolerance && pidCtrlState.errorRate != 0.0)
+//            else if (Math.abs(pidCtrlState.currError) > pidParams.tolerance || pidCtrlState.errorRate == 0.0)
             {
                 pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
             }

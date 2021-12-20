@@ -49,8 +49,8 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     private enum State
     {
         DO_DELAY,
+        PREP_FOR_TUNING,
         PID_DRIVE,
-        PID_TURN,
         DONE
     }   //enum State
 
@@ -61,7 +61,6 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     private final TrcDriveBase driveBase;
     private final TrcPidDrive pidDrive;
     private final double delay;
-    private final double drivePowerLimit;
     private final boolean useSensorOdometry;
     private final TrcPidController.PidCoefficients tunePidCoeff;
     private final TrcPose2D[] pathPoints;
@@ -107,7 +106,6 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
         this.driveBase = driveBase;
         this.pidDrive = pidDrive;
         this.delay = delay;
-        this.drivePowerLimit = drivePowerLimit;
         this.useSensorOdometry = useSensorOdometry;
         this.tunePidCoeff = tunePidCoeff;
         this.pathPoints = pathPoints;
@@ -147,6 +145,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     {
         this(driveBase, pidDrive, delay, drivePowerLimit, false, tunePidCoeff, pathPoints);
     }   //CmdPidDrive
+
     /**
      * Constructor: Create an instance of the object.
      *
@@ -197,7 +196,10 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     @Override
     public void cancel()
     {
-        if (pidDrive.isActive()) pidDrive.cancel();
+        if (pidDrive.isActive())
+        {
+            pidDrive.cancel();
+        }
 
         if (xPidCtrl != null) xPidCtrl.restoreOutputLimit();
         if (yPidCtrl != null) yPidCtrl.restoreOutputLimit();
@@ -245,7 +247,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                     //
                     if (delay == 0.0)
                     {
-                        sm.setState(State.PID_DRIVE);
+                        sm.setState(State.PREP_FOR_TUNING);
                         //
                         // Intentionally falling through to DO_PID_DRIVE.
                         //
@@ -253,14 +255,11 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                     else
                     {
                         timer.set(delay, event);
-                        sm.waitForSingleEvent(event, State.PID_DRIVE);
+                        sm.waitForSingleEvent(event, State.PREP_FOR_TUNING);
                         break;
                     }
 
-                case PID_DRIVE:
-                    //
-                    // Drive the set distance and heading.
-                    //
+                case PREP_FOR_TUNING:
                     if (tunePidCoeff != null)
                     {
                         //
@@ -285,35 +284,33 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                         savedWarpSpaceEnabled = pidDrive.isWarpSpaceEnabled();
                         pidDrive.setWarpSpaceEnabled(false);
                     }
-
+                    sm.setState(State.PID_DRIVE);
+                    //
+                    // Intentionally falling through.
+                    //
+                case PID_DRIVE:
+                    //
+                    // Drive the set distance and heading.
+                    //
                     if (pathIndex < pathPoints.length)
                     {
                         State nextState;
 
                         if (useSensorOdometry)
                         {
-                            // If we are tuning PID for sensor drive, we are doing just one movement and be done.
-                            nextState = tunePidCoeff != null? State.DONE: State.PID_DRIVE;
+                            // When doing a sensor target, we can only do one path point.
                             pidDrive.setSensorTarget(
                                 pathPoints[pathIndex].x, pathPoints[pathIndex].y, pathPoints[pathIndex].angle, event);
-                            pathIndex++;
+                            nextState = State.DONE;
                         }
                         else
                         {
-                            //
-                            // When we are done driving the specified distance, check if the current path point has
-                            // a non-zero angle. If so, go to PID_TURN, else advance to the next path point.
-                            //
-                            nextState = tunePidCoeff != null? State.DONE:
-                                        pathPoints[pathIndex].angle != 0.0? State.PID_TURN: State.PID_DRIVE;
+                            // If we are tuning PID, we are doing only one path point.
                             pidDrive.setRelativeTarget(
-                                pathPoints[pathIndex].x, pathPoints[pathIndex].y, 0.0, event);
-                            if (nextState == State.PID_DRIVE)
-                            {
-                                pathIndex++;
-                            }
+                                pathPoints[pathIndex].x, pathPoints[pathIndex].y, pathPoints[pathIndex].angle, event);
+                            nextState = tunePidCoeff != null? State.DONE: State.PID_DRIVE;
+                            pathIndex++;
                         }
-
                         sm.waitForSingleEvent(event, nextState);
                     }
                     else
@@ -323,13 +320,6 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                         //
                         sm.setState(State.DONE);
                     }
-                    break;
-
-                case PID_TURN:
-                    pidDrive.setRelativeTurnTarget(pathPoints[pathIndex].angle, event);
-                    pathIndex++;
-                    // If we are tuning PID, we are doing just one movement and be done.
-                    sm.waitForSingleEvent(event, tunePidCoeff != null? State.DONE: State.PID_DRIVE);
                     break;
 
                 case DONE:
