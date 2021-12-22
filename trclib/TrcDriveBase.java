@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import androidx.annotation.NonNull;
+
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -33,10 +35,10 @@ import java.util.Stack;
 /**
  * This class implements a platform independent drive base. It is intended to be extended by subclasses that
  * implements different drive base configurations (e.g. SimpleDriveBase, MecanumDriveBase and SwerveDriveBase).
- * The subclasses must provide the tankDrive and holonomicDrive methods. If the subclass cannot support a certain
- * driving strategy (e.g. holonomicDrive), it should throw an UnsupportedOperationException. They must also provide
- * the getOdometryDelta method where it will calculate the drive base position and velocity info according to sensors
- * such as encoders and gyro.
+ * The subclasses must provide the tankDrive method and optionally overriding holonomicDrive method if it support it.
+ * If the subclass does support holonomic drive, it should override the supportsHolonomicDrive method. It must also
+ * provide the getOdometryDelta method where it will calculate the drive base position and velocity info according to
+ * sensors such as encoders and gyro.
  */
 public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 {
@@ -102,6 +104,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
          *
          * @return a copy of this odometry.
          */
+        @NonNull
         public Odometry clone()
         {
             return new Odometry(position.clone(), velocity.clone());
@@ -133,30 +136,17 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * This class stores the states of all motors of the drivebase. This is used for calculating the drive base
      * odometry.
      */
-    protected class MotorsState
+    protected static class MotorsState
     {
         TrcOdometrySensor.Odometry[] prevMotorOdometries;
         TrcOdometrySensor.Odometry[] currMotorOdometries;
-        boolean[] isOdometryMotor;
-        double[] stallStartTimes;
 
         public String toString()
         {
-            return String.format(Locale.US, "odometry%s,isUsed=%s",
-                                 Arrays.toString(currMotorOdometries), Arrays.toString(isOdometryMotor));
+            return String.format(Locale.US, "odometry%s", Arrays.toString(currMotorOdometries));
         }   //toString
 
     }   //class MotorsState
-
-    /**
-     * This method is called periodically to calculate the delta between the previous and current motor odometries.
-     *
-     * @param prevOdometries specifies the previous motor odometries.
-     * @param currOdometries specifies the current motor odometries.
-     * @return an Odometry object describing the odometry changes since the last update.
-     */
-    protected abstract Odometry getOdometryDelta(
-            TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries);
 
     /**
      * This method implements tank drive where leftPower controls the left motors and right power controls the right
@@ -169,6 +159,16 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * @param inverted   specifies true to invert control (i.e. robot front becomes robot back).
      */
     public abstract void tankDrive(String owner, double leftPower, double rightPower, boolean inverted);
+
+    /**
+     * This method is called periodically to calculate the delta between the previous and current motor odometries.
+     *
+     * @param prevOdometries specifies the previous motor odometries.
+     * @param currOdometries specifies the current motor odometries.
+     * @return an Odometry object describing the odometry changes since the last update.
+     */
+    protected abstract Odometry getOdometryDelta(
+        TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries);
 
     /**
      * This interface is provided by the caller to translate the motor power to actual motor power according to
@@ -189,24 +189,26 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         double translateMotorPower(double power, double velocity);
     }   //interface MotorPowerMapper
 
-    private static double DEF_SENSITIVITY = 0.5;
-    private static double DEF_MAX_OUTPUT = 1.0;
+    private static final double DEF_SENSITIVITY = 0.5;
+    private static final double DEF_MAX_OUTPUT = 1.0;
 
     private final TrcMotorController[] motors;
     private final TrcGyro gyro;
     protected final Odometry odometry;
     private final MotorsState motorsState;
+    private final TrcTaskMgr.TaskObject odometryTaskObj;
     protected double xScale, yScale, angleScale;
-    private TrcTaskMgr.TaskObject odometryTaskObj;
-    private TrcTaskMgr.TaskObject stopTaskObj;
+    private final Stack<Odometry> referenceOdometryStack = new Stack<>();
+
+    protected double stallStartTime = 0.0;
+    protected double stallVelThreshold = 0.0;
     private TrcDriveBaseOdometry driveBaseOdometry = null;
     protected MotorPowerMapper motorPowerMapper = null;
     private double sensitivity = DEF_SENSITIVITY;
     private double maxOutput = DEF_MAX_OUTPUT;
     private double gyroMaxRotationRate = 0.0;
-    private double gyroAssistKp = 1.0;
+    private double gyroAssistGain = 1.0;
     private boolean gyroAssistEnabled = false;
-    private Stack<Odometry> referenceOdometryStack = new Stack<>();
     private Odometry referenceOdometry = null;
     private boolean synchronizeOdometries = false;
     // Change of basis matrices to convert between coordinate systems
@@ -236,22 +238,19 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         motorsState = new MotorsState();
         motorsState.prevMotorOdometries = new TrcOdometrySensor.Odometry[motors.length];
         motorsState.currMotorOdometries = new TrcOdometrySensor.Odometry[motors.length];
-        motorsState.isOdometryMotor = new boolean[motors.length];
-        motorsState.stallStartTimes = new double[motors.length];
         for (int i = 0; i < motors.length; i++)
         {
-            motorsState.isOdometryMotor[i] = true;
             motorsState.prevMotorOdometries[i] = null;
             motorsState.currMotorOdometries[i] = new TrcOdometrySensor.Odometry(motors[i]);
         }
         resetOdometry(true, true);
-        resetStallTimers();
-        xScale = yScale = angleScale = 1.0;
 
         TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
         odometryTaskObj = taskMgr.createTask(moduleName + ".odometryTask", this::odometryTask);
-        stopTaskObj = taskMgr.createTask(moduleName + ".stopTask", this::stopTask);
+        TrcTaskMgr.TaskObject stopTaskObj = taskMgr.createTask(moduleName + ".stopTask", this::stopTask);
         stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
+
+        xScale = yScale = angleScale = 1.0;
     }   //TrcDriveBase
 
     /**
@@ -750,18 +749,14 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             {
                 for (int i = 0; i < motors.length; i++)
                 {
-                    if (motorsState.isOdometryMotor[i])
-                    {
-                        motors[i].resetPosition(resetHardware);
-                        motorsState.prevMotorOdometries[i] = null;
-                        motorsState.currMotorOdometries[i].prevTimestamp
-                            = motorsState.currMotorOdometries[i].currTimestamp
-                            = motorsState.stallStartTimes[i]
-                            = TrcUtil.getCurrentTime();
-                        motorsState.currMotorOdometries[i].prevPos
-                            = motorsState.currMotorOdometries[i].currPos
-                            = motorsState.currMotorOdometries[i].velocity = 0.0;
-                    }
+                    motors[i].resetPosition(resetHardware);
+                    motorsState.prevMotorOdometries[i] = null;
+                    motorsState.currMotorOdometries[i].prevTimestamp
+                        = motorsState.currMotorOdometries[i].currTimestamp
+                        = TrcUtil.getCurrentTime();
+                    motorsState.currMotorOdometries[i].prevPos
+                        = motorsState.currMotorOdometries[i].currPos
+                        = motorsState.currMotorOdometries[i].velocity = 0.0;
                 }
 
                 if (resetAngle)
@@ -814,17 +809,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         synchronized (odometry)
         {
             this.driveBaseOdometry = driveBaseOdometry;
-            //
-            // Check to see if any of the motors are not used as odometry motors and mark them so. This will prevent
-            // us from checking those motors for stall condition.
-            //
-            for (int i = 0; i < motorsState.isOdometryMotor.length; i++)
-            {
-                if (!driveBaseOdometry.isSensorUsed((TrcOdometrySensor)motorsState.currMotorOdometries[i].sensor))
-                {
-                    motorsState.isOdometryMotor[i] = false;
-                }
-            }
         }
     }   //setDriveBaseOdometry
 
@@ -913,22 +897,22 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * This method enables gyro assist drive.
      *
      * @param gyroMaxRotationRate specifies the maximum rotation rate of the robot base reported by the gyro.
-     * @param gyroAssistKp        specifies the gyro assist proportional constant.
+     * @param gyroAssistGain specifies the gyro assist proportional gain.
      */
-    public void enableGyroAssist(double gyroMaxRotationRate, double gyroAssistKp)
+    public void enableGyroAssist(double gyroMaxRotationRate, double gyroAssistGain)
     {
         final String funcName = "enableGyroAssist";
 
         if (debugEnabled)
         {
-            dbgTrace
-                .traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "gyroMaxRate=%f,gyroAssistKp=%f", gyroMaxRotationRate,
-                    gyroAssistKp);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "gyroMaxRate=%f,gyroAssistGain=%f",
+                gyroMaxRotationRate, gyroAssistGain);
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
         this.gyroMaxRotationRate = gyroMaxRotationRate;
-        this.gyroAssistKp = gyroAssistKp;
+        this.gyroAssistGain = gyroAssistGain;
         this.gyroAssistEnabled = true;
     }   //enableGyroAssist
 
@@ -937,7 +921,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void disableGyroAssist()
     {
-        final String funcName = "enableGyroAssist";
+        final String funcName = "disableGyroAssist";
 
         if (debugEnabled)
         {
@@ -946,7 +930,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         }
 
         this.gyroMaxRotationRate = 0.0;
-        this.gyroAssistKp = 1.0;
+        this.gyroAssistGain = 1.0;
         this.gyroAssistEnabled = false;
     }   //disableGyroAssist
 
@@ -969,7 +953,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     public double getGyroAssistPower(double rotation)
     {
         double error = rotation - gyro.getZRotationRate().value / gyroMaxRotationRate;
-        return gyroAssistEnabled ? TrcUtil.clipRange(gyroAssistKp * error) : 0.0;
+        return gyroAssistEnabled ? TrcUtil.clipRange(gyroAssistGain * error) : 0.0;
     }   //getGyroAssistPower
 
     /**
@@ -1021,97 +1005,27 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //setInvertedMotor
 
     /**
-     * This method checks if the specified motor has stalled.
+     * This method is called by the subclass to set the stall detection velocity threshold value.
      *
-     * @param index     specifies the motor index.
-     * @param stallTime specifies the stall time in seconds to be considered stalled.
-     * @return true if the motor is stalled, false otherwise.
+     * @param stallVelThreshold specifies the stall detection velocity threshold value.
      */
-    protected boolean isMotorStalled(int index, double stallTime)
+    protected void setStallVelocityThreshold(double stallVelThreshold)
     {
-        final String funcName = "isMotorStalled";
-        double currTime = TrcUtil.getCurrentTime();
-        final boolean stalled;
-
-        if (!motorsState.isOdometryMotor[index])
-        {
-            stalled = false;
-        }
-        else
-        {
-            synchronized (odometry)
-            {
-                stalled = currTime - motorsState.stallStartTimes[index] > stallTime;
-            }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d,stallTime=%.3f", index, stallTime);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", stalled);
-        }
-
-        return stalled;
-    }   //isMotorStalled
+        this.stallVelThreshold = stallVelThreshold;
+    }   //setStallVelocityThreshold
 
     /**
-     * This method resets the all stall timers.
-     */
-    public void resetStallTimers()
-    {
-        final String funcName = "resetStallTimers";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        synchronized (odometry)
-        {
-            double currTime = TrcUtil.getCurrentTime();
-
-            for (int i = 0; i < motorsState.stallStartTimes.length; i++)
-            {
-                motorsState.stallStartTimes[i] = currTime;
-            }
-        }
-    }   //resetStallTimers
-
-    /**
-     * This method checks if all motors on the drive base have been stalled for at least the specified stallTime.
+     * This method determines if the drive base is stalled. A drive base is in stalled state when there is power
+     * applied to the wheels and odometry has no movement for the given period of time.
      *
      * @param stallTime specifies the stall time in seconds.
-     * @return true if the drive base is stalled, false otherwise.
+     * @return true if the drive base is in stalled state, false otherwise.
      */
     public boolean isStalled(double stallTime)
     {
-        final String funcName = "isStalled";
-        boolean stalled = true;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "stallTime=%.3f", stallTime);
-        }
-
-        synchronized (odometry)
-        {
-            for (int i = 0; i < motorsState.stallStartTimes.length; i++)
-            {
-                if (!isMotorStalled(i, stallTime))
-                {
-                    stalled = false;
-                    break;
-                }
-            }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", stalled);
-        }
-
-        return stalled;
+        // stallStartTime is set to current time whenever there is wheel movement.
+        // stallStartTime is reset to zero whenever the drive base is stopped (i.e. power set to zero).
+        return stallStartTime != 0.0 && TrcUtil.getCurrentTime() > stallStartTime + stallTime;
     }   //isStalled
 
     /**
@@ -1610,6 +1524,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             {
                 odometryDelta = driveBaseOdometry.getOdometryDelta();
                 updateOdometry(odometryDelta, odometry.position.angle);
+
+                if (Math.abs(odometryDelta.velocity.x) > stallVelThreshold ||
+                    Math.abs(odometryDelta.velocity.y) > stallVelThreshold)
+                {
+                    // reset stall start time to current time if drive base has movement.
+                    stallStartTime = TrcUtil.getCurrentTime();
+                }
             }
             else
             {
@@ -1620,12 +1541,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 {
                     motorsState.prevMotorOdometries[i] = motorsState.currMotorOdometries[i];
                     motorsState.currMotorOdometries[i] = motors[i].getOdometry();
-
-                    if (motorsState.currMotorOdometries[i].currPos != motorsState.currMotorOdometries[i].prevPos ||
-                        motors[i].getPower() == 0.0)
-                    {
-                        motorsState.stallStartTimes[i] = motorsState.currMotorOdometries[i].currTimestamp;
-                    }
                 }
 
                 if (synchronizeOdometries)
@@ -1755,8 +1670,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void updateOdometry(Odometry delta, double angle)
     {
-        final String funcName = "updateOdometry";
-
         if (USE_CURVED_PATH)
         {
             // The math below uses a different coordinate system (NWU) so we have to convert

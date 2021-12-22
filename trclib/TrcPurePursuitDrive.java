@@ -96,16 +96,30 @@ public class TrcPurePursuitDrive
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
-    private double moveOutputLimit = Double.POSITIVE_INFINITY;
-    private double rotOutputLimit = Double.POSITIVE_INFINITY;
-    private WaypointEventHandler waypointEventHandler = null;
-    private InterpolationType interpolationType = InterpolationType.LINEAR;
-    private volatile boolean maintainHeading = false;
 
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
     private boolean logRobotPoseEvents = false;
     private boolean tracePidInfo = false;
+
+    private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
+    private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
+    private TrcTone beepDevice = null;
+    private double beepFrequency = DEF_BEEP_FREQUENCY;
+    private double beepDuration = DEF_BEEP_DURATION;
+
+    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
+    private static final double DEF_STALL_TIMEOUT = 0.2;
+    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
+    private double stallDetectionDelay = 0.0;
+    private double stallTimeout = 0.0;
+    private double stallDetectionStartTime = 0.0;
+
+    private double moveOutputLimit = Double.POSITIVE_INFINITY;
+    private double rotOutputLimit = Double.POSITIVE_INFINITY;
+    private WaypointEventHandler waypointEventHandler = null;
+    private InterpolationType interpolationType = InterpolationType.LINEAR;
+    private volatile boolean maintainHeading = false;
 
     private TrcPath path;
     private TrcEvent onFinishedEvent;
@@ -200,6 +214,123 @@ public class TrcPurePursuitDrive
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
+     */
+    public synchronized void setMsgTracer(
+        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    {
+        this.msgTracer = tracer;
+        this.logRobotPoseEvents = logRobotPoseEvents;
+        this.tracePidInfo = tracePidInfo;
+        this.battery = battery;
+    }   //setMsgTracer
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     */
+    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
+    {
+        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
+    }   //setMsgTracer
+
+    /**
+     * This method sets the message tracer for logging trace messages.
+     *
+     * @param tracer specifies the tracer for logging messages.
+     */
+    public void setMsgTracer(TrcDbgTrace tracer)
+    {
+        setMsgTracer(tracer, false, false, null);
+    }   //setMsgTracer
+
+    /**
+     * This method sets the beep device and the beep tones so that it can play beeps when motor stalled or if the
+     * limit switches are activated/deactivated.
+     *
+     * @param beepDevice specifies the beep device object.
+     * @param beepFrequency specifies the beep frequency.
+     * @param beepDuration specifies the beep duration.
+     */
+    public synchronized void setBeep(TrcTone beepDevice, double beepFrequency, double beepDuration)
+    {
+        final String funcName = "setBeep";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
+                                "beep=%s,freq=%.0f,duration=%.3f", beepDevice.toString(), beepFrequency, beepDuration);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        this.beepDevice = beepDevice;
+        this.beepFrequency = beepFrequency;
+        this.beepDuration = beepDuration;
+    }   //setBeep
+
+    /**
+     * This method sets the beep device so that it can play beeps at default frequency and duration when motor
+     * stalled or if the limit switches are activated/deactivated.
+     *
+     * @param beepDevice specifies the beep device object.
+     */
+    public void setBeep(TrcTone beepDevice)
+    {
+        setBeep(beepDevice, DEF_BEEP_FREQUENCY, DEF_BEEP_DURATION);
+    }   //setBeep
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param stallDetectionDelay specifies stall detection start delay in seconds.
+     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
+     *        motionless to be considered stalled.
+     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
+     */
+    public synchronized void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
+    {
+        final String funcName = "setStallDetectionEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "detectionDelay=%.3f,timeout=%.3f",
+                stallDetectionDelay, stallTimeout);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        this.stallDetectionDelay = stallDetectionDelay;
+        this.stallTimeout = stallTimeout;
+        driveBase.setStallVelocityThreshold(stallVelThreshold);
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param enabled specifies true to enable stall detection, false to disable.
+     */
+    public void setStallDetectionEnabled(boolean enabled)
+    {
+        if (enabled)
+        {
+            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
+        }
+        else
+        {
+            setStallDetectionEnabled(0.0, 0.0, 0.0);
+        }
+    }   //setStallDetectionEnabled
 
     public synchronized void setFastModeEnabled(boolean enabled)
     {
@@ -367,45 +498,6 @@ public class TrcPurePursuitDrive
     }   //setInterpolationType
 
     /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
-     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
-     * @param battery specifies the battery object to get battery info for the message.
-     */
-    public synchronized void setMsgTracer(
-        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
-    {
-        this.msgTracer = tracer;
-        this.logRobotPoseEvents = logRobotPoseEvents;
-        this.tracePidInfo = tracePidInfo;
-        this.battery = battery;
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
-     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
-    {
-        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer)
-    {
-        setMsgTracer(tracer, false, false, null);
-    }   //setMsgTracer
-
-    /**
      * This method returns the field position of the target waypoint of the path (i.e. the last waypoint in the path).
      *
      * @return field position of the last waypoint in the path.
@@ -463,7 +555,10 @@ public class TrcPurePursuitDrive
 
         this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
-        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
+        double currTime = TrcUtil.getCurrentTime();
+        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
+        stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
+
         referencePose = driveBase.getFieldPosition();
         pathIndex = 0;
 
@@ -804,10 +899,27 @@ public class TrcPurePursuitDrive
         }
 
         // If we have timed out or finished, stop the operation.
-        boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
+        double currTime = TrcUtil.getCurrentTime();
+        boolean timedOut = currTime >= timedOutTime;
+        boolean stalled =
+            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
         boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget();
-        if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
+
+        if (stalled || timedOut)
+        {
+            if (beepDevice != null)
+            {
+                beepDevice.playTone(beepFrequency, beepDuration);
+            }
+
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(funcName, "%s: Stalled=%s, Timedout=%s", instanceName, stalled, timedOut);
+            }
+        }
+
+        if (stalled || timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
             if (onFinishedEvent != null)
             {

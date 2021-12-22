@@ -408,6 +408,11 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 rfModule.set(rfPower);
                 lbModule.set(lbPower);
                 rbModule.set(rbPower);
+                if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
+                {
+                    // reset stall start time to zero if drive base is stopped.
+                    stallStartTime = 0.0;
+                }
             }
         }
 
@@ -463,6 +468,12 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         //
         delta.position.x = posSum.getEntry(0);
         delta.position.y = posSum.getEntry(1);
+
+        if (Math.abs(delta.velocity.x) > stallVelThreshold || Math.abs(delta.velocity.y) > stallVelThreshold)
+        {
+            // reset stall start time to current time if drive base has movement.
+            stallStartTime = TrcUtil.getCurrentTime();
+        }
 
         delta.velocity.x = velSum.getEntry(0);
         delta.velocity.y = velSum.getEntry(1);

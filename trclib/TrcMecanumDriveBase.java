@@ -126,6 +126,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             TrcUtil.normalizeInPlace(wheelPowers);
 
             double wheelPower;
+            boolean wheelsPowered = false;
 
             wheelPower = wheelPowers[MotorType.LEFT_FRONT.value];
             if (motorPowerMapper != null)
@@ -133,6 +134,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, leftFrontMotor.getVelocity());
             }
             leftFrontMotor.set(wheelPower);
+            if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_FRONT.value];
             if (motorPowerMapper != null)
@@ -140,6 +142,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rightFrontMotor.getVelocity());
             }
             rightFrontMotor.set(wheelPower);
+            if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.LEFT_BACK.value];
             if (motorPowerMapper != null)
@@ -147,6 +150,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, leftBackMotor.getVelocity());
             }
             leftBackMotor.set(wheelPower);
+            if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_BACK.value];
             if (motorPowerMapper != null)
@@ -154,6 +158,13 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rightBackMotor.getVelocity());
             }
             rightBackMotor.set(wheelPower);
+            if (wheelPower != 0.0) wheelsPowered = true;
+
+            if (!wheelsPowered)
+            {
+                // reset stall start time to zero if drive base is stopped.
+                stallStartTime = 0.0;
+            }
         }
 
         if (debugEnabled)
@@ -193,6 +204,13 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 currOdometries[MotorType.RIGHT_BACK.value].velocity,
                 -currOdometries[MotorType.RIGHT_FRONT.value].velocity,
                 -currOdometries[MotorType.LEFT_BACK.value].velocity);
+
+        if (Math.abs(delta.velocity.x) > stallVelThreshold)
+        {
+            // reset stall start time to current time if drive base has movement.
+            // Note: y movement is taken care of by the superclass TrcSimpleDriveBase.
+            stallStartTime = TrcUtil.getCurrentTime();
+        }
 
         return delta;
     }   //getOdometryDelta

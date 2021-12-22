@@ -28,10 +28,10 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  * This class implements a PID controlled robot drive. A PID controlled robot drive consist of a robot drive base
  * and three PID controllers, one for the X direction, one for the Y direction and one for turn. If the robot drive
  * base is incapable of moving in the X direction, the X PID controller will be null. In addition, it has stall
- * detection support which will detect motor stall condition. The motors on a drive base could stall if the robot
- * runs into an obstacle in low power or the robot is very close to target and doesn't have enough power to overcome
- * steady state error. When stall condition is detected, PID drive will be aborted so that the robot won't get stuck
- * waiting forever trying to reach target.
+ * detection support which will detect drive base stall condition. The drive base could stall if the robot runs into
+ * an obstacle in low power or the robot is very close to target and doesn't have enough power to overcome steady
+ * state error. When stall condition is detected, PID drive will be aborted so that the robot won't get stuck waiting
+ * forever trying to reach target.
  */
 public class TrcPidDrive
 {
@@ -44,22 +44,22 @@ public class TrcPidDrive
     private static final boolean verbosePidInfo = false;
     private TrcDbgTrace dbgTrace = null;
 
-    /**
-     * This interface provides a stuck wheel notification handler. It is useful for detecting drive base motor
-     * malfunctions. A stuck wheel could happen if the motor is malfunctioning, the motor power wire is unplugged,
-     * the motor encoder is malfunctioning or the motor encoder wire is unplugged.
-     */
-    public interface StuckWheelHandler
-    {
-        /**
-         * This method is called when a stuck wheel is detected.
-         *
-         * @param pidDrive specifies this TrcPidDrive instance.
-         * @param index specifies which wheel in the DriveBase is stuck.
-         */
-        void stuckWheel(TrcPidDrive pidDrive, int index);
-
-    }   //interface StuckWheelHandler
+//    /**
+//     * This interface provides a stuck wheel notification handler. It is useful for detecting drive base motor
+//     * malfunctions. A stuck wheel could happen if the motor is malfunctioning, the motor power wire is unplugged,
+//     * the motor encoder is malfunctioning or the motor encoder wire is unplugged.
+//     */
+//    public interface StuckWheelHandler
+//    {
+//        /**
+//         * This method is called when a stuck wheel is detected.
+//         *
+//         * @param pidDrive specifies this TrcPidDrive instance.
+//         * @param index specifies which wheel in the DriveBase is stuck.
+//         */
+//        void stuckWheel(TrcPidDrive pidDrive, int index);
+//
+//    }   //interface StuckWheelHandler
 
     /**
      * Turn mode specifies how PID controlled drive is turning the robot.
@@ -91,8 +91,8 @@ public class TrcPidDrive
     private boolean warpSpaceEnabled = true;
     private boolean absTargetModeEnabled = false;
     private boolean noOscillation = false;
-    private StuckWheelHandler stuckWheelHandler = null;
-    private double stuckTimeout = 0.0;
+//    private StuckWheelHandler stuckWheelHandler = null;
+//    private double stuckTimeout = 0.0;
     private TurnMode turnMode = TurnMode.IN_PLACE;
     private TrcTone beepDevice = null;
     private double beepFrequency = DEF_BEEP_FREQUENCY;
@@ -373,26 +373,26 @@ public class TrcPidDrive
         return turnPidCtrl;
     }   //getTurnPidCtrl
 
-    /**
-     * This method sets a stuck wheel handler to enable stuck wheel detection.
-     *
-     * @param stuckWheelHandler specifies the stuck wheel handler.
-     * @param stuckTimeout specifies the stuck timeout in seconds.
-     */
-    public synchronized void setStuckWheelHandler(StuckWheelHandler stuckWheelHandler, double stuckTimeout)
-    {
-        final String funcName = "setStuckWheelHandler";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "stuckWheelHandler=%s,timeout=%f", stuckWheelHandler, stuckTimeout);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.stuckWheelHandler = stuckWheelHandler;
-        this.stuckTimeout = stuckTimeout;
-    }   //setStuckWheelHandler
+//    /**
+//     * This method sets a stuck wheel handler to enable stuck wheel detection.
+//     *
+//     * @param stuckWheelHandler specifies the stuck wheel handler.
+//     * @param stuckTimeout specifies the stuck timeout in seconds.
+//     */
+//    public synchronized void setStuckWheelHandler(StuckWheelHandler stuckWheelHandler, double stuckTimeout)
+//    {
+//        final String funcName = "setStuckWheelHandler";
+//
+//        if (debugEnabled)
+//        {
+//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
+//                    "stuckWheelHandler=%s,timeout=%f", stuckWheelHandler, stuckTimeout);
+//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+//        }
+//
+//        this.stuckWheelHandler = stuckWheelHandler;
+//        this.stuckTimeout = stuckTimeout;
+//    }   //setStuckWheelHandler
 
     /**
      * This methods sets the turn mode. Supported modes are in-place (default), pivot and curve.
@@ -556,7 +556,6 @@ public class TrcPidDrive
 
         this.holdTarget = holdTarget;
         this.turnOnly = xError == 0.0 && yError == 0.0 && turnError != 0.0;
-        driveBase.resetStallTimers();
 
         setTaskEnabled(true);
 
@@ -1457,16 +1456,16 @@ public class TrcPidDrive
         boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget();
         boolean onTarget = turnOnTarget && (turnOnly || xOnTarget && yOnTarget);
 
-        if (stuckWheelHandler != null)
-        {
-            for (int i = 0; i < driveBase.getNumMotors(); i++)
-            {
-                if(driveBase.isMotorStalled(i, stuckTimeout))
-                {
-                    stuckWheelHandler.stuckWheel(this, i);
-                }
-            }
-        }
+//        if (stuckWheelHandler != null)
+//        {
+//            for (int i = 0; i < driveBase.getNumMotors(); i++)
+//            {
+//                if(driveBase.isMotorStalled(i, stuckTimeout))
+//                {
+//                    stuckWheelHandler.stuckWheel(this, i);
+//                }
+//            }
+//        }
 
         if (stalled || expired)
         {

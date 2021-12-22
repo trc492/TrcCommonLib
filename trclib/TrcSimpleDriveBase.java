@@ -209,18 +209,6 @@ public class TrcSimpleDriveBase extends TrcDriveBase
     }   //setInvertedMotor
 
     /**
-     * This method checks if the specified motor has stalled.
-     *
-     * @param motorType specifies the motor in the drive train.
-     * @param stallTime specifies the stall time in seconds to be considered stalled.
-     * @return true if the motor is stalled, false otherwise.
-     */
-    public boolean isMotorStalled(MotorType motorType, double stallTime)
-    {
-        return isMotorStalled(motorType.value, stallTime);
-    }   //isMotorStalled
-
-    /**
      * This method implements tank drive where leftPower controls the left motors and right power controls the right
      * motors.
      *
@@ -237,8 +225,9 @@ public class TrcSimpleDriveBase extends TrcDriveBase
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,leftPower=%f,rightPower=%f,inverted=%s", owner, leftPower, rightPower, inverted);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s",
+                owner, leftPower, rightPower, inverted);
         }
 
         if (validateOwnership(owner))
@@ -268,6 +257,11 @@ public class TrcSimpleDriveBase extends TrcDriveBase
 
             leftPower = clipMotorOutput(leftPower);
             rightPower = clipMotorOutput(rightPower);
+            if (leftPower == 0.0 && rightPower == 0.0)
+            {
+                // reset stall start time to zero if drive base is stopped.
+                stallStartTime = 0;
+            }
 
             double wheelPower;
 
@@ -347,7 +341,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
      */
     @Override
     protected Odometry getOdometryDelta(
-            TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries)
+        TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries)
     {
         final String funcName = "getOdometryDelta";
         Odometry delta = new Odometry();
@@ -394,6 +388,12 @@ public class TrcSimpleDriveBase extends TrcDriveBase
 
         delta.position.angle = (lPos - rPos)/2 * angleScale;
         delta.velocity.angle = (lVel - rVel)/2 * angleScale;
+
+        if (Math.abs(delta.velocity.y) > stallVelThreshold)
+        {
+            // reset stall start time to current time if drive base has movement.
+            stallStartTime = TrcUtil.getCurrentTime();
+        }
 
         if (debugEnabled)
         {
