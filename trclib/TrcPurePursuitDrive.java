@@ -809,6 +809,16 @@ public class TrcPurePursuitDrive
     }   //stop
 
     /**
+     * This method returns the pure pursuit path.
+     *
+     * @return path.
+     */
+    public synchronized TrcPath getPath()
+    {
+        return path;
+    }   //getPath
+
+    /**
      * This method is called by xPosPidCtrl only in invertedTarget mode for getting the X distance to target.
      * @return x distance to target.
      */
@@ -926,6 +936,7 @@ public class TrcPurePursuitDrive
                 onFinishedEvent.signal();
             }
             stop();
+            path = null;
         }
         else if (xPosPidCtrl != null)
         {
