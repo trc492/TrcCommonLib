@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import androidx.annotation.NonNull;
+
 import java.util.EmptyStackException;
 import java.util.Locale;
 import java.util.Stack;
@@ -40,7 +42,6 @@ public class TrcPidController
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
-    public static final double DEF_STALL_TOLERANCE_SCALE = 2.0;
     public static final double DEF_SETTLING_TIME = 0.2;
 
     /**
@@ -124,7 +125,7 @@ public class TrcPidController
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "(%f,%f,%f,%f,%f)", kP, kI, kD, kF, iZone);
+            return String.format(Locale.US, "(PIDFiZone:%f,%f,%f,%f,%f)", kP, kI, kD, kF, iZone);
         }   //toString
 
         /**
@@ -132,6 +133,7 @@ public class TrcPidController
          *
          * @return a copy of this object.
          */
+        @NonNull
         public PidCoefficients clone()
         {
             return new PidCoefficients(kP, kI, kD, kF, iZone);
@@ -145,25 +147,24 @@ public class TrcPidController
      */
     public static class PidParameters
     {
-        public PidCoefficients pidCoeff;
-        public double tolerance;
-        public double stallTolerance;
-        public double settlingTime;
+        private PidCoefficients pidCoeff;
+        private double tolerance;
+        private double steadyStateError;
+        private final double settlingTime;
 
         /**
          * Constructor: Create an instance of the object.
          *
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
-         * @param stallTolerance specifies the tolerance for detecting stall condition.
+         * @param steadyStateError specifies the acceptable steady state error.
          * @param settlingTime specifies the minimum on target settling time.
          */
-        public PidParameters(PidCoefficients pidCoeff, double tolerance, double stallTolerance, double settlingTime)
+        public PidParameters(PidCoefficients pidCoeff, double tolerance, double steadyStateError, double settlingTime)
         {
             this.pidCoeff = pidCoeff;
-            this.tolerance = Math.abs(tolerance);
-            this.stallTolerance = stallTolerance;
             this.settlingTime = Math.abs(settlingTime);
+            setErrorTolerances(tolerance, steadyStateError);
         }   //PidParameters
 
         /**
@@ -174,7 +175,7 @@ public class TrcPidController
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance)
         {
-            this(pidCoeff, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
+            this(pidCoeff, tolerance, tolerance, DEF_SETTLING_TIME);
         }   //PidParameters
 
         /**
@@ -186,14 +187,14 @@ public class TrcPidController
          * @param kF specifies the Feed forward constant.
          * @param iZone specifies the integral zone.
          * @param tolerance specifies the tolerance.
-         * @param stallTolerance specifies the tolerance for detecting stall condition.
+         * @param steadyStateError specifies the acceptable steady state error.
          * @param settlingTime specifies the minimum on target settling time.
          */
         public PidParameters(
-            double kP, double kI, double kD, double kF, double iZone, double tolerance, double stallTolerance,
+            double kP, double kI, double kD, double kF, double iZone, double tolerance, double steadyStateError,
             double settlingTime)
         {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, stallTolerance, settlingTime);
+            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, steadyStateError, settlingTime);
         }   //PidParameters
 
         /**
@@ -208,7 +209,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance, double settlingTime)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, settlingTime);
+            this(kP, kI, kD, kF, 0.0, tolerance, tolerance, settlingTime);
         }   //PidParameters
 
         /**
@@ -222,7 +223,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
+            this(kP, kI, kD, kF, 0.0, tolerance, tolerance, DEF_SETTLING_TIME);
         }   //PidParameters
 
         /**
@@ -235,8 +236,35 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double tolerance)
         {
-            this(kP, kI, kD, 0.0, 0.0, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME);
+            this(kP, kI, kD, 0.0, 0.0, tolerance, tolerance, DEF_SETTLING_TIME);
         }   //PidParameters
+
+        /**
+         * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
+         * tolerance and steady state error and the error rate is zero, PID control will consider this is a stall
+         * condition (i.e. it won't make it to within tolerance but within acceptable steady state error). By default,
+         * steadyStateError is set to be the same as tolerance so that stall detection is effectively disabled. By
+         * setting steadyStateError larger than tolerance, the error range between tolerance and steadyStateError will
+         * become the stall detection zone in which if the error rate is zero, it will declare PID is stalled. If the
+         * PID controller is in stalled state, it is considered OnTarget even though it is not within tolerance. By
+         * adjusting steadyStateError, one can prevent the PID controller from hanging indefinitely and not reaching
+         * target by declaring OnTarget.
+         *
+         * @param steadyStateError specifies the acceptable steady state error.
+         */
+        public void setErrorTolerances(double tolerance, double steadyStateError)
+        {
+            tolerance = Math.abs(tolerance);
+            steadyStateError = Math.abs(steadyStateError);
+
+            if (tolerance > steadyStateError)
+            {
+                throw new IllegalArgumentException("steadyStateError must not be smaller than tolerance.");
+            }
+
+            this.tolerance = tolerance;
+            this.steadyStateError = steadyStateError;
+        }   //setErrorTolerances
 
         /**
          * This method returns all PID parameters in string form.
@@ -247,7 +275,8 @@ public class TrcPidController
         public String toString()
         {
             return String.format(
-                Locale.US, "pidCoeff=%s,tolerance=%.3f,settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
+                Locale.US, "pidCoeff=%s,tolerance=%.3f,steadyStateErr=%.3f,settlingTime=%.3f",
+                pidCoeff, tolerance, steadyStateError, settlingTime);
         }   //toString
 
     }   //class PidParameters
@@ -363,15 +392,15 @@ public class TrcPidController
      * @param instanceName specifies the instance name.
      * @param pidCoeff specifies the PID constants.
      * @param tolerance specifies the target tolerance.
-     * @param stallTolerance specifies the tolerance for detecting stall condition.
+     * @param steadyStateError specifies the acceptable steady state error.
      * @param settlingTime specifies the minimum on target settling time.
      * @param pidInput specifies the input provider.
      */
     public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double stallTolerance, double settlingTime,
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double steadyStateError, double settlingTime,
         PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, stallTolerance, settlingTime), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, steadyStateError, settlingTime), pidInput);
     }   //TrcPidController
 
     /**
@@ -383,13 +412,13 @@ public class TrcPidController
      * @param instanceName specifies the instance name.
      * @param pidCoeff specifies the PID constants.
      * @param tolerance specifies the target tolerance.
-     * @param stallTolerance specifies the tolerance for detecting stall condition.
+     * @param steadyStateError specifies the acceptable steady state error.
      * @param pidInput specifies the input provider.
      */
     public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double stallTolerance, PidInput pidInput)
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double steadyStateError, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, stallTolerance, DEF_SETTLING_TIME), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, steadyStateError, DEF_SETTLING_TIME), pidInput);
     }   //TrcPidController
 
     /**
@@ -406,8 +435,7 @@ public class TrcPidController
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(
-            pidCoeff, tolerance, tolerance*DEF_STALL_TOLERANCE_SCALE, DEF_SETTLING_TIME), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, tolerance, DEF_SETTLING_TIME), pidInput);
     }   //TrcPidController
 
     /**
@@ -751,17 +779,48 @@ public class TrcPidController
     }   //setRampRate
 
     /**
-     * This method sets a new target tolerance.
+     * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
+     * tolerance and steady state error and the error rate is zero, PID control will consider this is a stall
+     * condition (i.e. it won't make it to within tolerance but within acceptable steady state error). By default,
+     * steadyStateError is set to be the same as tolerance so that stall detection is effectively disabled. By
+     * setting steadyStateError larger than tolerance, the error range between tolerance and steadyStateError will
+     * become the stall detection zone in which if the error rate is zero, it will declare PID is stalled. If the
+     * PID controller is in stalled state, it is considered OnTarget even though it is not within tolerance. By
+     * adjusting steadyStateError, one can prevent the PID controller from hanging indefinitely and not reaching
+     * target by declaring OnTarget.
+     *
+     * @param steadyStateError specifies the acceptable steady state error.
+     */
+    public void setErrorTolerances(double tolerance, double steadyStateError)
+    {
+        synchronized (pidCtrlState)
+        {
+            pidParams.setErrorTolerances(tolerance, steadyStateError);
+        }
+    }   //setErrorTolerances
+
+    /**
+     * This method sets a new target tolerance. This will also reset steadyStateError to be the same as tolerance.
+     * If you wish to set a different steadyStateError, you should call setErrorTolerances instead.
      *
      * @param tolerance specifies the new target tolerance.
      */
     public void setTargetTolerance(double tolerance)
     {
-        synchronized (pidCtrlState)
-        {
-            this.pidParams.tolerance = tolerance;
-        }
+        setErrorTolerances(tolerance, tolerance);
     }   //setTargetTolerance
+
+    /**
+     * This method sets a new steady state error to the value of tolerance multiplied by the given multiplier.
+     *
+     * @param multiplier specifies the tolerance multiplier to calculate the new steadyStateError.
+     */
+    public void setSteadyStateErrorByMultiplier(double multiplier)
+    {
+        double tolerance = pidParams.tolerance;
+        double steadyStateError = tolerance * Math.abs(multiplier);
+        setErrorTolerances(tolerance, steadyStateError);
+    }   //setSteadyStateErrorByMultiplier
 
     /**
      * This method sets a range limit on the target set point.
@@ -1151,10 +1210,11 @@ public class TrcPidController
                 }
             }
             //
-            // We consider it on-target if error is within tolerance for the settling period or if error is within two
-            // times of tolerance and there is no movement for the period of settling time.
+            // We consider it on-target if error is within tolerance for the settling period or if error is within
+            // steadyStateError and there is no movement for the period of settling time.
             //
-            else if (absErr > pidParams.stallTolerance || absErr > pidParams.tolerance && pidCtrlState.errorRate != 0.0)
+            else if (absErr > pidParams.steadyStateError ||
+                     absErr > pidParams.tolerance && pidCtrlState.errorRate != 0.0)
             {
                 pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
             }
