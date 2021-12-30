@@ -216,6 +216,36 @@ public class TrcPurePursuitDrive
     }   //toString
 
     /**
+     * This method returns the X position PID controller created for Pure Pursuit Drive.
+     *
+     * @return X position PID controller.
+     */
+    public TrcPidController getXPosPidCtrl()
+    {
+        return xPosPidCtrl;
+    }   //getXPosPidCtrl
+
+    /**
+     * This method returns the Y position PID controller created for the Pure Pursuit Drive.
+     *
+     * @return Y position PID controller.
+     */
+    public TrcPidController getYPosPidCtrl()
+    {
+        return yPosPidCtrl;
+    }   //getYPosPidCtrl
+
+    /**
+     * This method returns the turn PID controller created for the Pure Pursuit Drive.
+     *
+     * @return turn PID controller.
+     */
+    public TrcPidController getTurnPidCtrl()
+    {
+        return turnPidCtrl;
+    }   //getTurnPidCtrl
+
+    /**
      * This method sets the message tracer for logging trace messages.
      *
      * @param tracer specifies the tracer for logging messages.
