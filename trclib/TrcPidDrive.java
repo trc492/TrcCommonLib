@@ -75,6 +75,13 @@ public class TrcPidDrive
     private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
 
+    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
+    private static final double DEF_STALL_TIMEOUT = 0.2;
+    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
+    private double stallDetectionDelay = 0.0;
+    private double stallTimeout = 0.0;
+    private double stallDetectionStartTime = 0.0;
+
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private final TrcPidController xPidCtrl;
@@ -97,7 +104,6 @@ public class TrcPidDrive
     private TrcTone beepDevice = null;
     private double beepFrequency = DEF_BEEP_FREQUENCY;
     private double beepDuration = DEF_BEEP_DURATION;
-    private double stallTimeout = 0.0;
     private TrcEvent notifyEvent = null;
     private double expiredTime = 0.0;
     private double manualX = 0.0;
@@ -466,23 +472,47 @@ public class TrcPidDrive
     }   //setBeep
 
     /**
-     * This method sets the stall timeout which is the minimum elapsed time for the wheels to be motionless to be
-     * considered stalled.
+     * This method enables/disables stall detection.
      *
-     * @param stallTimeout specifies stall timeout in seconds.
+     * @param stallDetectionDelay specifies stall detection start delay in seconds.
+     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
+     *        motionless to be considered stalled.
+     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
      */
-    public synchronized void setStallTimeout(double stallTimeout)
+    public synchronized void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
     {
-        final String funcName = "setStallTimeout";
+        final String funcName = "setStallDetectionEnabled";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "timeout=%.3f", stallTimeout);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "detectionDelay=%.3f,timeout=%.3f,velThreshold=%.3f",
+                stallDetectionDelay, stallTimeout, stallVelThreshold);
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
+        this.stallDetectionDelay = stallDetectionDelay;
         this.stallTimeout = stallTimeout;
-    }   //setStallTimeout
+        driveBase.setStallVelocityThreshold(stallVelThreshold);
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param enabled specifies true to enable stall detection, false to disable.
+     */
+    public void setStallDetectionEnabled(boolean enabled)
+    {
+        if (enabled)
+        {
+            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
+        }
+        else
+        {
+            setStallDetectionEnabled(0.0, 0.0, 0.0);
+        }
+    }   //setStallDetectionEnabled
 
     /**
      * This method starts a PID operation by setting the PID targets.
@@ -548,11 +578,9 @@ public class TrcPidDrive
         }
         this.notifyEvent = event;
 
-        this.expiredTime = timeout;
-        if (timeout != 0)
-        {
-            this.expiredTime += TrcUtil.getCurrentTime();
-        }
+        double currTime = TrcUtil.getCurrentTime();
+        expiredTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
+        stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
         this.holdTarget = holdTarget;
         this.turnOnly = xError == 0.0 && yError == 0.0 && turnError != 0.0;
@@ -1449,8 +1477,10 @@ public class TrcPidDrive
         double yPower = turnOnly || yPidCtrl == null? 0.0: yPidCtrl.getOutput();
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
 
-        boolean expired = expiredTime != 0.0 && TrcUtil.getCurrentTime() >= expiredTime;
-        boolean stalled = stallTimeout != 0.0 && driveBase.isStalled(stallTimeout);
+        double currTime = TrcUtil.getCurrentTime();
+        boolean expired = TrcUtil.getCurrentTime() >= expiredTime;
+        boolean stalled =
+            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();
         boolean yOnTarget = yPidCtrl == null || yPidCtrl.isOnTarget();
         boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget();

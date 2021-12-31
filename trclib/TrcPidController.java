@@ -846,8 +846,7 @@ public class TrcPidController
 //    }   //setErrorTolerances
 
     /**
-     * This method sets a new target tolerance. This will also reset steadyStateError to be the same as tolerance.
-     * If you wish to set a different steadyStateError, you should call setErrorTolerances instead.
+     * This method sets a new target tolerance.
      *
      * @param tolerance specifies the new target tolerance.
      */
@@ -1268,8 +1267,7 @@ public class TrcPidController
                 }
             }
             //
-            // We consider it on-target if error is within tolerance for the settling period or if error is within
-            // steadyStateError and there is no significant movement for the period of settling time.
+            // We consider it on-target if error is within tolerance for the settling period.
             //
 //            else if (absErr > pidParams.steadyStateError ||
 //                     absErr > pidParams.tolerance && Math.abs(pidCtrlState.errorRate) > stallVelThreshold)
