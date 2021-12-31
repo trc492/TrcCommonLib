@@ -1011,7 +1011,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     protected void setStallVelocityThreshold(double stallVelThreshold)
     {
-        this.stallVelThreshold = stallVelThreshold;
+        this.stallVelThreshold = Math.abs(stallVelThreshold);
     }   //setStallVelocityThreshold
 
     /**
