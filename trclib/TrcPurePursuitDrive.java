@@ -137,14 +137,18 @@ public class TrcPurePursuitDrive
      * @param driveBase specifies the reference to the drive base.
      * @param proximityRadius specifies the distance between the robot and next following point.
      * @param posTolerance specifies the position tolerance.
+     * @param posSteadyStateError specifies the acceptable position steady state error, must be larger than
+     *        posTolerance.
      * @param turnTolerance specifies the turn tolerance.
+     * @param turnSteadyStateError specifies the acceptable turn steady state error, must be larger than turnTolerance.
      * @param xPosPidCoeff specifies the position PID coefficients for X.
      * @param yPosPidCoeff specifies the position PID coefficients for Y.
      * @param turnPidCoeff specifies the turn PID coefficients.
      * @param velPidCoeff specifies the velocity PID coefficients.
      */
     public TrcPurePursuitDrive(
-        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance, double turnTolerance,
+        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance,
+        double posSteadyStateError, double turnTolerance, double turnSteadyStateError,
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
         TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
@@ -170,9 +174,10 @@ public class TrcPurePursuitDrive
         if (invertedTarget)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
-                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, this::getXPosition);
+                new TrcPidController(
+                    instanceName + ".xPosPid", xPosPidCoeff, posTolerance, posSteadyStateError, this::getXPosition);
             yPosPidCtrl = new TrcPidController(
-                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, this::getYPosition);
+                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, posSteadyStateError, this::getYPosition);
             if (xPosPidCtrl != null)
             {
                 xPosPidCtrl.setAbsoluteSetPoint(true);
@@ -190,7 +195,7 @@ public class TrcPurePursuitDrive
         }
 
         turnPidCtrl = new TrcPidController(
-            instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
+            instanceName + ".turnPid", turnPidCoeff, turnTolerance, turnSteadyStateError, driveBase::getHeading);
         turnPidCtrl.setAbsoluteSetPoint(true);
         turnPidCtrl.setNoOscillation(true);
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
@@ -202,6 +207,28 @@ public class TrcPurePursuitDrive
 
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
+    }   //TrcPurePursuitDrive
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param driveBase specifies the reference to the drive base.
+     * @param proximityRadius specifies the distance between the robot and next following point.
+     * @param posTolerance specifies the position tolerance.
+     * @param turnTolerance specifies the turn tolerance.
+     * @param xPosPidCoeff specifies the position PID coefficients for X.
+     * @param yPosPidCoeff specifies the position PID coefficients for Y.
+     * @param turnPidCoeff specifies the turn PID coefficients.
+     * @param velPidCoeff specifies the velocity PID coefficients.
+     */
+    public TrcPurePursuitDrive(
+        String instanceName, TrcDriveBase driveBase, double proximityRadius, double posTolerance, double turnTolerance,
+        TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
+        TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
+    {
+        this(instanceName, driveBase, proximityRadius, posTolerance, posTolerance, turnTolerance, turnTolerance,
+             xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
     }   //TrcPurePursuitDrive
 
     /**
