@@ -346,7 +346,6 @@ public class TrcPidController
         double dTerm = 0.0;
         double fTerm = 0.0;
         double output = 0.0;
-        boolean stalled = false;
 
         /**
          * This method resets the PID controller state.
@@ -367,7 +366,6 @@ public class TrcPidController
             dTerm = 0.0;
             fTerm = 0.0;
             output = 0.0;
-            stalled = false;
         }   //reset
 
     }   //class PidCtrlState
@@ -547,12 +545,12 @@ public class TrcPidController
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), stalled=%s" +
+                            ", Output=%6.3f(%6.3f/%6.3f)" +
                             ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f" +
                             ", Volt=%.1f(%.1f)",
                             TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput, pidCtrlState.stalled,
+                            pidCtrlState.output, minOutput, maxOutput,
                             pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
                             TrcUtil.getModeElapsedTime(pidCtrlState.currTime),
                             battery.getVoltage(), battery.getLowestVoltage());
@@ -562,11 +560,11 @@ public class TrcPidController
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), stalled=%s" +
+                            ", Output=%6.3f(%6.3f/%6.3f)" +
                             ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
                             TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput, pidCtrlState.stalled,
+                            pidCtrlState.output, minOutput, maxOutput,
                             pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
                     }
                 }
@@ -577,11 +575,11 @@ public class TrcPidController
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), stalled=%s" +
+                            ", Output=%6.3f(%6.3f/%6.3f)" +
                             ", Volt=%.1f(%.1f)",
                             TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput, pidCtrlState.stalled,
+                            pidCtrlState.output, minOutput, maxOutput,
                             battery.getVoltage(), battery.getLowestVoltage());
                     }
                     else
@@ -589,10 +587,10 @@ public class TrcPidController
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), stalled=%s",
+                            ", Output=%6.3f(%6.3f/%6.3f)",
                             TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput, pidCtrlState.stalled);
+                            pidCtrlState.output, minOutput, maxOutput);
                     }
                 }
 //                StringBuilder msg = new StringBuilder();
@@ -1152,7 +1150,6 @@ public class TrcPidController
                 pidCtrlState.errorRate = 0.0;
                 pidCtrlState.totalError = 0.0;
                 pidCtrlState.setPointSign = Math.signum(error);
-                pidCtrlState.stalled = false;
 
                 pidCtrlState.currTime = pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
             }
@@ -1287,11 +1284,6 @@ public class TrcPidController
                     dbgTrace.traceInfo(
                         funcName, "startTime=%.3f, currTime=%.3f, err=%.3f",
                         pidCtrlState.settlingStartTime, currTime, pidCtrlState.currError);
-                }
-
-                if (absErr > pidParams.tolerance)
-                {
-                    pidCtrlState.stalled = true;
                 }
 
                 onTarget = true;
