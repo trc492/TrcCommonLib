@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import androidx.annotation.NonNull;
-
 import java.util.EmptyStackException;
 import java.util.Locale;
 import java.util.Stack;
