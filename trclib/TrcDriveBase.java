@@ -102,7 +102,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
          *
          * @return a copy of this odometry.
          */
-        @NonNull
         public Odometry clone()
         {
             return new Odometry(position.clone(), velocity.clone());

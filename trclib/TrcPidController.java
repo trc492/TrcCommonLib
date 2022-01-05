@@ -131,7 +131,6 @@ public class TrcPidController
          *
          * @return a copy of this object.
          */
-        @NonNull
         public PidCoefficients clone()
         {
             return new PidCoefficients(kP, kI, kD, kF, iZone);
