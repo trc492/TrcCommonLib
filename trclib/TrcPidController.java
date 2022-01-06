@@ -375,7 +375,7 @@ public class TrcPidController
     private boolean inverted = false;
     private boolean absSetPoint = false;
     private boolean noOscillation = false;
-    private double stallVelThreshold = 0.0;
+//    private double stallVelThreshold = 0.0;
     private double minTarget = 0.0;
     private double maxTarget = 0.0;
     private double minOutput = -1.0;

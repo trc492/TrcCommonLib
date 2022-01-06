@@ -308,10 +308,13 @@ public class TrcTimerMgr
                     Thread.sleep(sleepTimeInMsec);
                 }
 
-                if (debugEnabled && nextTimerToExpire != null)
+                if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%.3f]: timer=%s expired.",
-                            TrcUtil.getCurrentTime(), nextTimerToExpire);
+                    if (nextTimerToExpire != null)
+                    {
+                        dbgTrace.traceInfo(funcName, "[%.3f]: timer=%s expired.",
+                        TrcUtil.getCurrentTime(), nextTimerToExpire);
+                    }
                 }
 
                 synchronized (timerList)
