@@ -1116,6 +1116,10 @@ public class TrcPurePursuitDrive
                 // No valid intersection.
                 return null;
             }
+            else if (discriminant == 0.0 && a == 0.0)
+            {
+                return endWaypoint;
+            }
             else
             {
                 // line is a parametric equation, where t=0 is start waypoint, t=1 is end waypoint of the line segment.
@@ -1129,8 +1133,8 @@ public class TrcPurePursuitDrive
                 //
                 // t represents the furthest intersection point (the one closest to the end waypoint of the line segment).
                 //
-                double t1 = (-b - discriminant) / (2 * a);
-                double t2 = (-b + discriminant) / (2 * a);
+                double t1 = (-b - discriminant)/(2*a);
+                double t2 = (-b + discriminant)/(2*a);
                 double t = Math.max(t1, t2);
 
                 if (!TrcUtil.inRange(t, 0.0, 1.0))
