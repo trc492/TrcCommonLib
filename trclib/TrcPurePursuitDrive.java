@@ -591,7 +591,7 @@ public class TrcPurePursuitDrive
         stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
         referencePose = driveBase.getFieldPosition();
-        pathIndex = 0;
+        pathIndex = 1;
 
         if (xPosPidCtrl != null)
         {
@@ -1111,15 +1111,18 @@ public class TrcPurePursuitDrive
             double c = robotToStart.dotProduct(robotToStart) - proximityRadius * proximityRadius;
 
             double discriminant = b * b - 4 * a * c;
-            if (discriminant < 0)
+            if (discriminant < 0 || a == 0.0)
             {
-                // No valid intersection.
+                // No valid intersection or end waypoint has the same location as the start waypoint.
+                // (i.e. same x and y but could have different angles).
                 return null;
             }
-            else if (discriminant == 0.0 && a == 0.0)
-            {
-                return endWaypoint;
-            }
+//            else if (a == 0.0)
+//            {
+//                // The end waypoint has the same location as the start waypoint (i.e. same x and y but could have
+//                // different angles), just return the end waypoint to make it a turn-only drive.
+//                return endWaypoint;
+//            }
             else
             {
                 // line is a parametric equation, where t=0 is start waypoint, t=1 is end waypoint of the line segment.
