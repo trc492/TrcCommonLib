@@ -23,7 +23,7 @@
 package TrcCommonLib.trclib;
 
 import java.util.HashMap;
-import java.util.Locale;
+import java.util.NoSuchElementException;
 
 /**
  * This class implements the TrcHashMap. TrcHashMap extends HashMap and added the add method so you can easily
@@ -56,14 +56,14 @@ public class TrcHashMap<K, V> extends HashMap<K, V>
      *
      * @param key specifies the key of the mapping to look for.
      * @return the value mapped to the key.
-     * @throws IllegalArgumentException if key is not in hashmap.
+     * @throws NoSuchElementException if key is not in hashmap.
      */
     @Override
     public V get(Object key)
     {
         if (!containsKey(key))
         {
-            throw new IllegalArgumentException(String.format(Locale.US, "\"%s\" not found.", key));
+            throw new NoSuchElementException("\"" + key + "\"" + " not found.");
         }
 
         return super.get(key);
