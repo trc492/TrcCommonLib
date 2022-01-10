@@ -45,7 +45,7 @@ public class TrcDbgTrace
         UTIL(7),
         HIFREQ(8);
 
-        private int value;
+        private final int value;
 
         TraceLevel(int value)
         {
@@ -70,7 +70,7 @@ public class TrcDbgTrace
         INFO(4),
         VERBOSE(5);
 
-        private int value;
+        private final int value;
 
         MsgLevel(int value)
         {
@@ -324,39 +324,42 @@ public class TrcDbgTrace
      * @param state specifies the current state of the state machine.
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
+     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    public void traceStateInfo(Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcRobotBattery battery)
+    public void traceStateInfo(
+        Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
+        TrcRobotBattery battery)
     {
         StringBuilder msg = new StringBuilder();
 
         msg.append(String.format(Locale.US, "tag=\">>>>>\" state=\"%s\"", state));
-        if (driveBase != null && pidDrive != null && pidDrive.isActive())
+
+        if (driveBase != null)
         {
-            TrcPose2D robotPose = driveBase.getFieldPosition();
-            TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
-
-            if (pidDrive.getXPidCtrl() != null)
+            if (pidDrive != null && pidDrive.isActive())
             {
-                msg.append(String.format(Locale.US, " xPos=%6.2f xTarget=%6.2f", robotPose.x, targetPose.x));
+                TrcPose2D robotPose = driveBase.getFieldPosition();
+                TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
+                msg.append(" RobotPose=" + robotPose + " TargetPose=" + targetPose);
             }
 
-            if (pidDrive.getYPidCtrl() != null)
+            if (ppDrive != null && ppDrive.isActive())
             {
-                msg.append(String.format(Locale.US, " yPos=%6.2f yTarget=%6.2f", robotPose.y, targetPose.y));
-            }
-
-            if (pidDrive.getTurnPidCtrl() != null)
-            {
-                msg.append(String.format(Locale.US, " heading=%6.2f headingTarget=%6.2f",
-                        robotPose.angle, targetPose.angle));
+                TrcPose2D robotPose = driveBase.getFieldPosition();
+                TrcPose2D robotVel = driveBase.getFieldVelocity();
+                TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
+                msg.append(" RobotPose=" + robotPose +
+                           " TargetPose=" + targetPose +
+                           " vel=" + robotVel +
+                           " Path=" + ppDrive.getPath());
             }
         }
 
         if (battery != null)
         {
-            msg.append(String.format(Locale.US,
-                    " volt=\"%5.2fV(%5.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
+            msg.append(String.format(
+                Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
         }
 
         logEvent("traceStateInfo", "StateInfo", "%s", msg);
@@ -372,7 +375,20 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
     {
-        traceStateInfo(state, driveBase, pidDrive, null);
+        traceStateInfo(state, driveBase, pidDrive, null, null);
+    }   //traceStateInfo
+
+    /**
+     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     * If the state involves PID controlled driving, it also logs the robot's movement.
+     *
+     * @param state specifies the current state of the state machine.
+     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
+     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
+     */
+    public void traceStateInfo(Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
+    {
+        traceStateInfo(state, driveBase, null, ppDrive, null);
     }   //traceStateInfo
 
     /**
@@ -383,7 +399,7 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(Object state, TrcRobotBattery battery)
     {
-        traceStateInfo(state, null, null, battery);
+        traceStateInfo(state, null, null, null, battery);
     }   //traceStateInfo
 
     /**
@@ -393,7 +409,7 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(Object state)
     {
-        traceStateInfo(state, null, null, null);
+        traceStateInfo(state, null, null, null, null);
     }   //traceStateInfo
 
     /**
