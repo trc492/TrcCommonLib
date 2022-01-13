@@ -85,7 +85,7 @@ public class TrcHomographyMapper
         public String toString()
         {
             return String.format(Locale.US, "[topLeft%s, topRight%s, bottomLeft%s, bottomRight%s]",
-                    topLeft.toString(), topRight.toString(), bottomLeft.toString(), bottomRight.toString());
+                topLeft, topRight, bottomLeft, bottomRight);
         }   //toString
 
     }   //class Rectangle
@@ -114,12 +114,13 @@ public class TrcHomographyMapper
         MatOfPoint2f dstPoints = new MatOfPoint2f();
 
         srcList.add(srcTopLeft);
-        dstList.add(dstTopLeft);
         srcList.add(srcTopRight);
-        dstList.add(dstTopRight);
         srcList.add(srcBottomLeft);
-        dstList.add(dstBottomLeft);
         srcList.add(srcBottomRight);
+
+        dstList.add(dstTopLeft);
+        dstList.add(dstTopRight);
+        dstList.add(dstBottomLeft);
         dstList.add(dstBottomRight);
 
         srcPoints.fromList(srcList);
