@@ -131,6 +131,16 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
     }   //start
 
     /**
+     * This method starts the Pure Pursuit drive with the path specified in the given path file.
+     *
+     * @param pathFile specifies the file from which the drive path is retrieved.
+     */
+    public void start(String pathFile)
+    {
+        purePursuitDrive.start(pathFile);
+    }   //start
+
+    /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
      * @param timeout specifies the maximum time allowed for this operation.
