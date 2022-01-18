@@ -175,7 +175,7 @@ public class TrcTraceLogger
         //
         // Make sure we don't recursively log the performance message itself.
         //
-        if (perfTracer != null && !msg.startsWith(moduleName + "." + traceLogName)) //TODO: test this!
+        if (perfTracer != null && !msg.startsWith(moduleName + "." + traceLogName))
         {
             perfTracer.traceInfo(moduleName + "." + traceLogName, "Avg message log time = %.3f msec",
                     totalNanoTime/totalMessages/1000000000.0);
