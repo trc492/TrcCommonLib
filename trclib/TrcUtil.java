@@ -172,6 +172,66 @@ public class TrcUtil
         }
     }   //sleep
 
+//    /**
+//     * This method loads data points from a CSV file either on the external file system or attached resources.
+//     *
+//     * @param path specifies the file system path or resource name.
+//     * @param numElements specifies the number of elements in a data point.
+//     * @param loadFromResources specifies true if the data is from attached resources, false if from file system.
+//     * @return an array of data points.
+//     */
+//    public static <T> T[] loadDataPointsFromCsv(String path, int numElements, boolean loadFromResources)
+//    {
+//        T[] dataPoints = null;
+//
+//        if (!path.endsWith(".csv"))
+//        {
+//            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+//        }
+//
+//        try
+//        {
+//            BufferedReader in = new BufferedReader(
+//                loadFromResources?
+//                    new InputStreamReader(TrcUtil.class.getClassLoader().getResourceAsStream(path)):
+//                    new FileReader(path));
+//            List<T> pointList = new ArrayList<>();
+//            String line;
+//
+//            in.readLine();  // Get rid of the first header line
+//            while ((line = in.readLine()) != null)
+//            {
+//                String[] tokens = line.split(",");
+//
+//                if (tokens.length != numElements)
+//                {
+//                    throw new IllegalArgumentException("There must be " + numElements + " columns in the csv file!");
+//                }
+//
+//                double[] elements = new double[tokens.length];
+//
+//                for (int i = 0; i < elements.length; i++)
+//                {
+//                    elements[i] = Double.parseDouble(tokens[i]);
+//                }
+//
+//                Class<T> tClass;
+//                T point = tClass.newInstance();
+//
+//                pointList.add(point);
+//            }
+//            in.close();
+//
+//            dataPoints = pointList.toArray(new T[0]);
+//        }
+//        catch (IOException e)
+//        {
+//            throw new RuntimeException(e);
+//        }
+//
+//        return dataPoints;
+//    }   //loadPointsFromCsv
+
     /**
      * This method calculates the modulo of two numbers. Unlike the <code>%</code> operator, this returns a number
      * in the range [0, b). For some reason, in Java, the <code>%</code> operator actually does remainder, which

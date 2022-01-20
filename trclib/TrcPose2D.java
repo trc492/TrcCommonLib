@@ -25,6 +25,12 @@ package TrcCommonLib.trclib;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealVector;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -69,6 +75,17 @@ public class TrcPose2D
     /**
      * Constructor: Create an instance of the object.
      *
+     * @param data specifies an array with 3 elements: x, y and angle.
+     * @throws ArrayIndexOutOfBoundsException if array size is less than 3.
+     */
+    public TrcPose2D(double[] data)
+    {
+        this(data[0], data[1], data[2]);
+    }   //TrcPose2D
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
      * @param x specifies the x coordinate of the position.
      * @param y specifies the y coordinate of the position.
      */
@@ -95,6 +112,63 @@ public class TrcPose2D
     {
         return String.format(Locale.US, "(x=%.1f,y=%.1f,angle=%.1f)", x, y, angle);
     }   //toString
+
+    /**
+     * This method loads pose data from a CSV file either on the external file system or attached resources.
+     *
+     * @param path specifies the file system path or resource name.
+     * @param loadFromResources specifies true if the data is from attached resources, false if from file system.
+     * @return an array of poses.
+     */
+    public static TrcPose2D[] loadPosesFromCsv(String path, boolean loadFromResources)
+    {
+        TrcPose2D[] poses;
+
+        if (!path.endsWith(".csv"))
+        {
+            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+        }
+
+        try
+        {
+            BufferedReader in = new BufferedReader(
+                loadFromResources?
+                    new InputStreamReader(TrcPose2D.class.getClassLoader().getResourceAsStream(path)):
+                    new FileReader(path));
+            List<TrcPose2D> poseList = new ArrayList<>();
+            String line;
+
+            in.readLine();  // Get rid of the first header line
+            while ((line = in.readLine()) != null)
+            {
+                String[] tokens = line.split(",");
+
+                if (tokens.length != 3)
+                {
+                    throw new IllegalArgumentException("There must be 3 columns in the csv file!");
+                }
+
+                double[] elements = new double[tokens.length];
+
+                for (int i = 0; i < elements.length; i++)
+                {
+                    elements[i] = Double.parseDouble(tokens[i]);
+                }
+
+                TrcPose2D pose = new TrcPose2D(elements[0], elements[1], elements[2]);
+                poseList.add(pose);
+            }
+            in.close();
+
+            poses = poseList.toArray(new TrcPose2D[0]);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        return poses;
+    }   //loadPosesFromCsv
 
     /**
      * This method compares this pose with the specified pose for equality.

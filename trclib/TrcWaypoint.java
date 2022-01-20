@@ -85,6 +85,17 @@ public class TrcWaypoint
     }   //TrcWaypoint
 
     /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param data specifies an array with 8 elements: timeStep, x, y, heading pos, vel, accel and jerk.
+     * @throws ArrayIndexOutOfBoundsException if array size is less than 8.
+     */
+    public TrcWaypoint(double[] data)
+    {
+        this(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+    }   //TrcWaypoint
+
+    /**
      * Copy constructor: Create a copy of the given object.
      *
      * @param other specifies the other object to be copied.
@@ -143,13 +154,13 @@ public class TrcWaypoint
     /**
      * This method loads waypoint data from a CSV file either on the external file system or attached resources.
      *
-     * @param path              specifies the file system path or resource name.
+     * @param path specifies the file system path or resource name.
      * @param loadFromResources specifies true if the data is from attached resources, false if from file system.
      * @return an array of waypoints.
      */
     public static TrcWaypoint[] loadPointsFromCsv(String path, boolean loadFromResources)
     {
-        TrcWaypoint[] waypoints = null;
+        TrcWaypoint[] waypoints;
 
         if (!path.endsWith(".csv"))
         {
@@ -158,22 +169,14 @@ public class TrcWaypoint
 
         try
         {
-            BufferedReader in;
-
-            if (loadFromResources)
-            {
-                in = new BufferedReader(
-                    new InputStreamReader(TrcWaypoint.class.getClassLoader().getResourceAsStream(path)));
-            }
-            else
-            {
-                in = new BufferedReader(new FileReader(path));
-            }
-
-            List<TrcWaypoint> points = new ArrayList<>();
+            BufferedReader in = new BufferedReader(
+                loadFromResources?
+                    new InputStreamReader(TrcWaypoint.class.getClassLoader().getResourceAsStream(path)):
+                    new FileReader(path));
+            List<TrcWaypoint> pointList = new ArrayList<>();
             String line;
 
-            in.readLine(); // Get rid of the first header line
+            in.readLine();  // Get rid of the first header line
             while ((line = in.readLine()) != null)
             {
                 String[] tokens = line.split(",");
@@ -183,20 +186,21 @@ public class TrcWaypoint
                     throw new IllegalArgumentException("There must be 8 columns in the csv file!");
                 }
 
-                double[] parts = new double[tokens.length];
+                double[] elements = new double[tokens.length];
 
-                for (int i = 0; i < parts.length; i++)
+                for (int i = 0; i < elements.length; i++)
                 {
-                    parts[i] = Double.parseDouble(tokens[i]);
+                    elements[i] = Double.parseDouble(tokens[i]);
                 }
 
-                TrcWaypoint point = new TrcWaypoint(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5],
-                    parts[6], parts[7]);
-                points.add(point);
+                TrcWaypoint point = new TrcWaypoint(
+                    elements[0], elements[1], elements[2], elements[3], elements[4], elements[5], elements[6],
+                    elements[7]);
+                pointList.add(point);
             }
             in.close();
 
-            waypoints = points.toArray(new TrcWaypoint[0]);
+            waypoints = pointList.toArray(new TrcWaypoint[0]);
         }
         catch (IOException e)
         {
