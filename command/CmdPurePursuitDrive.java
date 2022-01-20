@@ -170,6 +170,24 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
     }   //start
 
     /**
+     * This method starts the Pure Pursuit drive with the specified poses read either from the built-in resources
+     * or from a file.
+     *
+     * @param timeout specifies the maximum time allowed for this operation.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param path specifies the file system path or resource name.
+     * @param loadFromResources specifies true if the data is from attached resources, false if from file system.
+     */
+    public void start(
+        double timeout, TrcPose2D startingPose, boolean incrementalPath, String path, boolean loadFromResources)
+    {
+        purePursuitDrive.start(
+            event, timeout, startingPose, incrementalPath, null, null, path, loadFromResources);
+    }   //start
+
+    /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
      * @param startingPose specifies the starting pose at the beginning of the path.
