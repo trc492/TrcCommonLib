@@ -322,6 +322,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             odometryTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
 
+        for (int i = 0; i < motors.length; i++)
+        {
+            ((TrcMotor) motors[i]).setOdometryEnabled(enabled);
+        }
+
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
