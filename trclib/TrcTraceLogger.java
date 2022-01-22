@@ -96,6 +96,7 @@ public class TrcTraceLogger
             }
             catch (IOException e)
             {
+                e.printStackTrace();
                 throw new RuntimeException("Failed to open trace log file " + traceLogName);
             }
             loggerThread = new Thread(this::loggerTask, traceLogName);
