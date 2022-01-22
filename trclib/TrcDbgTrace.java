@@ -212,7 +212,10 @@ public class TrcDbgTrace
         // Create the folder if it doesn't exist.
         //
         File folder = new File(folderPath);
-        folder.mkdir();
+        if (!folder.exists())
+        {
+            folder.mkdirs();
+        }
         //
         // Create full log file path.
         //
