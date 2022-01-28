@@ -242,9 +242,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         }
         resetOdometry(true, true);
 
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
-        odometryTaskObj = taskMgr.createTask(moduleName + ".odometryTask", this::odometryTask);
-        TrcTaskMgr.TaskObject stopTaskObj = taskMgr.createTask(moduleName + ".stopTask", this::stopTask);
+        odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", this::odometryTask);
+        TrcTaskMgr.TaskObject stopTaskObj = TrcTaskMgr.createTask(moduleName + ".stopTask", this::stopTask);
         stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
 
         xScale = yScale = angleScale = 1.0;

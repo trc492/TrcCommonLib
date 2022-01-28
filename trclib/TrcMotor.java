@@ -122,7 +122,6 @@ public abstract class TrcMotor implements TrcMotorController
         this.instanceName = instanceName;
         this.odometry = new Odometry(this);
 
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
         if (odometryTaskObj == null)
         {
             //
@@ -131,11 +130,11 @@ public abstract class TrcMotor implements TrcMotorController
             // much. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
             // many threads.
             //
-            odometryTaskObj = taskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
-            cleanupTaskObj = taskMgr.createTask(instanceName + ".cleanupTask", this::cleanupTask);
+            odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
+            cleanupTaskObj = TrcTaskMgr.createTask(instanceName + ".cleanupTask", this::cleanupTask);
             cleanupTaskObj.registerTask(TaskType.STOP_TASK);
         }
-        velocityCtrlTaskObj = taskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
+        velocityCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
         timer = new TrcTimer("motorTimer." + instanceName);
     }   //TrcMotor
 

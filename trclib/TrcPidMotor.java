@@ -150,9 +150,8 @@ public class TrcPidMotor
         this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams, this::getPosition);
         this.defCalPower = -Math.abs(defCalPower);
         this.powerCompensation = powerCompensation;
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
-        pidMotorTaskObj = taskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
-        stopMotorTaskObj = taskMgr.createTask(instanceName + ".stopMotorTask", this::stopMotorTask);
+        pidMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
+        stopMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".stopMotorTask", this::stopMotorTask);
     }   //TrcPidMotor
 
     /**
