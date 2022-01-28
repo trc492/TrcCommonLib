@@ -143,9 +143,8 @@ public class TrcPidDrive
         this.yPidCtrl = yPidCtrl;
         this.turnPidCtrl = turnPidCtrl;
         resetAbsoluteTargetPose();
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
-        driveTaskObj = taskMgr.createTask(instanceName + ".driveTask", this::driveTask);
-        stopTaskObj = taskMgr.createTask(instanceName + ".stopTask", this::stopTask);
+        driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
+        stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);
 
         if (turnPidCtrl != null && turnPidCtrl.hasAbsoluteSetPoint())
         {

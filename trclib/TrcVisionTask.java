@@ -103,7 +103,7 @@ public class TrcVisionTask<I, O>
         this.visionProcessor = visionProcessor;
         this.imageBuffers = imageBuffers;
         this.detectedObjectBuffers = detectedObjectBuffers;
-        visionTaskObj = TrcTaskMgr.getInstance().createTask(instanceName, this::visionTask);
+        visionTaskObj = TrcTaskMgr.createTask(instanceName, this::visionTask);
     }   //TrcVisionTask
 
     /**

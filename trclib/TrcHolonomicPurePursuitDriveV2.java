@@ -113,7 +113,7 @@ public class TrcHolonomicPurePursuitDriveV2
 
         turnPidCtrl.setNoOscillation(true);
 
-        this.driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
+        this.driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
     }   //TrcHolonomicPurePursuitDriveV2
 
     /**

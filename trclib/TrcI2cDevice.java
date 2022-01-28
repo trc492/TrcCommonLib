@@ -192,8 +192,7 @@ public abstract class TrcI2cDevice
         }
 
         this.instanceName = instanceName;
-        i2cDeviceTaskObj = TrcTaskMgr.getInstance().createTask(
-                instanceName + ".i2cDeviceTask", this::i2cDeviceTask);
+        i2cDeviceTaskObj = TrcTaskMgr.createTask(instanceName + ".i2cDeviceTask", this::i2cDeviceTask);
         portCommandSM = new TrcStateMachine<>(instanceName);
     }   //TrcI2cDevice
 

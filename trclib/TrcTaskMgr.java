@@ -33,13 +33,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class TrcTaskMgr
 {
     private static final String moduleName = "TrcTaskMgr";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private static TrcDbgTrace dbgTrace = null;
+    private static TrcDbgTrace dbgTrace = TrcDbgTrace.getGlobalTracer();
 
     public static final long INPUT_THREAD_INTERVAL = 20;        // in msec
     public static final long OUTPUT_THREAD_INTERVAL = 20;       // in msec
@@ -252,7 +247,7 @@ public class TrcTaskMgr
                         // There is only one global input thread. All INPUT_TASKs run on this thread.
                         // The input thread is created on first registration, so create it if not already.
                         //
-                        TrcTaskMgr.getInstance().startInputThread();
+                        TrcTaskMgr.startInputThread();
                     }
                     else if (type == TaskType.OUTPUT_TASK)
                     {
@@ -260,7 +255,7 @@ public class TrcTaskMgr
                         // There is only one global output thread. All OUTPUT_TASKs run on this thread.
                         // The output thread is created on first registration, so create it if not already.
                         //
-                        TrcTaskMgr.getInstance().startOutputThread();
+                        TrcTaskMgr.startOutputThread();
                     }
                 }
             }
@@ -289,7 +284,7 @@ public class TrcTaskMgr
          */
         public boolean registerTask(TaskType type)
         {
-            return registerTask(type, 0);
+            return registerTask(type, 0, Thread.NORM_PRIORITY);
         }   //registerTask
 
         /**
@@ -486,7 +481,7 @@ public class TrcTaskMgr
             int slotCount = taskTimeSlotCounts[taskType.value];
 
             return slotCount == 0 ? 0.0 : (double)taskTotalElapsedTimes[taskType.value]/slotCount/1000000000.0;
-        } //getAverageTaskElapsedTime
+        }   //getAverageTaskElapsedTime
 
         /**
          * This method returns the average task interval time in seconds.
@@ -503,62 +498,31 @@ public class TrcTaskMgr
 
     }   //class TaskObject
 
-    private static TrcTaskMgr instance = null;
-    private List<TaskObject> taskList = new CopyOnWriteArrayList<>();
-    private TrcPeriodicThread<Object> inputThread = null;
-    private TrcPeriodicThread<Object> outputThread = null;
-
-    /**
-     * Constructor: Creates the global instance of task manager. There can only be one global instance of
-     * task manager and is created on the first call to getInstance(). Any subsequent calls to getInstance()
-     * will get the same global instance.
-     */
-    private TrcTaskMgr()
-    {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer? globalTracer: new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-    }   //TrcTaskMgr
-
-    /**
-     * This method returns the global instance of TrcTaskMgr. If Task Manager does not exist yet, one is created.
-     *
-     * @return global instance of TrcTaskMgr.
-     */
-    public static TrcTaskMgr getInstance()
-    {
-        if (instance == null)
-        {
-            instance = new TrcTaskMgr();
-        }
-
-        return instance;
-    }   //getInstance
+    private static List<TaskObject> taskList = new CopyOnWriteArrayList<>();
+    private static TrcPeriodicThread<Object> inputThread = null;
+    private static TrcPeriodicThread<Object> outputThread = null;
 
     /**
      * This method is called by registerTask for INPUT_TASK to create the input thread if not already.
      */
-    private synchronized void startInputThread()
+    private static synchronized void startInputThread()
     {
         if (inputThread == null)
         {
             inputThread = startThread(
-                    moduleName + ".inputThread", this::inputTask,
-                    INPUT_THREAD_INTERVAL, Thread.MAX_PRIORITY);
+                moduleName + ".inputThread", TrcTaskMgr::inputTask, INPUT_THREAD_INTERVAL, Thread.MAX_PRIORITY);
         }
     }   //startInputThread
 
     /**
      * This method is called by registerTask for OUTPUT_TASK to create the output thread if not already.
      */
-    private synchronized void startOutputThread()
+    private static synchronized void startOutputThread()
     {
         if (outputThread == null)
         {
             outputThread = startThread(
-                    moduleName + ".outputThread", this::outputTask,
-                    OUTPUT_THREAD_INTERVAL, Thread.MAX_PRIORITY);
+                moduleName + ".outputThread", TrcTaskMgr::outputTask, OUTPUT_THREAD_INTERVAL, Thread.MAX_PRIORITY);
         }
     }   //startOutputThread
 
@@ -571,8 +535,8 @@ public class TrcTaskMgr
      * @param taskPriority specifies the thread priority.
      * @return the created thread.
      */
-    private TrcPeriodicThread<Object> startThread(
-            String instanceName, TrcPeriodicThread.PeriodicTask task, long interval, int taskPriority)
+    private static TrcPeriodicThread<Object> startThread(
+        String instanceName, TrcPeriodicThread.PeriodicTask task, long interval, int taskPriority)
     {
         TrcPeriodicThread<Object> thread = new TrcPeriodicThread<>(instanceName, task, null, taskPriority);
         thread.setProcessingInterval(interval);
@@ -589,7 +553,7 @@ public class TrcTaskMgr
      * @param task specifies the Task interface for this task.
      * @return created task object.
      */
-    public TaskObject createTask(final String taskName, Task task)
+    public static TaskObject createTask(final String taskName, Task task)
     {
         final String funcName = "createTask";
         TaskObject taskObj;
@@ -615,7 +579,7 @@ public class TrcTaskMgr
      * before shutdown can be called especially if stopMode code is doing logging I/O (e.g. printPerformanceMetrics).
      * This provides an earlier chance for us to stop all task threads before it's too late.
      */
-    public void terminateAllThreads()
+    public static void terminateAllThreads()
     {
         TrcTimerMgr.shutdown();
 
@@ -647,7 +611,7 @@ public class TrcTaskMgr
      * This method is called at the end of the robot program (FtcOpMode in FTC or FrcRobotBase in FRC) to terminate
      * all threads if any and remove all task from the task list.
      */
-    public void shutdown()
+    public static void shutdown()
     {
         terminateAllThreads();
         TrcNotifier.shutdown();
@@ -661,7 +625,7 @@ public class TrcTaskMgr
      * @param type specifies the task type to be executed.
      * @param mode specifies the robot run mode.
      */
-    public void executeTaskType(TaskType type, TrcRobot.RunMode mode)
+    public static void executeTaskType(TaskType type, TrcRobot.RunMode mode)
     {
         //
         // Traverse the list backward because we are removing task objects from the list on STOP_TASK.
@@ -722,7 +686,7 @@ public class TrcTaskMgr
      *
      * @param context specifies the context (not used).
      */
-    private void inputTask(Object context)
+    private static void inputTask(Object context)
     {
         executeTaskType(TaskType.INPUT_TASK, TrcRobot.getRunMode());
     }   //inputTask
@@ -732,7 +696,7 @@ public class TrcTaskMgr
      *
      * @param context specifies the context (not used).
      */
-    private void outputTask(Object context)
+    private static void outputTask(Object context)
     {
         executeTaskType(TaskType.OUTPUT_TASK, TrcRobot.getRunMode());
     }   //outputTask
@@ -742,7 +706,7 @@ public class TrcTaskMgr
      *
      * @param tracer specifies the tracer to be used for printing the task performance metrics.
      */
-    public void printTaskPerformanceMetrics(TrcDbgTrace tracer)
+    public static void printTaskPerformanceMetrics(TrcDbgTrace tracer)
     {
         for (TaskObject taskObj: taskList)
         {

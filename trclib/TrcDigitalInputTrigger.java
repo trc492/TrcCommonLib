@@ -52,7 +52,7 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
 
         this.sensor = sensor;
         this.triggerHandler = triggerHandler;
-        triggerTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".triggerTask", this::triggerTask);
+        triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
 
         sensorState = sensor.isActive();
     }   //TrcDigitalInputTrigger

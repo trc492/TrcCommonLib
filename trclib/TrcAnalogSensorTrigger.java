@@ -68,7 +68,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
         this.index = index;
         this.dataType = dataType;
         this.triggerHandler = triggerHandler;
-        triggerTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".triggerTask", this::triggerTask);
+        triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
 
         if (dataIsTrigger)
         {

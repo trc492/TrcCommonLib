@@ -82,7 +82,7 @@ public class TrcMaxbotixSonarArray
         this.sensors = sensors;
         this.rx = rx;
         this.loopConfig = loopConfig;
-        rangingTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".rangingTask", this::rangingTask);
+        rangingTaskObj = TrcTaskMgr.createTask(instanceName + ".rangingTask", this::rangingTask);
         sm = new TrcStateMachine<>(instanceName);
         timer = new TrcTimer(instanceName);
         event = new TrcEvent(instanceName);

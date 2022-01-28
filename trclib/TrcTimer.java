@@ -39,7 +39,6 @@ public class TrcTimer
     private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
-    private final TrcTimerMgr timerMgr;
     private long expiredTimeInMsec = 0;
     private boolean expired = false;
     private boolean canceled = false;
@@ -62,7 +61,6 @@ public class TrcTimer
         }
 
         this.instanceName = instanceName;
-        timerMgr = TrcTimerMgr.getInstance();
     }   //TrcTimer
 
     /**
@@ -73,7 +71,7 @@ public class TrcTimer
     @Override
     public String toString()
     {
-        return instanceName;
+        return String.format(Locale.US, "%s:%d", instanceName, expiredTimeInMsec);
     }   //toString
 
     /**
@@ -90,8 +88,8 @@ public class TrcTimer
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "time=%f,event=%s,receiver=%s",
-                    time, event != null? event: "null", receiver != null? receiver: "null");
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "time=%f,event=%s,receiver=%s", time, event, receiver);
         }
 
         if (expiredTimeInMsec > 0)
@@ -119,7 +117,7 @@ public class TrcTimer
         // alter the state of your timer (e.g. setExpired), you can check the securityKey parameter to make sure the
         // caller is indeed TrcTimerMgr.
         //
-        securityKey = timerMgr.add(this, Math.random());
+        securityKey = TrcTimerMgr.add(this, Math.random());
 
         if (debugEnabled)
         {
@@ -284,7 +282,7 @@ public class TrcTimer
             expiredTimeInMsec = 0;
             expired = false;
             canceled = true;
-            timerMgr.remove(this, securityKey);
+            TrcTimerMgr.remove(this, securityKey);
             securityKey = -1.0;
 
             if (doNotify)

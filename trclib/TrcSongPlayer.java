@@ -65,9 +65,8 @@ public class TrcSongPlayer
 
         this.instanceName = instanceName;
         this.tone = tone;
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
-        playerTaskObj = taskMgr.createTask(instanceName + ".playerTask", this::playerTask);
-        stopTaskObj = taskMgr.createTask(instanceName + ".stopTask", this::stopTask);
+        playerTaskObj = TrcTaskMgr.createTask(instanceName + ".playerTask", this::playerTask);
+        stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);
     }   //TrcSongPlayer
 
     /**

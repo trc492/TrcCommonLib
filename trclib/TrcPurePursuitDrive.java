@@ -202,7 +202,7 @@ public class TrcPurePursuitDrive
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
 
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
-        driveTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".driveTask", this::driveTask);
+        driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
     }   //TrcPurePursuitDrive
 
     /**

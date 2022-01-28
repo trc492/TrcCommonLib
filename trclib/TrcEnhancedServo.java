@@ -98,9 +98,8 @@ public class TrcEnhancedServo
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;
 
-        TrcTaskMgr taskMgr = TrcTaskMgr.getInstance();
-        steppingServoTaskObj = taskMgr.createTask(instanceName + ".enhancedServoTask", this::steppingServoTask);
-        stopServoTaskObj = taskMgr.createTask(instanceName + ".stopServoTask", this::stopServoTask);
+        steppingServoTaskObj = TrcTaskMgr.createTask(instanceName + ".enhancedServoTask", this::steppingServoTask);
+        stopServoTaskObj = TrcTaskMgr.createTask(instanceName + ".stopServoTask", this::stopServoTask);
     }   //TrcEnhancedServo
 
     /**

@@ -91,8 +91,7 @@ public abstract class TrcRobotBattery
         this.currentSupported = currentSupported;
         this.powerSupported = powerSupported;
 
-        robotBatteryTaskObj = TrcTaskMgr.getInstance().createTask(
-            moduleName + ".robotBatteryTask", this::robotBatteryTask);
+        robotBatteryTaskObj = TrcTaskMgr.createTask(moduleName + ".robotBatteryTask", this::robotBatteryTask);
     }   //TrcRobotBattery
 
     /**

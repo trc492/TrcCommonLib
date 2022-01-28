@@ -85,8 +85,7 @@ public class TrcCardinalConverter<D>
         this.sensor = sensor;
         this.dataType = dataType;
         numAxes = sensor.getNumAxes();
-        converterTaskObj = TrcTaskMgr.getInstance().createTask(
-                instanceName + ".converterTask", this::converterTask);
+        converterTaskObj = TrcTaskMgr.createTask(instanceName + ".converterTask", this::converterTask);
 
         cardinalRangeLows = new double[numAxes];
         cardinalRangeHighs = new double[numAxes];

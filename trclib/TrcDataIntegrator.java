@@ -76,8 +76,7 @@ public class TrcDataIntegrator<D>
         this.instanceName = instanceName;
         this.sensor = sensor;
         this.dataType = dataType;
-        integratorTaskObj = TrcTaskMgr.getInstance().createTask(
-                instanceName + ".integratorTask", this::integratorTask);
+        integratorTaskObj = TrcTaskMgr.createTask(instanceName + ".integratorTask", this::integratorTask);
 
         inputData = new TrcSensor.SensorData[numAxes];
         integratedData = new TrcSensor.SensorData[numAxes];

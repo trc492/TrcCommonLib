@@ -32,68 +32,24 @@ public class TrcTimerMgr
 {
     private static final String moduleName = "TrcTimerMgr";
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
+    private static TrcDbgTrace dbgTrace = TrcDbgTrace.getGlobalTracer();
 
-    private static TrcTimerMgr instance = null;
-    private final ArrayList<TrcTimer> timerList;
-    private final HashMap<TrcTimer, Double> securityKeyMap;
-    private Thread timerThread = null;
-    //
-    // The following class variables need to be thread-safe protected.
-    //
-    private TrcTimer nextTimerToExpire = null;
-    private long nextExpireTimeInMsec = 0;
-    private TrcTimer preemptingTimer = null;
-
-    /**
-     * Constructor: Creates an instance of the timer manager.
-     */
-    private TrcTimerMgr()
-    {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
-        timerList = new ArrayList<>();
-        securityKeyMap = new HashMap<>();
-    }   //TrcTimerMgr
-
-    /**
-     * This method returns the instance of TrcTimerMgr. If this is the first time it's called, TrcTimerMgr is created.
-     *
-     * @return instance of TrcTimerMgr.
-     */
-    public static TrcTimerMgr getInstance()
-    {
-        if (instance == null)
-        {
-            instance = new TrcTimerMgr();
-        }
-
-        if (instance.timerThread == null)
-        {
-            instance.timerThread = new Thread(instance::timerTask, moduleName);
-            instance.timerThread.start();
-        }
-
-        return instance;
-    }   //getInstance
+    private static final ArrayList<TrcTimer> timerList = new ArrayList<>();
+    private static final HashMap<TrcTimer, Double> securityKeyMap = new HashMap<>();
+    private static Thread timerThread = null;
+    private static boolean shuttingDown = false;
+    private static TrcTimer nextTimerToExpire = null;
+    private static TrcTimer preemptingTimer = null;
 
     /**
      * This method is called by the TrcTaskMgr to shut down TrcTimerMgr when it is exiting.
      */
     public static void shutdown()
     {
-        if (instance != null && instance.timerThread != null)
+        if (timerThread != null)
         {
-            instance.timerThread.interrupt();
+            shuttingDown = true;
+            timerThread.interrupt();
         }
     }   //shutdown
 
@@ -104,7 +60,7 @@ public class TrcTimerMgr
      * @param callerID specifies the security token for identifying the caller.
      * @return securityKey that combines the caller's ID and a unique identifier assigned by TrcTimerMgr to the timer.
      */
-    public double add(TrcTimer timer, double callerID)
+    public static double add(TrcTimer timer, double callerID)
     {
         final String funcName = "add";
         double securityKey;
@@ -119,12 +75,12 @@ public class TrcTimerMgr
         {
             int position = -1;
 
-            if (expiredTimeInMsec < nextExpireTimeInMsec)
+            if (nextTimerToExpire != null && expiredTimeInMsec < nextTimerToExpire.getExpiredTimeInMsec())
             {
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "Adding preempting timer %s: currTime=%.3f, expiredTime=%.3f",
-                            timer, TrcUtil.getCurrentTime(), expiredTimeInMsec/1000.0);
+                    dbgTrace.traceInfo(funcName, "[%d] Adding timer %s preempting %s.",
+                        TrcUtil.getCurrentTimeMillis(), timer, nextTimerToExpire);
                 }
                 //
                 // The added new timer expires sooner than the one we are sleeping on. Let's interrupt its sleep and
@@ -161,8 +117,8 @@ public class TrcTimerMgr
                 if (debugEnabled)
                 {
                     dbgTrace.traceInfo(
-                            funcName, "Adding timer %s to queue position %d: currTime=%.3f, expiredTime=%.3f",
-                            timer, position, TrcUtil.getCurrentTime(), expiredTimeInMsec/1000.0);
+                        funcName, "[%d] Adding timer %s to queue position %d.",
+                        TrcUtil.getCurrentTimeMillis(), timer, position);
                 }
                 timerList.add(position, timer);
                 //
@@ -177,11 +133,17 @@ public class TrcTimerMgr
             }
         }
 
+        if (timerThread == null)
+        {
+            // Timer thread does not exist, let's create one and start it.
+            timerThread = new Thread(TrcTimerMgr::timerTask, moduleName);
+            timerThread.start();
+        }
+
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", securityKey);
-            dbgTrace.traceInfo("add", "Adding timer %s: securityKey=%.3f",
-                    timer, securityKey);
+            dbgTrace.traceInfo(funcName, "Adding timer %s, securityKey=%f.", timer, securityKey);
         }
 
         return securityKey;
@@ -194,7 +156,7 @@ public class TrcTimerMgr
      * @param securityKey specifies the security key identifying the owner of the timer to be removed.
      * @return true if the timer is removed, false otherwise.
      */
-    public boolean remove(TrcTimer timer, double securityKey)
+    public static boolean remove(TrcTimer timer, double securityKey)
     {
         final String funcName = "remove";
         boolean success = false;
@@ -205,27 +167,38 @@ public class TrcTimerMgr
             dbgTrace.traceInfo(funcName, "Removing timer %s.", timer);
         }
 
-        synchronized (timerList)
+        //
+        // Only do this if we are not shutting down. If we are shutting down, thread cleanup will take care of
+        // the timer list.
+        //
+        if (!shuttingDown)
         {
-            Double key = securityKeyMap.get(timer);
-
-            if (key != null)
+            synchronized (timerList)
             {
-                if (securityKey == key)
+                Double key = securityKeyMap.get(timer);
+
+                if (key != null)
                 {
-                    if (timer == nextTimerToExpire)
+                    if (securityKey == key)
                     {
-                        timerThread.interrupt();
-                        success = true;
+                        if (timer == nextTimerToExpire)
+                        {
+                            timerThread.interrupt();
+                            success = true;
+                        }
+                        else
+                        {
+                            success = timerList.remove(timer);
+                        }
                     }
                     else
                     {
-                        success = timerList.remove(timer);
+                        throw new SecurityException("Only the owner of the timer is allowed to remove it from the list.");
                     }
                 }
                 else
                 {
-                    throw new SecurityException("Only the owner of the timer is allowed to remove it from the list.");
+                    dbgTrace.traceWarn(funcName, "Timer %s not found in security key map.");
                 }
             }
         }
@@ -244,7 +217,7 @@ public class TrcTimerMgr
      * This method runs by the timer thread to wait for the next timer in the list and signal the timer object when
      * it expires.
      */
-    private void timerTask()
+    private static void timerTask()
     {
         final String funcName = "timerTask";
 
@@ -253,7 +226,7 @@ public class TrcTimerMgr
             dbgTrace.traceInfo("%s is starting...", moduleName);
         }
 
-        while (!Thread.currentThread().isInterrupted())
+        while (!shuttingDown)
         {
             try
             {
@@ -261,8 +234,7 @@ public class TrcTimerMgr
 
                 synchronized (timerList)
                 {
-                    nextTimerToExpire = null;
-                    if (preemptingTimer == null && timerList.isEmpty())
+                    if (nextTimerToExpire == null && timerList.isEmpty())
                     {
                         //
                         // No more timer to process, let's wait.
@@ -274,32 +246,22 @@ public class TrcTimerMgr
                         timerList.wait();
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "Timer arrived.");
+                            dbgTrace.traceInfo(funcName, "New timer arrived.");
                         }
                     }
-                    //
-                    // Got a new incoming timer, either a new timer in the list or a preempting timer.
-                    // Let's process it.
-                    //
-                    if (preemptingTimer != null)
+
+                    if (nextTimerToExpire == null)
                     {
-                        //
-                        // When a preempting timer is set, the exception handler below will put the next expiring
-                        // timer back in the queue and we loop back up here.
-                        //
-                        nextTimerToExpire = preemptingTimer;
-                        preemptingTimer = null;
-                    }
-                    else
-                    {
+                        // There is no timer in progress, get one from the timer queue.
                         nextTimerToExpire = timerList.remove(0);
                     }
-                    nextExpireTimeInMsec = nextTimerToExpire.getExpiredTimeInMsec();
-                    sleepTimeInMsec = nextExpireTimeInMsec - TrcUtil.getCurrentTimeMillis();
+
+                    sleepTimeInMsec = nextTimerToExpire != null?
+                        nextTimerToExpire.getExpiredTimeInMsec() - TrcUtil.getCurrentTimeMillis(): 0;
                     if (debugEnabled)
                     {
-                        dbgTrace.traceInfo(funcName, "[%.3f]: timer=%s, sleepTime=%.3f",
-                                TrcUtil.getCurrentTime(), nextTimerToExpire, sleepTimeInMsec/1000.0);
+                        dbgTrace.traceInfo(funcName, "[%d]: timer=%s, sleepTimeInMsec=%d",
+                            TrcUtil.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
                     }
                 }
 
@@ -308,29 +270,19 @@ public class TrcTimerMgr
                     Thread.sleep(sleepTimeInMsec);
                 }
 
-                if (debugEnabled)
-                {
-                    if (nextTimerToExpire != null)
-                    {
-                        dbgTrace.traceInfo(funcName, "[%.3f]: timer=%s expired.",
-                        TrcUtil.getCurrentTime(), nextTimerToExpire);
-                    }
-                }
-
-                synchronized (timerList)
-                {
-                    //
-                    // Since we are no longer waiting on any timer now, there is nothing to preempt during an add.
-                    // Next time around the loop we will get the earliest timer.
-                    //
-                    nextExpireTimeInMsec = 0;
-                }
-                //
-                // Timer has expired, signal it.
-                //
                 if (nextTimerToExpire != null)
                 {
+                    //
+                    // Timer has expired, signal it.
+                    //
+                    if (debugEnabled)
+                    {
+                        dbgTrace.traceInfo(
+                            funcName, "[%d]: timer %s expired.", TrcUtil.getCurrentTimeMillis(), nextTimerToExpire);
+                    }
+
                     nextTimerToExpire.setExpired(securityKeyMap.get(nextTimerToExpire));
+                    nextTimerToExpire = null;
                 }
             }
             catch (InterruptedException e)
@@ -347,25 +299,30 @@ public class TrcTimerMgr
                             // preempting timer will be processed first. If nextTimerToExpire is null, it means
                             // the current timer has been canceled, so don't put it back in the timer queue.
                             //
-                            if (debugEnabled)
-                            {
-                                dbgTrace.traceInfo(funcName, "Timer %s is preempting %s.",
-                                                   preemptingTimer, nextTimerToExpire);
-                            }
                             timerList.add(0, nextTimerToExpire);
                         }
-                        nextExpireTimeInMsec = 0;
+
+                        if (debugEnabled)
+                        {
+                            dbgTrace.traceInfo(
+                                funcName, "[%d] Timer %s is preempting %s.",
+                                TrcUtil.getCurrentTimeMillis(), preemptingTimer, nextTimerToExpire);
+                        }
+
+                        nextTimerToExpire = preemptingTimer;
+                        preemptingTimer = null;
                     }
                     else if (nextTimerToExpire != null && nextTimerToExpire.isCanceled())
                     {
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "timer %s was canceled.", nextTimerToExpire);
+                            dbgTrace.traceInfo(
+                                funcName, "[%d] timer %s was canceled.",
+                                TrcUtil.getCurrentTimeMillis(), nextTimerToExpire);
                         }
                         nextTimerToExpire = null;
-                        nextExpireTimeInMsec = 0;
                     }
-                    else
+                    else if (shuttingDown)
                     {
                         //
                         // Somebody is trying to terminate the timer thread. Let's quit.
@@ -409,6 +366,7 @@ public class TrcTimerMgr
         // The thread is now terminated. Destroy this instance so we will recreate the thread the next time around.
         //
         timerThread = null;
+        shuttingDown = false;
     }   //timerTask
 
 }   //class TrcTimerMgr

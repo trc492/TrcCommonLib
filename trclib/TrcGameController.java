@@ -94,7 +94,7 @@ public abstract class TrcGameController
 
         if (buttonHandler != null)
         {
-            TrcTaskMgr.TaskObject buttonEventTaskObj = TrcTaskMgr.getInstance().createTask(
+            TrcTaskMgr.TaskObject buttonEventTaskObj = TrcTaskMgr.createTask(
                 instanceName + ".buttonEventTask", this::buttonEventTask);
             buttonEventTaskObj.registerTask(TrcTaskMgr.TaskType.PREPERIODIC_TASK);
         }

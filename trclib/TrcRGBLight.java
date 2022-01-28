@@ -182,7 +182,7 @@ public abstract class TrcRGBLight
         }
 
         this.instanceName = instanceName;
-        rgbLightTaskObj = TrcTaskMgr.getInstance().createTask(instanceName + ".rgbLightTask", this::rgbLightTask);
+        rgbLightTaskObj = TrcTaskMgr.createTask(instanceName + ".rgbLightTask", this::rgbLightTask);
         sm = new TrcStateMachine<>(moduleName);
         timer = new TrcTimer(moduleName);
         timerEvent = new TrcEvent(moduleName + ".timer");
