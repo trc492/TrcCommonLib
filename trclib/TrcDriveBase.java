@@ -309,6 +309,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
         }
 
+        for (int i = 0; i < motors.length; i++)
+        {
+            ((TrcMotor) motors[i]).setOdometryEnabled(enabled);
+        }
+
         if (enabled)
         {
             resetOdometry(false, false);
@@ -319,11 +324,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         {
 //            odometryTaskObj.unregisterTask(TrcTaskMgr.TaskType.STANDALONE_TASK);
             odometryTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
-        }
-
-        for (int i = 0; i < motors.length; i++)
-        {
-            ((TrcMotor) motors[i]).setOdometryEnabled(enabled);
         }
 
         if (debugEnabled)
