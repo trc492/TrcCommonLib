@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
-
 /**
  * This class implements a platform independent conveyor subsystem. It contains a motor and optionally an entrance
  * and an exit sensor that detects if the an object has entered or exited the conveyor. It also supports exclusive
