@@ -383,12 +383,15 @@ public class TrcPidActuator extends TrcPidMotor
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param level specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param event specifies an event object to signal when done.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(String owner, double delay, int level, boolean holdTarget, TrcEvent event, double timeout)
+    public void setLevel(
+        String owner, double delay, int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
+        double timeout)
     {
         if (validateOwnership(owner))
         {
@@ -407,7 +410,7 @@ public class TrcPidActuator extends TrcPidMotor
                     positionLevel = level;
                 }
 
-                setTarget(delay, params.posPresets[positionLevel], holdTarget, event, timeout);
+                setTarget(delay, params.posPresets[positionLevel], holdTarget, event, callback, timeout);
             }
         }
     }   //setLevel
@@ -418,14 +421,16 @@ public class TrcPidActuator extends TrcPidMotor
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param level specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param event specifies an event object to signal when done.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(double delay, int level, boolean holdTarget, TrcEvent event, double timeout)
+    public void setLevel(
+        double delay, int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setLevel(null, delay, level, holdTarget, event, timeout);
+        setLevel(null, delay, level, holdTarget, event, callback, timeout);
     }   //setLevel
 
     /**
@@ -433,24 +438,27 @@ public class TrcPidActuator extends TrcPidMotor
      *
      * @param level specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param event specifies an event object to signal when done.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(int level, boolean holdTarget, TrcEvent event, double timeout)
+    public void setLevel(int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setLevel(null, 0.0, level, holdTarget, event, timeout);
+        setLevel(null, 0.0, level, holdTarget, event, callback, timeout);
     }   //setLevel
 
     /**
      * This method sets the actuator to the specified preset position.
      *
      * @param level specifies the index to the preset position array.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void setLevel(int level, TrcEvent event)
+    public void setLevel(int level, TrcEvent event, TrcNotifier.Receiver callback)
     {
-        setLevel(null, 0.0, level, true, event, 0.0);
+        setLevel(null, 0.0, level, true, event, callback, 0.0);
     }   //setLevel
 
     /**
@@ -461,7 +469,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(double delay, int level)
     {
-        setLevel(null, delay, level, true, null, 0.0);
+        setLevel(null, delay, level, true, null, null, 0.0);
     }   //setLevel
 
     /**
@@ -471,7 +479,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(int level)
     {
-        setLevel(null, 0.0, level, true, null, 0.0);
+        setLevel(null, 0.0, level, true, null, null, 0.0);
     }   //setLevel
 
     /**

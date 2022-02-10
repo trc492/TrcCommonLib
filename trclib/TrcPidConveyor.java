@@ -25,18 +25,16 @@ package TrcCommonLib.trclib;
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
- * This class implements a platform independent auto-assist intake subsystem. It contains a motor and a sensor that
- * detects if the intake has captured objects. It provides the autoAssist method that allows the caller to call the
- * intake subsystem to pickup or dump objects on a press of a button and the intake subsystem will stop itself once
- * it is done. While it provides the auto-assist functionality to pickup or dump objects, it also supports exclusive
- * subsystem access by implementing TrcExclusiveSubsystem. This enables the intake subsystem to be aware of multiple
- * callers' access to the subsystem. While one caller starts the intake for an operation, nobody can access it until
+ * This class implements a platform independent conveyor subsystem. It contains a motor and optionally an entrance
+ * and an exit sensor that detects if the an object has entered or exited the conveyor. It also supports exclusive
+ * subsystem access by implementing TrcExclusiveSubsystem. This enables the conveyor subsystem to be aware of multiple
+ * callers' access to the subsystem. While one caller starts the conveyor for an operation, nobody can access it until
  * the previous caller is done with the operation.
  */
 public class TrcPidConveyor extends TrcPidMotor
 {
     /**
-     * This class contains all the parameters related to the motor actuator.
+     * This class contains all the parameters related to the conveyor.
      */
     public static class Parameters
     {
@@ -129,7 +127,6 @@ public class TrcPidConveyor extends TrcPidMotor
     private final Parameters params;
     private final TrcDigitalInputTrigger entranceTrigger;
     private final TrcDigitalInputTrigger exitTrigger;
-    private final TrcTaskMgr.TaskObject advanceTaskObj;
     private TrcNotifier.Receiver entranceEventHandler;
     private TrcNotifier.Receiver exitEventHandler;
     private int numObjects = 0;
@@ -156,27 +153,28 @@ public class TrcPidConveyor extends TrcPidMotor
 
         setPositionScale(params.scale);
 
-        entranceTrigger = entranceSensor != null?
-            new TrcDigitalInputTrigger(instanceName + ".entranceTrigger", entranceSensor, this::entranceEvent): null;
-        exitTrigger = exitSensor != null?
-            new TrcDigitalInputTrigger(instanceName + ".exitTrigger", exitSensor, this::exitEvent): null;
-
-        advanceTaskObj = TrcTaskMgr.createTask(instanceName + ".advanceTask", this::advanceTask);
-    }   //TrcPidConveyor
-
-    public void cancel(String owner)
-    {
-        if (validateOwnership(owner))
+        if (entranceSensor != null)
         {
-            advanceTaskObj.unregisterTask();
-            setPower(0.0);
+            entranceTrigger = new TrcDigitalInputTrigger(
+                instanceName + ".entranceTrigger", entranceSensor, this::entranceEvent);
+            entranceTrigger.setEnabled(true);
         }
-    }   //cancel
+        else
+        {
+            entranceTrigger = null;
+        }
 
-    public void cancel()
-    {
-        cancel(null);
-    }   //cancel
+        if (exitSensor != null)
+        {
+            exitTrigger = new TrcDigitalInputTrigger(
+                instanceName + ".exitTrigger", entranceSensor, this::exitEvent);
+            exitTrigger.setEnabled(true);
+        }
+        else
+        {
+            exitTrigger = null;
+        }
+    }   //TrcPidConveyor
 
     /**
      * This method returns the number of objects in the conveyor.
@@ -200,6 +198,11 @@ public class TrcPidConveyor extends TrcPidMotor
         this.numObjects = num;
     }   //setPreloadedObjects
 
+    /**
+     * This method registers an event handler to be notified when the entrance sensor is triggered.
+     *
+     * @param handler event handler to be notified.
+     */
     public void registerEntranceEventHandler(TrcNotifier.Receiver handler)
     {
         if (entranceTrigger != null)
@@ -208,6 +211,11 @@ public class TrcPidConveyor extends TrcPidMotor
         }
     }   //registerEntranceEventHandler
 
+    /**
+     * This method registers an event handler to be notified when the exit sensor is triggered.
+     *
+     * @param handler event handler to be notified.
+     */
     public void registerExitEventHandler(TrcNotifier.Receiver handler)
     {
         if (exitTrigger != null)
@@ -215,220 +223,6 @@ public class TrcPidConveyor extends TrcPidMotor
             exitEventHandler = handler;
         }
     }   //registerExitEventHandler
-
-    private void entranceEvent(boolean active)
-    {
-        if (active)
-        {
-            numObjects++;
-            setPower(params.movePower);
-        }
-        else
-        {
-            setPower(0.0);
-        }
-
-        if (entranceEventHandler != null)
-        {
-            entranceEventHandler.notify(active);
-        }
-}   //entranceEvent
-
-    private void exitEvent(boolean active)
-    {
-        if (active)
-        {
-            numObjects--;
-        }
-        else
-        {
-            setPower(0.0);
-        }
-
-        if (exitEventHandler != null)
-        {
-            exitEventHandler.notify(active);
-        }
-}   //exitEvent
-
-    public void advance(String owner, int units, TrcEvent event, TrcNotifier.Receiver callback)
-    {
-        if (validateOwnership(owner))
-        {
-            if (event != null)
-            {
-                event.clear();
-            }
-            this.onFinishEvent = event;
-            this.onFinishCallback = callback;
-            setTarget(units*params.objectDistance, false, event);
-            setTaskEnabled(true);
-        }
-    }   //advance
-
-    public void advance(int units)
-    {
-        advance(null, units, null, null);
-    }   //advance
-
-    public void advance()
-    {
-        advance(null, 1, null, null);
-    }   //advance
-
-    private void setTaskEnabled(boolean enabled)
-    {
-        if (enabled)
-        {
-            advanceTaskObj.registerTask(TaskType.OUTPUT_TASK);
-        }
-        else
-        {
-            advanceTaskObj.unregisterTask(TaskType.OUTPUT_TASK);
-        }
-    }   //setTaskEnabled
-
-    private void advanceTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
-    {
-        if (onTarget())
-        {
-            if (onFinishEvent != null)
-            {
-                onFinishEvent.signal();
-                onFinishEvent = null;
-            }
-
-            if (onFinishCallback != null)
-            {
-                onFinishCallback.notify(null);
-                onFinishCallback = null;
-            }
-
-            advanceTaskObj.unregisterTask(TaskType.OUTPUT_TASK);
-        }
-    }   //advanceTask
-
-    private boolean onTarget()
-    {
-        return true;
-    }   //onTarget
-
-    // /**
-    //  * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-    //  * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-    //  * signaled or it will notify the caller's handler.
-    //  *
-    //  * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-    //  * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-    //  *              power to dump.
-    //  * @param event specifies the event to signal when object is detected in the intake.
-    //  * @param callback specifies the callback handler to call when object is detected in the intake.
-    //  * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-    //  *                must call hasObject() to figure out if it has given up.
-    //  */
-    // public synchronized void autoAssist(
-    //     String owner, double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
-    // {
-    //     final String funcName = "autoAssist";
-
-    //     if (debugEnabled)
-    //     {
-    //         dbgTrace.traceEnter(
-    //             funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%.1f,event=%s,timeout=%.3f",
-    //             owner, power, event, timeout);
-    //     }
-
-    //     if (sensorTrigger == null || power == 0.0)
-    //     {
-    //         throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist.");
-    //     }
-    //     //
-    //     // This is an auto-assist operation, make sure the caller has ownership.
-    //     //
-    //     if (validateOwnership(owner))
-    //     {
-    //         if (power > 0.0 ^ hasObject())
-    //         {
-    //             // Picking up object and we don't have one yet, or dumping object and we still have one.
-    //             if (params.msgTracer != null)
-    //             {
-    //                 params.msgTracer.traceInfo(
-    //                     funcName, "owner=%s, power=%.1f, event=%s, timeout=%.3f", owner, power, event, timeout);
-    //             }
-    //             motor.set(power);
-    //             this.onFinishEvent = event;
-    //             this.onFinishCallback = callback;
-    //             if (timeout > 0.0)
-    //             {
-    //                 timer.set(timeout, this::timeoutHandler);
-    //             }
-    //             sensorTrigger.setEnabled(true);
-    //             this.autoAssistPower = power;
-    //         }
-    //         else
-    //         {
-    //             // Picking up object but we already have one, or dumping object but there isn't any.
-    //             if (params.msgTracer != null)
-    //             {
-    //                 params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", hasObject());
-    //             }
-
-    //             if (event != null)
-    //             {
-    //                 event.signal();
-    //             }
-
-    //             if (callback != null)
-    //             {
-    //                 callback.notify(null);
-    //             }
-    //         }
-    //     }
-    // }   //autoAssist
-
-    // /**
-    //  * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-    //  * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-    //  * signaled or it will notify the caller's handler.
-    //  *
-    //  * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-    //  * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-    //  *              power to dump.
-    //  */
-    // public void autoAssist(String owner, double power)
-    // {
-    //     autoAssist(owner, power, null, null, 0.0);
-    // }   //autoAssist
-
-    // /**
-    //  * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-    //  * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-    //  * signaled or it will notify the caller's handler.
-    //  *
-    //  * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-    //  *              power to dump.
-    //  * @param event specifies the event to signal when object is detected in the intake.
-    //  * @param callback specifies the callback handler to call when object is detected in the intake.
-    //  * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-    //  *                must call hasObject() to figure out if it has given up.
-    //  */
-    // public void autoAssist(double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
-    // {
-    //     autoAssist(null, power, event, callback, timeout);
-    // }   //autoAssist
-
-    // /**
-    //  * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-    //  * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-    //  * signaled or it will notify the caller's handler.
-    //  *
-    //  * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-    //  *              power to dump.
-    //  */
-    // public void autoAssist(double power)
-    // {
-    //     autoAssist(null, power, null, null, 0.0);
-    // }   //autoAssist
 
     /**
      * This method returns the sensor state read from the digital sensor.
@@ -449,5 +243,130 @@ public class TrcPidConveyor extends TrcPidMotor
     {
         return exitSensor != null && exitSensor.isActive();
     }   //isExitSensorActive
+
+    /**
+     * This method advances or backs up the conveyor by the number of object units.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the conveyor.
+     * @param units specifies the number of object units to advance or negative number to back up.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
+     */
+    public void move(String owner, int units, TrcEvent event, TrcNotifier.Receiver callback)
+    {
+        if (validateOwnership(owner))
+        {
+            if (event != null)
+            {
+                event.clear();
+            }
+            this.onFinishEvent = event;
+            this.onFinishCallback = callback;
+            setTarget(units*params.objectDistance, false, null, this::reachedTarget);
+        }
+    }   //move
+
+    /**
+     * This method advances or backs up the conveyor by the number of object units.
+     *
+     * @param units specifies the number of object units to advance or negative number to back up.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
+     */
+    public void move(int units, TrcEvent event, TrcNotifier.Receiver callback)
+    {
+        move(null, units, event, callback);
+    }   //move
+
+    /**
+     * This method advances or backs up the conveyor by the number of object units.
+     *
+     * @param units specifies the number of object units to advance or negative number to back up.
+     */
+    public void move(int units)
+    {
+        move(null, units, null, null);
+    }   //move
+
+    /**
+     * This method advances the conveyor by the one object unit.
+     */
+    public void advance()
+    {
+        move(null, 1, null, null);
+    }   //advance
+
+    /**
+     * This method backs up the conveyor by the one object unit.
+     */
+    public void backup()
+    {
+        move(null, -1, null, null);
+    }   //backup
+
+    /**
+     * This method is called when the entrance sensor is triggered.
+     *
+     * @param active specifies true if an object has activated the sensor, false if the object has deactivated it.
+     */
+    private void entranceEvent(boolean active)
+    {
+        if (active)
+        {
+            numObjects++;
+            setPower(params.movePower);
+        }
+        else
+        {
+            setPower(0.0);
+        }
+
+        if (entranceEventHandler != null)
+        {
+            entranceEventHandler.notify(active);
+        }
+    }   //entranceEvent
+
+    /**
+     * This method is called when the exit sensor is triggered.
+     *
+     * @param active specifies true if an object has activated the sensor, false if the object has deactivated it.
+     */
+    private void exitEvent(boolean active)
+    {
+        if (active)
+        {
+            numObjects--;
+        }
+        else
+        {
+            setPower(0.0);
+        }
+
+        if (exitEventHandler != null)
+        {
+            exitEventHandler.notify(active);
+        }
+    }   //exitEvent
+
+    /**
+     * This method is called when a previous call to move the conveyor has reached its target.
+     *
+     * @param context specifies the callback context (not used).
+     */
+    private void reachedTarget(Object context)
+    {
+        if (onFinishEvent != null)
+        {
+            onFinishEvent.signal();
+            onFinishEvent = null;
+        }
+
+        if (onFinishCallback != null)
+        {
+            onFinishCallback.notify(null);
+            onFinishCallback = null;
+        }
+    }   //reachedTarget
 
 }   //class TrcPidConveyor

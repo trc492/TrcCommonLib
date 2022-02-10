@@ -87,6 +87,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private double target = 0.0;
     private boolean holdTarget = false;
     private TrcEvent notifyEvent = null;
+    private TrcNotifier.Receiver notifyCallback = null;
     private double timeout = 0.0;
     private boolean calibrating = false;
     private double calPower = 0.0;
@@ -378,7 +379,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     /**
      * This method cancels a previous active PID motor operation.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      */
     public synchronized void cancel(String owner)
     {
@@ -556,25 +557,27 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
      * holding position.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param event specifies an event object to signal when done.
+     * @param event specifies an event object to signal when done, can be null if not provided.
+     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
-        String owner, double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
+        String owner, double delay, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
+        double timeout)
     {
         final String funcName = "setTarget";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "target=%f,hold=%s,event=%s,timeout=%f",
-                target, Boolean.toString(holdTarget), event != null ? event.toString() : "null", timeout);
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,target=%f,hold=%s,event=%s,timeout=%f",
+                owner, delay, target, holdTarget, event, timeout);
         }
 
         if (validateOwnership(owner))
@@ -592,6 +595,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 this.target = target;
                 this.holdTarget = holdTarget;
                 this.notifyEvent = event;
+                this.notifyCallback = callback;
                 this.timeout = timeout;
                 if (timer == null)
                 {
@@ -616,6 +620,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
                 this.holdTarget = holdTarget;
                 this.notifyEvent = event;
+                this.notifyCallback = callback;
                 //
                 // If a timeout is provided, set the expired time.
                 //
@@ -644,13 +649,15 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
+     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(
+        double delay, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setTarget(null, delay, target, holdTarget, event, timeout);
+        setTarget(null, delay, target, holdTarget, event, callback, timeout);
     }   //setTarget
 
     /**
@@ -660,17 +667,19 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
      * holding position.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
+     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(String owner, double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(
+        String owner, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setTarget(owner, 0.0, target, holdTarget, event, timeout);
+        setTarget(owner, 0.0, target, holdTarget, event, callback, timeout);
     }   //setTarget
 
     /**
@@ -683,13 +692,32 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies an event object to signal when done.
+     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(
+        double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setTarget(null, 0.0, target, holdTarget, event, timeout);
+        setTarget(null, 0.0, target, holdTarget, event, callback, timeout);
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
+     *
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param callback specifies a callback handler to notify when done, can be null if not provided.
+     */
+    public void setTarget(double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback)
+    {
+        setTarget(null, 0.0, target, holdTarget, event, callback, 0.0);
     }   //setTarget
 
     /**
@@ -705,7 +733,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget, TrcEvent event)
     {
-        setTarget(null, 0.0, target, holdTarget, event, 0.0);
+        setTarget(null, 0.0, target, holdTarget, event, null, 0.0);
     }   //setTarget
 
     /**
@@ -716,7 +744,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget)
     {
-        setTarget(null, 0.0, target, holdTarget, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, null, null, 0.0);
     }   //setTarget
 
     /**
@@ -726,7 +754,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target)
     {
-        setTarget(null, 0.0, target, true, null, 0.0);
+        setTarget(null, 0.0, target, true, null, null, 0.0);
     }   //setTarget
 
     /**
@@ -736,7 +764,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void delayExpired(Object timer)
     {
-        setTarget(null, 0.0, target, holdTarget, notifyEvent, timeout);
+        setTarget(null, 0.0, target, holdTarget, notifyEvent, notifyCallback, timeout);
     }   //delayExpired
 
     /**
@@ -918,7 +946,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
      * It will also check to reset the stalled condition if reset timeout was specified.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param power specifies the motor power.
      * @param rangeLow specifies the range low limit.
      * @param rangeHigh specifies the range high limit.
@@ -950,7 +978,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
      * It will also check to reset the stalled condition if reset timeout was specified.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param power specifies the motor power.
      */
     public void setPower(String owner, double power)
@@ -982,7 +1010,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * value will specify the upper bound of the elevator power. So if the joystick is only pushed half way, the
      * elevator will only go half power even though it is far away from the target.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param power specifies the upper bound power of the motor.
      * @param minPos specifies the minimum of the position range.
      * @param maxPos specifies the maximum of the position range.
@@ -1021,7 +1049,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                         //
                         // Hold target at current position.
                         //
-                        setTarget(getPosition(), true, null, 0.0);
+                        setTarget(getPosition(), true, null, null, 0.0);
                     }
                     else
                     {
@@ -1038,7 +1066,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     //
                     power = Math.abs(power);
                     pidCtrl.setOutputRange(-power, power);
-                    setTarget(currTarget, holdTarget, null, 0.0);
+                    setTarget(currTarget, holdTarget, null, null, 0.0);
                 }
                 prevTarget = currTarget;
             }
@@ -1088,7 +1116,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
      * switch is hit or the motor is stalled.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
      */
@@ -1138,7 +1166,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
      * switch is hit or the motor is stalled.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      */
     public synchronized void zeroCalibrate(String owner)
     {
@@ -1357,6 +1385,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     notifyEvent.signal();
                     notifyEvent = null;
+                }
+
+                if (notifyCallback != null)
+                {
+                    notifyCallback.notify(null);
                 }
             }
             else
