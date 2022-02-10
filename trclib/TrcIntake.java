@@ -120,8 +120,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
     private final Parameters params;
     private final TrcSensorTrigger sensorTrigger;
     private final TrcTimer timer;
-    private TrcEvent onFinishEvent = null;
-    private TrcNotifier.Receiver onFinishCallback = null;
+    private TrcEvent onFinishEvent;
+    private TrcNotifier.Receiver onFinishCallback;
     private double autoAssistPower = 0.0;
 
     /**
@@ -180,7 +180,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     public double getPower()
     {
         final String funcName = "getPower";
-        double power = motor.getPower();
+        double power = motor.getMotorPower();
 
         if (debugEnabled)
         {
@@ -473,11 +473,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
             if (onFinishEvent != null)
             {
                 onFinishEvent.signal();
+                onFinishEvent = null;
             }
 
             if (onFinishCallback != null)
             {
                 onFinishCallback.notify(null);
+                onFinishCallback = null;
             }
 
             autoAssistPower = 0.0;

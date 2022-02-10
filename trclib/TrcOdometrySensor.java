@@ -98,14 +98,14 @@ public interface TrcOdometrySensor
             if (VERBOSE)
             {
                 return String.format(
-                    Locale.US, "(name=%s,prevTime=%.6f,currTime=%.6f,prevPos=%.0f,currPos=%.0f,vel=%.0f,accel=%.0f)",
+                    Locale.US, "(sensor=%s,prevTime=%.6f,currTime=%.6f,prevPos=%.0f,currPos=%.0f,vel=%.0f,accel=%.0f)",
                     sensor, TrcUtil.getModeElapsedTime(prevTimestamp), TrcUtil.getModeElapsedTime(currTimestamp),
                     prevPos, currPos, velocity, acceleration);
             }
             else
             {
                 return String.format(
-                    Locale.US, "(name=%s,timeStamp=%.6f,pos=%.0f,vel=%.0f,accel=%.0f)",
+                    Locale.US, "(sensor=%s,timeStamp=%.6f,pos=%.0f,vel=%.0f,accel=%.0f)",
                     sensor, TrcUtil.getModeElapsedTime(currTimestamp), currPos, velocity, acceleration);
             }
         }   //toString

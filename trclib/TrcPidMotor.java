@@ -25,12 +25,13 @@ package TrcCommonLib.trclib;
 /**
  * This class implements a platform independent PID controlled motor. A PID controlled motor may consist of one or
  * two physical motors, a position sensor, typically an encoder (or could be a potentiometer). Optionally, it supports
- * a lower limit switch or even an upper limit switch. In addition, it has stall protection support which will detect
+ * a lower limit switch for zero calibration. In addition, it has stall protection support which will detect
  * motor stall condition and will cut power to the motor preventing it from burning out.
  */
-public class TrcPidMotor
+public class TrcPidMotor implements TrcExclusiveSubsystem
 {
     protected static final String moduleName = "TrcPidMotor";
+    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
     private static final boolean tracingEnabled = false;
     private static final boolean useGlobalTracer = false;
@@ -79,7 +80,7 @@ public class TrcPidMotor
     private final PowerCompensation powerCompensation;
     private final TrcTaskMgr.TaskObject pidMotorTaskObj;
     private final TrcTaskMgr.TaskObject stopMotorTaskObj;
-    private boolean active = false;
+    private boolean pidActive = false;
     private double positionScale = 1.0;
     private double positionOffset = 0.0;
     private TrcTimer timer = null;
@@ -128,8 +129,7 @@ public class TrcPidMotor
     {
         if (debugEnabled)
         {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
+            dbgTrace = useGlobalTracer ? globalTracer :
                 new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
         }
 
@@ -325,34 +325,71 @@ public class TrcPidMotor
     /**
      * This method returns the state of the PID motor.
      *
-     * @return true if PID motor is active, false otherwise.
+     * @return true if PID motor has a PID operation or zero calibration in progress, false otherwise.
      */
-    public synchronized boolean isActive()
+    public synchronized boolean isPidActive()
     {
-        final String funcName = "isActive";
+        final String funcName = "isPidActive";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", active);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", pidActive);
         }
 
-        return active;
-    }   //isActive
+        return pidActive;
+    }   //isPidActive
+
+    /**
+     * This method stops the PID motor. Stopping a PID motor consists of two things: canceling PID and stopping
+     * the physical motor(s).
+     *
+     * @param stopMotor specifies true if also stopping the physical motor(s), false otherwise.
+     */
+    private synchronized void stop(boolean stopMotor)
+    {
+        final String funcName = "stop";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "stopMotor=%s", Boolean.toString(stopMotor));
+        }
+        //
+        // Canceling previous PID operation if any.
+        //
+        setTaskEnabled(false);
+        pidCtrl.reset();
+
+        if (stopMotor)
+        {
+            setMotorPower(0.0);
+        }
+
+        motorPower = 0.0;
+        calibrating = false;
+        stalled = false;
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
+        }
+    }   //stop
 
     /**
      * This method cancels a previous active PID motor operation.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      */
-    public synchronized void cancel()
+    public synchronized void cancel(String owner)
     {
         final String funcName = "cancel";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s", owner);
         }
 
-        if (active)
+        if (validateOwnership(owner) && pidActive)
         {
             //
             // Stop the physical motor(s). If there is a notification event, signal it canceled.
@@ -369,6 +406,14 @@ public class TrcPidMotor
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
+    }   //cancel
+
+    /**
+     * This method cancels a previous active PID motor operation.
+     */
+    public synchronized void cancel()
+    {
+        cancel(null);
     }   //cancel
 
     /**
@@ -433,8 +478,7 @@ public class TrcPidMotor
     }   //getPosition
 
     /**
-     * This method sets the beep device and the beep tones so that it can play beeps when motor stalled or if the
-     * limit switches are activated/deactivated.
+     * This method sets the beep device and the beep tones so that it can play beeps when motor stalled.
      *
      * @param beepDevice specifies the beep device object.
      * @param beepLowFrequency specifies the low frequency beep.
@@ -461,7 +505,7 @@ public class TrcPidMotor
 
     /**
      * This method sets the beep device so that it can play beeps at default frequencies and duration when motor
-     * stalled or if the limit switches are activated/deactivated.
+     * stalled.
      *
      * @param beepDevice specifies the beep device object.
      */
@@ -512,6 +556,7 @@ public class TrcPidMotor
      * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
      * holding position.
      *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
@@ -520,7 +565,8 @@ public class TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
+    public synchronized void setTarget(
+        String owner, double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setTarget";
 
@@ -531,57 +577,100 @@ public class TrcPidMotor
                 target, Boolean.toString(holdTarget), event != null ? event.toString() : "null", timeout);
         }
 
-        if (active)
+        if (validateOwnership(owner))
         {
-            //
-            // A previous PID operation in progress, stop it but don't stop the motor to prevent jerkiness.
-            //
-            stop(false);
-        }
-
-        if (delay > 0.0)
-        {
-            this.target = target;
-            this.holdTarget = holdTarget;
-            this.notifyEvent = event;
-            this.timeout = timeout;
-            if (timer == null)
+            if (pidActive)
             {
-                timer = new TrcTimer(instanceName);
-            }
-            timer.set(delay, this::timerExpired);
-        }
-        else
-        {
-            //
-            // Set a new PID target.
-            //
-            pidCtrl.setTarget(target);
-
-            //
-            // If a notification event is provided, clear it.
-            //
-            if (event != null)
-            {
-                event.clear();
+                //
+                // A previous PID operation in progress, stop it but don't stop the motor to prevent jerkiness.
+                //
+                stop(false);
             }
 
-            this.holdTarget = holdTarget;
-            this.notifyEvent = event;
-            //
-            // If a timeout is provided, set the expired time.
-            //
-            this.timeout = timeout > 0.0? timeout + TrcUtil.getCurrentTime(): 0.0;
-            //
-            // Set the PID motor task enabled.
-            //
-            setTaskEnabled(true);
+            if (delay > 0.0)
+            {
+                this.target = target;
+                this.holdTarget = holdTarget;
+                this.notifyEvent = event;
+                this.timeout = timeout;
+                if (timer == null)
+                {
+                    timer = new TrcTimer(instanceName);
+                }
+                timer.set(delay, this::delayExpired);
+            }
+            else
+            {
+                //
+                // Set a new PID target.
+                //
+                pidCtrl.setTarget(target);
+
+                //
+                // If a notification event is provided, clear it.
+                //
+                if (event != null)
+                {
+                    event.clear();
+                }
+
+                this.holdTarget = holdTarget;
+                this.notifyEvent = event;
+                //
+                // If a timeout is provided, set the expired time.
+                //
+                this.timeout = timeout > 0.0? timeout + TrcUtil.getCurrentTime(): 0.0;
+                //
+                // Set the PID motor task enabled.
+                //
+                setTaskEnabled(true);
+            }
         }
 
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
+     *
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public synchronized void setTarget(double delay, double target, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setTarget(null, delay, target, holdTarget, event, timeout);
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public synchronized void setTarget(String owner, double target, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        setTarget(owner, 0.0, target, holdTarget, event, timeout);
     }   //setTarget
 
     /**
@@ -600,7 +689,7 @@ public class TrcPidMotor
      */
     public synchronized void setTarget(double target, boolean holdTarget, TrcEvent event, double timeout)
     {
-        setTarget(0.0, target, holdTarget, event, timeout);
+        setTarget(null, 0.0, target, holdTarget, event, timeout);
     }   //setTarget
 
     /**
@@ -616,7 +705,7 @@ public class TrcPidMotor
      */
     public void setTarget(double target, boolean holdTarget, TrcEvent event)
     {
-        setTarget(0.0, target, holdTarget, event, 0.0);
+        setTarget(null, 0.0, target, holdTarget, event, 0.0);
     }   //setTarget
 
     /**
@@ -627,7 +716,7 @@ public class TrcPidMotor
      */
     public void setTarget(double target, boolean holdTarget)
     {
-        setTarget(0.0, target, holdTarget, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, null, 0.0);
     }   //setTarget
 
     /**
@@ -637,7 +726,7 @@ public class TrcPidMotor
      */
     public void setTarget(double target)
     {
-        setTarget(0.0, target, true, null, 0.0);
+        setTarget(null, 0.0, target, true, null, 0.0);
     }   //setTarget
 
     /**
@@ -645,10 +734,10 @@ public class TrcPidMotor
      *
      * @param timer not used.
      */
-    private void timerExpired(Object timer)
+    private void delayExpired(Object timer)
     {
-        setTarget(0.0, target, holdTarget, notifyEvent, timeout);
-    }   //timerExpired
+        setTarget(null, 0.0, target, holdTarget, notifyEvent, timeout);
+    }   //delayExpired
 
     /**
      * This method performs motor stall detection to protect the motor from burning out. A motor is considered stalled
@@ -756,6 +845,24 @@ public class TrcPidMotor
     }   //resetStall
 
     /**
+     * This method returns the current motor power.
+     *
+     * @return current motor power.
+     */
+    public double getPower()
+    {
+        final String funcName = "getPower";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", motorPower);
+        }
+
+        return motorPower;
+    }   //getPower
+
+    /**
      * This method sets the PID motor power. It will also check for stalled condition and cut motor power if stalled
      * detected. It will also check to reset the stalled condition if reset timeout was specified.
      *
@@ -777,7 +884,7 @@ public class TrcPidMotor
         //
         // Note: this method does not handle zero calibration, so do not call this method in zero calibration mode.
         //
-        if (active && stopPid)
+        if (pidActive && stopPid)
         {
             //
             // A previous PID operation is still in progress, cancel it. Don't stop the motor to prevent jerkiness.
@@ -811,6 +918,24 @@ public class TrcPidMotor
      * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
      * It will also check to reset the stalled condition if reset timeout was specified.
      *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param power specifies the motor power.
+     * @param rangeLow specifies the range low limit.
+     * @param rangeHigh specifies the range high limit.
+     */
+    public void setPower(String owner, double power, double rangeLow, double rangeHigh)
+    {
+        if (validateOwnership(owner))
+        {
+            setPower(power, rangeLow, rangeHigh, true);
+        }
+    }   //setPower
+
+    /**
+     * This method sets the PID motor power. It will check for the limit switches. If activated, it won't allow the
+     * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
+     * It will also check to reset the stalled condition if reset timeout was specified.
+     *
      * @param power specifies the motor power.
      * @param rangeLow specifies the range low limit.
      * @param rangeHigh specifies the range high limit.
@@ -818,6 +943,22 @@ public class TrcPidMotor
     public void setPower(double power, double rangeLow, double rangeHigh)
     {
         setPower(power, rangeLow, rangeHigh, true);
+    }   //setPower
+
+    /**
+     * This method sets the PID motor power. It will check for the limit switches. If activated, it won't allow the
+     * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
+     * It will also check to reset the stalled condition if reset timeout was specified.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param power specifies the motor power.
+     */
+    public void setPower(String owner, double power)
+    {
+        if (validateOwnership(owner))
+        {
+            setPower(power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, true);
+        }
     }   //setPower
 
     /**
@@ -841,12 +982,13 @@ public class TrcPidMotor
      * value will specify the upper bound of the elevator power. So if the joystick is only pushed half way, the
      * elevator will only go half power even though it is far away from the target.
      *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param power specifies the upper bound power of the motor.
      * @param minPos specifies the minimum of the position range.
      * @param maxPos specifies the maximum of the position range.
      * @param holdTarget specifies true to hold target when speed is set to 0, false otherwise.
      */
-    public void setPowerWithinPosRange(double power, double minPos, double maxPos, boolean holdTarget)
+    public void setPowerWithinPosRange(String owner, double power, double minPos, double maxPos, boolean holdTarget)
     {
         final String funcName = "setPowerWithinPosRange";
 
@@ -856,60 +998,65 @@ public class TrcPidMotor
                                 "power=%.2f,minPos=%.1f,maxPos=%.1f,hold=%s",
                                 power, minPos, maxPos, Boolean.toString(holdTarget));
         }
-        //
-        // If power is negative, set the target to minPos. If power is positive, set the target to maxPos. We only
-        // set a new target if the target has changed. (i.e. either the motor changes direction, starting or stopping).
-        //
-        double currTarget = power < 0.0? minPos: power > 0.0? maxPos: minPos - 1.0;
-        if (currTarget != prevTarget)
+
+        if (validateOwnership(owner))
         {
-            if (power == 0.0)
+            //
+            // If power is negative, set the target to minPos. If power is positive, set the target to maxPos. We
+            // only set a new target if the target has changed. (i.e. either the motor changes direction, starting
+            // or stopping).
+            //
+            double currTarget = power < 0.0? minPos: power > 0.0? maxPos: minPos - 1.0;
+            if (currTarget != prevTarget)
             {
-                //
-                // We are stopping, Relax the power range to max range so we have full power to hold target if
-                // necessary.
-                //
-                pidCtrl.setOutputRange(MIN_MOTOR_POWER, MAX_MOTOR_POWER);
-                if (holdTarget)
+                if (power == 0.0)
                 {
                     //
-                    // Hold target at current position.
+                    // We are stopping, Relax the power range to max range so we have full power to hold target if
+                    // necessary.
                     //
-                    setTarget(getPosition(), true, null, 0.0);
+                    pidCtrl.setOutputRange(MIN_MOTOR_POWER, MAX_MOTOR_POWER);
+                    if (holdTarget)
+                    {
+                        //
+                        // Hold target at current position.
+                        //
+                        setTarget(getPosition(), true, null, 0.0);
+                    }
+                    else
+                    {
+                        //
+                        // We reached target and no holding target, we are done.
+                        //
+                        cancel();
+                    }
                 }
                 else
                 {
                     //
-                    // We reached target and no holding target, we are done.
+                    // We changed direction, change the target.
                     //
-                    cancel();
+                    power = Math.abs(power);
+                    pidCtrl.setOutputRange(-power, power);
+                    setTarget(currTarget, holdTarget, null, 0.0);
                 }
+                prevTarget = currTarget;
+            }
+            else if (power == 0.0)
+            {
+                //
+                // We remain stopping, keep the power range relaxed in case we are holding previous target.
+                //
+                pidCtrl.setOutputRange(MIN_MOTOR_POWER, MAX_MOTOR_POWER);
             }
             else
             {
                 //
-                // We changed direction, change the target.
+                // Direction did not change but we need to update the power range.
                 //
                 power = Math.abs(power);
                 pidCtrl.setOutputRange(-power, power);
-                setTarget(currTarget, holdTarget, null, 0.0);
             }
-            prevTarget = currTarget;
-        }
-        else if (power == 0.0)
-        {
-            //
-            // We remain stopping, keep the power range relaxed in case we are holding previous target.
-            //
-            pidCtrl.setOutputRange(MIN_MOTOR_POWER, MAX_MOTOR_POWER);
-        }
-        else
-        {
-            //
-            // Direction did not change but we need to update the power range.
-            //
-            power = Math.abs(power);
-            pidCtrl.setOutputRange(-power, power);
         }
 
         if (debugEnabled)
@@ -919,13 +1066,33 @@ public class TrcPidMotor
     }   //setPowerWithinPosRange
 
     /**
-     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
-     * switch is hit.
+     * This method sets the motor power with PID control. The motor will be under PID control and the power specifies
+     * the upper bound of how fast the motor will spin. The actual motor power is controlled by a PID controller with
+     * the target either set to minPos or maxPos depending on the direction of the motor. This is very useful in
+     * scenarios such as an elevator where you want to have the elevator controlled by a joystick but would like PID
+     * control to pay attention to the upper and lower limits and slow down when approaching those limits. The joystick
+     * value will specify the upper bound of the elevator power. So if the joystick is only pushed half way, the
+     * elevator will only go half power even though it is far away from the target.
      *
+     * @param power specifies the upper bound power of the motor.
+     * @param minPos specifies the minimum of the position range.
+     * @param maxPos specifies the maximum of the position range.
+     * @param holdTarget specifies true to hold target when speed is set to 0, false otherwise.
+     */
+    public void setPowerWithinPosRange(double power, double minPos, double maxPos, boolean holdTarget)
+    {
+        setPowerWithinPosRange(null, power, minPos, maxPos, holdTarget);
+    }   //setPowerWithinPosRange
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
      */
-    public synchronized void zeroCalibrate(double calPower)
+    public synchronized void zeroCalibrate(String owner, double calPower)
     {
         final String funcName = "zeroCalibrate";
 
@@ -934,16 +1101,20 @@ public class TrcPidMotor
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "calPower=%f", calPower);
         }
 
-        //
-        // Calibration power is always negative. Motor 1 always has a lower limit switch. If there is a motor 2,
-        // motor 2 has a lower limit switch only if it is independent of motor 1 and needs synchronizing with motor 1.
-        //
-        this.calPower = -Math.abs(calPower);
-        calibrating = true;
-        motor1ZeroCalDone = false;
-        motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
-        prevTime = TrcUtil.getCurrentTime();
-        setTaskEnabled(true);
+        if (validateOwnership(owner))
+        {
+            //
+            // Calibration power is always negative. Motor 1 always has a lower limit switch. If there is a motor 2,
+            // motor 2 has a lower limit switch only if it is independent of motor 1 and needs synchronizing with
+            // motor 1.
+            //
+            this.calPower = -Math.abs(calPower);
+            calibrating = true;
+            motor1ZeroCalDone = false;
+            motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
+            prevTime = TrcUtil.getCurrentTime();
+            setTaskEnabled(true);
+        }
 
         if (debugEnabled)
         {
@@ -953,11 +1124,34 @@ public class TrcPidMotor
 
     /**
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
-     * switch is hit.
+     * switch is hit or the motor is stalled.
+     *
+     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
+     *                 power specified in the constructor.
+     */
+    public synchronized void zeroCalibrate(double calPower)
+    {
+        zeroCalibrate(null, calPower);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     */
+    public synchronized void zeroCalibrate(String owner)
+    {
+        zeroCalibrate(owner, defCalPower);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
      */
     public synchronized void zeroCalibrate()
     {
-        zeroCalibrate(defCalPower);
+        zeroCalibrate(null, defCalPower);
     }   //zeroCalibrate
 
     /**
@@ -1033,41 +1227,6 @@ public class TrcPidMotor
     }   //setMotorPower
 
     /**
-     * This method stops the PID motor. Stopping a PID motor consists of two things: canceling PID and stopping
-     * the physical motor(s).
-     *
-     * @param stopMotor specifies true if also stopping the physical motor(s), false otherwise.
-     */
-    private synchronized void stop(boolean stopMotor)
-    {
-        final String funcName = "stop";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "stopMotor=%s", Boolean.toString(stopMotor));
-        }
-        //
-        // Canceling previous PID operation if any.
-        //
-        setTaskEnabled(false);
-        pidCtrl.reset();
-
-        if (stopMotor)
-        {
-            setMotorPower(0.0);
-        }
-
-        motorPower = 0.0;
-        calibrating = false;
-        stalled = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
-    }   //stop
-
-    /**
      * This method activates/deactivates a PID motor operation by enabling/disabling the PID motor task.
      *
      * @param enabled specifies true to activate a PID motor operation, false otherwise.
@@ -1091,7 +1250,7 @@ public class TrcPidMotor
             pidMotorTaskObj.unregisterTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
             stopMotorTaskObj.unregisterTask(TrcTaskMgr.TaskType.STOP_TASK);
         }
-        this.active = enabled;
+        this.pidActive = enabled;
 
         if (debugEnabled)
         {
@@ -1141,9 +1300,9 @@ public class TrcPidMotor
     /**
      * This method is called periodically to perform the PID motor task. The PID motor task can be in one of two
      * modes: zero calibration mode and normal mode. In zero calibration mode, it will drive the motor with the
-     * specified calibration power until it hits the lower limit switch. Then it will stop the motor and reset the
-     * motor position sensor. In normal mode, it calls the PID control to calculate and set the motor power. It also
-     * checks if the motor has reached the set target and disables the task.
+     * specified calibration power until it hits the lower limit switch or the motor is stalled. Then it will stop
+     * the motor and reset the motor position sensor. In normal mode, it calls the PID control to calculate and set
+     * the motor power. It also checks if the motor has reached the set target and disables the task.
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.

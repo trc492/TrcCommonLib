@@ -31,33 +31,28 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
     /**
      * Constructor: Create an instance of the 4-wheel mecanum drive base.
      *
-     * @param leftFrontMotor specifies the left front motor of the drive base.
-     * @param leftBackMotor specifies the left back motor of the drive base.
-     * @param rightFrontMotor specifies the right front motor of the drive base.
-     * @param rightBackMotor specifies the right back motor of the drive base.
+     * @param lfMotor specifies the left front motor of the drive base.
+     * @param lbMotor specifies the left back motor of the drive base.
+     * @param rfMotor specifies the right front motor of the drive base.
+     * @param rbMotor specifies the right back motor of the drive base.
      * @param gyro specifies the gyro. If none, it can be set to null.
      */
-    public TrcMecanumDriveBase(
-        TrcMotorController leftFrontMotor, TrcMotorController leftBackMotor,
-        TrcMotorController rightFrontMotor, TrcMotorController rightBackMotor,
-        TrcGyro gyro)
+    public TrcMecanumDriveBase(TrcMotor lfMotor, TrcMotor lbMotor, TrcMotor rfMotor, TrcMotor rbMotor, TrcGyro gyro)
     {
-        super(leftFrontMotor, leftBackMotor, rightFrontMotor, rightBackMotor, gyro);
+        super(lfMotor, lbMotor, rfMotor, rbMotor, gyro);
     }   //TrcMecanumDriveBase
 
     /**
      * Constructor: Create an instance of the 4-wheel mecanum drive base.
      *
-     * @param leftFrontMotor specifies the left front motor of the drive base.
-     * @param leftBackMotor specifies the left back motor of the drive base.
-     * @param rightFrontMotor specifies the right front motor of the drive base.
-     * @param rightBackMotor specifies the right back motor of the drive base.
+     * @param lfMotor specifies the left front motor of the drive base.
+     * @param lbMotor specifies the left back motor of the drive base.
+     * @param rfMotor specifies the right front motor of the drive base.
+     * @param rbMotor specifies the right back motor of the drive base.
      */
-    public TrcMecanumDriveBase(
-        TrcMotorController leftFrontMotor, TrcMotorController leftBackMotor,
-        TrcMotorController rightFrontMotor, TrcMotorController rightBackMotor)
+    public TrcMecanumDriveBase(TrcMotor lfMotor, TrcMotor lbMotor, TrcMotor rfMotor, TrcMotor rbMotor)
     {
-        super(leftFrontMotor, leftBackMotor, rightFrontMotor, rightBackMotor, null);
+        super(lfMotor, lbMotor, rfMotor, rbMotor, null);
     }   //TrcMecanumDriveBase
 
     /**
@@ -131,33 +126,33 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             wheelPower = wheelPowers[MotorType.LEFT_FRONT.value];
             if (motorPowerMapper != null)
             {
-                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, leftFrontMotor.getVelocity());
+                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lfMotor.getVelocity());
             }
-            leftFrontMotor.set(wheelPower);
+            lfMotor.set(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_FRONT.value];
             if (motorPowerMapper != null)
             {
-                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rightFrontMotor.getVelocity());
+                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rfMotor.getVelocity());
             }
-            rightFrontMotor.set(wheelPower);
+            rfMotor.set(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.LEFT_BACK.value];
             if (motorPowerMapper != null)
             {
-                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, leftBackMotor.getVelocity());
+                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lbMotor.getVelocity());
             }
-            leftBackMotor.set(wheelPower);
+            lbMotor.set(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_BACK.value];
             if (motorPowerMapper != null)
             {
-                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rightBackMotor.getVelocity());
+                wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rbMotor.getVelocity());
             }
-            rightBackMotor.set(wheelPower);
+            rbMotor.set(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             if (!wheelsPowered)

@@ -25,10 +25,9 @@ package TrcCommonLib.trclib;
 /**
  * This class implements a platform independent Swerve Drive module. A Swerve Drive module consists of a drive motor
  * and a steer motor. The steer motor is a PID controlled motor with a zero calibration limit switch that allows an
- * absolute steering angle to be set and held. It implements the TrcMotorController interface so that it can be used
- * in TrcDriveBase.
+ * absolute steering angle to be set and held.
  */
-public class TrcSwerveModule implements TrcMotorController
+public class TrcSwerveModule
 {
     private static final String moduleName = "TrcSwerveModule";
     private static final boolean debugEnabled = false;
@@ -39,7 +38,7 @@ public class TrcSwerveModule implements TrcMotorController
     private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
-    public final TrcMotorController driveMotor;
+    public final TrcMotor driveMotor;
     public final TrcPidMotor steerMotor;
     public final TrcEnhancedServo steerServo;
     private TrcWarpSpace warpSpace;
@@ -58,7 +57,7 @@ public class TrcSwerveModule implements TrcMotorController
      * @param steerServo   specifies the steering servo.
      */
     private TrcSwerveModule(
-            String instanceName, TrcMotorController driveMotor, TrcPidMotor steerMotor, TrcEnhancedServo steerServo)
+            String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor, TrcEnhancedServo steerServo)
     {
         if (debugEnabled)
         {
@@ -81,7 +80,7 @@ public class TrcSwerveModule implements TrcMotorController
      * @param driveMotor   specifies the drive motor.
      * @param steerMotor   specifies the steering motor.
      */
-    public TrcSwerveModule(String instanceName, TrcMotorController driveMotor, TrcPidMotor steerMotor)
+    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor)
     {
         this(instanceName, driveMotor, steerMotor, null);
     }   //TrcSwerveModule
@@ -93,7 +92,7 @@ public class TrcSwerveModule implements TrcMotorController
      * @param driveMotor   specifies the drive motor.
      * @param steerServo   specifies the steering servo.
      */
-    public TrcSwerveModule(String instanceName, TrcMotorController driveMotor, TrcEnhancedServo steerServo)
+    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcEnhancedServo steerServo)
     {
         this(instanceName, driveMotor, null, steerServo);
     }   //TrcSwerveModule
@@ -308,279 +307,5 @@ public class TrcSwerveModule implements TrcMotorController
 
         return angle;
     }   //getSteerAngle
-
-    //
-    // Implements TrcMotorController interface.
-    //
-
-    /**
-     * This method returns the state of the motor controller direction.
-     *
-     * @return true if the motor direction is inverted, false otherwise.
-     */
-    @Override
-    public boolean getInverted()
-    {
-        final String funcName = "getInverted";
-        boolean inverted = driveMotor.getInverted();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", inverted);
-        }
-
-        return inverted;
-    }   //getInverted
-
-    /**
-     * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
-     * or a potentiometer.
-     *
-     * @return current motor position.
-     */
-    @Override
-    public double getPosition()
-    {
-        final String funcName = "getPosition";
-        double position = driveMotor.getPosition();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", position);
-        }
-
-        return position;
-    }   //getPosition
-
-    /**
-     * This method gets the last set power.
-     *
-     * @return the last setPower value.
-     */
-    @Override
-    public double getPower()
-    {
-        final String funcName = "getPower";
-        double power = driveMotor.getPower();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", power);
-        }
-
-        return power;
-    }   //getPower
-
-    /**
-     * This method returns the velocity of the motor rotation in sensor unit per second.
-     *
-     * @return motor rotation velocity in sensor unit per second.
-     */
-    @Override
-    public double getVelocity()
-    {
-        final String funcName = "getVelocity";
-        double velocity = driveMotor.getVelocity();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", velocity);
-        }
-
-        return velocity;
-    }   //getVelocity
-
-    /**
-     * This method returns the state of the lower limit switch.
-     *
-     * @return true if lower limit switch is active, false otherwise.
-     */
-    @Override
-    public boolean isLowerLimitSwitchActive()
-    {
-        throw new UnsupportedOperationException("Drive wheel does not have limit switches.");
-    }   //isLowerLimitSwitchActive
-
-    /**
-     * This method returns the state of the upper limit switch.
-     *
-     * @return true if upper limit switch is active, false otherwise.
-     */
-    @Override
-    public boolean isUpperLimitSwitchActive()
-    {
-        throw new UnsupportedOperationException("Drive wheel does not have limit switches.");
-    }   //isUpperLimitSwitchActive
-
-    /**
-     * This method resets the motor position sensor, typically an encoder.
-     *
-     * @param hardware specifies true for resetting hardware position, false for resetting software position.
-     */
-    @Override
-    public void resetPosition(boolean hardware)
-    {
-        final String funcName = "resetPosition";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "hardware=%s", hardware);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        driveMotor.resetPosition(hardware);
-    }   //resetPosition
-
-    /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
-     *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     */
-    @Override
-    public void set(double value)
-    {
-        final String funcName = "set";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f", value);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        driveMotor.set(value * optimizedWheelDir);
-    }   //set
-
-    /**
-     * This method enables/disables motor brake mode. In motor brake mode, set power to 0 would stop the motor very
-     * abruptly by shorting the motor wires together using the generated back EMF to stop the motor. When brakMode
-     * is false (i.e. float/coast mode), the motor wires are just disconnected from the motor controller so the motor
-     * will stop gradually.
-     *
-     * @param enabled specifies true to enable brake mode, false otherwise.
-     */
-    @Override
-    public void setBrakeModeEnabled(boolean enabled)
-    {
-        final String funcName = "setBrakeModeEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        driveMotor.setBrakeModeEnabled(enabled);
-    }   //setBrakeModeEnabled
-
-    /**
-     * This method inverts the motor direction.
-     *
-     * @param inverted specifies true to invert motor direction, false otherwise.
-     */
-    @Override
-    public void setInverted(boolean inverted)
-    {
-        final String funcName = "setInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", inverted);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        driveMotor.setInverted(inverted);
-    }   //setInverted
-
-    /**
-     * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
-     * encoder may be mounted somewhere in the power train that it rotates opposite to the motor rotation. This will
-     * cause the encoder reading to go down when the motor is receiving positive power. This method can correct this
-     * situation.
-     *
-     * @param inverted specifies true to invert position sensor direction, false otherwise.
-     */
-    @Override
-    public void setPositionSensorInverted(boolean inverted)
-    {
-        final String funcName = "setPositionSensorInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", inverted);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        driveMotor.setPositionSensorInverted(inverted);
-    }   //setPositionSensorInverted
-
-    /**
-     * This method enables/disables soft limit switches.
-     *
-     * @param lowerLimitEnabled specifies true to enable lower soft limit switch, false otherwise.
-     * @param upperLimitEnabled specifies true to enable upper soft limit switch, false otherwise.
-     */
-    @Override
-    public void setSoftLimitEnabled(boolean lowerLimitEnabled, boolean upperLimitEnabled)
-    {
-        throw new UnsupportedOperationException("Drive wheel does not support soft limits.");
-    }   //setSoftLimitEnabled
-
-    /**
-     * This method sets the lower soft limit.
-     *
-     * @param position specifies the position of the lower limit.
-     */
-    @Override
-    public void setSoftLowerLimit(double position)
-    {
-        throw new UnsupportedOperationException("Drive wheel does not support soft limits.");
-    }   //setSoftLowerLimit
-
-    /**
-     * This method sets the upper soft limit.
-     *
-     * @param position specifies the position of the upper limit.
-     */
-    @Override
-    public void setSoftUpperLimit(double position)
-    {
-        throw new UnsupportedOperationException("Drive wheel does not support soft limits.");
-    }   //setSoftUpperLimit
-
-    //
-    // Implements TrcOdometrySensor interface.
-    //
-
-    /**
-     * This method resets the odometry data and sensor.
-     *
-     * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
-     *                      require some time to complete and will block this method from returning until finish.
-     */
-    @Override
-    public void resetOdometry(boolean resetHardware)
-    {
-        driveMotor.resetOdometry(resetHardware);
-    }   //resetOdometry
-
-    /**
-     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
-     * the caller is accessing the data fields.
-     *
-     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor.
-     * @return a copy of the odometry data of the specified axis.
-     */
-    @Override
-    public Odometry getOdometry(int axisIndex)
-    {
-        Odometry odometry = driveMotor.getOdometry();
-        odometry.sensor = this;
-        return odometry;
-    }   //getOdometry
 
 }   //class TrcSwerveModule

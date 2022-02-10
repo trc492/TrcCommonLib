@@ -189,7 +189,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private static final double DEF_SENSITIVITY = 0.5;
     private static final double DEF_MAX_OUTPUT = 1.0;
 
-    private final TrcMotorController[] motors;
+    private final TrcMotor[] motors;
     private final TrcGyro gyro;
     protected final Odometry odometry;
     private final MotorsState motorsState;
@@ -219,7 +219,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * @param motors specifies the array of motors in the drive base.
      * @param gyro   specifies the gyro. If none, it can be set to null.
      */
-    public TrcDriveBase(TrcMotorController[] motors, TrcGyro gyro)
+    public TrcDriveBase(TrcMotor[] motors, TrcGyro gyro)
     {
         if (debugEnabled)
         {
@@ -254,7 +254,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param motors specifies the array of motors in the drive base.
      */
-    public TrcDriveBase(TrcMotorController... motors)
+    public TrcDriveBase(TrcMotor... motors)
     {
         this(motors, null);
     }   //TrcDriveBase
@@ -264,7 +264,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @return motor array.
      */
-    public TrcMotorController[] getMotors()
+    public TrcMotor[] getMotors()
     {
         return motors;
     }   //getMotors
@@ -311,7 +311,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         for (int i = 0; i < motors.length; i++)
         {
-            ((TrcMotor) motors[i]).setOdometryEnabled(enabled);
+            motors[i].setOdometryEnabled(enabled);
         }
 
         if (enabled)
@@ -1044,7 +1044,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        for (TrcMotorController motor : motors)
+        for (TrcMotor motor : motors)
         {
             motor.setBrakeModeEnabled(enabled);
         }
@@ -1067,7 +1067,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         if (validateOwnership(owner))
         {
-            for (TrcMotorController motor : motors)
+            for (TrcMotor motor : motors)
             {
                 motor.set(0.0);
             }

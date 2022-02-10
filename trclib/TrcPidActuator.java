@@ -100,6 +100,21 @@ public class TrcPidActuator extends TrcPidMotor
         }   //setPidParams
 
         /**
+         * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
+         *
+         * @param kP specifies the Proportional constant.
+         * @param kI specifies the Integral constant.
+         * @param kD specifies the Differential constant.
+         * @param tolerance specifies the tolerance.
+         * @return this parameter object.
+         */
+        public Parameters setPidParams(double kP, double kI, double kD, double tolerance)
+        {
+            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance);
+            return this;
+        }   //setPidParams
+
+        /**
          * This method sets the motor parameters of the motor actuator.
          *
          * @param motorInverted specifies true if the motor direction should be reverse, false otherwise.
@@ -308,10 +323,11 @@ public class TrcPidActuator extends TrcPidMotor
      * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
      * Note that if position range is not set, PID control will be disabled.
      *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param power specifies the power to run the actuator.
      * @param hold specifies true to hold position when power is zero, false otherwise.
      */
-    public void setPower(double power, boolean hold)
+    public void setPower(String owner, double power, boolean hold)
     {
         final String funcName = "setPower";
 
@@ -323,11 +339,11 @@ public class TrcPidActuator extends TrcPidMotor
         if (manualOverride || params.minPos == 0.0 && params.maxPos == 0.0)
         {
             cancel();
-            super.setPower(power);
+            super.setPower(owner, power);
         }
         else
         {
-            setPowerWithinPosRange(power, params.minPos, params.maxPos, hold);
+            setPowerWithinPosRange(owner, power, params.minPos, params.maxPos, hold);
         }
 
         if (debugEnabled)
@@ -341,12 +357,60 @@ public class TrcPidActuator extends TrcPidMotor
      * Note that if position range is not set, PID control will be disabled.
      *
      * @param power specifies the power to run the actuator.
+     * @param hold specifies true to hold position when power is zero, false otherwise.
+     */
+    public void setPower(double power, boolean hold)
+    {
+        setPower(null, power, hold);
+    }   //setPower
+
+    /**
+     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
+     * Note that if position range is not set, PID control will be disabled.
+     *
+     * @param power specifies the power to run the actuator.
      */
     @Override
     public void setPower(double power)
     {
-        setPower(power, false);
+        setPower(null, power, false);
     }   //setPower
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
+     * @param level specifies the index to the preset position array.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setLevel(String owner, double delay, int level, boolean holdTarget, TrcEvent event, double timeout)
+    {
+        if (validateOwnership(owner))
+        {
+            if (params.posPresets != null)
+            {
+                if (level < 0)
+                {
+                    positionLevel = 0;
+                }
+                else if (level >= params.posPresets.length)
+                {
+                    positionLevel = params.posPresets.length - 1;
+                }
+                else
+                {
+                    positionLevel = level;
+                }
+
+                setTarget(delay, params.posPresets[positionLevel], holdTarget, event, timeout);
+            }
+        }
+    }   //setLevel
 
     /**
      * This method sets the actuator to the specified preset position.
@@ -361,23 +425,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(double delay, int level, boolean holdTarget, TrcEvent event, double timeout)
     {
-        if (params.posPresets != null)
-        {
-            if (level < 0)
-            {
-                positionLevel = 0;
-            }
-            else if (level >= params.posPresets.length)
-            {
-                positionLevel = params.posPresets.length - 1;
-            }
-            else
-            {
-                positionLevel = level;
-            }
-
-            setTarget(delay, params.posPresets[positionLevel], holdTarget, event, timeout);
-        }
+        setLevel(null, delay, level, holdTarget, event, timeout);
     }   //setLevel
 
     /**
@@ -392,7 +440,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(int level, boolean holdTarget, TrcEvent event, double timeout)
     {
-        setLevel(0.0, level, holdTarget, event, timeout);
+        setLevel(null, 0.0, level, holdTarget, event, timeout);
     }   //setLevel
 
     /**
@@ -402,7 +450,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(int level, TrcEvent event)
     {
-        setLevel(0.0, level, true, event, 0.0);
+        setLevel(null, 0.0, level, true, event, 0.0);
     }   //setLevel
 
     /**
@@ -413,7 +461,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(double delay, int level)
     {
-        setLevel(delay, level, true, null, 0.0);
+        setLevel(null, delay, level, true, null, 0.0);
     }   //setLevel
 
     /**
@@ -423,7 +471,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setLevel(int level)
     {
-        setLevel(0.0, level, true, null, 0.0);
+        setLevel(null, 0.0, level, true, null, 0.0);
     }   //setLevel
 
     /**

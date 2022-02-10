@@ -43,25 +43,24 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     /**
      * Constructor: Create an instance of the 4-wheel swerve drive base.
      *
-     * @param leftFrontMotor  specifies the left front motor of the drive base.
-     * @param leftBackMotor   specifies the left back motor of the drive base.
-     * @param rightFrontMotor specifies the right front motor of the drive base.
-     * @param rightBackMotor  specifies the right back motor of the drive base.
-     * @param gyro            specifies the gyro. If none, it can be set to null.
-     * @param wheelBaseWidth  specifies the width of the wheel base in inches.
+     * @param lfModule specifies the left front swerve module of the drive base.
+     * @param lbModule specifies the left back swerve module of the drive base.
+     * @param rfModule specifies the right front swerve module of the drive base.
+     * @param rbModule specifies the right back swerve module of the drive base.
+     * @param gyro specifies the gyro. If none, it can be set to null.
+     * @param wheelBaseWidth specifies the width of the wheel base in inches.
      * @param wheelBaseLength specifies the length of the wheel base in inches.
      */
     public TrcSwerveDriveBase(
-        TrcSwerveModule leftFrontMotor, TrcSwerveModule leftBackMotor,
-        TrcSwerveModule rightFrontMotor, TrcSwerveModule rightBackMotor,
+        TrcSwerveModule lfModule, TrcSwerveModule lbModule, TrcSwerveModule rfModule, TrcSwerveModule rbModule,
         TrcGyro gyro, double wheelBaseWidth, double wheelBaseLength)
     {
-        super(leftFrontMotor, leftBackMotor, rightFrontMotor, rightBackMotor, gyro);
+        super(lfModule.driveMotor, lbModule.driveMotor, rfModule.driveMotor, rbModule.driveMotor, gyro);
 
-        this.lfModule = leftFrontMotor;
-        this.rfModule = rightFrontMotor;
-        this.lbModule = leftBackMotor;
-        this.rbModule = rightBackMotor;
+        this.lfModule = lfModule;
+        this.rfModule = rfModule;
+        this.lbModule = lbModule;
+        this.rbModule = rbModule;
         this.wheelBaseWidth = wheelBaseWidth;
         this.wheelBaseLength = wheelBaseLength;
         this.wheelBaseDiagonal = TrcUtil.magnitude(wheelBaseWidth, wheelBaseLength);
@@ -70,19 +69,18 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     /**
      * Constructor: Create an instance of the 4-wheel swerve drive base.
      *
-     * @param leftFrontMotor  specifies the left front motor of the drive base.
-     * @param leftBackMotor   specifies the left back motor of the drive base.
-     * @param rightFrontMotor specifies the right front motor of the drive base.
-     * @param rightBackMotor  specifies the right back motor of the drive base.
+     * @param lfModule specifies the left front swerve module of the drive base.
+     * @param lbModule specifies the left back swerve module of the drive base.
+     * @param rfModule specifies the right front swerve module of the drive base.
+     * @param rbModule specifies the right back swerve module of the drive base.
      * @param wheelBaseWidth  specifies the width of the wheel base in inches.
      * @param wheelBaseLength specifies the length of the wheel base in inches.
      */
     public TrcSwerveDriveBase(
-        TrcSwerveModule leftFrontMotor, TrcSwerveModule leftBackMotor,
-        TrcSwerveModule rightFrontMotor, TrcSwerveModule rightBackMotor,
+        TrcSwerveModule lfModule, TrcSwerveModule lbModule, TrcSwerveModule rfModule, TrcSwerveModule rbModule,
         double wheelBaseWidth, double wheelBaseLength)
     {
-        this(leftFrontMotor, leftBackMotor, rightFrontMotor, rightBackMotor, null, wheelBaseWidth, wheelBaseLength);
+        this(lfModule, lbModule, rfModule, rbModule, null, wheelBaseWidth, wheelBaseLength);
     }   //TrcSwerveDriveBase
 
     /**
@@ -226,7 +224,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         {
             // Set angles before speed so angle optimization takes effect
             modules[i].setSteerAngle(velocities[i][1]);
-            modules[i].set(velocities[i][0]);
+            modules[i].driveMotor.set(velocities[i][0]);
         }
     }   //setModuleVelocities
 
@@ -330,10 +328,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)
             {
-                lfModule.set(0.0);
-                rfModule.set(0.0);
-                lbModule.set(0.0);
-                rbModule.set(0.0);
+                lfModule.driveMotor.set(0.0);
+                rfModule.driveMotor.set(0.0);
+                lbModule.driveMotor.set(0.0);
+                rbModule.driveMotor.set(0.0);
 
                 lfModule.setSteerAngle(lfModule.getSteerAngle());
                 rfModule.setSteerAngle(rfModule.getSteerAngle());
@@ -393,10 +391,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
 
                 if (motorPowerMapper != null)
                 {
-                    lfPower = motorPowerMapper.translateMotorPower(lfPower, lfModule.getVelocity());
-                    rfPower = motorPowerMapper.translateMotorPower(rfPower, rfModule.getVelocity());
-                    lbPower = motorPowerMapper.translateMotorPower(lbPower, lbModule.getVelocity());
-                    rbPower = motorPowerMapper.translateMotorPower(rbPower, rbModule.getVelocity());
+                    lfPower = motorPowerMapper.translateMotorPower(lfPower, lfModule.driveMotor.getVelocity());
+                    rfPower = motorPowerMapper.translateMotorPower(rfPower, rfModule.driveMotor.getVelocity());
+                    lbPower = motorPowerMapper.translateMotorPower(lbPower, lbModule.driveMotor.getVelocity());
+                    rbPower = motorPowerMapper.translateMotorPower(rbPower, rbModule.driveMotor.getVelocity());
                 }
 
                 lfModule.setSteerAngle(lfAngle);
@@ -404,10 +402,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 lbModule.setSteerAngle(lbAngle);
                 rbModule.setSteerAngle(rbAngle);
 
-                lfModule.set(lfPower);
-                rfModule.set(rfPower);
-                lbModule.set(lbPower);
-                rbModule.set(rbPower);
+                lfModule.driveMotor.set(lfPower);
+                rfModule.driveMotor.set(rfPower);
+                lbModule.driveMotor.set(lbPower);
+                rbModule.driveMotor.set(rbPower);
                 if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
                 {
                     // reset stall start time to zero if drive base is stopped.

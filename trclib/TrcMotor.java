@@ -35,7 +35,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  * If the motor controller hardware support these features, the platform dependent class should override these methods
  * to provide the support in hardware.
  */
-public abstract class TrcMotor implements TrcMotorController
+public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsystem
 {
     protected static final String moduleName = "TrcMotor";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
@@ -47,63 +47,119 @@ public abstract class TrcMotor implements TrcMotorController
     protected TrcDbgTrace dbgTrace = null;
 
     /**
-     * This interface, if provided, is called if a digital input device is registered to reset the motor position
-     * on trigger and a trigger event occurred.
+     * This method enables/disables motor brake mode. In motor brake mode, set power to 0 would stop the motor very
+     * abruptly by shorting the motor wires together using the generated back EMF to stop the motor. When not enabled,
+     * (i.e. float/coast mode), the motor wires are just disconnected from the motor controller so the motor will
+     * stop gradually.
+     *
+     * @param enabled specifies true to enable brake mode, false otherwise.
+     * @throws UnsupportedOperationException if hardware does not support it.
      */
-    public interface DigitalTriggerHandler
-    {
-        /**
-         * This method is called when a digital trigger event occurred.
-         *
-         * @param active specifies true if the digital input is active, false if inactive.
-         */
-        void digitalTriggerEvent(boolean active);
+    public abstract void setBrakeModeEnabled(boolean enabled);
 
-    }   //interface DigitalTriggerHandler
+    /**
+     * This method sets the raw motor power. It is called by the Velocity Control task. If the subclass is
+     * implementing its own native velocity control, it does not really need to do anything for this method.
+     * But for completeness, it can just set the raw motor power in the motor controller.
+     * Note: Do not call this method to set motor power, call set() instead. This method is intended to be called
+     * internally by TrcMotor only.
+     *
+     * @param value specifies the percentage power (range -1.0 to 1.0) to be set.
+     */
+    public abstract void setMotorPower(double value);
+
+    /**
+     * This method gets the last set power.
+     *
+     * @return the last setMotorPower value.
+     */
+    public abstract double getMotorPower();
+
+    /**
+     * This method resets the motor position sensor, typically an encoder.
+     * Note: Do not call this method to reset motor position, call resetPosition() instead. This method is intended
+     * to be called internally by TrcMotor only.
+     *
+     * @throws UnsupportedOperationException if hardware does not support it.
+     */
+    public abstract void resetMotorPosition();
 
     /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
      * or a potentiometer.
+     * Note: Do not call this method to get motor position, call getPosition() instead. This method is intended
+     * to be called internally by TrcMotor only.
      *
-     * @return current motor position.
+     * @return current motor position in raw sensor units.
+     * @throws UnsupportedOperationException if hardware does not support it.
      */
     public abstract double getMotorPosition();
 
     /**
      * This method returns the motor velocity from the platform dependent motor hardware. If the hardware does
      * not support velocity info, it should throw an UnsupportedOperationException.
+     * Note: Do not call this method to get motor velocity, call getVelocity() instead. This method is intended
+     * to be called internally by TrcMotor only.
      *
-     * @return current motor velocity.
-     * @throws UnsupportedOperationException
+     * @return current motor velocity in raw sensor units per sec.
+     * @throws UnsupportedOperationException if hardware does not support it.
      */
     public abstract double getMotorVelocity();
 
     /**
-     * This method sets the raw motor power. It is called by the Velocity Control task. If the subclass is
-     * implementing its own native velocity control, it does not really need to do anything for this method.
-     * But for completeness, it can just set the raw motor power in the motor controller.
+     * This method returns the state of the reverse limit switch.
+     * Note: Do not call this method to get limit switch state, call isLowerLimitSwitchActive() or
+     * isUpperLimitSwitchActive() instead. This method is intended to be called internally by TrcMotor only.
      *
-     * @param value specifies the percentage power (range -1.0 to 1.0) to be set.
+     * @return true if reverse limit switch is active, false otherwise.
+     * @throws UnsupportedOperationException if hardware does not support it.
      */
-    public abstract void setMotorPower(double value);
+    public abstract boolean isRevLimitSwitchActive();
 
+    /**
+     * This method returns the state of the forward limit switch.
+     * Note: Do not call this method to get limit switch state, call isLowerLimitSwitchActive() or
+     * isUpperLimitSwitchActive() instead. This method is intended to be called internally by TrcMotor only.
+     *
+     * @return true if forward limit switch is active, false otherwise.
+     * @throws UnsupportedOperationException if hardware does not support it.
+     */
+    public abstract boolean isFwdLimitSwitchActive();
+
+    //
+    // Global objects.
+    //
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
-    private static TrcTaskMgr.TaskObject odometryTaskObj = null;
-    private static TrcTaskMgr.TaskObject cleanupTaskObj = null;
-    protected static TrcElapsedTimer motorGetPosElapsedTimer = null;
-    protected static TrcElapsedTimer motorSetElapsedTimer = null;
+    protected static TrcElapsedTimer motorGetPosElapsedTimer;
+    protected static TrcElapsedTimer motorSetElapsedTimer;
+    private ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
     private final String instanceName;
-    private final Odometry odometry;
+    private final TrcOdometrySensor.Odometry odometry;
+    private static TrcTaskMgr.TaskObject odometryTaskObj;
+    private static TrcTaskMgr.TaskObject cleanupTaskObj;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
     private final TrcTimer timer;
+
     private TrcEvent notifyEvent;
-    private TrcDigitalInputTrigger digitalTrigger = null;
+    private TrcDigitalInputTrigger digitalTrigger;
+    private TrcSensorTrigger.DigitalTriggerHandler digitalTriggerHandler;
+
+    protected boolean calibrating = false;
+
+    private double motorDirSign = 1.0;
+    private double posSensorSign = 1.0;
+    private double zeroPosition = 0.0;
+    private boolean limitSwitchesSwapped = false;
+    private boolean softLowerLimitEnabled = false;
+    private boolean softUpperLimitEnabled = false;
+    private double softLowerLimit = 0.0;
+    private double softUpperLimit = 0.0;
+
     private boolean odometryEnabled = false;
+
     protected double maxMotorVelocity = 0.0;
     private TrcPidController velocityPidCtrl = null;
-    private DigitalTriggerHandler digitalTriggerHandler = null;
-    protected boolean calibrating = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -114,20 +170,19 @@ public abstract class TrcMotor implements TrcMotorController
     {
         if (debugEnabled)
         {
-            dbgTrace = useGlobalTracer ?
-                TrcDbgTrace.getGlobalTracer() :
+            dbgTrace = useGlobalTracer ? globalTracer :
                 new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
         }
 
         this.instanceName = instanceName;
-        this.odometry = new Odometry(this);
+        this.odometry = new TrcOdometrySensor.Odometry(this);
 
         if (odometryTaskObj == null)
         {
             //
-            // Odometry task is global. There is only one instance that manages odometry of all motors.
-            // This allows us to move this task to a STANDALONE_TASK if it turns out degrading the INPUT_TASK too
-            // much. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
+            // Odometry task is a singleton that manages odometry of all motors.
+            // This will be a STANDALONE_TASK so that it won't degrade the INPUT_TASK with long delay waiting for the
+            // hardware. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
             // many threads.
             //
             odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
@@ -149,66 +204,577 @@ public abstract class TrcMotor implements TrcMotorController
         return instanceName;
     }   //toString
 
+    //
+    // Platform-dependent subclasses should override these methods if they can be supported in hardware.
+    //
+
     /**
-     * This method enables/disables the elapsed timers for performance monitoring.
+     * This method inverts the motor direction.
+     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
      *
-     * @param enabled specifies true to enable elapsed timers, false to disable.
+     * @param inverted specifies true to invert motor direction, false otherwise.
      */
-    public static void setElapsedTimerEnabled(boolean enabled)
+    public void setInverted(boolean inverted)
     {
-        if (enabled)
+        motorDirSign = inverted? -1.0: 1.0;
+    }   //setInverted
+
+    /**
+     * This method returns the state of the motor controller direction.
+     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
+     *
+     * @return true if the motor direction is inverted, false otherwise.
+     */
+    public boolean isInverted()
+    {
+        return motorDirSign == -1.0;
+    }   //isInverted
+
+    /**
+     * This method sets this motor to follow another motor. If the subclass is not capable of following another motor,
+     * this method throws an UnsupportedOperationException.
+     *
+     * @throws UnsupportedOperationException if hardware does not support it.
+     */
+    public void followMotor(TrcMotor motor)
+    {
+        throw new UnsupportedOperationException("followMotor is not supported!");
+    }   //followMotor
+
+    /**
+     * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
+     * encoder may be mounted somewhere in the power train that it rotates opposite to the motor rotation. This will
+     * cause the encoder reading to go down when the motor is receiving positive power. This method can correct this
+     * situation.
+     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
+     *
+     * @param inverted specifies true to invert position sensor direction, false otherwise.
+     */
+    public void setPositionSensorInverted(boolean inverted)
+    {
+        posSensorSign = inverted? -1.0: 1.0;
+    }   //setPositionSensorInverted
+
+    /**
+     * This method returns the state of the position sensor direction.
+     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
+     *
+     * @return true if the motor direction is inverted, false otherwise.
+     */
+    public boolean isPositionSensorInverted()
+    {
+        return posSensorSign == -1.0;
+    }   //isPositionSensorInverted
+
+    /**
+     * This method checks if the motor controller is connected to the robot. Note that this does NOT guarantee the
+     * connection status of the motor to the motor controller. If detecting the motor presence is impossible (i.e. the
+     * motor controller is connected via PWM) this method will always return true.
+     *
+     * @return True if the motor is connected or if it's impossible to know, false otherwise.
+     */
+    public boolean isConnected()
+    {
+        return true;
+    }   //isConnected
+
+    //
+    // TrcMotor APIs.
+    //
+
+    /**
+     * This method adds the given motor to the list that will follow this motor.
+     *
+     * @param motor specifies the motor that will follow this motor.
+     */
+    public void addFollowingMotor(TrcMotor motor)
+    {
+        followingMotorsList.add(motor);
+    }   //setFollowingMotor
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *              ownership aware.
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    public void set(String owner, double value)
+    {
+        final String funcName = "set";
+
+        if (debugEnabled)
         {
-            if (motorGetPosElapsedTimer == null)
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,value=%f", owner, value);
+        }
+
+        if (validateOwnership(owner))
+        {
+            value = TrcUtil.clipRange(value);
+
+            if ((softLowerLimitEnabled || softUpperLimitEnabled) && value != 0.0)
             {
-                motorGetPosElapsedTimer = new TrcElapsedTimer("TrcMotor.getPos", 2.0);
+                double currPos = getPosition();
+
+                if (softLowerLimitEnabled && value < 0.0 && currPos <= softLowerLimit ||
+                    softUpperLimitEnabled && value > 0.0 && currPos >= softUpperLimit)
+                {
+                    value = 0.0;
+                }
             }
 
-            if (motorSetElapsedTimer == null)
+            calibrating = false;
+
+            if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
+            setMotorPower(value);
+            if (followingMotorsList != null)
             {
-                motorSetElapsedTimer = new TrcElapsedTimer("TrcMotor.set", 2.0);
+                for (TrcMotor motor: followingMotorsList)
+                {
+                    motor.setMotorPower(value);
+                }
             }
+            // if (velocityPidCtrl != null)
+            // {
+            //     // TO-DO: rethink velocity control mode. Leverage hardware if available.
+            //     velocityPidCtrl.setTarget(value);
+            // }
+            // else
+            // {
+            //     setMotorPower(value);
+            // }
+            if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "! (value=%f)", value);
+        }
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    public void set(double value)
+    {
+        set(null, value);
+    }   //set
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *              ownership aware.
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     * @param event specifies the event to signal when time has expired.
+     */
+    public void set(String owner, double value, double time, TrcEvent event)
+    {
+        final String funcName = "set";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,value=%f,time=%.3f,event=%s",
+                owner, value, time, event);
+        }
+
+        if (validateOwnership(owner))
+        {
+            timer.cancel();     // cancel old unexpired timer if any.
+            if (value != 0.0 && time > 0.0)
+            {
+                notifyEvent = event;
+                timer.set(time, this::notify);
+            }
+            set(null, value);
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+    }   //set
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     * @param event specifies the event to signal when time has expired.
+     */
+    public void set(double value, double time, TrcEvent event)
+    {
+        set(null, value, time, event);
+    }   //set
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     */
+    public void set(double value, double time)
+    {
+        set(null, value, time, null);
+    }   //set
+
+    /**
+     * This method is called when the motor power set timer has expired. It will turn the motor off.
+     *
+     * @param context specifies the timer object (not used).
+     */
+    private void notify(Object context)
+    {
+        set(0.0);
+        if (notifyEvent != null)
+        {
+            notifyEvent.signal();
+            notifyEvent = null;
+        }
+    }   //notify
+
+    /**
+     * This method resets the motor position sensor, typically an encoder. This method emulates a reset for a
+     * potentiometer by doing a soft reset.
+     *
+     * @param hardware specifies true for resetting hardware position, false for resetting software position.
+     */
+    public void resetPosition(boolean hardware)
+    {
+        final String funcName = "resetPosition";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "hardware=%s", hardware);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        if (hardware)
+        {
+            // Call platform-dependent subclass to reset the position sensor hardware.
+            resetMotorPosition();
+            zeroPosition = 0.0;
         }
         else
         {
-            motorGetPosElapsedTimer = null;
-            motorSetElapsedTimer = null;
+            // Call platform-dependent subclass to read current position as the zero position.
+            zeroPosition = getMotorPosition();
         }
-    }   //setElapsedTimerEnabled
+    }   //resetPosition
 
     /**
-     * This method prints the elapsed time info using the given tracer.
+     * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
+     * or a potentiometer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @return current motor position in sensor units.
      */
-    public static void printElapsedTime(TrcDbgTrace tracer)
+    public double getPosition()
     {
-        if (motorGetPosElapsedTimer != null)
+        final String funcName = "getPosition";
+        double currPos;
+
+        if (debugEnabled)
         {
-            motorGetPosElapsedTimer.printElapsedTime(tracer);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        if (motorSetElapsedTimer != null)
+        if (!odometryEnabled)
         {
-            motorSetElapsedTimer.printElapsedTime(tracer);
+            throw new RuntimeException("Motor odometry is not enabled.");
         }
-    }   //printElapsedTime
+
+        synchronized (odometry)
+        {
+            // Don't read from motor hardware directly, get it from odometry instead.
+            currPos = odometry.currPos;
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.0f", currPos);
+        }
+
+        return currPos;
+    }   //getPosition
 
     /**
-     * This method returns the number of motors in the list registered for odometry monitoring.
+     * This method returns the velocity of the motor rotation. It keeps track of the rotation velocity by using a
+     * periodic task to monitor the position sensor value. If the motor controller has hardware monitoring velocity,
+     * it can override this method and access the hardware instead. However, accessing hardware may impact
+     * performance because it may involve initiating USB/CAN/I2C bus cycles. Therefore, it may be beneficial to
+     * just let the the periodic task calculate the velocity here.
      *
-     * @return number of motors in the list.
+     * @return motor velocity in sensor units per second.
      */
-    public static int getNumOdometryMotors()
+    public double getVelocity()
     {
-        int numMotors;
+        final String funcName = "getVelocity";
+        final double velocity;
 
-        synchronized (odometryMotors)
+        if (debugEnabled)
         {
-            numMotors = odometryMotors.size();
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        return numMotors;
-    }   //getNumOdometryMotors
+        if (!odometryEnabled)
+        {
+            throw new RuntimeException("Motor odometry is not enabled.");
+        }
+
+        synchronized (odometry)
+        {
+            // Don't read from motor hardware directly, get it from odometry instead.
+            velocity = odometry.velocity;
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.0f", velocity);
+        }
+
+        return velocity;
+    }   //getVelocity
+
+    /**
+     * This method swaps the forward and reverse limit switches. By default, the lower limit switch is associated
+     * with the reverse limit switch and the upper limit switch is associated with the forward limit switch. This
+     * method will swap the association.
+     *
+     * @param swapped specifies true to swap the limit switches, false otherwise.
+     */
+    public void setLimitSwitchesSwapped(boolean swapped)
+    {
+        final String funcName = "setLimitSwitchesSwapped";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "swapped=%s", swapped);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        limitSwitchesSwapped = swapped;
+    }   //setLimitSwitchesSwapped
+
+    /**
+     * This method returns the state of the lower limit switch.
+     *
+     * @return true if lower limit switch is active, false otherwise.
+     */
+    public boolean isLowerLimitSwitchActive()
+    {
+        final String funcName = "isLowerLimitSwitchActive";
+        boolean isActive = limitSwitchesSwapped? isFwdLimitSwitchActive(): isRevLimitSwitchActive();
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", isActive);
+        }
+
+        return isActive;
+    }   //isLowerLimitSwitchActive
+
+    /**
+     * This method returns the state of the upper limit switch.
+     *
+     * @return true if upper limit switch is active, false otherwise.
+     */
+    public boolean isUpperLimitSwitchActive()
+    {
+        final String funcName = "isUpperLimitSwitchActive";
+        boolean isActive = limitSwitchesSwapped? isRevLimitSwitchActive(): isFwdLimitSwitchActive();
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", isActive);
+        }
+
+        return isActive;
+    }   //isUpperLimitSwitchActive
+
+    /**
+     * This method enables/disables soft limit switches. This is intended to be called as part of motor
+     * initialization. Therefore, it is not designed to be ownership-aware.
+     *
+     * @param lowerLimitEnabled specifies true to enable lower soft limit switch, false otherwise.
+     * @param upperLimitEnabled specifies true to enable upper soft limit switch, false otherwise.
+     */
+    public void setSoftLimitEnabled(boolean lowerLimitEnabled, boolean upperLimitEnabled)
+    {
+        final String funcName = "setSoftLimitEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "lowerEnabled=%s,upperEnabled=%s",
+                lowerLimitEnabled, upperLimitEnabled);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        softLowerLimitEnabled = lowerLimitEnabled;
+        softUpperLimitEnabled = upperLimitEnabled;
+    }   //setSoftLimitEnabled
+
+    /**
+     * This method sets the lower soft limit. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param lowerLimit specifies the position of the lower limit.
+     */
+    public void setSoftLowerLimit(double lowerLimit)
+    {
+        final String funcName = "setSoftLowerLimit";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "lowerLimit=%.1f", lowerLimit);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        softLowerLimit = lowerLimit;
+    }   //setSoftLowerLimit
+
+    /**
+     * This method sets the upper soft limit. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param upperLimit specifies the position of the upper limit.
+     */
+    public void setSoftUpperLimit(double upperLimit)
+    {
+        final String funcName = "setSoftUpperLimit";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "upperLimit=%.1f", upperLimit);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        softUpperLimit = upperLimit;
+    }   //setSoftUpperLimit
+
+    /**
+     * This method sets the lower and upper soft limits. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param lowerLimit specifies the position of the lower limit.
+     * @param upperLimit specifies the position of the upper limit.
+     */
+    public void setSoftLimits(double lowerLimit, double upperLimit)
+    {
+        setSoftLowerLimit(lowerLimit);
+        setSoftUpperLimit(upperLimit);
+    }   //setSoftLimits
+
+    /**
+     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
+     * reading when the digital input is triggered. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
+     * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
+     */
+    public void resetPositionOnDigitalInput(
+        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler)
+    {
+        final String funcName = "resetPositionOnDigitalInput";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "digitalInput=%s", digitalInput);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        digitalTrigger = new TrcDigitalInputTrigger(instanceName, digitalInput, this::triggerEvent);
+        digitalTriggerHandler = triggerHandler;
+        digitalTrigger.setEnabled(true);
+    }   //resetPositionOnDigitalInput
+
+    /**
+     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
+     * reading when the digital input is triggered.
+     *
+     * @param digitalInput specifies the digital input sensor that will trigger a position reset.
+     */
+    public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput)
+    {
+        resetPositionOnDigitalInput(digitalInput, null);
+    }   //resetPositionOnDigitalInput
+
+    /**
+     * This method is called when the digital input device has changed state.
+     *
+     * @param active specifies true if the digital device state is active, false otherwise.
+     */
+    private void triggerEvent(boolean active)
+    {
+        final String funcName = "triggerEvent";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.CALLBK, "trigger=%s,active=%s", digitalTrigger, active);
+        }
+
+        globalTracer.traceInfo(
+            "triggerEvent", "TrcMotor encoder reset! motor=%s,pos=%.2f", instanceName, getMotorPosition());
+
+        if (calibrating)
+        {
+            //
+            // set(0.0) will turn off calibration mode.
+            //
+            set(0.0);
+            calibrating = false;
+        }
+
+        resetPosition(false);
+
+        if (digitalTriggerHandler != null)
+        {
+            digitalTriggerHandler.digitalTriggerEvent(active);
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
+        }
+    }   //triggerEvent
+
+    /**
+     * This method performs a zero calibration on the motor by slowly turning in reverse. When the lower limit switch
+     * is triggered, it stops the motor and resets the motor position.
+     *
+     * @param calibratePower specifies the motor power to perform zero calibration (must be positive value).
+     */
+    public void zeroCalibrate(double calibratePower)
+    {
+        //
+        // Only do this if there is a digital trigger.
+        //
+        if (digitalTrigger != null && digitalTrigger.isEnabled())
+        {
+            set(-Math.abs(calibratePower));
+            calibrating = true;
+        }
+    }   //zeroCalibrate
+
+    //
+    // Odometry.
+    //
 
     /**
      * This method clears the list of motors that register for odometry monitoring. This method should only be called
@@ -236,6 +802,23 @@ public abstract class TrcMotor implements TrcMotorController
             }
         }
     }   //clearOdometryMotorsList
+
+    /**
+     * This method returns the number of motors in the list registered for odometry monitoring.
+     *
+     * @return number of motors in the list.
+     */
+    public static int getNumOdometryMotors()
+    {
+        int numMotors;
+
+        synchronized (odometryMotors)
+        {
+            numMotors = odometryMotors.size();
+        }
+
+        return numMotors;
+    }   //getNumOdometryMotors
 
     /**
      * This method enables/disables the task that monitors the motor odometry. Since odometry task takes up CPU cycle,
@@ -268,7 +851,7 @@ public abstract class TrcMotor implements TrcMotorController
                         //
                         // We are the first one on the list, start the task.
                         //
-                        odometryTaskObj.registerTask(TaskType.INPUT_TASK);
+                        odometryTaskObj.registerTask(TaskType.STANDALONE_TASK);
                     }
                 }
             }
@@ -283,7 +866,7 @@ public abstract class TrcMotor implements TrcMotorController
                     //
                     // We were the only one on the list, stop the task.
                     //
-                    odometryTaskObj.unregisterTask(TaskType.INPUT_TASK);
+                    odometryTaskObj.unregisterTask(TaskType.STANDALONE_TASK);
                 }
             }
         }
@@ -305,6 +888,49 @@ public abstract class TrcMotor implements TrcMotorController
         return odometryEnabled;
     }   //isOdometryEnabled
 
+    //
+    // Implements TrcOdometrySensor interfaces.
+    //
+
+    /**
+     * This method resets the odometry data and sensor.
+     *
+     * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
+     *                      require some time to complete and will block this method from returning until finish.
+     */
+    @Override
+    public void resetOdometry(boolean resetHardware)
+    {
+        synchronized (odometry)
+        {
+            resetPosition(resetHardware);
+            odometry.prevTimestamp = odometry.currTimestamp = TrcUtil.getCurrentTime();
+            odometry.prevPos = odometry.currPos = 0.0;
+            odometry.velocity = 0.0;
+        }
+    }   //resetOdometry
+
+    /**
+     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
+     * the caller is accessing the data fields.
+     *
+     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor (not used).
+     * @return a copy of the odometry data of the specified axis.
+     */
+    @Override
+    public Odometry getOdometry(int axisIndex)
+    {
+        synchronized (odometry)
+        {
+            if (!odometryEnabled)
+            {
+                throw new RuntimeException("Motor odometry is not enabled.");
+            }
+
+            return odometry.clone();
+        }
+    }   //getOdometry
+
     /**
      * This method is called periodically to update motor odometry data. Odometry data includes position and velocity
      * data. By using this task to update odometry at a periodic rate, it allows robot code to obtain odometry data
@@ -316,9 +942,9 @@ public abstract class TrcMotor implements TrcMotorController
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
      */
-    public static void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private static void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        final String funcName = "TrcMotor.odometryTask";
+        final String funcName = moduleName + ".odometryTask";
 
         if (debugEnabled)
         {
@@ -334,11 +960,10 @@ public abstract class TrcMotor implements TrcMotorController
                     motor.odometry.prevTimestamp = motor.odometry.currTimestamp;
                     motor.odometry.prevPos = motor.odometry.currPos;
                     motor.odometry.currTimestamp = TrcUtil.getCurrentTime();
-                    if (motorGetPosElapsedTimer != null)
-                        motorGetPosElapsedTimer.recordStartTime();
-                    motor.odometry.currPos = motor.getMotorPosition();
-                    if (motorGetPosElapsedTimer != null)
-                        motorGetPosElapsedTimer.recordEndTime();
+
+                    if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordStartTime();
+                    motor.odometry.currPos = (motor.getMotorPosition() - motor.zeroPosition)*motor.posSensorSign;
+                    if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordEndTime();
 
                     double low = Math.abs(motor.odometry.prevPos);
                     double high = Math.abs(motor.odometry.currPos);
@@ -363,13 +988,14 @@ public abstract class TrcMotor implements TrcMotorController
                         {
                             globalTracer.traceWarn(
                                 funcName, "WARNING: Spurious encoder detected on motor %s! odometry=%s", motor, motor.odometry);
+                            // Throw away spurious data and use previous data instead.
                             motor.odometry.currPos = motor.odometry.prevPos;
                         }
                     }
 
                     try
                     {
-                        motor.odometry.velocity = motor.getMotorVelocity();
+                        motor.odometry.velocity = motor.getMotorVelocity()*motor.posSensorSign;
                     }
                     catch (UnsupportedOperationException e)
                     {
@@ -401,7 +1027,7 @@ public abstract class TrcMotor implements TrcMotorController
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
      */
-    public void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "cleanupTask";
 
@@ -417,6 +1043,10 @@ public abstract class TrcMotor implements TrcMotorController
             globalTracer.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //cleanupTask
+
+    //
+    // Velocity control mode.
+    //
 
     /**
      * This method sets the motor controller to velocity mode with the specified maximum velocity.
@@ -506,7 +1136,7 @@ public abstract class TrcMotor implements TrcMotorController
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
      */
-    public synchronized void velocityCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void velocityCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "velocityCtrlTask";
 
@@ -582,336 +1212,52 @@ public abstract class TrcMotor implements TrcMotorController
         return power;
     }   //transformTorqueToMotorPower
 
-    /**
-     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
-     * reading when the digital input is triggered.
-     *
-     * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
-     * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
-     */
-    public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput, DigitalTriggerHandler triggerHandler)
-    {
-        final String funcName = "resetPositionOnDigitalInput";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "digitalInput=%s", digitalInput);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        digitalTriggerHandler = triggerHandler;
-        digitalTrigger = new TrcDigitalInputTrigger(instanceName, digitalInput, this::triggerEvent);
-        digitalTrigger.setEnabled(true);
-    }   //resetPositionOnDigitalInput
-
-    /**
-     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
-     * reading when the digital input is triggered.
-     *
-     * @param digitalInput specifies the digital input sensor that will trigger a position reset.
-     */
-    public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput)
-    {
-        resetPositionOnDigitalInput(digitalInput, null);
-    }   //resetPositionOnDigitalInput
-
-    /**
-     * This method resets the motor position sensor, typically an encoder.
-     */
-    public void resetPosition()
-    {
-        resetPosition(false);
-    }   //resetPosition
-
-    /**
-     * This method performs a zero calibration on the motor by slowly turning in reverse. When the lower limit switch
-     * is triggered, it stops the motor and resets the motor position.
-     *
-     * @param calibratePower specifies the motor power to perform zero calibration (must be positive value).
-     */
-    public void zeroCalibrate(double calibratePower)
-    {
-        //
-        // Only do this if there is a digital trigger.
-        //
-        if (digitalTrigger != null && digitalTrigger.isEnabled())
-        {
-            set(-Math.abs(calibratePower));
-            calibrating = true;
-        }
-    }   //zeroCalibrate
-
-    /**
-     * This method sets this motor to follow another motor. This method should be overridden by the subclass. If the
-     * subclass is not capable of following another motor, this method will be called instead and will throw an
-     * UnsupportedOperation exception.
-     */
-    public void follow(TrcMotor motor)
-    {
-        throw new UnsupportedOperationException(
-            String.format("This motor does not support following motors of type: %s!", motor.getClass().toString()));
-    }   //follow
-
     //
-    // Implements the TrcMotorController interface.
+    // Performance monitoring.
     //
 
     /**
-     * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
-     * or a potentiometer.
+     * This method enables/disables the elapsed timers for performance monitoring.
      *
-     * @return current motor position.
+     * @param enabled specifies true to enable elapsed timers, false to disable.
      */
-    @Override
-    public double getPosition()
+    public static void setElapsedTimerEnabled(boolean enabled)
     {
-        final String funcName = "getPosition";
-        final double currPos;
-
-        synchronized (odometry)
+        if (enabled)
         {
-            if (odometryEnabled)
+            if (motorGetPosElapsedTimer == null)
             {
-                currPos = odometry.currPos;
+                motorGetPosElapsedTimer = new TrcElapsedTimer(moduleName + ".getPos", 2.0);
             }
-            else
+
+            if (motorSetElapsedTimer == null)
             {
-                throw new RuntimeException("Motor odometry is not enabled.");
+                motorSetElapsedTimer = new TrcElapsedTimer(moduleName + ".set", 2.0);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%d", currPos);
-        }
-
-        return currPos;
-    }   //getPosition
-
-    /**
-     * This method returns the velocity of the motor rotation. It keeps track of the rotation velocity by using a
-     * periodic task to monitor the position sensor value. If the motor controller has hardware monitoring velocity,
-     * it can override this method and access the hardware instead. However, accessing hardware may impact
-     * performance because it may involve initiating USB/CAN/I2C bus cycles. Therefore, it may be beneficial to
-     * just let the the periodic task calculate the velocity here.
-     *
-     * @return motor velocity in sensor units per second.
-     */
-    @Override
-    public double getVelocity()
-    {
-        final String funcName = "getVelocity";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        if (!odometryEnabled)
-        {
-            throw new RuntimeException("Motor odometry is not enabled.");
-        }
-
-        final double velocity;
-        synchronized (odometry)
-        {
-            velocity = odometry.velocity;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.3f", velocity);
-        }
-
-        return velocity;
-    }   //getVelocity
-
-    /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
-     *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     */
-    @Override
-    public void set(double value)
-    {
-        final String funcName = "set";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f", value);
-        }
-
-        calibrating = false;
-
-        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
-        if (velocityPidCtrl != null)
-        {
-            velocityPidCtrl.setTarget(value);
         }
         else
         {
-            setMotorPower(value);
+            motorGetPosElapsedTimer = null;
+            motorSetElapsedTimer = null;
         }
-        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "! (value=%f)", value);
-        }
-    }   //set
+    }   //setElapsedTimerEnabled
 
     /**
-     * This method sets the motor output value for the set period of time. The motor will be turned off after the
-     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
-     * power mode or velocity mode.
+     * This method prints the elapsed time info using the given tracer.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
-     * @param event specifies the event to signal when time has expired.
+     * @param tracer specifies the tracer to use for printing elapsed time info.
      */
-    public void set(double value, double time, TrcEvent event)
+    public static void printElapsedTime(TrcDbgTrace tracer)
     {
-        final String funcName = "set";
-
-        if (debugEnabled)
+        if (motorGetPosElapsedTimer != null)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "value=%f,time=%.3f,event=%s", value, time, event);
+            motorGetPosElapsedTimer.printElapsedTime(tracer);
         }
 
-        timer.cancel();     // cancel old unexpired timer if any.
-        if (value != 0.0 && time > 0.0)
+        if (motorSetElapsedTimer != null)
         {
-            notifyEvent = event;
-            timer.set(time, this::notify);
+            motorSetElapsedTimer.printElapsedTime(tracer);
         }
-        set(value);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //set
-
-    /**
-     * This method sets the motor output value for the set period of time. The motor will be turned off after the
-     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
-     * power mode or velocity mode.
-     *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
-     */
-    public void set(double value, double time)
-    {
-        set(value, time, null);
-    }   //set
-
-    //
-    // Implements TrcOdometrySensor interface.
-    //
-
-    /**
-     * This method resets the odometry data and sensor.
-     *
-     * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
-     *                      require some time to complete and will block this method from returning until finish.
-     */
-    @Override
-    public void resetOdometry(boolean resetHardware)
-    {
-        synchronized (odometry)
-        {
-            resetPosition(resetHardware);
-            odometry.prevTimestamp = odometry.currTimestamp = TrcUtil.getCurrentTime();
-            odometry.prevPos = odometry.currPos = getMotorPosition();
-            odometry.velocity = 0.0;
-        }
-    }   //resetOdometry
-
-    /**
-     * This method returns a copy of the odometry data of the specified axis. It must be a copy so it won't change while
-     * the caller is accessing the data fields.
-     *
-     * @param axisIndex specifies the axis index if it is a multi-axes sensor, 0 if it is a single axis sensor.
-     * @return a copy of the odometry data of the specified axis.
-     */
-    @Override
-    public Odometry getOdometry(int axisIndex)
-    {
-        synchronized (odometry)
-        {
-            if (!odometryEnabled)
-            {
-                throw new RuntimeException("Motor odometry is not enabled.");
-            }
-
-            return odometry.clone();
-        }
-    }   //getOdometry
-
-    //
-    // Implements TrcNotifier.Receiver.
-    //
-
-    /**
-     * This method is called when the motor power set timer has expired. It will turn the motor off.
-     *
-     * @param context specifies the timer object (not used).
-     */
-    void notify(Object context)
-    {
-        set(0.0);
-        if (notifyEvent != null)
-        {
-            notifyEvent.signal();
-            notifyEvent = null;
-        }
-    }   //notify
-
-    //
-    // Implements TrcDigitalInputTrigger.TriggerHandler.
-    //
-
-    /**
-     * This method is called when the digital input device has changed state.
-     *
-     * @param active specifies true if the digital device state is active, false otherwise.
-     */
-    private void triggerEvent(boolean active)
-    {
-        final String funcName = "triggerEvent";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "trigger=%s,active=%s", digitalTrigger,
-                Boolean.toString(active));
-        }
-
-        globalTracer.traceInfo(
-            "triggerEvent", "TrcMotor encoder reset! motor=%s,pos=%.2f", instanceName, getMotorPosition());
-
-        if (calibrating)
-        {
-            //
-            // set(0.0) will turn off calibration mode.
-            //
-            set(0.0);
-            calibrating = false;
-        }
-
-        resetPosition(false);
-
-        if (digitalTriggerHandler != null)
-        {
-            digitalTriggerHandler.digitalTriggerEvent(active);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
-        }
-    }   //triggerEvent
+    }   //printElapsedTime
 
 }   //class TrcMotor
