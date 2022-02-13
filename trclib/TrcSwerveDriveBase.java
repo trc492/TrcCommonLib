@@ -125,6 +125,16 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         return true;
     }   //supportsHolonomicDrive
 
+    @Override
+    public void setOdometryEnabled(boolean enabled)
+    {
+        super.setOdometryEnabled(enabled);
+        lfModule.steerMotor.getMotor().setOdometryEnabled(enabled);
+        rfModule.steerMotor.getMotor().setOdometryEnabled(enabled);
+        lbModule.steerMotor.getMotor().setOdometryEnabled(enabled);
+        rbModule.steerMotor.getMotor().setOdometryEnabled(enabled);
+    }   //setOdometryEnabled
+
     /**
      * This method sets the odometry scales. The raw position from the encoder is in encoder counts. By setting the
      * scale factor, one could make getPosition to return unit in inches, for example.
