@@ -490,15 +490,17 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        if (!odometryEnabled)
+        if (odometryEnabled)
         {
-            throw new RuntimeException("Motor odometry is not enabled.");
+            synchronized (odometry)
+            {
+                // Don't read from motor hardware directly, get it from odometry instead.
+                currPos = odometry.currPos;
+            }
         }
-
-        synchronized (odometry)
+        else
         {
-            // Don't read from motor hardware directly, get it from odometry instead.
-            currPos = odometry.currPos;
+            currPos = (getMotorPosition() - zeroPosition)*posSensorSign;
         }
 
         if (debugEnabled)
@@ -528,15 +530,17 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        if (!odometryEnabled)
+        if (odometryEnabled)
         {
-            throw new RuntimeException("Motor odometry is not enabled.");
+            synchronized (odometry)
+            {
+                // Don't read from motor hardware directly, get it from odometry instead.
+                velocity = odometry.velocity;
+            }
         }
-
-        synchronized (odometry)
+        else
         {
-            // Don't read from motor hardware directly, get it from odometry instead.
-            velocity = odometry.velocity;
+            velocity = getMotorVelocity()*posSensorSign;
         }
 
         if (debugEnabled)
