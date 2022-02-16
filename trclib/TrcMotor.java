@@ -475,6 +475,15 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     }   //resetPosition
 
     /**
+     * This method resets the motor position sensor, typically an encoder. This method emulates a reset for a
+     * potentiometer by doing a soft reset.
+     */
+    public void resetPosition()
+    {
+        resetPosition(false);
+    }   //resetPosition
+
+    /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
      * or a potentiometer.
      *
