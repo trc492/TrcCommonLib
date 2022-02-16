@@ -308,4 +308,23 @@ public class TrcSwerveModule
         return angle;
     }   //getSteerAngle
 
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    public void set(double value)
+    {
+        final String funcName = "set";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f", value);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        driveMotor.set(value * optimizedWheelDir);
+    }   //set
+
 }   //class TrcSwerveModule

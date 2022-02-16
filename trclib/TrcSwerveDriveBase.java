@@ -402,10 +402,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 lbModule.setSteerAngle(lbAngle);
                 rbModule.setSteerAngle(rbAngle);
 
-                lfModule.driveMotor.set(lfPower);
-                rfModule.driveMotor.set(rfPower);
-                lbModule.driveMotor.set(lbPower);
-                rbModule.driveMotor.set(rbPower);
+                lfModule.set(lfPower);
+                rfModule.set(rfPower);
+                lbModule.set(lbPower);
+                rbModule.set(rbPower);
                 if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
                 {
                     // reset stall start time to zero if drive base is stopped.
