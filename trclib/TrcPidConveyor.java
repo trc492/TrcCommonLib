@@ -36,24 +36,11 @@ public class TrcPidConveyor extends TrcPidMotor
      */
     public static class Parameters
     {
-        public double scale = 1.0;
         public TrcPidController.PidParameters pidParams;
-        public double movePower = 1.0;
+        public double scale = 1.0;
         public double objectDistance = 0.0;
+        public double movePower = 1.0;
         public int maxCapacity = 1;
-
-        /**
-         * This method sets the scale of the conveyor distance sensor. It allows the conveyor to report real world
-         * position units such as inches instead of sensor units.
-         *
-         * @param scale specifies the scale multiplier to convert position sensor unit to real world unit.
-         * @return this parameter object.
-         */
-        public Parameters setScale(double scale)
-        {
-            this.scale = scale;
-            return this;
-        }   //setScale
 
         /**
          * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
@@ -83,16 +70,17 @@ public class TrcPidConveyor extends TrcPidMotor
         }   //setPidParams
 
         /**
-         * This method sets the conveyor move power.
+         * This method sets the scale of the conveyor distance sensor. It allows the conveyor to report real world
+         * position units such as inches instead of sensor units.
          *
-         * @param power specifies the motor power to move the object in the conveyor.
+         * @param scale specifies the scale multiplier to convert position sensor unit to real world unit.
          * @return this parameter object.
          */
-        public Parameters setMovePower(double power)
+        public Parameters setScale(double scale)
         {
-            this.movePower = power;
+            this.scale = scale;
             return this;
-        }   //setMovePower
+        }   //setScale
 
         /**
          * This method sets the distance between objects inside the converyor.
@@ -105,6 +93,18 @@ public class TrcPidConveyor extends TrcPidMotor
             this.objectDistance = distance;
             return this;
         }   //setObjectDistance
+
+        /**
+         * This method sets the conveyor move power.
+         *
+         * @param power specifies the motor power to move the object in the conveyor.
+         * @return this parameter object.
+         */
+        public Parameters setMovePower(double power)
+        {
+            this.movePower = power;
+            return this;
+        }   //setMovePower
 
         /**
          * This method sets the maximum number of objects the conveyor can hold.
