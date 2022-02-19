@@ -192,67 +192,30 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //getPower
 
     /**
-     * This method spins the intake with the given power. It will only do this if the caller has acquired exclusive
-     * access to the intake already.
-     *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-     * @param power specifies the power value to spin the intake.
-     */
-    public synchronized void setPower(String owner, double power)
-    {
-        final String funcName = "setPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%.1f", owner, power);
-        }
-
-        if (validateOwnership(owner))
-        {
-            motor.set(power);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //setPower
-
-    /**
-     * This method spins the intake with the given power. It will only do this if nobody acquires exclusive access
-     * to the intake already.
-     *
-     * @param power specifies the power value to spin the intake.
-     */
-    public void setPower(double power)
-    {
-        setPower(null, power);
-    }   //setPower
-
-    /**
      * This method sets the motor output value for the set period of time. The motor will be turned off after the
      * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
      * power mode or velocity mode.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay speciifes the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      * @param time specifies the time period in seconds to have power set.
      * @param event specifies the event to signal when time has expired.
      */
-    public synchronized void setPower(String owner, double power, double time, TrcEvent event)
+    public synchronized void setPower(String owner, double delay, double power, double time, TrcEvent event)
     {
         final String funcName = "setPower";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%.1f,time=%.3f,event=%s",
-                owner, power, time, event);
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,power=%.1f,time=%.3f,event=%s",
+                owner, delay, power, time, event);
         }
 
         if (validateOwnership(owner))
         {
-            motor.set(power, time, event);
+            motor.set(delay, power, time, event);
         }
 
         if (debugEnabled)
@@ -266,13 +229,53 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
      * power mode or velocity mode.
      *
+     * @param delay speciifes the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      * @param time specifies the time period in seconds to have power set.
      * @param event specifies the event to signal when time has expired.
      */
-    public void setPower(double power, double time, TrcEvent event)
+    public void setPower(double delay, double power, double time, TrcEvent event)
     {
-        setPower(null, power, time, event);
+        setPower(null, delay, power, time, event);
+    }   //setPower
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param delay speciifes the delay in seconds to wait before setting the power of the motor.
+     * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     */
+    public void setPower(double delay, double power, double time)
+    {
+        setPower(null, delay, power, time, null);
+    }   //setPower
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     */
+    public void setPower(double power, double time)
+    {
+        setPower(null, 0.0, power, time, null);
+    }   //setPower
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
+     * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    public void setPower(double power)
+    {
+        setPower(null, 0.0, power, 0.0, null);
     }   //setPower
 
     /**
