@@ -126,6 +126,13 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     public abstract boolean isFwdLimitSwitchActive();
 
+    private enum MotorState
+    {
+        done,
+        doDelay,
+        doDuration
+    }   //enum MotorState
+
     //
     // Global objects.
     //
@@ -135,17 +142,21 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
     private final String instanceName;
+    private final TrcTimer timer;
+    private MotorState motorState = MotorState.done;
+    private double motorValue;
+    private double duration;
+    private TrcEvent notifyEvent;
     private final TrcOdometrySensor.Odometry odometry;
     private static TrcTaskMgr.TaskObject odometryTaskObj;
     private static TrcTaskMgr.TaskObject cleanupTaskObj;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
-    private final TrcTimer timer;
 
-    private TrcEvent notifyEvent;
     private TrcDigitalInputTrigger digitalTrigger;
     private TrcSensorTrigger.DigitalTriggerHandler digitalTriggerHandler;
 
     protected boolean calibrating = false;
+
 
     private double motorDirSign = 1.0;
     private double posSensorSign = 1.0;
@@ -176,6 +187,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         this.instanceName = instanceName;
         this.odometry = new TrcOdometrySensor.Odometry(this);
+        timer = new TrcTimer("motorTimer." + instanceName);
 
         if (odometryTaskObj == null)
         {
@@ -190,7 +202,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             cleanupTaskObj.registerTask(TaskType.STOP_TASK);
         }
         velocityCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
-        timer = new TrcTimer("motorTimer." + instanceName);
     }   //TrcMotor
 
     /**
@@ -293,20 +304,56 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     }   //setFollowingMotor
 
     /**
+     * This method calls the motor subclass to set the motor output value. The value can be power or velocity
+     * percentage depending on whether the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    private void setMotorValue(double value)
+    {
+        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
+        setMotorPower(value);
+        if (followingMotorsList != null)
+        {
+            for (TrcMotor motor: followingMotorsList)
+            {
+                motor.setMotorPower(value);
+            }
+        }
+        // if (velocityPidCtrl != null)
+        // {
+        //     // TO-DO: rethink velocity control mode. Leverage hardware if available.
+        //     velocityPidCtrl.setTarget(value);
+        // }
+        // else
+        // {
+        //     setMotorPower(value);
+        // }
+        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
+    }   //setMotorValue
+
+    /**
      * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * the motor controller is in power mode or velocity mode. Optionally, you can specify a delay before running
+     * the motor and a duration for which the motor will be turned off afterwards.
      *
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
      *              ownership aware.
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay.
      * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *                 turning off.
+     * @param event specifies the event to signal when the motor operation is completed
      */
-    public void set(String owner, double value)
+    public void set(String owner, double delay, double value, double duration, TrcEvent event)
     {
         final String funcName = "set";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,value=%f", owner, value);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,value=%f,duration=%.3f",
+                owner, delay, value, duration);
         }
 
         if (validateOwnership(owner))
@@ -325,26 +372,34 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             }
 
             calibrating = false;
-
-            if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
-            setMotorPower(value);
-            if (followingMotorsList != null)
+            // Cancel the timer from the previous operation if there is one.
+            timer.cancel();
+            this.motorValue = value;
+            if (delay > 0.0)
             {
-                for (TrcMotor motor: followingMotorsList)
+                if (motorState == MotorState.doDuration)
                 {
-                    motor.setMotorPower(value);
+                    // We had a previous operation spinning the motor for a duration, cancel it and stop the motor
+                    // first.
+                    setMotorValue(0.0);
+                }
+
+                motorState = MotorState.doDelay;
+                this.duration = duration;
+                this.notifyEvent = event;
+                timer.set(delay, this::motorEventHandler);
+            }
+            else
+            {
+                setMotorValue(value);
+                if (duration > 0.0)
+                {
+                    motorState = MotorState.doDuration;
+                    this.duration = duration;
+                    this.notifyEvent = event;
+                    timer.set(duration, this::motorEventHandler);
                 }
             }
-            // if (velocityPidCtrl != null)
-            // {
-            //     // TO-DO: rethink velocity control mode. Leverage hardware if available.
-            //     velocityPidCtrl.setTarget(value);
-            // }
-            // else
-            // {
-            //     setMotorPower(value);
-            // }
-            if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
         }
 
         if (debugEnabled)
@@ -357,77 +412,40 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * This method sets the motor output value. The value can be power or velocity percentage depending on whether
      * the motor controller is in power mode or velocity mode.
      *
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *                 turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void set(double delay, double value, double duration, TrcEvent event)
+    {
+        set(null, delay, value, duration, event);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *                 turning off.
+     */
+    public void set(double delay, double value, double duration)
+    {
+        set(null, delay, value, duration, null);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
      * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      */
     public void set(double value)
     {
-        set(null, value);
-    }   //set
-
-    /**
-     * This method sets the motor output value for the set period of time. The motor will be turned off after the
-     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
-     * power mode or velocity mode.
-     *
-     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
-     *              ownership aware.
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
-     * @param event specifies the event to signal when time has expired.
-     */
-    public void set(String owner, double value, double time, TrcEvent event)
-    {
-        final String funcName = "set";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,value=%f,time=%.3f,event=%s",
-                owner, value, time, event);
-        }
-
-        if (validateOwnership(owner))
-        {
-            timer.cancel();     // cancel old unexpired timer if any.
-            if (value != 0.0 && time > 0.0)
-            {
-                notifyEvent = event;
-                timer.set(time, this::notify);
-            }
-            set(null, value);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //set
-
-    /**
-     * This method sets the motor output value for the set period of time. The motor will be turned off after the
-     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
-     * power mode or velocity mode.
-     *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
-     * @param event specifies the event to signal when time has expired.
-     */
-    public void set(double value, double time, TrcEvent event)
-    {
-        set(null, value, time, event);
-    }   //set
-
-    /**
-     * This method sets the motor output value for the set period of time. The motor will be turned off after the
-     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
-     * power mode or velocity mode.
-     *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
-     */
-    public void set(double value, double time)
-    {
-        set(null, value, time, null);
+        set(null, 0.0, value, 0.0, null);
     }   //set
 
     /**
@@ -435,15 +453,38 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      *
      * @param context specifies the timer object (not used).
      */
-    private void notify(Object context)
+    private void motorEventHandler(Object context)
     {
-        set(0.0);
-        if (notifyEvent != null)
+        if (motorState == MotorState.doDelay)
+        {
+            // The delay timere has expired, so set the motor power now.
+            setMotorValue(motorValue);
+            if (duration > 0.0)
+            {
+                // We have set a duration, so set up a timer for it.
+                motorState = MotorState.doDuration;
+                timer.set(duration, this::motorEventHandler);
+            }
+            else
+            {
+                // We were setting the motor power indefinitely, so we are done.
+                motorState = MotorState.done;
+            }
+        }
+        else if (motorState == MotorState.doDuration)
+        {
+            // The duration timer has expired, turn everything off and clean up.
+            duration = 0.0;
+            setMotorValue(0.0);
+            motorState = MotorState.done;
+        }
+
+        if (motorState == MotorState.done && notifyEvent != null)
         {
             notifyEvent.signal();
             notifyEvent = null;
         }
-    }   //notify
+    }   //motorEventHandler
 
     /**
      * This method resets the motor position sensor, typically an encoder. This method emulates a reset for a

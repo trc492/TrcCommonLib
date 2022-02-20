@@ -41,11 +41,11 @@ public class TrcSwerveModule
     public final TrcMotor driveMotor;
     public final TrcPidMotor steerMotor;
     public final TrcEnhancedServo steerServo;
-    private TrcWarpSpace warpSpace;
-    private double optimizedWheelDir = 1.0;
+    private final TrcWarpSpace warpSpace;
     private boolean steerLimitsEnabled = false;
     private double steerLowLimit = 0.0;
     private double steerHighLimit = 0.0;
+    private double optimizedWheelDir = 1.0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -150,6 +150,7 @@ public class TrcSwerveModule
 
         if (steerMotor != null)
         {
+            // CodeReview: zeroCalibrate is asynchronous, can you really setSteerAngle right after?
             steerMotor.zeroCalibrate();
             setSteerAngle(0.0, false, true);
         }

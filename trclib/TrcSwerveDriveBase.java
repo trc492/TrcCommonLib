@@ -39,6 +39,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
 {
     private final TrcSwerveModule lfModule, rfModule, lbModule, rbModule;
     private final double wheelBaseWidth, wheelBaseLength, wheelBaseDiagonal;
+    private final TrcHashMap<TrcMotor, TrcSwerveModule> driveMotorToModuleMap = new TrcHashMap<>();
 
     /**
      * Constructor: Create an instance of the 4-wheel swerve drive base.
@@ -64,6 +65,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         this.wheelBaseWidth = wheelBaseWidth;
         this.wheelBaseLength = wheelBaseLength;
         this.wheelBaseDiagonal = TrcUtil.magnitude(wheelBaseWidth, wheelBaseLength);
+        driveMotorToModuleMap.add(lfModule.driveMotor, lfModule);
+        driveMotorToModuleMap.add(rfModule.driveMotor, rfModule);
+        driveMotorToModuleMap.add(lbModule.driveMotor, lbModule);
+        driveMotorToModuleMap.add(rbModule.driveMotor, rbModule);
     }   //TrcSwerveDriveBase
 
     /**
@@ -315,109 +320,112 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     @Override
     protected void holonomicDrive(String owner, double x, double y, double rotation, boolean inverted, double gyroAngle)
     {
-        final String funcName = "holonomicDrive";
+        // final String funcName = "holonomicDrive";
+        // TrcDbgTrace tracer = TrcDbgTrace.getGlobalTracer();
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle);
-        }
+        // if (debugEnabled)
+        // {
+        //     dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
+        //         "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f",
+        //         owner, x, y, rotation, Boolean.toString(inverted), gyroAngle);
+        // }
 
-        if (validateOwnership(owner))
-        {
-            if (x == 0.0 && y == 0.0 && rotation == 0.0)
-            {
-                lfModule.driveMotor.set(0.0);
-                rfModule.driveMotor.set(0.0);
-                lbModule.driveMotor.set(0.0);
-                rbModule.driveMotor.set(0.0);
+        // if (validateOwnership(owner))
+        // {
+        //     if (x == 0.0 && y == 0.0 && rotation == 0.0)
+        //     {
+        //         // lfModule.driveMotor.set(0.0);
+        //         // rfModule.driveMotor.set(0.0);
+        //         // lbModule.driveMotor.set(0.0);
+        //         // rbModule.driveMotor.set(0.0);
 
-                lfModule.setSteerAngle(lfModule.getSteerAngle());
-                rfModule.setSteerAngle(rfModule.getSteerAngle());
-                lbModule.setSteerAngle(lbModule.getSteerAngle());
-                rbModule.setSteerAngle(rbModule.getSteerAngle());
-            }
-            else
-            {
-                x = TrcUtil.clipRange(x);
-                y = TrcUtil.clipRange(y);
-                rotation = TrcUtil.clipRange(rotation);
+        //         // tracer.traceInfo(funcName, "lfSteer=%.2f, rfSteer=%.2f, lbSteer=%.2f, rbSteer=%.2f",
+        //         //     lfModule.getSteerAngle(), rfModule.getSteerAngle(), lbModule.getSteerAngle(), rbModule.getSteerAngle());
+        //         // lfModule.setSteerAngle(lfModule.getSteerAngle());
+        //         // rfModule.setSteerAngle(rfModule.getSteerAngle());
+        //         // lbModule.setSteerAngle(lbModule.getSteerAngle());
+        //         // rbModule.setSteerAngle(rbModule.getSteerAngle());
+        //     }
+        //     else
+        //     {
+        //         x = TrcUtil.clipRange(x);
+        //         y = TrcUtil.clipRange(y);
+        //         rotation = TrcUtil.clipRange(rotation);
 
-                if (inverted)
-                {
-                    x = -x;
-                    y = -y;
-                }
+        //         if (inverted)
+        //         {
+        //             x = -x;
+        //             y = -y;
+        //         }
 
-                if (gyroAngle != 0)
-                {
-                    if (inverted)
-                    {
-                        globalTracer.traceWarn(funcName,
-                            "You should not be using inverted and field reference frame at the same time!");
-                    }
+        //         if (gyroAngle != 0)
+        //         {
+        //             if (inverted)
+        //             {
+        //                 globalTracer.traceWarn(funcName,
+        //                     "You should not be using inverted and field reference frame at the same time!");
+        //             }
 
-                    double gyroRadians = Math.toRadians(gyroAngle);
-                    double temp = y * Math.cos(gyroRadians) + x * Math.sin(gyroRadians);
-                    x = -y * Math.sin(gyroRadians) + x * Math.cos(gyroRadians);
-                    y = temp;
-                }
+        //             double gyroRadians = Math.toRadians(gyroAngle);
+        //             double temp = y * Math.cos(gyroRadians) + x * Math.sin(gyroRadians);
+        //             x = -y * Math.sin(gyroRadians) + x * Math.cos(gyroRadians);
+        //             y = temp;
+        //         }
 
-                double a = x - (rotation * wheelBaseLength / wheelBaseDiagonal);
-                double b = x + (rotation * wheelBaseLength / wheelBaseDiagonal);
-                double c = y - (rotation * wheelBaseWidth / wheelBaseDiagonal);
-                double d = y + (rotation * wheelBaseWidth / wheelBaseDiagonal);
+        //         double a = x - (rotation * wheelBaseLength / wheelBaseDiagonal);
+        //         double b = x + (rotation * wheelBaseLength / wheelBaseDiagonal);
+        //         double c = y - (rotation * wheelBaseWidth / wheelBaseDiagonal);
+        //         double d = y + (rotation * wheelBaseWidth / wheelBaseDiagonal);
 
-                // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
-                // Note: atan2(y, x) in java will take care of x being zero.
-                //       If will return pi/2 for positive y and -pi/2 for negative y.
-                double lfAngle = Math.toDegrees(Math.atan2(b, d));
-                double rfAngle = Math.toDegrees(Math.atan2(b, c));
-                double lbAngle = Math.toDegrees(Math.atan2(a, d));
-                double rbAngle = Math.toDegrees(Math.atan2(a, c));
+        //         // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
+        //         // Note: atan2(y, x) in java will take care of x being zero.
+        //         //       If will return pi/2 for positive y and -pi/2 for negative y.
+        //         double lfAngle = Math.toDegrees(Math.atan2(b, d));
+        //         double rfAngle = Math.toDegrees(Math.atan2(b, c));
+        //         double lbAngle = Math.toDegrees(Math.atan2(a, d));
+        //         double rbAngle = Math.toDegrees(Math.atan2(a, c));
 
-                // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
-                double lfPower = TrcUtil.magnitude(b, d);
-                double rfPower = TrcUtil.magnitude(b, c);
-                double lbPower = TrcUtil.magnitude(a, d);
-                double rbPower = TrcUtil.magnitude(a, c);
+        //         // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
+        //         double lfPower = TrcUtil.magnitude(b, d);
+        //         double rfPower = TrcUtil.magnitude(b, c);
+        //         double lbPower = TrcUtil.magnitude(a, d);
+        //         double rbPower = TrcUtil.magnitude(a, c);
 
-                double[] normalizedPowers = TrcUtil.normalize(lfPower, rfPower, lbPower, rbPower);
-                lfPower = this.clipMotorOutput(normalizedPowers[0]);
-                rfPower = this.clipMotorOutput(normalizedPowers[1]);
-                lbPower = this.clipMotorOutput(normalizedPowers[2]);
-                rbPower = this.clipMotorOutput(normalizedPowers[3]);
+        //         double[] normalizedPowers = TrcUtil.normalize(lfPower, rfPower, lbPower, rbPower);
+        //         lfPower = this.clipMotorOutput(normalizedPowers[0]);
+        //         rfPower = this.clipMotorOutput(normalizedPowers[1]);
+        //         lbPower = this.clipMotorOutput(normalizedPowers[2]);
+        //         rbPower = this.clipMotorOutput(normalizedPowers[3]);
 
-                if (motorPowerMapper != null)
-                {
-                    lfPower = motorPowerMapper.translateMotorPower(lfPower, lfModule.driveMotor.getVelocity());
-                    rfPower = motorPowerMapper.translateMotorPower(rfPower, rfModule.driveMotor.getVelocity());
-                    lbPower = motorPowerMapper.translateMotorPower(lbPower, lbModule.driveMotor.getVelocity());
-                    rbPower = motorPowerMapper.translateMotorPower(rbPower, rbModule.driveMotor.getVelocity());
-                }
+        //         if (motorPowerMapper != null)
+        //         {
+        //             lfPower = motorPowerMapper.translateMotorPower(lfPower, lfModule.driveMotor.getVelocity());
+        //             rfPower = motorPowerMapper.translateMotorPower(rfPower, rfModule.driveMotor.getVelocity());
+        //             lbPower = motorPowerMapper.translateMotorPower(lbPower, lbModule.driveMotor.getVelocity());
+        //             rbPower = motorPowerMapper.translateMotorPower(rbPower, rbModule.driveMotor.getVelocity());
+        //         }
 
-                lfModule.setSteerAngle(lfAngle);
-                rfModule.setSteerAngle(rfAngle);
-                lbModule.setSteerAngle(lbAngle);
-                rbModule.setSteerAngle(rbAngle);
+        //         lfModule.setSteerAngle(lfAngle);
+        //         rfModule.setSteerAngle(rfAngle);
+        //         lbModule.setSteerAngle(lbAngle);
+        //         rbModule.setSteerAngle(rbAngle);
 
-                lfModule.set(lfPower);
-                rfModule.set(rfPower);
-                lbModule.set(lbPower);
-                rbModule.set(rbPower);
-                if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
-                {
-                    // reset stall start time to zero if drive base is stopped.
-                    stallStartTime = 0.0;
-                }
-            }
-        }
+        //         lfModule.set(lfPower);
+        //         rfModule.set(rfPower);
+        //         lbModule.set(lbPower);
+        //         rbModule.set(rbPower);
+        //         if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
+        //         {
+        //             // reset stall start time to zero if drive base is stopped.
+        //             stallStartTime = 0.0;
+        //         }
+        //     }
+        // }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
+        // if (debugEnabled)
+        // {
+        //     dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        // }
     }   //holonomicDrive
 
     /**
@@ -450,7 +458,8 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         RealVector velSum = new ArrayRealVector(2);
         for (int i = 0; i < numMotors; i++)
         {
-            double angle = ((TrcSwerveModule) currOdometries[i].sensor).getSteerAngle();
+            TrcSwerveModule swerveModule = driveMotorToModuleMap.get(currOdometries[i].sensor);
+            double angle = swerveModule.getSteerAngle();
             double posDelta = currOdometries[i].currPos - prevOdometries[i].currPos;
             // xScale and yScale on SwerveDrive should be identical.
             wheelPosVectors[i] = TrcUtil.polarToCartesian(posDelta, angle).mapMultiply(xScale);
