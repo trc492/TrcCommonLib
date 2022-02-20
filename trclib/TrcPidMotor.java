@@ -92,7 +92,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private boolean calibrating = false;
     private double calPower = 0.0;
     private double motorPower = 0.0;
-    private double clamp = 1.0;
+    private double powerScale = 1.0;
     private double prevPos = 0.0;
     private double prevTime = 0.0;
     private double prevTarget = 0.0;
@@ -1045,7 +1045,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     // We are stopping, Relax the power range to max range so we have full power to hold target if
                     // necessary.
                     //
-                    clamp = 1.0;
+                    powerScale = 1.0;
                     if (holdTarget)
                     {
                         //
@@ -1066,7 +1066,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     //
                     // We changed direction, change the target.
                     //
-                    clamp = power;
+                    powerScale = power;
                     setTarget(currTarget, holdTarget, null, null, 0.0);
                 }
                 prevTarget = currTarget;
@@ -1076,14 +1076,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 // We remain stopping, keep the power range relaxed in case we are holding previous target.
                 //
-                clamp = 1.0;
+                powerScale = 1.0;
             }
             else
             {
                 //
                 // Direction did not change but we need to update the power range.
                 //
-                clamp = power;
+                powerScale = power;
             }
         }
 
@@ -1406,7 +1406,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 // We are still in business. Call PID controller to calculate the motor power and set it.
                 //
-                motorPower = pidCtrl.getOutput()*clamp;
+                motorPower = pidCtrl.getOutput()*powerScale;
                 setPower(motorPower, MIN_MOTOR_POWER, MAX_MOTOR_POWER, false);
 
                 if (msgTracer != null && tracePidInfo)
