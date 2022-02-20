@@ -1035,9 +1035,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             // or stopping).
             //
             double currTarget = power < 0.0? minPos: power > 0.0? maxPos: minPos - 1.0;
+            double outputLimit = pidCtrl.getOutputLimit();
             if (currTarget != prevTarget)
             {
-                double outputLimit = pidCtrl.getOutputLimit();
                 if (power == 0.0)
                 {
                     //
@@ -1076,7 +1076,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 // We remain stopping, keep the power range relaxed in case we are holding previous target.
                 //
-                pidCtrl.setOutputRange(MIN_MOTOR_POWER, MAX_MOTOR_POWER);
+                pidCtrl.setOutputLimit(outputLimit);
             }
             else
             {
@@ -1084,7 +1084,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // Direction did not change but we need to update the power range.
                 //
                 power = Math.abs(power);
-                pidCtrl.setOutputRange(-power, power);
+                pidCtrl.setOutputLimit(power*outputLimit);
             }
         }
 
