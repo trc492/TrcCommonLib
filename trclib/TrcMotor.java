@@ -139,7 +139,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
     protected static TrcElapsedTimer motorGetPosElapsedTimer;
     protected static TrcElapsedTimer motorSetElapsedTimer;
-    private ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
+    private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
     private final String instanceName;
     private final TrcTimer timer;
@@ -427,6 +427,20 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * This method sets the motor output value. The value can be power or velocity percentage depending on whether
      * the motor controller is in power mode or velocity mode.
      *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *                 turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void set(double value, double duration, TrcEvent event)
+    {
+        set(null, 0.0, value, duration, event);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
      * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
      * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
@@ -435,6 +449,19 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     public void set(double delay, double value, double duration)
     {
         set(null, delay, value, duration, null);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *                 turning off.
+     */
+    public void set(double value, double duration)
+    {
+        set(null, 0.0, value, duration, null);
     }   //set
 
     /**
