@@ -312,23 +312,26 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private void setMotorValue(double value)
     {
         if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
-        setMotorPower(value);
-        if (followingMotorsList != null)
+        //
+        // If subclass supports velocity control, it would have overridden enableVelocityMode so that velocityPidCtrl
+        // won't be created. In that case, we will do software velocity control using software PID controller.
+        //
+        if (velocityPidCtrl != null)
         {
-            for (TrcMotor motor: followingMotorsList)
+            velocityPidCtrl.setTarget(value);
+        }
+        else
+        {
+            setMotorPower(value);
+            if (followingMotorsList != null)
             {
-                motor.setMotorPower(value);
+                for (TrcMotor motor: followingMotorsList)
+                {
+                    motor.setMotorPower(value);
+                }
             }
         }
-        // if (velocityPidCtrl != null)
-        // {
-        //     // TO-DO: rethink velocity control mode. Leverage hardware if available.
-        //     velocityPidCtrl.setTarget(value);
-        // }
-        // else
-        // {
-        //     setMotorPower(value);
-        // }
+
         if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
     }   //setMotorValue
 
@@ -1205,6 +1208,14 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             double motorPower = transformTorqueToMotorPower(desiredStallTorquePercentage);
 
             setMotorPower(motorPower);
+            if (followingMotorsList != null)
+            {
+                for (TrcMotor motor: followingMotorsList)
+                {
+                    motor.setMotorPower(motorPower);
+                }
+            }
+
             if (debugEnabled)
             {
                 dbgTrace.traceInfo(instanceName,
