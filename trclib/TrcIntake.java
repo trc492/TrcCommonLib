@@ -244,6 +244,20 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
      * power mode or velocity mode.
      *
+     * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param time specifies the time period in seconds to have power set.
+     * @param event specifies the event to signal when time has expired.
+     */
+    public void setPower(double power, double time, TrcEvent event)
+    {
+        setPower(null, 0.0, power, time, event);
+    }   //setPower
+
+    /**
+     * This method sets the motor output value for the set period of time. The motor will be turned off after the
+     * set time expires.The value can be power or velocity percentage depending on whether the motor controller is in
+     * power mode or velocity mode.
+     *
      * @param delay speciifes the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
      * @param time specifies the time period in seconds to have power set.
