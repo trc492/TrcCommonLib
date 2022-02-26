@@ -321,7 +321,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     protected void holonomicDrive(String owner, double x, double y, double rotation, boolean inverted, double gyroAngle)
     {
         final String funcName = "holonomicDrive";
-        TrcDbgTrace tracer = TrcDbgTrace.getGlobalTracer();
 
         if (debugEnabled)
         {
@@ -339,8 +338,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 lbModule.driveMotor.set(0.0);
                 rbModule.driveMotor.set(0.0);
 
-                tracer.traceInfo(funcName, "lfSteer=%.2f, rfSteer=%.2f, lbSteer=%.2f, rbSteer=%.2f",
-                    lfModule.getSteerAngle(), rfModule.getSteerAngle(), lbModule.getSteerAngle(), rbModule.getSteerAngle());
                 lfModule.setSteerAngle(lfModule.getSteerAngle());
                 rfModule.setSteerAngle(rfModule.getSteerAngle());
                 lbModule.setSteerAngle(lbModule.getSteerAngle());
