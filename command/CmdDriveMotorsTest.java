@@ -135,11 +135,11 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                     {
                         if (i == motorIndex)
                         {
-                            motors[i].set(drivePower);
+                            motors[i].setMotorPower(drivePower);
                         }
                         else
                         {
-                            motors[i].set(0.0);
+                            motors[i].setMotorPower(0.0);
                         }
                     }
                     motorIndex++;
