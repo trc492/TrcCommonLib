@@ -69,6 +69,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     public abstract void setMotorPower(double value);
 
     /**
+     * This method stops the motor regardless of what control mode the motor is on.
+     */
+    public abstract void stopMotor();
+
+    /**
      * This method gets the last set power.
      *
      * @return the last setMotorPower value.
