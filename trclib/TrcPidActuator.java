@@ -46,11 +46,6 @@ public class TrcPidActuator extends TrcPidMotor
         public double minPos = 0.0, maxPos = 1.0;
         public double scale = 1.0, offset = 0.0;
         public TrcPidController.PidParameters pidParams;
-        public boolean motorInverted = false;
-        public boolean hasLowerLimitSwitch = false;
-        public boolean lowerLimitInverted = false;
-        public boolean hasUpperLimitSwitch = false;
-        public boolean upperLimitInverted = false;
         public double calPower = 0.3;
         public double stallMinPower = 0.0;
         public double stallTolerance = 0.0;
@@ -116,28 +111,16 @@ public class TrcPidActuator extends TrcPidMotor
         }   //setPidParams
 
         /**
-         * This method sets the motor parameters of the motor actuator.
+         * This method sets the power to be used to zero calibrate the motor actuator.
          *
-         * @param motorInverted specifies true if the motor direction should be reverse, false otherwise.
-         * @param hasLowerLimitSwitch specifies true if it has a lower limit switch, false otherwise.
-         * @param lowerLimitInverted specifies true if lower limit switch is inverted, false otherwise.
-         * @param hasUpperLimitSwitch specifies true if it has an upper limit switch, false otherwise.
-         * @param upperLimitInverted specifies true if upper limit switch is inverted, false otherwise.
          * @param calPower specifies the motor power to use for zero calibration.
          * @return this parameter object.
          */
-        public Parameters setMotorParams(
-            boolean motorInverted, boolean hasLowerLimitSwitch, boolean lowerLimitInverted,
-            boolean hasUpperLimitSwitch, boolean upperLimitInverted, double calPower)
+        public Parameters setZeroCalibratePower(double calPower)
         {
-            this.motorInverted = motorInverted;
-            this.hasLowerLimitSwitch = hasLowerLimitSwitch;
-            this.lowerLimitInverted = lowerLimitInverted;
-            this.hasUpperLimitSwitch = hasUpperLimitSwitch;
-            this.upperLimitInverted = upperLimitInverted;
             this.calPower = calPower;
             return this;
-        }   //setMotorParams
+        }   //setZeroCalibratePower
 
         /**
          * This method sets the stall protection parameters of the motor actuator.
