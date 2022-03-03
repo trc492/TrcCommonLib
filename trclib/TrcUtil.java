@@ -42,7 +42,9 @@ public class TrcUtil
     public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
-    public static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
+    // private static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
+    private static long modeStartTimeInNano = 0;
+    private static double modeStartEpochTime = 0.0;
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -65,7 +67,9 @@ public class TrcUtil
      */
     public static void recordModeStartTime()
     {
-        modeStartTime.recordTimestamp();
+        // modeStartTime.recordTimestamp();
+        modeStartTimeInNano = System.nanoTime();
+        modeStartEpochTime = System.currentTimeMillis() / 1000.0;
     }   //recordModeStartTime
 
     /**
@@ -76,7 +80,8 @@ public class TrcUtil
      */
     public static double getModeElapsedTime()
     {
-        return modeStartTime.getElapsedTime();
+        // return modeStartTime.getElapsedTime();
+        return (System.nanoTime() - modeStartTimeInNano) / 1000000000.0;
     }   //getModeElapsedTime
 
     /**
@@ -88,7 +93,8 @@ public class TrcUtil
      */
     public static double getModeElapsedTime(double epochTime)
     {
-        return modeStartTime.getElapsedTime(epochTime);
+        // return modeStartTime.getElapsedTime(epochTime);
+        return epochTime - modeStartEpochTime;
     }   //getModeElapsedTime
 
     /**
@@ -102,7 +108,8 @@ public class TrcUtil
      */
     public static double getCurrentTime()
     {
-        return modeStartTime.getCurrentTime();
+        return modeStartEpochTime + getModeElapsedTime();
+        // return modeStartTime.getCurrentTime();
     }   //getCurrentTime
 
     /**
