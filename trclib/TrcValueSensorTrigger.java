@@ -47,7 +47,7 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
     private final DigitalTriggerHandler triggerHandler;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
     private double lowerThreshold, upperThreshold, settlingPeriod;
-    private boolean enabled = false;
+    private boolean taskEnabled = false;
     private boolean triggerActive = false;
     private double startTime;
 
@@ -121,17 +121,17 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
         }
 
-        if (enabled)
+        if (enabled && !taskEnabled)
         {
             startTime = TrcUtil.getCurrentTime();
             triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
-        else
+        else if (!enabled && taskEnabled)
         {
             triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         triggerActive = false;
-        this.enabled = enabled;
+        this.taskEnabled = enabled;
 
         if (debugEnabled)
         {
@@ -147,7 +147,7 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
     @Override
     public synchronized boolean isEnabled()
     {
-        return enabled;
+        return taskEnabled;
     }   //isEnabled
 
     /**

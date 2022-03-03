@@ -53,6 +53,7 @@ public class TrcPidActuator extends TrcPidMotor
         public boolean upperLimitInverted = false;
         public double calPower = 0.3;
         public double stallMinPower = 0.0;
+        public double stallTolerance = 0.0;
         public double stallTimeout = 0.0;
         public double resetTimeout = 0.0;
         public double[] posPresets = null;
@@ -142,14 +143,17 @@ public class TrcPidActuator extends TrcPidMotor
          * This method sets the stall protection parameters of the motor actuator.
          *
          * @param stallMinPower specifies the minimum power applied to the motor before stall detection will kick in.
+         * @param stallTolerance specifies the movement tolerance within which is still considered stalled.
          * @param stallTimeout specifies the minimum time the motor has to stall to trigger the stalled condition.
          * @param resetTimeout specifies the minimum time has to pass with no power applied to the motor to reset
          *                     stalled condition.
          * @return this parameter object.
          */
-        public Parameters setStallProtectionParams(double stallMinPower, double stallTimeout, double resetTimeout)
+        public Parameters setStallProtectionParams(
+            double stallMinPower, double stallTolerance, double stallTimeout, double resetTimeout)
         {
             this.stallMinPower = stallMinPower;
+            this.stallTolerance = stallTolerance;
             this.stallTimeout = stallTimeout;
             this.resetTimeout = resetTimeout;
             return this;
@@ -204,7 +208,8 @@ public class TrcPidActuator extends TrcPidMotor
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
         TrcDigitalInput upperLimitSwitch, Parameters params)
     {
-        super(instanceName, motor1, motor2, syncGain, params.pidParams, params.calPower, params.powerCompensation);
+        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch != null, params.calPower,
+              params.powerCompensation);
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;
         this.params = params;
@@ -218,7 +223,7 @@ public class TrcPidActuator extends TrcPidMotor
 
         if (params.stallMinPower != 0.0)
         {
-            setStallProtection(params.stallMinPower, params.stallTimeout, params.resetTimeout);
+            setStallProtection(params.stallMinPower, params.stallTolerance, params.stallTimeout, params.resetTimeout);
         }
 
         super.getPidController().setAbsoluteSetPoint(true);

@@ -366,8 +366,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (validateOwnership(owner))
         {
-            value = TrcUtil.clipRange(value);
-
             if ((softLowerLimitEnabled || softUpperLimitEnabled) && value != 0.0)
             {
                 double currPos = getPosition();
