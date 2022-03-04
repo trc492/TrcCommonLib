@@ -191,7 +191,7 @@ public class TrcPidActuator extends TrcPidMotor
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
         TrcDigitalInput upperLimitSwitch, Parameters params)
     {
-        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch != null, params.calPower,
+        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch, params.calPower,
               params.powerCompensation);
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;

@@ -76,7 +76,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private final TrcMotor motor2;
     private final double syncGain;
     private final TrcPidController pidCtrl;
-    private final boolean hasLowerLimitSwitch;
+    private final TrcDigitalInput lowerLimitSwitch;
     private final double defCalPower;
     private final PowerCompensation powerCompensation;
     private final TrcTaskMgr.TaskObject pidMotorTaskObj;
@@ -123,14 +123,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
-        TrcPidController.PidParameters pidParams, boolean hasLowerLimitSwitch, double defCalPower,
+        TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower,
         PowerCompensation powerCompensation)
     {
         if (debugEnabled)
@@ -154,7 +154,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.motor2 = motor2;
         this.syncGain = syncGain;
         this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams, this::getPosition);
-        this.hasLowerLimitSwitch = hasLowerLimitSwitch;
+        this.lowerLimitSwitch = lowerLimitSwitch;
         this.defCalPower = -Math.abs(defCalPower);
         this.powerCompensation = powerCompensation;
         pidMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
@@ -168,16 +168,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
-        boolean hasLowerLimitSwitch, double defCalPower, PowerCompensation powerCompensation)
+        TrcDigitalInput lowerLimitSwitch, double defCalPower, PowerCompensation powerCompensation)
     {
-        this(instanceName, motor1, motor2, 0.0, pidParams, hasLowerLimitSwitch, defCalPower, powerCompensation);
+        this(instanceName, motor1, motor2, 0.0, pidParams, lowerLimitSwitch, defCalPower, powerCompensation);
     }   //TrcPidMotor
 
     /**
@@ -186,16 +186,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      * @param powerCompensation specifies the object that implements the PowerCompensation interface, null if none
      *                          provided.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams, boolean hasLowerLimitSwitch,
-        double defCalPower, PowerCompensation powerCompensation)
+        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams,
+        TrcDigitalInput lowerLimitSwitch, double defCalPower, PowerCompensation powerCompensation)
     {
-        this(instanceName, motor, null, 0.0, pidParams, hasLowerLimitSwitch, defCalPower, powerCompensation);
+        this(instanceName, motor, null, 0.0, pidParams, lowerLimitSwitch, defCalPower, powerCompensation);
     }   //TrcPidMotor
 
     /**
@@ -206,14 +206,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
-        TrcPidController.PidParameters pidParams, boolean hasLowerLimitSwitch, double defCalPower)
+        TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor1, motor2, syncGain, pidParams, hasLowerLimitSwitch, defCalPower, null);
+        this(instanceName, motor1, motor2, syncGain, pidParams, lowerLimitSwitch, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -223,14 +223,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
-        boolean hasLowerLimitSwitch, double defCalPower)
+        TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor1, motor2, 0.0, pidParams, hasLowerLimitSwitch, defCalPower, null);
+        this(instanceName, motor1, motor2, 0.0, pidParams, lowerLimitSwitch, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -239,14 +239,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
      * @param pidParams specifies the PID parameters for the PID controller.
-     * @param hasLowerLimitSwitch specifies true if the motor has a lower limit switch, false otherwise.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams, boolean hasLowerLimitSwitch,
-        double defCalPower)
+        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams,
+        TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor, null, 0.0, pidParams, hasLowerLimitSwitch, defCalPower, null);
+        this(instanceName, motor, null, 0.0, pidParams, lowerLimitSwitch, defCalPower, null);
     }   //TrcPidMotor
 
     /**
@@ -1309,7 +1309,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private boolean zeroCalibratingMotor(TrcMotor motor)
     {
         final String funcName = "zeroCalibratingMotor";
-        boolean done = hasLowerLimitSwitch && motor.isLowerLimitSwitchActive() || stalled;
+        boolean done = lowerLimitSwitch != null && lowerLimitSwitch.isActive() || stalled;
 
         if (done)
         {
