@@ -46,6 +46,13 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
+    public enum TriggerMode
+    {
+        OnActive,
+        OnInactive,
+        OnBoth
+    }   //enum TriggerMode
+
     /**
      * This method enables/disables motor brake mode. In motor brake mode, set power to 0 would stop the motor very
      * abruptly by shorting the motor wires together using the generated back EMF to stop the motor. When not enabled,
@@ -159,6 +166,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
     private TrcDigitalInputTrigger digitalTrigger;
     private TrcSensorTrigger.DigitalTriggerHandler digitalTriggerHandler;
+    private TriggerMode triggerMode = TriggerMode.OnBoth;
 
     protected boolean calibrating = false;
 
@@ -773,9 +781,10 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      *
      * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
      * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
+     * @param triggerMode specifies the trigger mode.
      */
     public void resetPositionOnDigitalInput(
-        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler)
+        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler, TriggerMode triggerMode)
     {
         final String funcName = "resetPositionOnDigitalInput";
 
@@ -787,7 +796,22 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         digitalTrigger = new TrcDigitalInputTrigger(instanceName, digitalInput, this::triggerEvent);
         digitalTriggerHandler = triggerHandler;
+        this.triggerMode = triggerMode;
         digitalTrigger.setEnabled(true);
+    }   //resetPositionOnDigitalInput
+
+    /**
+     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
+     * reading when the digital input is triggered. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
+     * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
+     */
+    public void resetPositionOnDigitalInput(
+        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler)
+    {
+        resetPositionOnDigitalInput(digitalInput, triggerHandler, TriggerMode.OnBoth);
     }   //resetPositionOnDigitalInput
 
     /**
@@ -798,7 +822,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput)
     {
-        resetPositionOnDigitalInput(digitalInput, null);
+        resetPositionOnDigitalInput(digitalInput, null, TriggerMode.OnActive);
     }   //resetPositionOnDigitalInput
 
     /**
@@ -828,7 +852,12 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             calibrating = false;
         }
 
-        resetPosition(false);
+        if (triggerMode == TriggerMode.OnBoth ||
+            triggerMode == TriggerMode.OnActive && active ||
+            triggerMode == TriggerMode.OnInactive && !active)
+        {
+            resetPosition(false);
+        }
 
         if (digitalTriggerHandler != null)
         {
