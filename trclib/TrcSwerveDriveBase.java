@@ -426,6 +426,35 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     }   //holonomicDrive
 
     /**
+     * This method enables/disables the anti-defense mode where it puts all swerve wheels into an X-formation.
+     * By doing so, it is very difficult for others to push us around.
+     *
+     * @param owner     specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *                  ownership aware.
+     * @param enabled   specifies true to enable anti-defense mode, false to disable.
+     */
+    public void setAntiDefenseEnabled(String owner, boolean enabled)
+    {
+        if (validateOwnership(owner))
+        {
+            if (enabled)
+            {
+                lfModule.setSteerAngle(-45);
+                rfModule.setSteerAngle(45);
+                lbModule.setSteerAngle(-135);
+                rbModule.setSteerAngle(135);
+            }
+            else
+            {
+                lfModule.setSteerAngle(0);
+                rfModule.setSteerAngle(0);
+                lbModule.setSteerAngle(0);
+                rbModule.setSteerAngle(0);
+            }
+        }
+    }   //setAntiDefenseEnabled
+
+    /**
      * This method is called periodically to calculate the delta between the previous and current motor odometries.
      *
      * @param prevOdometries specifies the previous motor odometries.
