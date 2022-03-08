@@ -118,7 +118,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     private final String instanceName;
     private final TrcMotor motor;
     private final Parameters params;
-    private final TrcSensorTrigger sensorTrigger;
+    private final TrcTrigger sensorTrigger;
     private final TrcTimer timer;
     private TrcEvent onFinishEvent;
     private TrcNotifier.Receiver onFinishCallback;
@@ -132,7 +132,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param params specifies the parameters object.
      * @param sensorTrigger specifies the sensor trigger object.
      */
-    public TrcIntake(String instanceName, TrcMotor motor, Parameters params, TrcSensorTrigger sensorTrigger)
+    public TrcIntake(String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger)
     {
         if (debugEnabled)
         {
@@ -421,7 +421,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public double getSensorValue()
     {
-        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getSensorValue(): 0.0;
+        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getValue(): 0.0;
     }   //getSensorValue
 
     /**
@@ -431,7 +431,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public boolean getSensorState()
     {
-        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getSensorState();
+        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getState();
     }   //getSensorState
 
     /**

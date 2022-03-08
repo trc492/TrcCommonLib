@@ -26,7 +26,7 @@ package TrcCommonLib.trclib;
  * This class implements a trigger for a digital input device. A digital input trigger consists of a digital input
  * device. It monitors the device state and calls the notification handler if the state changes.
  */
-public class TrcDigitalInputTrigger extends TrcSensorTrigger
+public class TrcDigitalInputTrigger extends TrcTrigger
 {
     private final TrcDigitalInput sensor;
     private final DigitalTriggerHandler triggerHandler;
@@ -47,7 +47,7 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
 
         if (sensor == null || triggerHandler == null)
         {
-            throw new NullPointerException("Sensor/TriggerHandler cannot be null.");
+            throw new IllegalArgumentException("Sensor/TriggerHandler cannot be null.");
         }
 
         this.sensor = sensor;
@@ -109,9 +109,9 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getSensorValue()
+    public double getValue()
     {
-        throw new RuntimeException("Digital sensor does not support analog value.");
+        throw new UnsupportedOperationException("Digital sensor does not support analog value.");
     }   //getSensorValue
 
     /**
@@ -120,7 +120,7 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getSensorState()
+    public boolean getState()
     {
         return sensor.isActive();
     }   //getSensorState
@@ -135,7 +135,7 @@ public class TrcDigitalInputTrigger extends TrcSensorTrigger
     private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        boolean currState = getSensorState();
+        boolean currState = getState();
 
         if (debugEnabled)
         {

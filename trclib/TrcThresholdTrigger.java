@@ -23,12 +23,12 @@
 package TrcCommonLib.trclib;
 
 /**
- * This class implements a ValueSensorTrigger. It monitors the sensor value against the lower and upper threshold
- * values. If the sensor value stays within the lower and upper threshold for at least the given settling period,
- * the trigger state is set to active and the trigger handler is called. If the sensor value exits the threshold
- * range, the trigger state is set to inactive and the trigger handler is also called.
+ * This class implements a ThresholdTrigger. It monitors the value source against the lower and upper threshold
+ * values. If the value stays within the lower and upper thresholds for at least the given settling period, the
+ * the trigger state is set to active and the trigger handler is called. If the value exits the threshold range,
+ * the trigger state is set to inactive and the trigger handler is also called.
  */
-public class TrcValueSensorTrigger extends TrcSensorTrigger
+public class TrcThresholdTrigger extends TrcTrigger
 {
     /**
      * This interface implements the method to read the sensor value.
@@ -41,12 +41,13 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
          * @return sensor value.
          */
         double getValue();
+
     }   //interface ValueSource
 
     private final ValueSource valueSource;
     private final DigitalTriggerHandler triggerHandler;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
-    private double lowerThreshold, upperThreshold, settlingPeriod;
+    private Double lowerThreshold, upperThreshold, settlingPeriod;
     private boolean taskEnabled = false;
     private boolean triggerActive = false;
     private double startTime;
@@ -58,19 +59,19 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
      * @param valueSource specifies the interface that implements the value source.
      * @param triggerHandler specifies the object to handle the trigger event.
      */
-    public TrcValueSensorTrigger(String instanceName, ValueSource valueSource, DigitalTriggerHandler triggerHandler)
+    public TrcThresholdTrigger(String instanceName, ValueSource valueSource, DigitalTriggerHandler triggerHandler)
     {
         super(instanceName);
 
         if (valueSource == null || triggerHandler == null)
         {
-            throw new NullPointerException("ValueSource/TriggerHandler cannot be null.");
+            throw new IllegalArgumentException("ValueSource/TriggerHandler cannot be null.");
         }
 
         this.valueSource = valueSource;
         this.triggerHandler = triggerHandler;
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
-    }   //TrcValueSensorTrigger
+    }   //TrcThresholdTrigger
 
     /**
      * This method sets the lower/upper threshold values within which the sensor reading must stay for at least the
@@ -123,6 +124,11 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
 
         if (enabled && !taskEnabled)
         {
+            if (lowerThreshold == null || upperThreshold == null || settlingPeriod == null)
+            {
+                throw new RuntimeException("Must call setTrigger first before enabling the trigger.");
+            }
+
             startTime = TrcUtil.getCurrentTime();
             triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
@@ -156,10 +162,10 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getSensorValue()
+    public double getValue()
     {
         return valueSource.getValue();
-    }   //getSensorValue
+    }   //getValue
 
     /**
      * This method reads the current digital sensor state (not supported).
@@ -167,10 +173,10 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getSensorState()
+    public boolean getState()
     {
         return triggerActive;
-    }   //getSensorState
+    }   //getState
 
     /**
      * This method is called periodically to check if the sensor value is within the lower and upper threshold range.
@@ -181,8 +187,8 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
     private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        double currValue = valueSource.getValue();
         double currTime = TrcUtil.getCurrentTime();
+        double currValue = valueSource.getValue();
 
         if (debugEnabled)
         {
@@ -216,4 +222,4 @@ public class TrcValueSensorTrigger extends TrcSensorTrigger
         }
     }   //triggerTask
 
-}   //class TrcValueSensorTrigger
+}   //class TrcThresholdTrigger

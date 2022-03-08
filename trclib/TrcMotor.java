@@ -165,7 +165,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
 
     private TrcDigitalInputTrigger digitalTrigger;
-    private TrcSensorTrigger.DigitalTriggerHandler digitalTriggerHandler;
+    private TrcTrigger.DigitalTriggerHandler digitalTriggerHandler;
     private TriggerMode triggerMode = TriggerMode.OnBoth;
 
     protected boolean calibrating = false;
@@ -784,7 +784,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * @param triggerMode specifies the trigger mode.
      */
     public void resetPositionOnDigitalInput(
-        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler, TriggerMode triggerMode)
+        TrcDigitalInput digitalInput, TrcTrigger.DigitalTriggerHandler triggerHandler, TriggerMode triggerMode)
     {
         final String funcName = "resetPositionOnDigitalInput";
 
@@ -809,7 +809,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
      */
     public void resetPositionOnDigitalInput(
-        TrcDigitalInput digitalInput, TrcSensorTrigger.DigitalTriggerHandler triggerHandler)
+        TrcDigitalInput digitalInput, TrcTrigger.DigitalTriggerHandler triggerHandler)
     {
         resetPositionOnDigitalInput(digitalInput, triggerHandler, TriggerMode.OnBoth);
     }   //resetPositionOnDigitalInput

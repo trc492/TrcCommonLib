@@ -29,7 +29,7 @@ import java.util.Arrays;
  * threshold values. If the sensor reading crosses any of the thresholds in the array, it will call a notification
  * handler so that an action could be performed.
  */
-public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
+public class TrcAnalogSensorTrigger<D> extends TrcTrigger
 {
     private final TrcSensor<D> sensor;
     private final int index;
@@ -61,7 +61,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
 
         if (sensor == null || triggerHandler == null)
         {
-            throw new NullPointerException("Sensor/TriggerHandler cannot be null.");
+            throw new IllegalArgumentException("Sensor/TriggerHandler cannot be null.");
         }
 
         this.sensor = sensor;
@@ -79,7 +79,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
             setThresholds(dataPoints);
         }
 
-        sensorValue = getSensorValue();
+        sensorValue = getValue();
         sensorZone = getValueZone(sensorValue);
     }   //TrcAnalogSensorTrigger
 
@@ -101,7 +101,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
 
         if (triggerPoints == null)
         {
-            throw new NullPointerException("TriggerPoints cannot be null");
+            throw new IllegalArgumentException("TriggerPoints cannot be null");
         }
 
         if (triggerPoints.length < 2)
@@ -138,7 +138,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
 
         if (thresholds == null)
         {
-            throw new NullPointerException("thresholds cannot be null");
+            throw new IllegalArgumentException("thresholds cannot be null");
         }
 
         if (thresholds.length == 0)
@@ -195,7 +195,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
 
         if (enabled)
         {
-            sensorValue = getSensorValue();
+            sensorValue = getValue();
             sensorZone = getValueZone(sensorValue);
             triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
@@ -227,7 +227,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getSensorValue()
+    public double getValue()
     {
         TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
         return data != null && data.value != null? data.value: 0.0;
@@ -239,9 +239,9 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getSensorState()
+    public boolean getState()
     {
-        throw new RuntimeException("Analog sensor does not support digital state.");
+        throw new UnsupportedOperationException("Analog sensor does not support digital state.");
     }   //getSensorState
 
     /**
@@ -299,7 +299,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcSensorTrigger
     private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        double currValue = getSensorValue();
+        double currValue = getValue();
         int currZone = getValueZone(currValue);
 
         if (debugEnabled)
