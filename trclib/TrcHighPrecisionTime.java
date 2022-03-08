@@ -100,9 +100,7 @@ public class TrcHighPrecisionTime
      */
     public synchronized double getCurrentTime()
     {
-        // BUGBUG: This somehow caused a deadlock by calling another synchronized method. Workaroudn it for now.
-        // return timestampEpoch + getElapsedTime();
-        return System.nanoTime()/1000000000.0;
+        return timestampEpoch + getElapsedTime();
     }   //getCurrentTime
 
 }   //class TrcHighPrecisionTime
