@@ -439,17 +439,17 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         {
             if (enabled)
             {
-                lfModule.setSteerAngle(-45);
-                rfModule.setSteerAngle(45);
-                lbModule.setSteerAngle(-135);
-                rbModule.setSteerAngle(135);
+                lfModule.setSteerAngle(-45.0);
+                rfModule.setSteerAngle(45.0);
+                lbModule.setSteerAngle(45.0);
+                rbModule.setSteerAngle(-45.0);
             }
             else
             {
-                lfModule.setSteerAngle(0);
-                rfModule.setSteerAngle(0);
-                lbModule.setSteerAngle(0);
-                rbModule.setSteerAngle(0);
+                lfModule.setSteerAngle(0.0);
+                rfModule.setSteerAngle(0.0);
+                lbModule.setSteerAngle(0.0);
+                rbModule.setSteerAngle(0.0);
             }
         }
     }   //setAntiDefenseEnabled
