@@ -1155,7 +1155,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
             prevTime = TrcUtil.getCurrentTime();
             setTaskEnabled(true);
-            TrcDbgTrace.getGlobalTracer().traceInfo("TrcMotor.zeroCalibrate", "calibrating tilter");
         }
 
         if (debugEnabled)
