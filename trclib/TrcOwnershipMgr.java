@@ -103,7 +103,8 @@ public class TrcOwnershipMgr
         if (!success && owner != null)
         {
             throw new IllegalStateException(
-                String.format("%s does not have exclusive ownership of the subsystem.", owner));
+                String.format("%s does not have exclusive ownership of the subsystem %s (owner=%s).",
+                              owner, subsystem, getOwner(subsystem)));
         }
 
         return success;
