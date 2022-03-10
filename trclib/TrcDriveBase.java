@@ -299,24 +299,27 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * This method is called to enable/disable the odometry task that keeps track of the robot position and orientation.
      *
      * @param enabled specifies true to enable, false to disable.
+     * @param resetHardware specifies true to reset odometry hardware, false otherwise. This is only applicable when
+     *        enabling odometry, not used when disabling.
      */
-    public void setOdometryEnabled(boolean enabled)
+    public void setOdometryEnabled(boolean enabled, boolean resetHardware)
     {
         final String funcName = "setOdometryEnabled";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,resetHW=%s", enabled, resetHardware);
         }
 
         for (int i = 0; i < motors.length; i++)
         {
-            motors[i].setOdometryEnabled(enabled);
+            motors[i].setOdometryEnabled(enabled, resetHardware);
         }
 
         if (enabled)
         {
-            resetOdometry(false, false);
+            resetOdometry(resetHardware, false);
 //            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK, TrcTaskMgr.INPUT_THREAD_INTERVAL);
             odometryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
@@ -330,6 +333,16 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
+    }   //setOdometryEnabled
+
+    /**
+     * This method is called to enable/disable the odometry task that keeps track of the robot position and orientation.
+     *
+     * @param enabled specifies true to enable, false to disable.
+     */
+    public void setOdometryEnabled(boolean enabled)
+    {
+        setOdometryEnabled(enabled, false);
     }   //setOdometryEnabled
 
     /**
