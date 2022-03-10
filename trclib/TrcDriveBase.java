@@ -966,8 +966,24 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getGyroAssistPower(double rotation)
     {
-        double error = rotation - gyro.getZRotationRate().value / gyroMaxRotationRate;
-        return gyroAssistEnabled ? TrcUtil.clipRange(gyroAssistGain * error) : 0.0;
+        final String funcName = "getGyroAssistPower";
+        double gyroAssistPower = 0.0;
+
+        if (gyroAssistEnabled)
+        {
+            double turnRate = gyro.getZRotationRate().value;
+            double error = rotation - turnRate / gyroMaxRotationRate;
+            gyroAssistPower = TrcUtil.clipRange(gyroAssistGain * error);
+
+            if (debugEnabled)
+            {
+                dbgTrace.traceInfo(
+                    funcName, "rotation=%f, turnRate=%f, error=%f, gyroAssistPower=%f",
+                    rotation, turnRate, error, gyroAssistPower);
+            }
+        }
+
+        return gyroAssistPower;
     }   //getGyroAssistPower
 
     /**

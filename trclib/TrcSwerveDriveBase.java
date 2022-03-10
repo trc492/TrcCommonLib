@@ -369,6 +369,11 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     y = temp;
                 }
 
+                if (isGyroAssistEnabled())
+                {
+                    rotation += getGyroAssistPower(rotation);
+                }
+
                 double a = x - (rotation * wheelBaseLength / wheelBaseDiagonal);
                 double b = x + (rotation * wheelBaseLength / wheelBaseDiagonal);
                 double c = y - (rotation * wheelBaseWidth / wheelBaseDiagonal);
@@ -376,7 +381,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
 
                 // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
                 // Note: atan2(y, x) in java will take care of x being zero.
-                //       If will return pi/2 for positive y and -pi/2 for negative y.
+                //       It will return pi/2 for positive y and -pi/2 for negative y.
                 double lfAngle = Math.toDegrees(Math.atan2(b, d));
                 double rfAngle = Math.toDegrees(Math.atan2(b, c));
                 double lbAngle = Math.toDegrees(Math.atan2(a, d));
@@ -411,6 +416,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 rfModule.set(rfPower);
                 lbModule.set(lbPower);
                 rbModule.set(rbPower);
+
                 if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
                 {
                     // reset stall start time to zero if drive base is stopped.
