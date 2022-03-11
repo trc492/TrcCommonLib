@@ -314,7 +314,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         for (int i = 0; i < motors.length; i++)
         {
-            motors[i].setOdometryEnabled(enabled, resetHardware);
+            motors[i].setOdometryEnabled(enabled, false);
         }
 
         if (enabled)
