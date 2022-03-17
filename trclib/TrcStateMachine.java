@@ -147,11 +147,29 @@ public class TrcStateMachine<T>
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", currState.toString());
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", currState);
         }
 
         return currState;
     }   //getState
+
+    /**
+     * This method returns the next state of the state machine.
+     *
+     * @return next state of the state machine.
+     */
+    public T getNextState()
+    {
+        final String funcName = "getNextState";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", nextState);
+        }
+
+        return nextState;
+    }   //getNextState
 
     /**
      * This method checks whether the state machine is ready. If so, it returns the current state. If the state
