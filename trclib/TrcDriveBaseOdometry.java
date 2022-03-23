@@ -310,17 +310,23 @@ public class TrcDriveBaseOdometry
     /**
      * This method resets the odometry device and data.
      *
-     * @param resetHardware specifies true to do a hardware reset on the sensor devices, false otherwise.
-     * @param resetAngle specifies true to reset the angle sensor, false to skip resetting angle sensor.
+     * @param resetPositionOdometry specifies true for resetting position odometry, false otherwise.
+     *        Generally, this should be set to true unless the position odometry has been reset somewhere else.
+     * @param resetHeadingOdometry specifies true to also reset the heading odometry, false otherwise.
+     * @param resetHardware specifies true to do a hardware reset, false to do a soft reset.
      */
-    public synchronized void resetOdometry(boolean resetHardware, boolean resetAngle)
+    public synchronized void resetOdometry(
+        boolean resetPositionOdometry, boolean resetHeadingOdometry, boolean resetHardware)
     {
         prevAvgXPos = 0.0;
         if (xSensors != null)
         {
             for (AxisSensor s: xSensors)
             {
-                s.sensor.resetOdometry(resetHardware);
+                if (resetPositionOdometry)
+                {
+                    s.sensor.resetOdometry(resetHardware);
+                }
                 s.odometry = s.sensor.getOdometry();
                 prevAvgXPos += s.odometry.currPos;
             }
@@ -332,14 +338,17 @@ public class TrcDriveBaseOdometry
         {
             for (AxisSensor s: ySensors)
             {
-                s.sensor.resetOdometry(resetHardware);
+                if (resetPositionOdometry)
+                {
+                    s.sensor.resetOdometry(resetHardware);
+                }
                 s.odometry = s.sensor.getOdometry();
                 prevAvgYPos += s.odometry.currPos;
             }
             prevAvgYPos /= ySensors.length;
         }
 
-        if (angleSensor != null && resetAngle)
+        if (resetHeadingOdometry && angleSensor != null)
         {
             angleSensor.resetOdometry(resetHardware);
             angleOdometry = angleSensor.getOdometry();

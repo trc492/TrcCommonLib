@@ -941,22 +941,28 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * it should not be enabled if the user doesn't need motor odometry info.
      *
      * @param enabled specifies true to enable odometry task, disable otherwise.
+     * @param resetOdometry specifies true to reset odometry, false otherwise.
      * @param resetHardware specifies true to reset odometry hardware, false otherwise. This is only applicable when
      *        enabling odometry, not used when disabling.
      */
-    public void setOdometryEnabled(boolean enabled, boolean resetHardware)
+    public void setOdometryEnabled(boolean enabled, boolean resetOdometry, boolean resetHardware)
     {
         final String funcName = "setOdometryEnabled";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,hwReset=%s", enabled, resetHardware);
+                funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,resetOd=%s,hwReset=%s",
+                enabled, resetOdometry, resetHardware);
         }
 
         if (enabled)
         {
-            resetOdometry(resetHardware);
+            if (resetOdometry)
+            {
+                resetOdometry(resetHardware);
+            }
+
             synchronized (odometryMotors)
             {
                 //

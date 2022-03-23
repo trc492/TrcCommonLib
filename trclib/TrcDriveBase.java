@@ -240,7 +240,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             motorsState.prevMotorOdometries[i] = null;
             motorsState.currMotorOdometries[i] = new TrcOdometrySensor.Odometry(motors[i]);
         }
-        resetOdometry(true, true);
+        resetOdometry(true, true, true);
 
         odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", this::odometryTask);
         TrcTaskMgr.TaskObject stopTaskObj = TrcTaskMgr.createTask(moduleName + ".stopTask", this::stopTask);
@@ -314,12 +314,14 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         for (int i = 0; i < motors.length; i++)
         {
-            motors[i].setOdometryEnabled(enabled, false);
+            motors[i].setOdometryEnabled(enabled, true, resetHardware);
         }
 
         if (enabled)
         {
-            resetOdometry(resetHardware, false);
+            // We already reset position odometry when enabling motor odometry, so don't do it twice.
+            // But we do need to reset heading odometry.
+            resetOdometry(false, true, resetHardware);
 //            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK, TrcTaskMgr.INPUT_THREAD_INTERVAL);
             odometryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
@@ -739,16 +741,20 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * This method resets the drive base odometry. This includes the motor encoders, drive base position, velocity and
      * gyro heading.
      *
-     * @param resetHardware  specifies true for resetting hardware position, false for resetting software position.
-     * @param resetAngle specifies true to also reset the angle odometry, false otherwise.
+     * @param resetPositionOdometry  specifies true for resetting position odometry, false otherwise.
+     * @param resetHeadingOdometry specifies true to also reset the heading odometry, false otherwise.
+     * @param resetHardware specifies true to do a hardware reset, false to do a soft reset.
      */
-    public void resetOdometry(boolean resetHardware, boolean resetAngle)
+    public void resetOdometry(boolean resetPositionOdometry, boolean resetHeadingOdometry, boolean resetHardware)
     {
         final String funcName = "resetOdometry";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API,
+                "resetPosOd=%s, resetHeadingOd=%s, resetHardware=%s",
+                resetPositionOdometry, resetHeadingOdometry, resetHardware);
         }
 
         synchronized (odometry)
@@ -757,13 +763,16 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
             if (driveBaseOdometry != null)
             {
-                driveBaseOdometry.resetOdometry(resetHardware, resetAngle);
+                driveBaseOdometry.resetOdometry(resetPositionOdometry, resetHeadingOdometry, resetHardware);
             }
             else
             {
                 for (int i = 0; i < motors.length; i++)
                 {
-                    motors[i].resetPosition(resetHardware);
+                    if (resetPositionOdometry)
+                    {
+                        motors[i].resetOdometry(resetHardware);
+                    }
                     motorsState.prevMotorOdometries[i] = null;
                     motorsState.currMotorOdometries[i].prevTimestamp
                         = motorsState.currMotorOdometries[i].currTimestamp
@@ -773,11 +782,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                         = motorsState.currMotorOdometries[i].velocity = 0.0;
                 }
 
-                if (resetAngle)
+                if (resetHeadingOdometry)
                 {
                     if (gyro != null)
                     {
-                        gyro.resetZIntegrator();
+                        gyro.resetOdometry(resetHardware);
                     }
                     odometry.position.angle = odometry.velocity.angle = 0.0;
                 }
@@ -801,7 +810,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void resetOdometry(boolean resetHardware)
     {
-        resetOdometry(resetHardware, true);
+        resetOdometry(true, true, resetHardware);
     }   //resetOdometry
 
     /**
@@ -810,7 +819,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void resetOdometry()
     {
-        resetOdometry(false, true);
+        resetOdometry(true, true, false);
     }   //resetOdometry
 
     /**
@@ -1603,7 +1612,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                         }
                     }
                     // Overwrite the angle/turnrate values if gyro present, since that's more accurate
-                    odometryDelta.position.angle = gyroOdometry.currPos - odometry.position.angle;
+                    odometryDelta.position.angle = gyroOdometry.currPos - gyroOdometry.prevPos;
                     odometryDelta.velocity.angle = gyroOdometry.velocity;
                 }
 
