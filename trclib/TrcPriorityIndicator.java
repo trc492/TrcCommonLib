@@ -24,6 +24,7 @@ package TrcCommonLib.trclib;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * This class implements a priority indicator device that supports priority list. A priority list specifies a list of
@@ -89,10 +90,21 @@ public abstract class TrcPriorityIndicator<T>
             this(pattern, false);
         }   //PatternState
 
+        /**
+         * This method returns the string representation of the LED pattern state.
+         *
+         * @return string representation of the LED pattern state.
+         */
+        @Override
+        public String toString()
+        {
+            return pattern + "/" + enabled;
+        }   //toString
+
     }   //class PatternState
 
+    private final HashMap<String, T> namedPatternMap = new HashMap<>();
     private final String instanceName;
-    private TrcHashMap<String, T> namedPatternMap = null;
     private PatternState[] patternPriorities = null;
 
     /**
@@ -124,14 +136,24 @@ public abstract class TrcPriorityIndicator<T>
     }   //toString
 
     /**
-     * This method sets the LED pattern map associating string names to LED patterns.
+     * This method prints the Pattern Priority table to the given trace output for debugging purpose.
      *
-     * @param namedPatternMap specifies the LED named pattern map to be set.
+     * @param tracer specifies the tracer object to use to print the info.
      */
-    public void setNamedPatternMap(TrcHashMap<String, T> namedPatternMap)
+    public synchronized void printPatternPriorityTable(TrcDbgTrace tracer)
     {
-        this.namedPatternMap = namedPatternMap;
-    }   //setNamedPatternMap
+        final String funcName = "printPatternPriorityTable";
+        StringBuilder msg = new StringBuilder("PatternPriorities=");
+
+        if (patternPriorities != null)
+        {
+            for (PatternState state: patternPriorities)
+            {
+                msg.append(" " + state);
+            }
+            tracer.traceInfo(funcName, msg.toString());
+        }
+    }   //printPatternPriorityTable
 
     /**
      * This method turns the indicator off.
@@ -147,7 +169,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param pattern specifies the pattern in the priority list.
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      */
-    public void setPatternState(T pattern, boolean enabled)
+    public synchronized void setPatternState(T pattern, boolean enabled)
     {
         final String funcName = "setPatternState";
         int index = getPatternPriority(pattern);
@@ -177,13 +199,8 @@ public abstract class TrcPriorityIndicator<T>
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
-    public void setPatternState(String patternName, boolean enabled)
+    public synchronized void setPatternState(String patternName, boolean enabled)
     {
-        if (namedPatternMap == null)
-        {
-            throw new IllegalStateException("Pattern name map has not been set.");
-        }
-
         setPatternState(namedPatternMap.get(patternName), enabled);
     }   //setPatternState
 
@@ -194,7 +211,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param pattern specifies the pattern in the priority list.
      * @return true if the pattern is ON, false if it is OFF.
      */
-    public boolean getPatternState(T pattern)
+    public synchronized boolean getPatternState(T pattern)
     {
         final String funcName = "getPatternState";
         boolean state = false;
@@ -226,13 +243,8 @@ public abstract class TrcPriorityIndicator<T>
      * @return true if the pattern is ON, false if it is OFF.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
-    public boolean getPatternState(String patternName)
+    public synchronized boolean getPatternState(String patternName)
     {
-        if (namedPatternMap == null)
-        {
-            throw new IllegalStateException("Pattern name map has not been set.");
-        }
-
         return getPatternState(namedPatternMap.get(patternName));
     }   //getPatternState
 
@@ -240,7 +252,7 @@ public abstract class TrcPriorityIndicator<T>
      * This method resets all pattern states in the pattern priority list and set the indicator device to non-active
      * state.
      */
-    public void resetAllPatternStates()
+    public synchronized void resetAllPatternStates()
     {
         final String funcName = "resetAllPatternStates";
 
@@ -273,7 +285,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param pattern specifies the indicator pattern to be searched in the pattern priorities array.
      * @return the pattern priority if found, -1 if not found.
      */
-    public int getPatternPriority(T pattern)
+    public synchronized int getPatternPriority(T pattern)
     {
         final String funcName = "getPatternPriority";
         int priority = -1;
@@ -309,7 +321,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param priorities specifies the pattern priority list or null to disregard the previously set list.
      */
     @SuppressWarnings("unchecked")
-    public void setPatternPriorities(T[] priorities)
+    public synchronized void setPatternPriorities(T[] priorities)
     {
         final String funcName = "setPatternPriorities";
 
@@ -324,9 +336,11 @@ public abstract class TrcPriorityIndicator<T>
             PatternState[] oldPriorities = patternPriorities;
             patternPriorities = (PatternState[]) Array.newInstance(PatternState.class, priorities.length);
 
+            namedPatternMap.clear();
             for (int i = 0; i < patternPriorities.length; i++)
             {
                 patternPriorities[i] = new PatternState(priorities[i]);
+                namedPatternMap.put(patternPriorities[i].pattern.toString(), patternPriorities[i].pattern);
             }
 
             // If we had a previous priority list, make sure patterns persist
@@ -346,6 +360,7 @@ public abstract class TrcPriorityIndicator<T>
         else
         {
             patternPriorities = null;
+            namedPatternMap.clear();
             reset();
         }
 

@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * This class implements a platform independent Addressable LED device. It is intended to be extended by a platform
@@ -42,6 +41,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
             Fixed, Running, FadeInFadeOut
         }   //enum Type
 
+        public String name;
         public Type type;
         public TrcColor[] colorPattern;
         public double runningInterval;
@@ -49,12 +49,14 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
         /**
          * This method is called by all constructors to do common initialization.
          *
+         * @param name specifies the name of the pattern.
          * @param type specifies the pattern type.
          * @param colorPattern specifies the color pattern as an array of colors, one for each pixel in the LED strip.
          * @param runningInterval specifies the time interval in seconds between each pattern change.
          */
-        private void commonInit(Type type, TrcColor[] colorPattern, double runningInterval)
+        private void commonInit(String name, Type type, TrcColor[] colorPattern, double runningInterval)
         {
+            this.name = name;
             this.type = type;
             this.colorPattern = colorPattern;
             this.runningInterval = runningInterval;
@@ -63,57 +65,60 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param name specifies the name of the pattern.
          * @param colorPattern specifies the color pattern as an array of colors, one for each pixel in the LED strip.
          * @param type specifies the pattern type.
          * @param runningInterval specifies the time interval in seconds between each pattern change.
          */
-        public Pattern(TrcColor[] colorPattern, Type type, double runningInterval)
+        public Pattern(String name, TrcColor[] colorPattern, Type type, double runningInterval)
         {
-            commonInit(type, colorPattern, runningInterval);
+            commonInit(name, type, colorPattern, runningInterval);
         }   //Pattern
 
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param name specifies the name of the pattern.
          * @param colorPattern specifies the color pattern as an array of colors, one for each pixel in the LED strip.
          */
         public Pattern(TrcColor[] colorPattern)
         {
-            commonInit(Type.Fixed, colorPattern, 0.0);
+            commonInit(name, Type.Fixed, colorPattern, 0.0);
         }   //Pattern
 
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param name specifies the name of the pattern.
          * @param color specifies the solid color in the color pattern.
          * @param numLEDs specifies the number of LEDs in the color pattern.
          * @param type specifies the pattern type.
          * @param runningInterval specifies the time interval in seconds between each pattern change.
          */
-        public Pattern(TrcColor color, int numLEDs, Type type, double runningInterval)
+        public Pattern(String name, TrcColor color, int numLEDs, Type type, double runningInterval)
         {
             TrcColor[] fixedColors = new TrcColor[numLEDs];
 
             Arrays.fill(fixedColors, color);
-            commonInit(type, fixedColors, runningInterval);
+            commonInit(name, type, fixedColors, runningInterval);
         }   //Pattern
 
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param name specifies the name of the pattern.
          * @param color specifies the solid color in the color pattern.
          * @param numLEDs specifies the number of LEDs in the color pattern.
          */
-        public Pattern(TrcColor color, int numLEDs)
+        public Pattern(String name, TrcColor color, int numLEDs)
         {
-            this(color, numLEDs, Type.Fixed, 0.0);
+            this(name, color, numLEDs, Type.Fixed, 0.0);
         }   //Pattern
 
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "type=%s,color=%s,interval=%.3f",
-                    type, Arrays.toString(colorPattern), runningInterval);
+            return name;
         }   //toString
 
     }   //class Pattern
@@ -152,7 +157,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        currPattern = new Pattern(new TrcColor(red, green, blue), numLEDs);
+        currPattern = new Pattern("WholeLengthColor", new TrcColor(red, green, blue), numLEDs);
         updateLED(currPattern.colorPattern);
     }   //setRGB
 
@@ -192,7 +197,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        currPattern = new Pattern(color, numLEDs);
+        currPattern = new Pattern("PartialLengthColor", color, numLEDs);
         updateLED(currPattern.colorPattern);
     }   //setColor
 
