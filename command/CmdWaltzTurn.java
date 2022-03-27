@@ -157,7 +157,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
                     break;
             }
 
-            globalTracer.traceStateInfo(state, driveBase, pidDrive);
+            globalTracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
         }
 
         return !sm.isEnabled();

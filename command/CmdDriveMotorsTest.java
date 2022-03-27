@@ -156,7 +156,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                     break;
             }
 
-            globalTracer.traceStateInfo(state);
+            globalTracer.traceStateInfo(sm.toString(), state);
         }
 
         return !sm.isEnabled();
