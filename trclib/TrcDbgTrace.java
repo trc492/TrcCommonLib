@@ -324,6 +324,7 @@ public class TrcDbgTrace
      * This method logs a state info event using the global tracer. The state info event can be used to debug an
      * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
      *
+     * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
@@ -331,12 +332,12 @@ public class TrcDbgTrace
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
     public void traceStateInfo(
-        Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
+        String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
         TrcRobotBattery battery)
     {
         StringBuilder msg = new StringBuilder();
 
-        msg.append(String.format(Locale.US, "tag=\">>>>>\" state=\"%s\"", state));
+        msg.append(String.format(Locale.US, "tag=\">>>>>\" %s.state=\"%s\"", name, state));
 
         if (driveBase != null)
         {
@@ -376,43 +377,46 @@ public class TrcDbgTrace
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
      */
-    public void traceStateInfo(Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
+    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
     {
-        traceStateInfo(state, driveBase, pidDrive, null, null);
+        traceStateInfo(name, state, driveBase, pidDrive, null, null);
     }   //traceStateInfo
 
     /**
      * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
      * If the state involves PID controlled driving, it also logs the robot's movement.
      *
+     * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
      */
-    public void traceStateInfo(Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
+    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
     {
-        traceStateInfo(state, driveBase, null, ppDrive, null);
+        traceStateInfo(name, state, driveBase, null, ppDrive, null);
     }   //traceStateInfo
 
     /**
      * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
      *
+     * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    public void traceStateInfo(Object state, TrcRobotBattery battery)
+    public void traceStateInfo(String name, Object state, TrcRobotBattery battery)
     {
-        traceStateInfo(state, null, null, null, battery);
+        traceStateInfo(name, state, null, null, null, battery);
     }   //traceStateInfo
 
     /**
      * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
      *
+     * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      */
-    public void traceStateInfo(Object state)
+    public void traceStateInfo(String name, Object state)
     {
-        traceStateInfo(state, null, null, null, null);
+        traceStateInfo(name, state, null, null, null, null);
     }   //traceStateInfo
 
     /**
