@@ -1270,8 +1270,7 @@ public class TrcPidController
             //
             else if (absErr > pidParams.steadyStateError ||
                      absErr > pidParams.tolerance &&
-                     (pidParams.stallErrRateThreshold == 0.0 ||
-                      Math.abs(pidCtrlState.errorRate) > pidParams.stallErrRateThreshold))
+                     Math.abs(pidCtrlState.errorRate) > pidParams.stallErrRateThreshold)
             {
                 pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
 
