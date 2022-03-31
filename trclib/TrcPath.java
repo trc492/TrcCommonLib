@@ -153,7 +153,7 @@ public class TrcPath
         for (int i = 0; i < waypoints.length; i++)
         {
             TrcWaypoint wp = waypoints[i].clone();
-            wp.pose.setAs(wp.pose.relativeTo(referencePose, false));
+            wp.pose.setAs(wp.pose.relativeTo(referencePose, true));
             newPoints[i] = wp;
         }
         TrcPath path = new TrcPath(true, newPoints);

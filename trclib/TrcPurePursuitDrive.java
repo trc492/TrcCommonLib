@@ -939,7 +939,8 @@ public class TrcPurePursuitDrive
 
         if (!maintainHeading)
         {
-            turnPidCtrl.setTarget(targetPoint.pose.angle, warpSpace, resetError);
+            turnPidCtrl.setTarget(
+                relativeTargetPose.angle + referencePose.angle + robotPose.angle, warpSpace, resetError);
         }
         velPidCtrl.setTarget(targetPoint.velocity, resetError);
         resetError = false;
@@ -1011,7 +1012,9 @@ public class TrcPurePursuitDrive
         {
             if (logRobotPoseEvents)
             {
-                msgTracer.logEvent(instanceName, "RobotPose", "pose=\"%s\"", driveBase.getFieldPosition());
+                msgTracer.logEvent(
+                    funcName, "RobotPose", "Pose=\"%s\" TargetDelta=\"%s\"",
+                    driveBase.getFieldPosition(), relativeTargetPose);
             }
 
             if (tracePidInfo)
