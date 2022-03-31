@@ -385,6 +385,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         synchronized (odometry)
         {
+            resetOdometry();
             odometry.setPositionAs(pose);
         }
     }   //setFieldPosition
