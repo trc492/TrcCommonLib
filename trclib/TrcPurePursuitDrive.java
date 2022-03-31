@@ -571,6 +571,8 @@ public class TrcPurePursuitDrive
     public synchronized void start(
         TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
     {
+        final String funcName = "start";
+
         if (path == null || path.getSize() == 0)
         {
             throw new IllegalArgumentException("Path cannot be null or empty!");
@@ -628,6 +630,11 @@ public class TrcPurePursuitDrive
 
         resetError = true;
         driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+
+        if (msgTracer != null)
+        {
+            msgTracer.traceInfo(funcName, "Path=%s", path.toAbsolute(referencePose));
+        }
     }   //start
 
     /**
