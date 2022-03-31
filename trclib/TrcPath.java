@@ -78,6 +78,17 @@ public class TrcPath
     }   //TrcPath
 
     /**
+     * This method returns the path info in string form.
+     *
+     * @return path info in string form.
+     */
+    @Override
+    public String toString()
+    {
+        return String.format("TrcPath(degrees=%b, %s)", isInDegrees(), Arrays.toString(waypoints));
+    }   //toString
+
+    /**
      * Translate the path by an x and y offset.
      *
      * @param x Amount to offset in x axis.
@@ -149,6 +160,28 @@ public class TrcPath
 
         return inDegrees ? path : path.toRadians();
     }   //relativeTo
+
+    /**
+     * This method returns a path that converts all the waypoints to absolute positions.
+     *
+     * @param absoluteStartPose specifies the absolute pose of the first point in the path.
+     * @return path with absolute waypoints.
+     */
+    public TrcPath toAbsolute(TrcPose2D absoluteStartPose)
+    {
+        TrcWaypoint[] waypoints = inDegrees ? this.waypoints : toDegrees().waypoints;
+        TrcWaypoint[] newPoints = new TrcWaypoint[waypoints.length];
+
+        for (int i = 0; i < waypoints.length; i++)
+        {
+            TrcWaypoint wp = waypoints[i].clone();
+            wp.pose.setAs(absoluteStartPose.addRelativePose(wp.pose));
+            newPoints[i] = wp;
+        }
+        TrcPath path = new TrcPath(true, newPoints);
+
+        return inDegrees ? path : path.toRadians();
+    }   //toAbsolute
 
     /**
      * This method translates all the waypoints in the path relative to the first waypoint in the path.
@@ -480,16 +513,5 @@ public class TrcPath
         // Assume last waypoint has the same timestep as second to last
         waypoints[waypoints.length - 1].timeStep = waypoints[waypoints.length - 2].timeStep;
     }   //inferTimeSteps
-
-    /**
-     * This method returns the path info in string form.
-     *
-     * @return path info in string form.
-     */
-    @Override
-    public String toString()
-    {
-        return String.format("TrcPath(degrees=%b, %s)", isInDegrees(), Arrays.toString(waypoints));
-    }   //toString
 
 }   //class TrcPath
