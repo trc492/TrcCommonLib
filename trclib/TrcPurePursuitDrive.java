@@ -1013,8 +1013,8 @@ public class TrcPurePursuitDrive
             if (logRobotPoseEvents)
             {
                 msgTracer.logEvent(
-                    funcName, "RobotPose", "Pose=\"%s\" TargetDelta=\"%s\"",
-                    driveBase.getFieldPosition(), relativeTargetPose);
+                    funcName, "RobotPose", "Pose=\"%s\" Target=\"%s\" TargetDelta=\"%s\"",
+                    driveBase.getFieldPosition(), targetPoint.pose, relativeTargetPose);
             }
 
             if (tracePidInfo)
