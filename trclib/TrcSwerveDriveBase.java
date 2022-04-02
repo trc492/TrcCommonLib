@@ -508,14 +508,14 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         delta.position.x = posSum.getEntry(0);
         delta.position.y = posSum.getEntry(1);
 
-        if (Math.abs(delta.velocity.x) > stallVelThreshold || Math.abs(delta.velocity.y) > stallVelThreshold)
+        delta.velocity.x = velSum.getEntry(0);
+        delta.velocity.y = velSum.getEntry(1);
+
+        if (TrcUtil.magnitude(delta.velocity.x, delta.velocity.y) > stallVelThreshold)
         {
             // reset stall start time to current time if drive base has movement.
             stallStartTime = TrcUtil.getCurrentTime();
         }
-
-        delta.velocity.x = velSum.getEntry(0);
-        delta.velocity.y = velSum.getEntry(1);
 
         double x = wheelBaseWidth / 2;
         double y = wheelBaseLength / 2;
