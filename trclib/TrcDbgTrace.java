@@ -335,38 +335,41 @@ public class TrcDbgTrace
         String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
         TrcRobotBattery battery)
     {
-        StringBuilder msg = new StringBuilder();
-
-        msg.append(String.format(Locale.US, "tag=\">>>>>\" %s.state=\"%s\"", name, state));
-
-        if (driveBase != null)
+        if (state != null)
         {
-            if (pidDrive != null && pidDrive.isActive())
+            StringBuilder msg = new StringBuilder();
+
+            msg.append(String.format(Locale.US, "tag=\">>>>>\" %s.state=\"%s\"", name, state));
+
+            if (driveBase != null)
             {
-                TrcPose2D robotPose = driveBase.getFieldPosition();
-                TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
-                msg.append(" RobotPose=" + robotPose + " TargetPose=" + targetPose);
+                if (pidDrive != null && pidDrive.isActive())
+                {
+                    TrcPose2D robotPose = driveBase.getFieldPosition();
+                    TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
+                    msg.append(" RobotPose=" + robotPose + " TargetPose=" + targetPose);
+                }
+
+                if (ppDrive != null && ppDrive.isActive())
+                {
+                    TrcPose2D robotPose = driveBase.getFieldPosition();
+                    TrcPose2D robotVel = driveBase.getFieldVelocity();
+                    TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
+                    msg.append(" RobotPose=" + robotPose +
+                               " TargetPose=" + targetPose +
+                               " vel=" + robotVel +
+                               " Path=" + ppDrive.getPath());
+                }
             }
 
-            if (ppDrive != null && ppDrive.isActive())
+            if (battery != null)
             {
-                TrcPose2D robotPose = driveBase.getFieldPosition();
-                TrcPose2D robotVel = driveBase.getFieldVelocity();
-                TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
-                msg.append(" RobotPose=" + robotPose +
-                           " TargetPose=" + targetPose +
-                           " vel=" + robotVel +
-                           " Path=" + ppDrive.getPath());
+                msg.append(String.format(
+                    Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
             }
-        }
 
-        if (battery != null)
-        {
-            msg.append(String.format(
-                Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
+            logEvent("traceStateInfo", "StateInfo", "%s", msg);
         }
-
-        logEvent("traceStateInfo", "StateInfo", "%s", msg);
     }   //traceStateInfo
 
     /**
