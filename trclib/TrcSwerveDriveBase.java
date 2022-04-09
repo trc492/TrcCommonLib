@@ -40,6 +40,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     private final TrcSwerveModule lfModule, rfModule, lbModule, rbModule;
     private final double wheelBaseWidth, wheelBaseLength, wheelBaseDiagonal;
     private final TrcHashMap<TrcMotor, TrcSwerveModule> driveMotorToModuleMap = new TrcHashMap<>();
+    private boolean antiDefenseModeEnabled = false;
 
     /**
      * Constructor: Create an instance of the 4-wheel swerve drive base.
@@ -432,6 +433,16 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     }   //holonomicDrive
 
     /**
+     * This method checks if anti-defense mode is enabled.
+     *
+     * @return true if anti-defense mode is enabled, false if disabled.
+     */
+    public boolean isAntiDefenseEnabled()
+    {
+        return antiDefenseModeEnabled;
+    }   //isAntiDefenseEnabled
+
+    /**
      * This method enables/disables the anti-defense mode where it puts all swerve wheels into an X-formation.
      * By doing so, it is very difficult for others to push us around.
      *
@@ -457,6 +468,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 lbModule.setSteerAngle(0.0);
                 rbModule.setSteerAngle(0.0);
             }
+            antiDefenseModeEnabled = enabled;
         }
     }   //setAntiDefenseEnabled
 
