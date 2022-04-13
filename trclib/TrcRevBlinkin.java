@@ -26,9 +26,9 @@ package TrcCommonLib.trclib;
  * This class implements a platform independent REV Blinkin device. This class is intended to be extended by a
  * platform dependent device class which provides the abstract methods required by this class.
  */
-public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.LEDPattern>
+public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.Pattern>
 {
-    public enum LEDPattern
+    public enum RevLedPattern
     {
         FixedRainbowRainBow(-0.99),
         FixedRainbowParty(-0.97),
@@ -138,10 +138,10 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.L
          *
          * @param value specifies the value of the new member.
          */
-        LEDPattern(double value)
+        RevLedPattern(double value)
         {
             this.value = value;
-        }   //LEDPattern
+        }   //RevLedPattern
 
         /**
          * This method looks up the enum member that matches the given value.
@@ -149,9 +149,9 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.L
          * @param value specifies the enum member value.
          * @return enum member with a matching value.
          */
-        public static LEDPattern getPattern(double value)
+        public static RevLedPattern getPattern(double value)
         {
-            for (LEDPattern p: LEDPattern.values())
+            for (RevLedPattern p: RevLedPattern.values())
             {
                 if (value == p.value)
                 {
@@ -162,7 +162,35 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.L
             return null;
         }   //getPattern
 
-    }   //enum LEDPattern
+    }   //enum RevLedPattern
+
+    /**
+     * This class contains information about an LED pattern. An LED pattern contains a pattern type, an array of colors
+     * and a time interval between color changes for running patterns.
+     */
+    public static class Pattern
+    {
+        public String name;
+        public RevLedPattern ledPattern;
+
+        /**
+         * Constructor: Creates an instance of the object.
+         *
+         * @param name specifies the name of the pattern.
+         * @param ledPattern specifies the REV Blinkin LED pattern.
+         */
+        public Pattern(String name, RevLedPattern ledPattern)
+        {
+            this.name = name;
+            this.ledPattern = ledPattern;
+        }   //Pattern
+
+        public String toString()
+        {
+            return name;
+        }   //toString
+
+    }   //class Pattern
 
     /**
      * Constructor: Create an instance of the object.
