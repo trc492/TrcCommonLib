@@ -148,7 +148,7 @@ public class TrcNotifier
         }
 
         threadPool.execute(new Handler(receiver, context));
-    }
+    }   //sendNotification
 
     /**
      * This method initiates an orderly shutdown of the TrcNotifier in which previously submitted notification
