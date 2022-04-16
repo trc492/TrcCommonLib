@@ -181,6 +181,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     private int yIndex = -1;
     private int zIndex = -1;
     private TrcElapsedTimer getDataElapsedTimer = null;
+    private double zZeroPos = 0.0;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -819,6 +820,11 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
         {
             integrator.reset(zIndex);
         }
+        else
+        {
+            SensorData<Double> data = getProcessedData(zIndex, DataType.HEADING);
+            zZeroPos = data.value;
+        }
 
         if (debugEnabled)
         {
@@ -881,7 +887,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
         odometry.prevTimestamp = odometry.currTimestamp;
         odometry.prevPos = odometry.currPos;
         odometry.currTimestamp = zHeading.timestamp;
-        odometry.currPos = zHeading.value;
+        odometry.currPos = zHeading.value - zZeroPos;
         double timeDelta = odometry.currTimestamp - odometry.prevTimestamp;
         if (timeDelta != 0.0)
         {
