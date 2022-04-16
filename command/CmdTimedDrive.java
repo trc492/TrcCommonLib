@@ -157,13 +157,12 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
                     //
                     if (driveBase.supportsHolonomicDrive())
                     {
-                        driveBase.holonomicDrive(xDrivePower, yDrivePower, turnPower);
+                        driveBase.holonomicDrive(xDrivePower, yDrivePower, turnPower, driveTime, event);
                     }
                     else
                     {
-                        driveBase.arcadeDrive(yDrivePower, turnPower);
+                        driveBase.arcadeDrive(yDrivePower, turnPower, driveTime, event);
                     }
-                    timer.set(driveTime, event);
                     sm.waitForSingleEvent(event, State.DONE);
                     break;
 

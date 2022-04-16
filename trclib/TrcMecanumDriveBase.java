@@ -78,19 +78,22 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
      * @param rotation specifies the rotating power.
      * @param inverted specifies true to invert control (i.e. robot front becomes robot back).
      * @param gyroAngle specifies the gyro angle to maintain.
-     * @param driveTime  specifies the amount of time in seconds after which the drive base will stop.
+     * @param driveTime specifies the amount of time in seconds after which the drive base will stop.
+     * @param event specifies the event to signal when driveTime has expired, can be null if not provided.
      */
     @Override
     protected void holonomicDrive(
-        String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime)
+        String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
+        TrcEvent event)
     {
         final String funcName = "holonomicDrive";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime);
+                funcName, TrcDbgTrace.TraceLevel.API,
+                "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
+                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
         }
 
         if (validateOwnership(owner))
@@ -157,7 +160,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             rbMotor.set(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
-            setDriveTime(owner, driveTime);
+            setDriveTime(owner, driveTime, event);
 
             if (!wheelsPowered)
             {

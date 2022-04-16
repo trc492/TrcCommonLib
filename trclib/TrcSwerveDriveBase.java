@@ -298,12 +298,14 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      * @param rightPower specifies right power value.
      * @param inverted   specifies true to invert control (i.e. robot front becomes robot back).
      * @param driveTime  specifies the amount of time in seconds after which the drive base will stop.
+     * @param event      specifies the event to signal when driveTime has expired, can be null if not provided.
      */
     @Override
-    public void tankDrive(String owner, double leftPower, double rightPower, boolean inverted, double driveTime)
+    public void tankDrive(
+        String owner, double leftPower, double rightPower, boolean inverted, double driveTime, TrcEvent event)
     {
         setSteerAngle(owner, 0.0, false);
-        super.tankDrive(owner, leftPower, rightPower, inverted, driveTime);
+        super.tankDrive(owner, leftPower, rightPower, inverted, driveTime, event);
     }   //tankDrive
 
     /**
@@ -318,19 +320,21 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      * @param rotation  specifies the rotating power.
      * @param inverted  specifies true to invert control (i.e. robot front becomes robot back).
      * @param gyroAngle specifies the gyro angle to maintain for field relative drive. DO NOT use this with inverted.
-     * @param driveTime  specifies the amount of time in seconds after which the drive base will stop.
+     * @param driveTime specifies the amount of time in seconds after which the drive base will stop.
+     * @param event     specifies the event to signal when driveTime has expired, can be null if not provided.
      */
     @Override
     protected void holonomicDrive(
-        String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime)
+        String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
+        TrcEvent event)
     {
         final String funcName = "holonomicDrive";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime);
+                "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
+                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
         }
 
         if (validateOwnership(owner))
@@ -427,7 +431,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     stallStartTime = 0.0;
                 }
             }
-            setDriveTime(owner, driveTime);
+            setDriveTime(owner, driveTime, event);
         }
 
         if (debugEnabled)
