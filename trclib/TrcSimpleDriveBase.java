@@ -208,17 +208,18 @@ public class TrcSimpleDriveBase extends TrcDriveBase
      * @param leftPower specifies left power value.
      * @param rightPower specifies right power value.
      * @param inverted specifies true to invert control (i.e. robot front becomes robot back).
+     * @param driveTime  specifies the amount of time in seconds after which the drive base will stop.
      */
     @Override
-    public void tankDrive(String owner, double leftPower, double rightPower, boolean inverted)
+    public void tankDrive(String owner, double leftPower, double rightPower, boolean inverted, double driveTime)
     {
         final String funcName = "tankDrive";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s",
-                owner, leftPower, rightPower, inverted);
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s,driveTime=%.1f",
+                owner, leftPower, rightPower, inverted, driveTime);
         }
 
         if (validateOwnership(owner))
@@ -315,6 +316,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 }
                 rcMotor.set(wheelPower);
             }
+            setDriveTime(owner, driveTime);
         }
 
         if (debugEnabled)
