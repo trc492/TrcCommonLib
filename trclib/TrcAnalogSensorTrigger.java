@@ -201,7 +201,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcTrigger
         }
         else
         {
-            triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            triggerTaskObj.unregisterTask();
         }
         this.enabled = enabled;
 

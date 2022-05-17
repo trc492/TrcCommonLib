@@ -369,8 +369,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         }
         else
         {
-//            odometryTaskObj.unregisterTask(TrcTaskMgr.TaskType.STANDALONE_TASK);
-            odometryTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
+//            odometryTaskObj.unregisterTask();
+            odometryTaskObj.unregisterTask();
         }
 
         if (debugEnabled)

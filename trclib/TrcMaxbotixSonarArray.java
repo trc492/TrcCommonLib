@@ -234,13 +234,13 @@ public class TrcMaxbotixSonarArray
 
         if (enabled)
         {
-            rangingTaskObj.registerTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);    //TODO: should use INPUT_TASK
+            rangingTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
             sm.start(State.PULL_RX_HIGH);
         }
         else
         {
             sm.stop();
-            rangingTaskObj.unregisterTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);
+            rangingTaskObj.unregisterTask();
         }
 
         if (debugEnabled)

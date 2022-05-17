@@ -96,13 +96,13 @@ public class TrcSongPlayer
 
         if (enabled)
         {
-            playerTaskObj.registerTask(TaskType.POSTCONTINUOUS_TASK);   //TODO: should use OUTPUT_TASK
+            playerTaskObj.registerTask(TaskType.OUTPUT_TASK);   //TODO: should use OUTPUT_TASK
             stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
         }
         else
         {
-            playerTaskObj.unregisterTask(TaskType.POSTCONTINUOUS_TASK);
-            stopTaskObj.unregisterTask(TrcTaskMgr.TaskType.STOP_TASK);
+            playerTaskObj.unregisterTask();
+            stopTaskObj.unregisterTask();
         }
 
         if (debugEnabled)

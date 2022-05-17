@@ -1446,8 +1446,8 @@ public class TrcPidDrive
         }
         else
         {
-            driveTaskObj.unregisterTask(TaskType.OUTPUT_TASK);
-            stopTaskObj.unregisterTask(TaskType.STOP_TASK);
+            driveTaskObj.unregisterTask();
+            stopTaskObj.unregisterTask();
         }
         active = enabled;
 

@@ -134,7 +134,7 @@ public class TrcThresholdTrigger extends TrcTrigger
         }
         else if (!enabled && taskEnabled)
         {
-            triggerTaskObj.unregisterTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            triggerTaskObj.unregisterTask();
         }
         triggerActive = false;
         this.taskEnabled = enabled;

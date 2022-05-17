@@ -149,11 +149,11 @@ public abstract class TrcRobotBattery
 
             totalEnergy = 0.0;
             lastTimestamp = TrcUtil.getCurrentTime();
-            robotBatteryTaskObj.registerTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);   //TODO: should use INPUT_TASK
+            robotBatteryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         else
         {
-            robotBatteryTaskObj.unregisterTask(TrcTaskMgr.TaskType.PRECONTINUOUS_TASK);
+            robotBatteryTaskObj.unregisterTask();
         }
 
         if (debugEnabled)

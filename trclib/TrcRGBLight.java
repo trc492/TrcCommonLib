@@ -215,11 +215,11 @@ public abstract class TrcRGBLight
 
         if (enabled)
         {
-            rgbLightTaskObj.registerTask(TaskType.POSTCONTINUOUS_TASK);     //TODO: should use OUTPUT_TASK
+            rgbLightTaskObj.registerTask(TaskType.OUTPUT_TASK);
         }
         else
         {
-            rgbLightTaskObj.unregisterTask(TaskType.POSTCONTINUOUS_TASK);
+            rgbLightTaskObj.unregisterTask();
         }
 
         if (debugEnabled)

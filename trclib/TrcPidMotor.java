@@ -1288,8 +1288,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         }
         else
         {
-            pidMotorTaskObj.unregisterTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
-            stopMotorTaskObj.unregisterTask(TrcTaskMgr.TaskType.STOP_TASK);
+            pidMotorTaskObj.unregisterTask();
+            stopMotorTaskObj.unregisterTask();
         }
         this.pidActive = enabled;
 

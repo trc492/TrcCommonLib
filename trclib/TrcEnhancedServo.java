@@ -241,13 +241,13 @@ public class TrcEnhancedServo
 
         if (enabled)
         {
-            steppingServoTaskObj.registerTask(TaskType.POSTCONTINUOUS_TASK);    //TODO: should use OUTPUT_TASK
+            steppingServoTaskObj.registerTask(TaskType.OUTPUT_TASK);
             stopServoTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
         }
         else
         {
-            steppingServoTaskObj.unregisterTask(TaskType.POSTCONTINUOUS_TASK);
-            stopServoTaskObj.unregisterTask(TrcTaskMgr.TaskType.STOP_TASK);
+            steppingServoTaskObj.unregisterTask();
+            stopServoTaskObj.unregisterTask();
             calibrating = false;
         }
         taskEnabled = enabled;

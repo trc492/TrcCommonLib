@@ -906,7 +906,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             if (odometryMotors.size() > 0)
             {
                 odometryMotors.clear();
-                odometryTaskObj.unregisterTask(TaskType.INPUT_TASK);
+                odometryTaskObj.unregisterTask();
             }
             //
             // We must clear the task object because FTC opmode stuck around even after it has ended. So the task
@@ -991,7 +991,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                     //
                     // We were the only one on the list, stop the task.
                     //
-                    odometryTaskObj.unregisterTask(TaskType.STANDALONE_TASK);
+                    odometryTaskObj.unregisterTask();
                 }
             }
         }
@@ -1228,7 +1228,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (velocityPidCtrl != null)
         {
-            velocityCtrlTaskObj.unregisterTask(TaskType.OUTPUT_TASK);
+            velocityCtrlTaskObj.unregisterTask();
             velocityPidCtrl = null;
         }
     }   //disableVelocityMode
