@@ -59,7 +59,7 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
      * @param detectedObjectBuffers specifies the array of preallocated detected object buffers.
      */
     public TrcOpenCvDetector(
-        final String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers, O[] detectedObjectBuffers)
+        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers, O[] detectedObjectBuffers)
     {
         if (debugEnabled)
         {
