@@ -134,7 +134,7 @@ public class TrcColor
      *
      * @return HSV values of the color object as an array of doubles.
      */
-    public double[] rgbToHsv(double ... rgb)
+    public static double[] rgbToHsv(double ... rgb)
     {
         double minValue = Math.min(Math.min(rgb[0], rgb[1]), rgb[2]);
         double maxValue = Math.max(Math.max(rgb[0], rgb[1]), rgb[2]);
