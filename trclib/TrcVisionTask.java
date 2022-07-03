@@ -24,9 +24,8 @@ package TrcCommonLib.trclib;
 
 /**
  * This class implements a platform independent vision task. When enabled, it grabs a frame from the video source,
- * calls the provided object detector to process the frame and overlays rectangles on the detected objects in the
- * image. This class is to be extended by a platform dependent vision processor who will provide the video input
- * and output. 
+ * calls the provided vision processor to process the frame and overlays rectangles on the detected objects in the
+ * image. This class is to be extended by a platform dependent vision processor.
  *
  * @param <I> specifies the type of the input image.
  * @param <O> specifies the type of the detected objects.
@@ -61,25 +60,22 @@ public class TrcVisionTask<I, O>
          * This method is called to detect objects in the acquired image frame.
          *
          * @param image specifies the image to be processed.
-         * @param detectedObjects specifies the preallocated buffer to hold the detected objects, can be null if no
-         *        preallocated buffer required.
          * @return detected objects, null if none detected.
          */
-        O detectObjects(I image, O detectedObjects);
+        O processFrame(I image);
 
     }   //interface VisionProcessor
 
     private final String instanceName;
     private final VisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
-    private final O[] detectedObjectBuffers;
     private final TrcTaskMgr.TaskObject visionTaskObj;
     private boolean taskEnabled = false;
     private int imageIndex = 0;
-    private int bufferIndex = 0;
+    private O detectedObjects = null;
 
     private TrcDbgTrace tracer = null;
-    private long totalTime = 0;
+    private double totalTime = 0.0;
     private long totalFrames = 0;
     private double taskStartTime = 0.0;
 
@@ -89,10 +85,9 @@ public class TrcVisionTask<I, O>
      * @param instanceName specifies the instance name.
      * @param visionProcessor specifies the vision processor object.
      * @param imageBuffers specifies an array of image buffers.
-     * @param detectedObjectBuffers specifies an array of buffers to hold the detected objects.
      */
     public TrcVisionTask(
-        final String instanceName, VisionProcessor<I, O> visionProcessor, I[] imageBuffers, O[] detectedObjectBuffers)
+        String instanceName, VisionProcessor<I, O> visionProcessor, I[] imageBuffers)
     {
         if (debugEnabled)
         {
@@ -102,7 +97,6 @@ public class TrcVisionTask<I, O>
         this.instanceName = instanceName;
         this.visionProcessor = visionProcessor;
         this.imageBuffers = imageBuffers;
-        this.detectedObjectBuffers = detectedObjectBuffers;
         visionTaskObj = TrcTaskMgr.createTask(instanceName, this::visionTask);
     }   //TrcVisionTask
 
@@ -144,7 +138,8 @@ public class TrcVisionTask<I, O>
 
         if (enabled && !taskEnabled)
         {
-            totalTime = 0;
+            detectedObjects = null;
+            totalTime = 0.0;
             totalFrames = 0;
             taskStartTime = TrcUtil.getCurrentTime();
             visionTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK);
@@ -152,6 +147,7 @@ public class TrcVisionTask<I, O>
         else if (!enabled && taskEnabled)
         {
             visionTaskObj.unregisterTask();
+            detectedObjects = null;
         }
         taskEnabled = enabled;
 
@@ -217,6 +213,20 @@ public class TrcVisionTask<I, O>
     }   //getProcessingInterval
 
     /**
+     * This method returns the last detected objects. Note that this call consumes the objects, meaning if this method
+     * is called again before the next frame is finished processing, it will return a null.
+     *
+     * @return the last detected objects.
+     */
+    public synchronized O getDetectedObjects()
+    {
+        O objects = detectedObjects;
+        detectedObjects = null;
+
+        return objects;
+    }   //getDetectedObjects
+
+    /**
      * This method runs periodically to do vision processing.
      *
      * @param taskType specifies the type of task being run.
@@ -233,31 +243,25 @@ public class TrcVisionTask<I, O>
 
         if (visionProcessor.grabFrame(imageBuffers[imageIndex]))
         {
-            double startTime = TrcUtil.getCurrentTimeMillis();
+            double startTime = TrcUtil.getCurrentTime();
             //
             // Capture an image and subject it for object detection. The object detector produces an array of
             // rectangles representing objects detected.
             //
-            visionProcessor.detectObjects(
-                    imageBuffers[imageIndex],
-                    detectedObjectBuffers != null ? detectedObjectBuffers[bufferIndex] : null);
-            double elapsedTime = TrcUtil.getCurrentTimeMillis() - startTime;
+            detectedObjects = visionProcessor.processFrame(imageBuffers[imageIndex]);
+            double elapsedTime = TrcUtil.getCurrentTime() - startTime;
             totalTime += elapsedTime;
             totalFrames++;
             if (tracer != null)
             {
-                tracer.traceInfo(funcName, "Average processing time = %.3f msec, Frame rate = %.1f",
-                        (double) totalTime / totalFrames, totalFrames / (TrcUtil.getCurrentTime() - taskStartTime));
+                tracer.traceInfo(
+                    funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
+                    totalTime/totalFrames, totalFrames/(TrcUtil.getCurrentTime() - taskStartTime));
             }
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.
             //
             imageIndex = (imageIndex + 1) % imageBuffers.length;
-            if (detectedObjectBuffers != null)
-            {
-                visionTaskObj.setTaskData(detectedObjectBuffers[bufferIndex]);
-                bufferIndex = (bufferIndex + 1) % detectedObjectBuffers.length;
-            }
         }
 
         if (debugEnabled)

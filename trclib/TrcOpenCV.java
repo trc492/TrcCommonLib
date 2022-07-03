@@ -34,9 +34,9 @@ import org.opencv.imgproc.Imgproc;
  *
  * @param <O> specifies the type of the detected objects.
  */
-public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProcessor<Mat, O>
+public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat, O>
 {
-    protected static final String moduleName = "TrcOpenCvDetector";
+    protected static final String moduleName = "TrcOpenCV";
     protected static final boolean debugEnabled = false;
     protected static final boolean tracingEnabled = false;
     protected static final boolean useGlobalTracer = false;
@@ -44,11 +44,9 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
-    protected static final boolean USE_VISIONTASK = false;
-
     private final String instanceName;
-    private TrcVideoSource<Mat> videoSource;
-    private TrcVisionTask<Mat, O> visionTask;
+    private final TrcVideoSource<Mat> videoSource;
+    private final TrcVisionTask<Mat, O> visionTask;
 
     /**
      * Constructor: Create an instance of the object.
@@ -56,10 +54,9 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
      * @param instanceName specifies the instance name.
      * @param videoSource specifies the video source.
      * @param numImageBuffers specifies the number of image buffers to allocate.
-     * @param detectedObjectBuffers specifies the array of preallocated detected object buffers.
      */
-    public TrcOpenCvDetector(
-        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers, O[] detectedObjectBuffers)
+    public TrcOpenCV(
+        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers)
     {
         if (debugEnabled)
         {
@@ -80,11 +77,8 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
             imageBuffers[i] = new Mat();
         }
 
-        if (USE_VISIONTASK)
-        {
-            visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers, detectedObjectBuffers);
-        }
-    }   //TrcOpenCvDetector
+        visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers);
+    }   //TrcOpenCV
 
     /**
      * This method returns the instance name.
@@ -142,6 +136,17 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
     }   //setEnabled
 
     /**
+     * This method returns the last detected objects. Note that this call consumes the objects, meaning if this method
+     * is called again before the next frame is finished processing, it will return a null.
+     *
+     * @return the last detected objects.
+     */
+    public synchronized O getDetectedObjects()
+    {
+        return visionTask.getDetectedObjects();
+    }   //getDetectedObjects
+
+    /**
      * This method is called to overlay rectangles on an image to the video output.
      *
      * @param image specifies the frame to be rendered to the video output.
@@ -195,4 +200,4 @@ public abstract class TrcOpenCvDetector<O> implements TrcVisionTask.VisionProces
         return success;
     }   //grabFrame
 
-}   //class TrcOpenCvDetector
+}   //class TrcOpenCV
