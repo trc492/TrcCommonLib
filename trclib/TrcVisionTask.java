@@ -62,7 +62,7 @@ public class TrcVisionTask<I, O>
          * @param image specifies the image to be processed.
          * @return detected objects, null if none detected.
          */
-        O processFrame(I image);
+        O[] processFrame(I image);
 
     }   //interface VisionProcessor
 
@@ -72,7 +72,7 @@ public class TrcVisionTask<I, O>
     private final TrcTaskMgr.TaskObject visionTaskObj;
     private boolean taskEnabled = false;
     private int imageIndex = 0;
-    private O detectedObjects = null;
+    private O[] detectedObjects = null;
 
     private TrcDbgTrace tracer = null;
     private double totalTime = 0.0;
@@ -218,9 +218,9 @@ public class TrcVisionTask<I, O>
      *
      * @return the last detected objects.
      */
-    public synchronized O getDetectedObjects()
+    public synchronized O[] getDetectedObjects()
     {
-        O objects = detectedObjects;
+        O[] objects = detectedObjects;
         detectedObjects = null;
 
         return objects;

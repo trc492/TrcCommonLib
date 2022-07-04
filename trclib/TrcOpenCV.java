@@ -28,13 +28,15 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+
 /**
  * This class implements a generic OpenCV detector. Typically, it is extended by a specific detector that provides
  * the algorithm to process an image for detecting objects using OpenCV APIs.
- *
- * @param <O> specifies the type of the detected objects.
  */
-public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat, O>
+public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, TrcOpenCV.DetectedObject>
 {
     protected static final String moduleName = "TrcOpenCV";
     protected static final boolean debugEnabled = false;
@@ -44,9 +46,62 @@ public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat,
     protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     protected TrcDbgTrace dbgTrace = null;
 
+    /**
+     * This class encapsulates info of the detected object. It extends TrcVisionTargetInfo.ObjectInfo that requires
+     * it to provide a method to return the detected object rect.
+     */
+    public static class DetectedObject extends TrcVisionTargetInfo.ObjectInfo
+    {
+        public final Rect rect;
+
+        /**
+         * Constructor: Creates an instance of the object.
+         *
+         * @param rect specifies the rect of the object.
+         */
+        public DetectedObject(Rect rect)
+        {
+            this.rect = rect;
+        }   //DetectedObject
+
+        /**
+         * This method returns the rect of the detected object.
+         *
+         * @return rect of the detected object.
+         */
+        @Override
+        public Rect getRect()
+        {
+            return rect;
+        }   //getRect
+
+        /**
+         * This method returns the string form of the target info.
+         *
+         * @return string form of the target info.
+         */
+        @Override
+        public String toString()
+        {
+            return "Rect=" + rect.toString();
+        }   //toString
+
+    }   //class DetectedObject
+
+    /**
+     * This interface provides a method for filtering false positive objects in the detected target list.
+     */
+    public interface FilterTarget<DetectedObject>
+    {
+        boolean validateTarget(DetectedObject object);
+    }   //interface FilterTarget
+
     private final String instanceName;
     private final TrcVideoSource<Mat> videoSource;
-    private final TrcVisionTask<Mat, O> visionTask;
+    private final int imageWidth, imageHeight;
+    private final TrcDbgTrace tracer;
+    private final TrcHomographyMapper homographyMapper;
+    private final TrcVisionTask<Mat, DetectedObject> visionTask;
 
     /**
      * Constructor: Create an instance of the object.
@@ -54,9 +109,15 @@ public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat,
      * @param instanceName specifies the instance name.
      * @param videoSource specifies the video source.
      * @param numImageBuffers specifies the number of image buffers to allocate.
+     * @param imageWidth specifies the width of the camera image.
+     * @param imageHeight specifies the height of the camera image.
+     * @param cameraRect specifies the camera rectangle for Homography Mapper.
+     * @param worldRect specifies the world rectangle for Homography Mapper.
+     * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCV(
-        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers)
+        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers, int imageWidth, int imageHeight,
+        TrcHomographyMapper.Rectangle cameraRect, TrcHomographyMapper.Rectangle worldRect, TrcDbgTrace tracer)
     {
         if (debugEnabled)
         {
@@ -67,7 +128,18 @@ public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat,
 
         this.instanceName = instanceName;
         this.videoSource = videoSource;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
+        this.tracer = tracer;
 
+        if (cameraRect != null && worldRect != null)
+        {
+            homographyMapper = new TrcHomographyMapper(cameraRect, worldRect);
+        }
+        else
+        {
+            homographyMapper = null;
+        }
         //
         // Pre-allocate the image buffers.
         //
@@ -136,40 +208,80 @@ public abstract class TrcOpenCV<O> implements TrcVisionTask.VisionProcessor<Mat,
     }   //setEnabled
 
     /**
-     * This method returns the last detected objects. Note that this call consumes the objects, meaning if this method
-     * is called again before the next frame is finished processing, it will return a null.
+     * This method returns an array of detected targets from Grip vision.
      *
-     * @return the last detected objects.
+     * @param filter specifies the filter to call to filter out false positive targets.
+     * @param comparator specifies the comparator to sort the array if provided, can be null if not provided.
+     * @return array of detected target info.
      */
-    public synchronized O getDetectedObjects()
+    public synchronized TrcVisionTargetInfo<DetectedObject>[] getDetectedTargetsInfo(
+        FilterTarget<DetectedObject> filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator)
     {
-        return visionTask.getDetectedObjects();
-    }   //getDetectedObjects
+        final String funcName = "getDetectedTargetsInfo";
+        TrcVisionTargetInfo<DetectedObject>[] targets = null;
+        DetectedObject[] detectedObjs = visionTask.getDetectedObjects();
+
+        if (detectedObjs != null)
+        {
+            ArrayList<TrcVisionTargetInfo<DetectedObject>> targetList = new ArrayList<>();
+
+            for (DetectedObject detectedObj : detectedObjs)
+            {
+                if (filter != null && filter.validateTarget(detectedObj))
+                {
+                    TrcVisionTargetInfo<DetectedObject> targetInfo =
+                        new TrcVisionTargetInfo<>(detectedObj, imageWidth, imageHeight, homographyMapper);
+                    targetList.add(targetInfo);
+                }
+            }
+
+            if (targetList.size() > 0)
+            {
+                targets = targetList.toArray(new TrcVisionTargetInfo[0]);
+                if (comparator != null && targets.length > 1)
+                {
+                    Arrays.sort(targets, comparator);
+                }
+            }
+
+            if (targets != null && tracer != null)
+            {
+                for (int i = 0; i < targets.length; i++)
+                {
+                    tracer.traceInfo(funcName, "[%d] Target=%s", i, targets[i]);
+                }
+            }
+        }
+
+        return targets;
+    }   //getDetectedTargetsInfo
 
     /**
      * This method is called to overlay rectangles on an image to the video output.
      *
      * @param image specifies the frame to be rendered to the video output.
-     * @param detectedObjectRects specifies the detected object rectangles.
+     * @param detectedObjects specifies the detected objects.
      * @param color specifies the color of the rectangle outline.
      * @param thickness specifies the thickness of the rectangle outline.
      */
-    public void drawRectangles(Mat image, Rect[] detectedObjectRects, Scalar color, int thickness)
+    public void drawRectangles(Mat image, DetectedObject[] detectedObjects, Scalar color, int thickness)
     {
         //
         // Overlay a rectangle on each detected object.
         //
         synchronized (image)
         {
-            if (detectedObjectRects != null)
+            if (detectedObjects != null)
             {
-                for (Rect r: detectedObjectRects)
+                for (DetectedObject detectedObject : detectedObjects)
                 {
+                    Rect rect = detectedObject.getRect();
                     //
                     // Draw a rectangle around the detected object.
                     //
                     Imgproc.rectangle(
-                        image, new Point(r.x, r.y), new Point(r.x + r.width, r.y + r.height), color, thickness);
+                        image, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
+                        color, thickness);
                 }
             }
 
