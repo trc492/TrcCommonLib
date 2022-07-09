@@ -227,7 +227,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
 
             for (DetectedObject detectedObj : detectedObjs)
             {
-                if (filter != null && filter.validateTarget(detectedObj))
+                if (filter == null || filter.validateTarget(detectedObj))
                 {
                     TrcVisionTargetInfo<DetectedObject> targetInfo =
                         new TrcVisionTargetInfo<>(detectedObj, imageWidth, imageHeight, homographyMapper);
