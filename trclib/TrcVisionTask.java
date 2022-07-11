@@ -276,6 +276,12 @@ public class TrcVisionTask<I, O>
             // rectangles representing objects detected.
             //
             detectedObjects = visionProcessor.processFrame(imageBuffers[imageIndex]);
+
+            if (videoOutEnabled)
+            {
+                visionProcessor.annotateFrame(imageBuffers[imageIndex], detectedObjects);
+            }
+
             double elapsedTime = TrcUtil.getCurrentTime() - startTime;
             totalTime += elapsedTime;
             totalFrames++;
@@ -284,11 +290,6 @@ public class TrcVisionTask<I, O>
                 tracer.traceInfo(
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
                     totalTime/totalFrames, totalFrames/(TrcUtil.getCurrentTime() - taskStartTime));
-            }
-
-            if (videoOutEnabled)
-            {
-                visionProcessor.annotateFrame(imageBuffers[imageIndex], detectedObjects);
             }
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.
