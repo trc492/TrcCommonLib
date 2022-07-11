@@ -91,7 +91,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
     /**
      * This interface provides a method for filtering false positive objects in the detected target list.
      */
-    public interface FilterTarget<DetectedObject>
+    public interface FilterTarget
     {
         boolean validateTarget(DetectedObject object);
     }   //interface FilterTarget
@@ -215,7 +215,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
      * @return array of detected target info.
      */
     public synchronized TrcVisionTargetInfo<DetectedObject>[] getDetectedTargetsInfo(
-        FilterTarget<DetectedObject> filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator)
+        FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator)
     {
         final String funcName = "getDetectedTargetsInfo";
         TrcVisionTargetInfo<DetectedObject>[] targets = null;
