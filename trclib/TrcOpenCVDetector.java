@@ -36,9 +36,9 @@ import java.util.Comparator;
  * This class implements a generic OpenCV detector. Typically, it is extended by a specific detector that provides
  * the algorithm to process an image for detecting objects using OpenCV APIs.
  */
-public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, TrcOpenCV.DetectedObject>
+public abstract class TrcOpenCVDetector implements TrcVisionTask.VisionProcessor<Mat, TrcOpenCVDetector.DetectedObject>
 {
-    protected static final String moduleName = "TrcOpenCV";
+    protected static final String moduleName = "TrcOpenCVDetector";
     protected static final boolean debugEnabled = false;
     protected static final boolean tracingEnabled = false;
     protected static final boolean useGlobalTracer = false;
@@ -62,6 +62,11 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
          * Constructor: Creates an instance of the object.
          *
          * @param rect specifies the rect of the object.
+         * @param angle specifies specifies computed orientation of the keypoint (-1 if not applicable).
+         * @param response specifies the response, by which the strongest keypoints have been selected. Can be used
+         *        for further sorting or subsampling.
+         * @param octave specifies octave (pyramid layer), from which the keypoint has been extracted.
+         * @param classId specifies object ID, that can be used to cluster keypoints by an object they belong to.
          */
         public DetectedObject(Rect rect, float angle, float response, int octave, int classId)
         {
@@ -70,6 +75,16 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
             this.response = response;
             this.octave = octave;
             this.classId = classId;
+        }   //DetectedObject
+
+        /**
+         * Constructor: Creates an instance of the object.
+         *
+         * @param rect specifies the rect of the object.
+         */
+        public DetectedObject(Rect rect)
+        {
+            this(rect, -1.0f, 0.0f, 0, 0);
         }   //DetectedObject
 
         /**
@@ -117,11 +132,11 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
      * @param numImageBuffers specifies the number of image buffers to allocate.
      * @param imageWidth specifies the width of the camera image.
      * @param imageHeight specifies the height of the camera image.
-     * @param cameraRect specifies the camera rectangle for Homography Mapper.
-     * @param worldRect specifies the world rectangle for Homography Mapper.
+     * @param cameraRect specifies the camera rectangle for Homography Mapper, can be null if not provided.
+     * @param worldRect specifies the world rectangle for Homography Mapper, can be null if not provided.
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
-    public TrcOpenCV(
+    public TrcOpenCVDetector(
         String instanceName, int numImageBuffers, int imageWidth, int imageHeight,
         TrcHomographyMapper.Rectangle cameraRect, TrcHomographyMapper.Rectangle worldRect,
         TrcDbgTrace tracer)
@@ -156,7 +171,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
         }
 
         visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers);
-    }   //TrcOpenCV
+    }   //TrcOpenCVDetector
 
     /**
      * This method returns the instance name.
@@ -309,4 +324,4 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
         }
     }   //drawRectangles
 
-}   //class TrcOpenCV
+}   //class TrcOpenCVDetector
