@@ -46,16 +46,8 @@ public class TrcVisionTask<I, O>
      * @param <I> specifies the type of the input image.
      * @param <O> specifies the type of the detected object.
      */
-    public interface VisionProcessor<I, O>
+    public interface VisionProcessor<I, O> extends TrcVideoSource<I>
     {
-        /**
-         * This method is called to grab an image frame from the video input.
-         *
-         * @param image specifies the frame buffer to hold the captured image.
-         * @return true if frame is successfully captured, false otherwise.
-         */
-        boolean grabFrame(I image);
-
         /**
          * This method is called to detect objects in the acquired image frame.
          *
@@ -268,7 +260,7 @@ public class TrcVisionTask<I, O>
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
         }
 
-        if (visionProcessor.grabFrame(imageBuffers[imageIndex]))
+        if (visionProcessor.getFrame(imageBuffers[imageIndex]))
         {
             double startTime = TrcUtil.getCurrentTime();
             //
