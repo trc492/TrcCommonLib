@@ -80,7 +80,7 @@ public class TrcVisionTask<I, O>
     private final TrcTaskMgr.TaskObject visionTaskObj;
     private boolean taskEnabled = false;
     private int imageIndex = 0;
-    private O[] detectedObjects = null;
+    private volatile O[] detectedObjects = null;
     private boolean videoOutEnabled = false;
 
     private TrcDbgTrace tracer = null;
