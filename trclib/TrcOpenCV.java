@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Titan Robotics Club (http://www.titanrobotics.com)
+ * Copyright (c) 2022 Titan Robotics Club (http://www.titanrobotics.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -97,7 +97,6 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
     }   //interface FilterTarget
 
     private final String instanceName;
-    private final TrcVideoSource<Mat> videoSource;
     private final int imageWidth, imageHeight;
     private final TrcDbgTrace tracer;
     private final TrcHomographyMapper homographyMapper;
@@ -107,7 +106,6 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param videoSource specifies the video source.
      * @param numImageBuffers specifies the number of image buffers to allocate.
      * @param imageWidth specifies the width of the camera image.
      * @param imageHeight specifies the height of the camera image.
@@ -116,8 +114,9 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCV(
-        String instanceName, TrcVideoSource<Mat> videoSource, int numImageBuffers, int imageWidth, int imageHeight,
-        TrcHomographyMapper.Rectangle cameraRect, TrcHomographyMapper.Rectangle worldRect, TrcDbgTrace tracer)
+        String instanceName, int numImageBuffers, int imageWidth, int imageHeight,
+        TrcHomographyMapper.Rectangle cameraRect, TrcHomographyMapper.Rectangle worldRect,
+        TrcDbgTrace tracer)
     {
         if (debugEnabled)
         {
@@ -127,7 +126,6 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
         }
 
         this.instanceName = instanceName;
-        this.videoSource = videoSource;
         this.imageWidth = imageWidth;
         this.imageHeight = imageHeight;
         this.tracer = tracer;
@@ -164,14 +162,14 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
     }   //toString
 
     /**
-     * This method returns the state of the detector.
+     * This method returns the state of the vision task.
      *
-     * @return true if the detector is enabled, false if disabled.
+     * @return true if the vision task is enabled, false if disabled.
      */
-    public boolean isEnabled()
+    public boolean isTaskEnabled()
     {
-        final String funcName = "isEnabled";
-        boolean enabled = visionTask != null && visionTask.isEnabled();
+        final String funcName = "isTaskEnabled";
+        boolean enabled = visionTask != null && visionTask.isTaskEnabled();
 
         if (debugEnabled)
         {
@@ -180,16 +178,16 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
         }
 
         return enabled;
-    }   //isEnabled
+    }   //isTaskEnabled
 
     /**
      * This method enables/disables the vision processing task.
      *
      * @param enabled specifies true to enable vision task, false to disable.
      */
-    public void setEnabled(boolean enabled)
+    public void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
+        final String funcName = "setTaskEnabled";
 
         if (debugEnabled)
         {
@@ -198,14 +196,32 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
 
         if (visionTask != null)
         {
-            visionTask.setEnabled(enabled);
+            visionTask.setTaskEnabled(enabled);
         }
 
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
-    }   //setEnabled
+    }   //setTaskEnabled
+
+    /**
+     * This method enables/disables image annotation of the detected object rects.
+     *
+     * @param enabled specifies true to enable video out, false to disable.
+     */
+    public void setVideoOutEnabled(boolean enabled)
+    {
+        final String funcName = "setVideoOutEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        visionTask.setVideoOutEnabled(enabled);
+    }   //setVideoOutEnabled
 
     /**
      * This method returns an array of detected targets from Grip vision.
@@ -214,6 +230,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
      * @param comparator specifies the comparator to sort the array if provided, can be null if not provided.
      * @return array of detected target info.
      */
+    @SuppressWarnings("unchecked")
     public synchronized TrcVisionTargetInfo<DetectedObject>[] getDetectedTargetsInfo(
         FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator)
     {
@@ -257,7 +274,7 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
     }   //getDetectedTargetsInfo
 
     /**
-     * This method is called to overlay rectangles on an image to the video output.
+     * This method is called to overlay rectangles of the detected objects on an image.
      *
      * @param image specifies the frame to be rendered to the video output.
      * @param detectedObjects specifies the detected objects.
@@ -269,47 +286,19 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
         //
         // Overlay a rectangle on each detected object.
         //
-        synchronized (image)
+        if (detectedObjects != null)
         {
-            if (detectedObjects != null)
+            for (DetectedObject detectedObject : detectedObjects)
             {
-                for (DetectedObject detectedObject : detectedObjects)
-                {
-                    Rect rect = detectedObject.getRect();
-                    //
-                    // Draw a rectangle around the detected object.
-                    //
-                    Imgproc.rectangle(
-                        image, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
-                        color, thickness);
-                }
+                Rect rect = detectedObject.getRect();
+                //
+                // Draw a rectangle around the detected object.
+                //
+                Imgproc.rectangle(
+                    image, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
+                    color, thickness);
             }
-
-            videoSource.putFrame(image);
         }
     }   //drawRectangles
-
-    //
-    // Implements the TrcVisionTask.VisionProcesor interface.
-    //
-
-    /**
-     * This method is called to grab an image frame from the video input.
-     *
-     * @param image specifies the frame buffer to hold the captured image.
-     * @return true if frame is successfully captured, false otherwise.
-     */
-    @Override
-    public boolean grabFrame(Mat image)
-    {
-        boolean success;
-
-        synchronized (image)
-        {
-            success = videoSource.getFrame(image);
-        }
-
-        return success;
-    }   //grabFrame
 
 }   //class TrcOpenCV

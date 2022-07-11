@@ -64,6 +64,14 @@ public class TrcVisionTask<I, O>
          */
         O[] processFrame(I image);
 
+        /**
+         * This method is called to overlay rectangles of the detected objects on an image.
+         *
+         * @param image specifies the frame to be rendered to the video output.
+         * @param detectedObjects specifies the detected objects.`
+         */
+        void annotateFrame(I image, O[] detectedObjects);
+
     }   //interface VisionProcessor
 
     private final String instanceName;
@@ -73,6 +81,7 @@ public class TrcVisionTask<I, O>
     private boolean taskEnabled = false;
     private int imageIndex = 0;
     private O[] detectedObjects = null;
+    private boolean videoOutEnabled = false;
 
     private TrcDbgTrace tracer = null;
     private double totalTime = 0.0;
@@ -127,13 +136,13 @@ public class TrcVisionTask<I, O>
      *
      * @param enabled specifies true to enable vision task, false to disable.
      */
-    public synchronized void setEnabled(boolean enabled)
+    public synchronized void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
+        final String funcName = "setTaskEnabled";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
         }
 
         if (enabled && !taskEnabled)
@@ -155,16 +164,16 @@ public class TrcVisionTask<I, O>
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
-    }   //setEnabled
+    }   //setTaskEnabled
 
     /**
      * This method returns the state of the vision task.
      *
      * @return true if the vision task is enabled, false otherwise.
      */
-    public synchronized boolean isEnabled()
+    public synchronized boolean isTaskEnabled()
     {
-        final String funcName = "isEnabled";
+        final String funcName = "isTaskEnabled";
 
         if (debugEnabled)
         {
@@ -173,7 +182,25 @@ public class TrcVisionTask<I, O>
         }
 
         return taskEnabled;
-    }   //isEnabled
+    }   //isTaskEnabled
+
+    /**
+     * This method enables/disables image annotation of the detected object rects.
+     *
+     * @param enabled specifies true to enable video out, false to disable.
+     */
+    public synchronized void setVideoOutEnabled(boolean enabled)
+    {
+        final String funcName = "setVideoOutEnabled";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+
+        videoOutEnabled = enabled;
+    }   //setVideoOutEnabled
 
     /**
      * This method sets the vision task processing interval.
@@ -257,6 +284,11 @@ public class TrcVisionTask<I, O>
                 tracer.traceInfo(
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
                     totalTime/totalFrames, totalFrames/(TrcUtil.getCurrentTime() - taskStartTime));
+            }
+
+            if (videoOutEnabled)
+            {
+                visionProcessor.annotateFrame(imageBuffers[imageIndex], detectedObjects);
             }
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.
