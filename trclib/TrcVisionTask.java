@@ -39,35 +39,8 @@ public class TrcVisionTask<I, O>
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private TrcDbgTrace dbgTrace = null;
 
-    /**
-     * This interface provides methods to grab image from the video input, render image to video output and detect
-     * objects from the acquired image.
-     *
-     * @param <I> specifies the type of the input image.
-     * @param <O> specifies the type of the detected object.
-     */
-    public interface VisionProcessor<I, O> extends TrcVideoSource<I>
-    {
-        /**
-         * This method is called to detect objects in the acquired image frame.
-         *
-         * @param image specifies the image to be processed.
-         * @return detected objects, null if none detected.
-         */
-        O[] processFrame(I image);
-
-        /**
-         * This method is called to overlay rectangles of the detected objects on an image.
-         *
-         * @param image specifies the frame to be rendered to the video output.
-         * @param detectedObjects specifies the detected objects.`
-         */
-        void annotateFrame(I image, O[] detectedObjects);
-
-    }   //interface VisionProcessor
-
     private final String instanceName;
-    private final VisionProcessor<I, O> visionProcessor;
+    private final TrcVisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
     private final TrcTaskMgr.TaskObject visionTaskObj;
     private boolean taskEnabled = false;
@@ -88,7 +61,7 @@ public class TrcVisionTask<I, O>
      * @param imageBuffers specifies an array of image buffers.
      */
     public TrcVisionTask(
-        String instanceName, VisionProcessor<I, O> visionProcessor, I[] imageBuffers)
+        String instanceName, TrcVisionProcessor<I, O> visionProcessor, I[] imageBuffers)
     {
         if (debugEnabled)
         {

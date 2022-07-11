@@ -36,7 +36,7 @@ import java.util.Comparator;
  * This class implements a generic OpenCV detector. Typically, it is extended by a specific detector that provides
  * the algorithm to process an image for detecting objects using OpenCV APIs.
  */
-public abstract class TrcOpenCVDetector implements TrcVisionTask.VisionProcessor<Mat, TrcOpenCVDetector.DetectedObject>
+public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOpenCVDetector.DetectedObject>
 {
     protected static final String moduleName = "TrcOpenCVDetector";
     protected static final boolean debugEnabled = false;
