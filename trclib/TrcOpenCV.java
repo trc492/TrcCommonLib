@@ -53,15 +53,23 @@ public abstract class TrcOpenCV implements TrcVisionTask.VisionProcessor<Mat, Tr
     public static class DetectedObject extends TrcVisionTargetInfo.ObjectInfo
     {
         public final Rect rect;
+        public final float angle;
+        public final float response;
+        public final int octave;
+        public final int classId;
 
         /**
          * Constructor: Creates an instance of the object.
          *
          * @param rect specifies the rect of the object.
          */
-        public DetectedObject(Rect rect)
+        public DetectedObject(Rect rect, float angle, float response, int octave, int classId)
         {
             this.rect = rect;
+            this.angle = angle;
+            this.response = response;
+            this.octave = octave;
+            this.classId = classId;
         }   //DetectedObject
 
         /**
