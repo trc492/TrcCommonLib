@@ -304,7 +304,7 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
      * @param color specifies the color of the rectangle outline.
      * @param thickness specifies the thickness of the rectangle outline.
      */
-    public void drawRectangles(Mat image, DetectedObject[] detectedObjects, Scalar color, int thickness)
+    public static void drawRectangles(Mat image, DetectedObject[] detectedObjects, Scalar color, int thickness)
     {
         //
         // Overlay a rectangle on each detected object.
