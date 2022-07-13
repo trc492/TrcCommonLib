@@ -197,7 +197,7 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(enabled));
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", enabled);
         }
 
         return enabled;
@@ -214,7 +214,7 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
         }
 
         if (visionTask != null)
