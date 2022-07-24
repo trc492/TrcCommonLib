@@ -82,7 +82,7 @@ public class TrcTimer
      * @param event specifies the event to signal when time has expired.
      * @param receiver specifies the notification receiver to call when time has expired.
      */
-    public synchronized void set(double time, TrcEvent event, TrcNotifier.Receiver receiver)
+    public void set(double time, TrcEvent event, TrcNotifier.Receiver receiver)
     {
         final String funcName = "set";
 
@@ -92,19 +92,23 @@ public class TrcTimer
                 funcName, TrcDbgTrace.TraceLevel.API, "time=%f,event=%s,receiver=%s", time, event, receiver);
         }
 
-        if (expiredTimeInMsec > 0)
+        synchronized (this)
         {
-            //
-            // A previously set timer has not expired, cancel it first.
-            //
-            cancel(false);
+            if (expiredTimeInMsec > 0)
+            {
+                //
+                // A previously set timer has not expired, cancel it first.
+                //
+                cancel(false);
+            }
+
+            expiredTimeInMsec = TrcUtil.getCurrentTimeMillis() + (long)(time*1000);
+            expired = false;
+            canceled = false;
+            notifyEvent = event;
+            notifyReceiver = receiver;
         }
 
-        expiredTimeInMsec = TrcUtil.getCurrentTimeMillis() + (long)(time*1000);
-        expired = false;
-        canceled = false;
-        notifyEvent = event;
-        notifyReceiver = receiver;
         if (event != null)
         {
             event.clear();
@@ -267,7 +271,7 @@ public class TrcTimer
      * @param doNotify specifies true to notify the timer owner of the cancellation, false if called internally to
      *                 to re-arm the previous non-expired timer.
      */
-    private synchronized void cancel(boolean doNotify)
+    private void cancel(boolean doNotify)
     {
         final String funcName = "cancel";
 
@@ -279,11 +283,16 @@ public class TrcTimer
         // Only do this if the timer is actually armed and not expired.
         if (securityKey != -1.0)
         {
-            expiredTimeInMsec = 0;
-            expired = false;
-            canceled = true;
-            TrcTimerMgr.remove(this, securityKey);
-            securityKey = -1.0;
+            double sKey = securityKey;
+
+            synchronized (this)
+            {
+                expiredTimeInMsec = 0;
+                expired = false;
+                canceled = true;
+                securityKey = -1.0;
+            }
+            TrcTimerMgr.remove(this, sKey);
 
             if (doNotify)
             {
