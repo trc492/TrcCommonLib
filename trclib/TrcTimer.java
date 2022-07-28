@@ -39,9 +39,9 @@ public class TrcTimer
     private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
-    private long expiredTimeInMsec = 0;
-    private boolean expired = false;
-    private boolean canceled = false;
+    private volatile long expiredTimeInMsec = 0;
+    private volatile boolean expired = false;
+    private volatile boolean canceled = false;
     private TrcEvent notifyEvent = null;
     private TrcNotifier.Receiver notifyReceiver = null;
     private double securityKey = -1.0;
@@ -158,7 +158,7 @@ public class TrcTimer
      *
      * @return expired timestamp in msec.
      */
-    public synchronized long getExpiredTimeInMsec()
+    public long getExpiredTimeInMsec()
     {
         return expiredTimeInMsec;
     }   //getExpiredTimeInMsec
@@ -168,7 +168,7 @@ public class TrcTimer
      *
      * @return true if the timer has expired, false otherwise.
      */
-    public synchronized boolean isExpired()
+    public boolean isExpired()
     {
         final String funcName = "isExpired";
 
@@ -252,7 +252,7 @@ public class TrcTimer
      *
      * @return true if the timer was canceled, false otherwise.
      */
-    public synchronized boolean isCanceled()
+    public boolean isCanceled()
     {
         final String funcName = "isCanceled";
 
