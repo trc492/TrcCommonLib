@@ -185,6 +185,7 @@ public class TrcTaskMgr
         private long[] taskTotalElapsedTimes = new long[TaskType.values().length];
         private int[] taskTimeSlotCounts = new int[TaskType.values().length];
         private TrcPeriodicThread<Object> taskThread = null;
+        private TrcWatchdogMgr.Watchdog taskThreadWatchdog = null;
 
         /**
          * Constructor: Creates an instance of the task object with the given name
@@ -427,6 +428,14 @@ public class TrcTaskMgr
          */
         private void standaloneTask(Object context)
         {
+            if (taskThreadWatchdog == null)
+            {
+                taskThreadWatchdog = TrcWatchdogMgr.registerWatchdog(taskName);
+            }
+            else
+            {
+                taskThreadWatchdog.sendHeartBeat();
+            }
             recordStartTime(TaskType.STANDALONE_TASK);
             task.runTask(TaskType.STANDALONE_TASK, TrcRobot.getRunMode());
             recordElapsedTime(TaskType.STANDALONE_TASK);
@@ -507,7 +516,9 @@ public class TrcTaskMgr
 
     private static List<TaskObject> taskList = new CopyOnWriteArrayList<>();
     private static TrcPeriodicThread<Object> inputThread = null;
+    private static TrcWatchdogMgr.Watchdog inputThreadWatchdog = null;
     private static TrcPeriodicThread<Object> outputThread = null;
+    private static TrcWatchdogMgr.Watchdog outputThreadWatchdog = null;
 
     /**
      * This method is called by registerTask for INPUT_TASK to create the input thread if not already.
@@ -597,18 +608,24 @@ public class TrcTaskMgr
                 //
                 // Task contains the type STANDALONE_TASK, unregister it so that the task thread will terminate.
                 //
+                taskObj.taskThreadWatchdog.unregister();
+                taskObj.taskThreadWatchdog = null;
                 taskObj.unregisterTask(TaskType.STANDALONE_TASK);
             }
         }
 
         if (inputThread != null)
         {
+            inputThreadWatchdog.unregister();
+            inputThreadWatchdog = null;
             inputThread.terminateTask();
             inputThread = null;
         }
 
         if (outputThread != null)
         {
+            outputThreadWatchdog.unregister();
+            outputThreadWatchdog = null;
             outputThread.terminateTask();
             outputThread = null;
         }
@@ -695,6 +712,14 @@ public class TrcTaskMgr
      */
     private static void inputTask(Object context)
     {
+        if (inputThreadWatchdog == null)
+        {
+            inputThreadWatchdog = TrcWatchdogMgr.registerWatchdog("InputThread");
+        }
+        else
+        {
+            inputThreadWatchdog.sendHeartBeat();
+        }
         executeTaskType(TaskType.INPUT_TASK, TrcRobot.getRunMode());
     }   //inputTask
 
@@ -705,6 +730,14 @@ public class TrcTaskMgr
      */
     private static void outputTask(Object context)
     {
+        if (outputThreadWatchdog == null)
+        {
+            outputThreadWatchdog = TrcWatchdogMgr.registerWatchdog("OutputThread");
+        }
+        else
+        {
+            outputThreadWatchdog.sendHeartBeat();
+        }
         executeTaskType(TaskType.OUTPUT_TASK, TrcRobot.getRunMode());
     }   //outputTask
 
