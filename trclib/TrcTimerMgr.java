@@ -37,6 +37,7 @@ public class TrcTimerMgr
     private static final ArrayList<TrcTimer> timerList = new ArrayList<>();
     private static final HashMap<TrcTimer, Double> securityKeyMap = new HashMap<>();
     private static Thread timerThread = null;
+    private static TrcWatchdogMgr.Watchdog timerThreadWatchdog = null;
     private static boolean shuttingDown = false;
     private static TrcTimer nextTimerToExpire = null;
     private static TrcTimer preemptingTimer = null;
@@ -226,8 +227,10 @@ public class TrcTimerMgr
             dbgTrace.traceInfo("%s is starting...", moduleName);
         }
 
+        timerThreadWatchdog = TrcWatchdogMgr.registerWatchdog("TimerThread");
         while (!shuttingDown)
         {
+            timerThreadWatchdog.sendHeartBeat();
             try
             {
                 long sleepTimeInMsec;
@@ -365,6 +368,8 @@ public class TrcTimerMgr
         //
         // The thread is now terminated. Destroy this instance so we will recreate the thread the next time around.
         //
+        timerThreadWatchdog.unregister();
+        timerThreadWatchdog = null;
         timerThread = null;
         shuttingDown = false;
     }   //timerTask
