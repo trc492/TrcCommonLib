@@ -377,11 +377,13 @@ public class TrcPeriodicThread<T>
                     numActiveThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
+        TrcWatchdogMgr.Watchdog threadWatchdog = TrcWatchdogMgr.registerWatchdog(instanceName);
         while (!Thread.interrupted())
         {
             long startNanoTime = TrcUtil.getNanoTime();
             long elapsedNanoTime;
 
+            threadWatchdog.sendHeartBeat();
             if (taskState.isTaskEnabled())
             {
                 task.runPeriodic(context);
@@ -424,6 +426,7 @@ public class TrcPeriodicThread<T>
                 Thread.yield();
             }
         }
+        threadWatchdog.unregister();
 
         if (debugEnabled)
         {
