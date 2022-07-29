@@ -103,8 +103,9 @@ public class TrcWatchdogMgr
         }   //sendHeartBeat
 
         /**
-         * This method unregisters the watchdog from Watchdog Manager only if the caller thread is the owner of the
-         * watchdog.
+         * This method unregisters this watchdog from Watchdog Manager.
+         * Important: this method must be called in the thread the watchdog is monitoring. In other words, the
+         * caller's thread must be the owner of the watchdog.
          *
          * @return true if watchdog is successfully unregister, false otherwise.
          */
@@ -203,6 +204,7 @@ public class TrcWatchdogMgr
 
     /**
      * This method registers a new watchdog for the current thread if one is not already registered.
+     * Important: this method must be called in the thread the watchdog is monitoring.
      *
      * @param name specifies the name of the watchdog.
      * @param heartBeatThreshold specifies the maximum heart beat interval in seconds.
@@ -228,6 +230,7 @@ public class TrcWatchdogMgr
 
     /**
      * This method registers a new watchdog for the current thread if one is not already registered.
+     * Important: this method must be called in the thread the watchdog is monitoring.
      *
      * @param name specifies the name of the watchdog.
      * @return newly created watchdog.
@@ -238,7 +241,8 @@ public class TrcWatchdogMgr
     }   //registerWatchdog
 
     /**
-     * This method removes the watchdog from the watchdog list and map.
+     * This method removes the watchdog from the watchdog list and map. It can be called from any thread as long as
+     * it provides the watchdog to be unregistered.
      *
      * @param watchdog specifies the watchdog to be removed.
      * @return true if watchdog is removed successfully, false if watchdog does not exist.
