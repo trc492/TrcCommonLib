@@ -221,6 +221,7 @@ public class TrcTimerMgr
     private static void timerTask()
     {
         final String funcName = "timerTask";
+        long halfHeartBeatThresholdInMsec;
 
         if (debugEnabled)
         {
@@ -228,6 +229,7 @@ public class TrcTimerMgr
         }
 
         timerThreadWatchdog = TrcWatchdogMgr.registerWatchdog("TimerThread");
+        halfHeartBeatThresholdInMsec = (long) (timerThreadWatchdog.getHeartBeatThreshold()*500);
         while (!shuttingDown)
         {
             timerThreadWatchdog.sendHeartBeat();
@@ -270,6 +272,12 @@ public class TrcTimerMgr
 
                 if (sleepTimeInMsec > 0)
                 {
+                    while (sleepTimeInMsec > halfHeartBeatThresholdInMsec)
+                    {
+                        sleepTimeInMsec -= halfHeartBeatThresholdInMsec;
+                        Thread.sleep(halfHeartBeatThresholdInMsec);
+                        timerThreadWatchdog.sendHeartBeat();
+                    }
                     Thread.sleep(sleepTimeInMsec);
                 }
 

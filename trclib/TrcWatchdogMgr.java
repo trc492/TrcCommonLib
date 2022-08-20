@@ -45,8 +45,8 @@ public class TrcWatchdogMgr
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private TrcDbgTrace dbgTrace = null;
 
-    private static final double DEF_TASK_INTERVAL = 0.5;        // in seconds.
-    private static final double DEF_HEARTBEAT_THRESHOLD = 0.5;  // in seconds.
+    private static final double DEF_TASK_INTERVAL = 1.0;        // in seconds.
+    private static final double DEF_HEARTBEAT_THRESHOLD = 1.0;  // in seconds.
     private static final TrcDbgTrace tracer = TrcDbgTrace.getGlobalTracer();
     private static TrcWatchdogMgr instance;
     private static ArrayList<Watchdog> watchdogList;
@@ -133,6 +133,33 @@ public class TrcWatchdogMgr
                 Locale.US, "[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s",
                 TrcUtil.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired);
         }   //toString
+
+        /**
+         * This method returns the heart beat threshold time for the watchdog.
+         *
+         * @return watchdog heart beat threshold time in seconds.
+         */
+        public double getHeartBeatThreshold()
+        {
+            return heartBeatThreshold;
+        }   //getHeartBeatThreshold
+
+        /**
+         * This method returns the stack trace info of the watchdog thread in string format.
+         *
+         * @return stack trace info in string format.
+         */
+        public String getThreadStackTrace()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for(StackTraceElement ste : this.thread.getStackTrace())
+            {
+                sb.append("\n" + ste);
+            }
+
+            return sb.toString();
+        }   //getThreadStackTrace
 
     }   //class Watchdog
 
@@ -286,7 +313,7 @@ public class TrcWatchdogMgr
                     watchdog.expired = true;
                     tracer.traceErr(
                         funcName, "[%.3f] watchdog (%s) timed out: %s",
-                        currTime, watchdog, watchdog.thread.getStackTrace());
+                        currTime, watchdog, watchdog.getThreadStackTrace());
                 }
             }
         }
