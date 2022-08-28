@@ -22,6 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Arrays;
+import java.util.Locale;
+
 /**
  * This class implements a platform independent PID controlled actuator extending TrcPidMotor. It consists of a motor,
  * an encoder to keep track of its position, a lower limit switch to detect the zero position and a PID controller
@@ -53,6 +56,22 @@ public class TrcPidActuator extends TrcPidMotor
         public double resetTimeout = 0.0;
         public double[] posPresets = null;
         public PowerCompensation powerCompensation = null;
+
+        /**
+         * This method returns the string format of the PID actuator parameters.
+         *
+         * @return string format of the parameters.
+         */
+        @Override
+        public String toString()
+        {
+            return String .format(
+                Locale.US,
+                "rangePos=(%.1f, %.1f), scale=%.1f, offset=%.1f, pidParams=%s, calPower=%.1f, stallMinPower=%.1f, " +
+                "stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, posPresets=%s",
+                minPos, maxPos, scale, offset, pidParams, calPower, stallMinPower, stallTolerance, stallTimeout,
+                resetTimeout, Arrays.toString(posPresets));
+        }   //toString
 
         /**
          * This method sets the position range limits of the motor actuator.
@@ -172,8 +191,7 @@ public class TrcPidActuator extends TrcPidMotor
     private final Parameters params;
     private final TrcDigitalInput lowerLimitSwitch;
     private final TrcDigitalInput upperLimitSwitch;
-    private boolean manualOverride = false;
-    private int positionLevel = 0;
+    private int presetPosition = 0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -268,71 +286,25 @@ public class TrcPidActuator extends TrcPidMotor
     }   //isUpperLimitSwitchActive
 
     /**
-     * This method returns the state of manual override.
-     *
-     * @return true if manual override is ON, false otherwise.
-     */
-    public boolean isManualOverride()
-    {
-        final String funcName = "isManualOverride";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", manualOverride);
-        }
-
-        return manualOverride;
-    }   //isManualOverride
-
-    /**
-     * This method sets manual override mode. This is useful to override PID control of the actuator in situations
-     * where the encoder is not zero calibrated or malfunctioning. Note that this only overrides the encoder but not
-     * the limit switch. So if the lower limit switch is engaged, the actuator will not retract even though manual
-     * override is true.
-     *
-     * @param manualOverride specifies true for manual override, false otherwise.
-     */
-    public void setManualOverride(boolean manualOverride)
-    {
-        final String funcName = "setManualOverride";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "manualOverrid=%s", Boolean.toString(manualOverride));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.manualOverride = manualOverride;
-    }   //setManualOverride
-
-    /**
-     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
-     * Note that if position range is not set, PID control will be disabled.
+     * This method runs the actuator with the specified power. Note that this method does not do PID control. To do
+     * PID control, use setPidPower.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param power specifies the power to run the actuator.
-     * @param hold specifies true to hold position when power is zero, false otherwise.
      */
-    public void setPower(String owner, double power, boolean hold)
+    @Override
+    public void setPower(String owner, double power)
     {
         final String funcName = "setPower";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%s", power);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owener=%s,power=%s", owner, power);
         }
 
-        if (manualOverride || params.minPos == 0.0 && params.maxPos == 0.0)
-        {
-            cancel();
-            super.setPower(owner, power);
-        }
-        else
-        {
-            setPowerWithinPosRange(owner, power, params.minPos, params.maxPos, hold);
-        }
+        // Cancel previous PID operation such as setTarget if any.
+        cancel();
+        super.setPower(owner, power);
 
         if (debugEnabled)
         {
@@ -341,27 +313,69 @@ public class TrcPidActuator extends TrcPidMotor
     }   //setPower
 
     /**
-     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
-     * Note that if position range is not set, PID control will be disabled.
-     *
-     * @param power specifies the power to run the actuator.
-     * @param hold specifies true to hold position when power is zero, false otherwise.
-     */
-    public void setPower(double power, boolean hold)
-    {
-        setPower(null, power, hold);
-    }   //setPower
-
-    /**
-     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
-     * Note that if position range is not set, PID control will be disabled.
+     * This method runs the actuator with the specified power. Note that this method does not do PID control. To do
+     * PID control, use setPidPower.
      *
      * @param power specifies the power to run the actuator.
      */
     @Override
     public void setPower(double power)
     {
-        setPower(null, power, false);
+        setPower(null, power);
+    }   //setPower
+
+    /**
+     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
+     * Note that if position range is not set, it will throw a RuntimeException.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param power specifies the power to run the actuator.
+     * @param hold specifies true to hold position when power is zero, false otherwise.
+     * @throws RuntimeException if position range is not set.
+     */
+    public void setPidPower(String owner, double power, boolean hold)
+    {
+        final String funcName = "setPidPower";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%s,hold=%s", owner, power, hold);
+        }
+
+        if (params.minPos == 0.0 && params.maxPos == 0.0)
+        {
+            throw new RuntimeException("setPidPower requires position range to be set.");
+        }
+
+        setPowerWithinPosRange(owner, power, params.minPos, params.maxPos, hold);
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+    }   //setPidPower
+
+    /**
+     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
+     * Note that if position range is not set, PID control will be disabled.
+     *
+     * @param power specifies the power to run the actuator.
+     * @param hold specifies true to hold position when power is zero, false otherwise.
+     */
+    public void setPidPower(double power, boolean hold)
+    {
+        setPidPower(null, power, hold);
+    }   //setPower
+
+    /**
+     * This method runs the actuator with the specified power. It will hold the current position even if power is zero.
+     * Note that if position range is not set, PID control will be disabled.
+     *
+     * @param power specifies the power to run the actuator.
+     */
+    public void setPidPower(double power)
+    {
+        setPidPower(null, power, true);
     }   //setPower
 
     /**
@@ -369,7 +383,7 @@ public class TrcPidActuator extends TrcPidMotor
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
@@ -377,37 +391,37 @@ public class TrcPidActuator extends TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(
-        String owner, double delay, int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
+    public void setPresetPosition(
+        String owner, double delay, int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
         double timeout)
     {
         if (validateOwnership(owner))
         {
             if (params.posPresets != null)
             {
-                if (level < 0)
+                if (preset < 0)
                 {
-                    positionLevel = 0;
+                    presetPosition = 0;
                 }
-                else if (level >= params.posPresets.length)
+                else if (preset >= params.posPresets.length)
                 {
-                    positionLevel = params.posPresets.length - 1;
+                    presetPosition = params.posPresets.length - 1;
                 }
                 else
                 {
-                    positionLevel = level;
+                    presetPosition = preset;
                 }
 
-                setTarget(delay, params.posPresets[positionLevel], holdTarget, event, callback, timeout);
+                setTarget(delay, params.posPresets[presetPosition], holdTarget, event, callback, timeout);
             }
         }
-    }   //setLevel
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
@@ -415,16 +429,16 @@ public class TrcPidActuator extends TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(
-        double delay, int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+    public void setPresetPosition(
+        double delay, int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setLevel(null, delay, level, holdTarget, event, callback, timeout);
-    }   //setLevel
+        setPresetPosition(null, delay, preset, holdTarget, event, callback, timeout);
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the specified preset position.
      *
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
@@ -432,68 +446,69 @@ public class TrcPidActuator extends TrcPidMotor
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setLevel(int level, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+    public void setPresetPosition(
+        int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        setLevel(null, 0.0, level, holdTarget, event, callback, timeout);
-    }   //setLevel
+        setPresetPosition(null, 0.0, preset, holdTarget, event, callback, timeout);
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the specified preset position.
      *
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void setLevel(int level, TrcEvent event, TrcNotifier.Receiver callback)
+    public void setPresetPosition(int preset, TrcEvent event, TrcNotifier.Receiver callback)
     {
-        setLevel(null, 0.0, level, true, event, callback, 0.0);
-    }   //setLevel
+        setPresetPosition(null, 0.0, preset, true, event, callback, 0.0);
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      */
-    public void setLevel(double delay, int level)
+    public void setPresetPosition(double delay, int preset)
     {
-        setLevel(null, delay, level, true, null, null, 0.0);
-    }   //setLevel
+        setPresetPosition(null, delay, preset, true, null, null, 0.0);
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the specified preset position.
      *
-     * @param level specifies the index to the preset position array.
+     * @param preset specifies the index to the preset position array.
      */
-    public void setLevel(int level)
+    public void setPresetPosition(int preset)
     {
-        setLevel(null, 0.0, level, true, null, null, 0.0);
-    }   //setLevel
+        setPresetPosition(null, 0.0, preset, true, null, null, 0.0);
+    }   //setPresetPosition
 
     /**
      * This method sets the actuator to the next preset position up.
      */
-    public void levelUp()
+    public void presetPositionUp()
     {
-        setLevel(positionLevel + 1);
-    }   //levelUp
+        setPresetPosition(presetPosition + 1);
+    }   //presetPositionUp
 
     /**
      * This method sets the actuator to the next preset position down.
      */
-    public void levelDown()
+    public void presetPositionDown()
     {
-        setLevel(positionLevel - 1);
-    }   //levelDown
+        setPresetPosition(presetPosition - 1);
+    }   //presetPositionDown
 
     /**
      * This method returns the last preset level that is set to the actuator.
      *
      * @return last preset level set.
      */
-    public int getLevel()
+    public int getPresetPosition()
     {
-        return positionLevel;
-    }   //getLevel
+        return presetPosition;
+    }   //getPresetPosition
 
 }   //class TrcPidActuator
