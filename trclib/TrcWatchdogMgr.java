@@ -92,9 +92,11 @@ public class TrcWatchdogMgr
 
             if (this.thread == Thread.currentThread())
             {
+                double currTime = TrcUtil.getCurrentTime();
+
                 synchronized (this)
                 {
-                    heartBeatExpiredTime = TrcUtil.getCurrentTime() + heartBeatThreshold;
+                    heartBeatExpiredTime = currTime + heartBeatThreshold;
                     expired = false;
                 }
             }
@@ -195,7 +197,7 @@ public class TrcWatchdogMgr
      * This method is called to shutdown the Watchdog Manager. It basically stops the watchdog task and clears the
      * watchdog list and map.
      */
-    public static void Shutdown()
+    public static void shutdown()
     {
         if (instance != null)
         {
@@ -308,10 +310,20 @@ public class TrcWatchdogMgr
 
             for (Watchdog watchdog: watchdogList)
             {
-                if (!watchdog.expired && currTime > watchdog.heartBeatExpiredTime)
+                boolean timedout = false;
+
+                synchronized (watchdog)
                 {
-                    watchdog.expired = true;
-                    tracer.traceErr(
+                    if (!watchdog.expired && currTime > watchdog.heartBeatExpiredTime)
+                    {
+                        watchdog.expired = true;
+                        timedout = true;
+                    }
+                }
+
+                if (timedout)
+                {
+                    tracer.traceWarn(
                         funcName, "[%.3f] watchdog (%s) timed out: %s",
                         currTime, watchdog, watchdog.getThreadStackTrace());
                 }
