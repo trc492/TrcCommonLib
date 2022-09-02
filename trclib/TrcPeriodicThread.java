@@ -377,13 +377,18 @@ public class TrcPeriodicThread<T>
                     numActiveThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
-        TrcWatchdogMgr.Watchdog threadWatchdog = TrcWatchdogMgr.registerWatchdog(instanceName);
+        // Do not create a watchdog for the Watchdog Manager task.
+        TrcWatchdogMgr.Watchdog threadWatchdog =
+            instanceName.equals(TrcWatchdogMgr.moduleName)? null: TrcWatchdogMgr.registerWatchdog(instanceName);
         while (!Thread.interrupted())
         {
             long startNanoTime = TrcUtil.getNanoTime();
             long elapsedNanoTime;
 
-            threadWatchdog.sendHeartBeat();
+            if (threadWatchdog != null)
+            {
+                threadWatchdog.sendHeartBeat();
+            }
             if (taskState.isTaskEnabled())
             {
                 task.runPeriodic(context);
@@ -426,7 +431,10 @@ public class TrcPeriodicThread<T>
                 Thread.yield();
             }
         }
-        threadWatchdog.unregister();
+        if (threadWatchdog != null)
+        {
+            threadWatchdog.unregister();
+        }
 
         if (debugEnabled)
         {

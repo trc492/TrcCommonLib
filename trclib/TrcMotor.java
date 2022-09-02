@@ -547,13 +547,12 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         {
             // Call platform-dependent subclass to reset the position sensor hardware.
             resetMotorPosition();
-            zeroPosition = 0.0;
         }
-        else
-        {
-            // Call platform-dependent subclass to read current position as the zero position.
-            zeroPosition = getMotorPosition();
-        }
+
+        // Call platform-dependent subclass to read current position as the zero position.
+        // Note: the above resetMotorPosition call may have timed out and not resetting the hardware. We will still
+        // do soft reset as a safety measure.
+        zeroPosition = getMotorPosition();
     }   //resetPosition
 
     /**

@@ -37,7 +37,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcWatchdogMgr
 {
-    private static final String moduleName = "TrcWatchdogMgr";
+    public static final String moduleName = "TrcWatchdogMgr";
     private static final boolean debugEnabled = false;
     private static final boolean tracingEnabled = false;
     private static final boolean useGlobalTracer = false;
