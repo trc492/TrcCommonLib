@@ -251,11 +251,7 @@ public class TrcSwerveModule
         }
         else if (steerServo != null)
         {
-            // TODO: Eventually, this needs to be coerced to within the range [0,1]. That's the logical range of a
-            // servo.
-            // The reason this is like this is because of the FrcTalonServo.
-            steerServo.setPosition(newAngle / 360.0);
-//            steerServo.setPosition(TrcUtil.modulo(newAngle, 360.0) / 360.0);
+            steerServo.setPosition(newAngle);
         }
 
         if (debugEnabled)
