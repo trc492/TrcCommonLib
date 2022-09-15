@@ -351,7 +351,19 @@ public class TrcEnhancedServo
      */
     public double getEncoderPosition()
     {
-        return servo1.getEncoderPosition();
+        double position;
+
+        try
+        {
+            position = servo1.getEncoderPosition();
+        }
+        catch (UnsupportedOperationException e)
+        {
+            // Servo does not support encoder, just get the last position.
+            position = servo1.getPosition();
+        }
+
+        return position;
     }   //getEncoderPosition
 
     /**
