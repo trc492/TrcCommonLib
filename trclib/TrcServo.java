@@ -52,27 +52,20 @@ public abstract class TrcServo
     public abstract boolean isInverted();
 
     /**
-     * This method sets the servo motor position. By default, the servo maps its physical position the same as its
-     * logical position [0.0, 1.0]. However, if setPhysicalRange was called, it could map a real world physical
-     * range (e.g. [0.0, 180.0] degrees) to the logical range of [0.0, 1.0].
-     * <p>
-     * Servo motor operates on logical position. On a 180-degree servo, 0.0 is at 0-degree and 1.0 is at 180-degree.
-     * For a 90-degree servo, 0->0deg, 1->90deg. If servo direction is inverted, then 0.0 is at 180-degree and 1.0 is
-     * at 0-degree. On a continuous servo, 0.0 is rotating full speed in reverse, 0.5 is to stop the motor and 1.0 is
-     * rotating the motor full speed forward. Again, motor direction can be inverted if setInverted is called.
+     * This method sets the logical position of the servo motor.
      *
-     * @param position specifies the physical position of the servo motor. This value may be in degrees if
-     *                 setPhysicalRange is called with the degree range.
+     * @param position specifies the logical position of the servo motor in the range of [0.0, 1.0].
      */
-    public abstract void setPosition(double position);
+    public abstract void setLogicalPosition(double position);
 
     /**
-     * This method returns the physical position value set by the last setPosition call. Note that servo motors do not
-     * provide real time position feedback. So getPosition doesn't actually return the current position.
+     * This method returns the logical position value set by the last setLogicalPosition call. Note that servo motors
+     * do not provide real time position feedback. Therefore, getLogicalPosition doesn't actually return the current
+     * position.
      *
-     * @return motor position value set by the last setPosition call.
+     * @return motor position value set by the last setLogicalPosition call in the range of [0.0, 1.0].
      */
-    public abstract double getPosition();
+    public abstract double getLogicalPosition();
 
     public static final double CONTINUOUS_SERVO_FORWARD_MAX = 1.0;
     public static final double CONTINUOUS_SERVO_REVERSE_MAX = 0.0;
@@ -154,8 +147,9 @@ public abstract class TrcServo
     }   //printElapsedTime
 
     /**
-     * This method returns the current physical position of the servo as read by an encoder.
-     * If there is no encoder (depending on the implementation) it will throw an exception.
+     * This method returns the current physical position of the servo as read by an encoder. It is intended to be
+     * overridden by a subclass that has an encoder in its implementation. If there is no encoder, this method will
+     * throw an exception.
      *
      * @return the physical position of the mechanism with an encoder.
      * @throws UnsupportedOperationException if not supported by TrcServo implementation.
@@ -164,6 +158,35 @@ public abstract class TrcServo
     {
         throw new UnsupportedOperationException("This implementation does not have an encoder!");
     }    //getEncoderPosition
+
+    /**
+     * This method returns the physical position value of the servo motor.
+     *
+     * @return physical position of the servo, could be in degrees if setPhysicalRange is called to set the range in
+     *         degrees.
+     */
+    public double getPosition()
+    {
+        return toPhysicalPosition(getLogicalPosition());
+    }   //getPosition
+
+    /**
+     * This method sets the servo motor position. By default, the servo maps its physical position the same as its
+     * logical position [0.0, 1.0]. However, if setPhysicalRange was called, it could map a real world physical
+     * range (e.g. [0.0, 180.0] degrees) to the logical range of [0.0, 1.0].
+     * <p>
+     * Servo motor operates on logical position. On a 180-degree servo, 0.0 is at 0-degree and 1.0 is at 180-degree.
+     * For a 90-degree servo, 0->0deg, 1->90deg. If servo direction is inverted, then 0.0 is at 180-degree and 1.0 is
+     * at 0-degree. On a continuous servo, 0.0 is rotating full speed in reverse, 0.5 is to stop the motor and 1.0 is
+     * rotating the motor full speed forward. Again, motor direction can be inverted if setInverted is called.
+     *
+     * @param position specifies the physical position of the servo motor. This value may be in degrees if
+     *                 setPhysicalRange is called with the degree range.
+     */
+    public void setPosition(double position)
+    {
+        setLogicalPosition(toLogicalPosition(position));
+    }   //setPosition
 
     /**
      * This method sets the servo motor position. If a notifier is given, it calls the notifier after the given amount
