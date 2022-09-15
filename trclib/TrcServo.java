@@ -38,14 +38,14 @@ public abstract class TrcServo
     protected TrcDbgTrace dbgTrace = null;
 
     /**
-     * This abstract method inverts the servo motor direction.
+     * This method inverts the servo motor direction.
      *
      * @param inverted specifies the servo direction is inverted if true.
      */
     public abstract void setInverted(boolean inverted);
 
     /**
-     * This abstract method checks if the servo motor direction is inverted.
+     * This method checks if the servo motor direction is inverted.
      *
      * @return true if the servo direction is inverted, false otherwise.
      */
