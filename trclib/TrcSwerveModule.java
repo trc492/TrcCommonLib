@@ -306,36 +306,6 @@ public class TrcSwerveModule
     }   //getSteerAngle
 
     /**
-     * This method sets the steering servo's logical position in the range of [0.0, 1.0].
-     *
-     * @param position specifies the logical position of the steering servo.
-     */
-    public void setLogicalPosition(double position)
-    {
-        if (steerMotor != null)
-        {
-            throw new RuntimeException("Only steering servo motor supports logical position.");
-        }
-
-        setSteerAngle(steerServo.toPhysicalPosition(position), false, true);
-    }   //setLogicalPosition
-
-    /**
-     * This method returns the steering servo's logical position in the range of [0.0, 1.0].
-     *
-     * @return steering servo's logical position.
-     */
-    public double getLogicalPosition()
-    {
-        if (steerMotor != null)
-        {
-            throw new RuntimeException("Only steering servo motor supports logical position.");
-        }
-
-        return steerServo.toLogicalPosition(steerServo.getPosition());
-    }   //getLogicalPosition
-
-    /**
      * This method sets the motor output value. The value can be power or velocity percentage depending on whether
      * the motor controller is in power mode or velocity mode.
      *

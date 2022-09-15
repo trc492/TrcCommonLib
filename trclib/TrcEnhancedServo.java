@@ -344,28 +344,6 @@ public class TrcEnhancedServo
     }   //stop
 
     /**
-     * This method maps the servo's physical position to logical position.
-     *
-     * @param position specifies the physical position.
-     * @return logical position.
-     */
-    public double toLogicalPosition(double position)
-    {
-        return servo1.toLogicalPosition(position);
-    }   //toLogicalPosition
-
-    /**
-     * This method maps the servo's logical position to physical position.
-     *
-     * @param position specifies the logical position.
-     * @return physical position.
-     */
-    public double toPhysicalPosition(double position)
-    {
-        return servo1.toPhysicalPosition(position);
-    }   //toPhysicalPosition
-
-    /**
      * Uses the getPosition of the servo1, in case there's an encoder.
      *
      * @return The position of servo1. This is different from <code>getPosition</code> in the case of servo1 having an encoder.

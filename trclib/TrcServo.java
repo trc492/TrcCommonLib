@@ -286,7 +286,7 @@ public abstract class TrcServo
      * @param physicalPosition specifies the physical position to be converted
      * @return converted logical position.
      */
-    protected double toLogicalPosition(double physicalPosition)
+    public double toLogicalPosition(double physicalPosition)
     {
         final String funcName = "toLogicalPosition";
         physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
@@ -310,7 +310,7 @@ public abstract class TrcServo
      * @param logicalPosition specifies the logical position to be converted.
      * @return converted physical position.
      */
-    protected double toPhysicalPosition(double logicalPosition)
+    public double toPhysicalPosition(double logicalPosition)
     {
         final String funcName = "toPhysicalPosition";
 
