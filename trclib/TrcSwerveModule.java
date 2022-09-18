@@ -24,8 +24,8 @@ package TrcCommonLib.trclib;
 
 /**
  * This class implements a platform independent Swerve Drive module. A Swerve Drive module consists of a drive motor
- * and a steer motor. The steer motor is a PID controlled motor with a zero calibration limit switch that allows an
- * absolute steering angle to be set and held.
+ * and a steer motor. The steer motor can be a PID controlled motor with a zero calibration limit switch that allows
+ * an absolute steering angle to be set and held. It can also be a servo motor which has a limited range of motion.
  */
 public class TrcSwerveModule
 {
@@ -40,7 +40,7 @@ public class TrcSwerveModule
     private final String instanceName;
     public final TrcMotor driveMotor;
     public final TrcPidMotor steerMotor;
-    public final TrcEnhancedServo steerServo;
+    public final TrcServo steerServo;
     private final TrcWarpSpace warpSpace;
     private boolean steerLimitsEnabled = false;
     private double steerLowLimit = 0.0;
@@ -57,7 +57,7 @@ public class TrcSwerveModule
      * @param steerServo   specifies the steering servo.
      */
     private TrcSwerveModule(
-            String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor, TrcEnhancedServo steerServo)
+            String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor, TrcServo steerServo)
     {
         if (debugEnabled)
         {
@@ -92,7 +92,7 @@ public class TrcSwerveModule
      * @param driveMotor   specifies the drive motor.
      * @param steerServo   specifies the steering servo.
      */
-    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcEnhancedServo steerServo)
+    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcServo steerServo)
     {
         this(instanceName, driveMotor, null, steerServo);
     }   //TrcSwerveModule
@@ -150,9 +150,7 @@ public class TrcSwerveModule
 
         if (steerMotor != null)
         {
-            // CodeReview: zeroCalibrate is asynchronous, can you really setSteerAngle right after?
-            steerMotor.zeroCalibrate();
-            setSteerAngle(0.0, false, true);
+            steerMotor.zeroCalibrate(this::doneZeroCalibrate);
         }
         else
         {
@@ -166,34 +164,44 @@ public class TrcSwerveModule
     }   //zeroCalibrateSteering
 
     /**
-     * This method calibrates the steering range of the steering servo.
+     * This method is called when zero calibration is done.
      *
-     * @param stepRate specifies the step rate of the servo.
+     * @param context not used.
      */
-    public void rangeCalibrateSteering(double stepRate)
+    private void doneZeroCalibrate(Object context)
     {
-        final String funcName = "rangeCalibrateSteering";
+        setSteerAngle(0.0, false, true);
+    }   //doneZeroCalibrate
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "stepRate=%f", stepRate);
-        }
-
-        if (steerServo != null)
-        {
-            steerServo.rangeCalibrate(-180.0, 180.0, stepRate);
-            setSteerAngle(0.0, false, true);
-        }
-        else
-        {
-            throw new RuntimeException("Steering range calibration is only applicable for servo steering.");
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //rangeCalibrateSteering
+//    /**
+//     * This method calibrates the steering range of the steering servo.
+//     *
+//     * @param stepRate specifies the step rate of the servo.
+//     */
+//    public void rangeCalibrateSteering(double stepRate)
+//    {
+//        final String funcName = "rangeCalibrateSteering";
+//
+//        if (debugEnabled)
+//        {
+//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "stepRate=%f", stepRate);
+//        }
+//
+//        if (steerServo != null)
+//        {
+//            steerServo.rangeCalibrate(-180.0, 180.0, stepRate);
+//            setSteerAngle(0.0, false, true);
+//        }
+//        else
+//        {
+//            throw new RuntimeException("Steering range calibration is only applicable for servo steering.");
+//        }
+//
+//        if (debugEnabled)
+//        {
+//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+//        }
+//    }   //rangeCalibrateSteering
 
     /**
      * This method sets the steer angle.
@@ -294,7 +302,7 @@ public class TrcSwerveModule
     public double getSteerAngle()
     {
         final String funcName = "getSteerAngle";
-        double angle = steerMotor != null ? steerMotor.getPosition() : steerServo.getEncoderPosition();
+        double angle = steerMotor != null ? steerMotor.getPosition() : steerServo.getPosition();
 
         if (debugEnabled)
         {

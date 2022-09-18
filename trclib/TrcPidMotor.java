@@ -90,7 +90,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private TrcEvent notifyEvent = null;
     private TrcNotifier.Receiver notifyCallback = null;
     private double timeout = 0.0;
-    private boolean calibrating = false;
+    private volatile boolean calibrating = false;
     private double calPower = 0.0;
     private double motorPower = 0.0;
     private double powerClamp = 1.0;
@@ -1126,14 +1126,26 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     }   //setPowerWithinPosRange
 
     /**
+     * This method checks if the PID motor is in the middle of zero calibration.
+     *
+     * @return true if zero calibrating, false otherwise.
+     */
+    public boolean isCalibrating()
+    {
+        return calibrating;
+    }   //isCalibrating
+
+    /**
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
      * switch is hit or the motor is stalled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
+     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
+     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
      */
-    public synchronized void zeroCalibrate(String owner, double calPower)
+    public synchronized void zeroCalibrate(String owner, double calPower, TrcEvent event, TrcNotifier.Receiver notifier)
     {
         final String funcName = "zeroCalibrate";
 
@@ -1169,10 +1181,50 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
+     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
+     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
+     */
+    public void zeroCalibrate(double calPower, TrcEvent event, TrcNotifier.Receiver notifier)
+    {
+        zeroCalibrate(null, calPower, event, notifier);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
+     *                 power specified in the constructor.
+     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
+     */
+    public void zeroCalibrate(double calPower, TrcEvent event)
+    {
+        zeroCalibrate(null, calPower, event, null);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
+     *                 power specified in the constructor.
+     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
+     */
+    public void zeroCalibrate(double calPower, TrcNotifier.Receiver notifier)
+    {
+        zeroCalibrate(null, calPower, null, notifier);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
+     *                 power specified in the constructor.
      */
     public synchronized void zeroCalibrate(double calPower)
     {
-        zeroCalibrate(null, calPower);
+        zeroCalibrate(null, calPower, null, null);
     }   //zeroCalibrate
 
     /**
@@ -1183,7 +1235,18 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void zeroCalibrate(String owner)
     {
-        zeroCalibrate(owner, defCalPower);
+        zeroCalibrate(owner, defCalPower, null, null);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
+     */
+    public synchronized void zeroCalibrate(TrcNotifier.Receiver notifier)
+    {
+        zeroCalibrate(null, defCalPower, null, notifier);
     }   //zeroCalibrate
 
     /**
@@ -1192,7 +1255,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void zeroCalibrate()
     {
-        zeroCalibrate(null, defCalPower);
+        zeroCalibrate(null, defCalPower, null, null);
     }   //zeroCalibrate
 
     /**
@@ -1379,6 +1442,18 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 calibrating = false;
                 setTaskEnabled(false);
+
+                if (notifyEvent != null)
+                {
+                    notifyEvent.signal();
+                    notifyEvent = null;
+                }
+
+                if (notifyCallback != null)
+                {
+                    notifyCallback.notify(null);
+                    notifyCallback = null;
+                }
             }
         }
         else
@@ -1394,6 +1469,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // - set a timeout and it has expired.
                 //
                 stop(true);
+
                 if (notifyEvent != null)
                 {
                     notifyEvent.signal();
@@ -1403,6 +1479,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 if (notifyCallback != null)
                 {
                     notifyCallback.notify(null);
+                    notifyCallback = null;
                 }
             }
             else
@@ -1411,10 +1488,19 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // If we are trying to hold target, we will continue to PID control the motor but we will also signal
                 // the notifyEvent.
                 //
-                if (notifyEvent != null && holdTarget && onTarget)
+                if (holdTarget && onTarget)
                 {
-                    notifyEvent.signal();
-                    notifyEvent = null;
+                    if (notifyEvent != null)
+                    {
+                        notifyEvent.signal();
+                        notifyEvent = null;
+                    }
+
+                    if (notifyCallback != null)
+                    {
+                        notifyCallback.notify(null);
+                        notifyCallback = null;
+                    }
                 }
                 //
                 // We are still in business. Call PID controller to calculate the motor power and set it.
