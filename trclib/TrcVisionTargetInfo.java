@@ -64,9 +64,12 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
      * @param imageHeight specifies the height of the camera image.
      * @param homographyMapper specifies the homography mapper, can be null if not provided in which case
      *        distanceFromCamera, targetWidth and horizontalAngle will not be determined.
+     * @param objHeightOffset specifies the object height offset above the floor.
+     * @param cameraHeight specifies the height of the camera above the floor.
      */
     public TrcVisionTargetInfo(
-        O detectedObj, int imageWidth, int imageHeight, TrcHomographyMapper homographyMapper)
+        O detectedObj, int imageWidth, int imageHeight, TrcHomographyMapper homographyMapper,
+        double objHeightOffset, double cameraHeight)
     {
         Rect rect = detectedObj.getRect();
 
@@ -82,7 +85,17 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
             Point bottomRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y + rect.height));
             distanceFromCamera = new Point((bottomLeft.x + bottomRight.x)/2.0, (bottomLeft.y + bottomRight.y)/2.0);
             targetWidth = bottomRight.x - bottomLeft.x;
-            horizontalAngle = Math.toDegrees(Math.atan2(distanceFromCamera.x, distanceFromCamera.y));
+            double horiAngleRadian = Math.atan2(distanceFromCamera.x, distanceFromCamera.y);
+            horizontalAngle = Math.toDegrees(horiAngleRadian);
+            if (objHeightOffset > 0.0)
+            {
+                double adjustment =
+                    objHeightOffset * TrcUtil.magnitude(distanceFromCamera.x, distanceFromCamera.y) / cameraHeight;
+                double xAdjustment = adjustment * Math.sin(horiAngleRadian);
+                double yAdjustment = adjustment * Math.cos(horiAngleRadian);
+                distanceFromCamera.x -= xAdjustment;
+                distanceFromCamera.y -= yAdjustment;
+            }
         }
     }   //TrcVisionTargetInfo
 

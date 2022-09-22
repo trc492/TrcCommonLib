@@ -251,11 +251,14 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
      *
      * @param filter specifies the filter to call to filter out false positive targets.
      * @param comparator specifies the comparator to sort the array if provided, can be null if not provided.
+     * @param objHeightOffset specifies the object height offset above the floor.
+     * @param cameraHeight specifies the height of the camera above the floor.
      * @return array of detected target info.
      */
     @SuppressWarnings("unchecked")
     public synchronized TrcVisionTargetInfo<DetectedObject>[] getDetectedTargetsInfo(
-        FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator)
+        FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject>> comparator,
+        double objHeightOffset, double cameraHeight)
     {
         final String funcName = "getDetectedTargetsInfo";
         TrcVisionTargetInfo<DetectedObject>[] targets = null;
@@ -270,7 +273,8 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
                 if (filter == null || filter.validateTarget(detectedObj))
                 {
                     TrcVisionTargetInfo<DetectedObject> targetInfo =
-                        new TrcVisionTargetInfo<>(detectedObj, imageWidth, imageHeight, homographyMapper);
+                        new TrcVisionTargetInfo<>(
+                            detectedObj, imageWidth, imageHeight, homographyMapper, objHeightOffset, cameraHeight);
                     targetList.add(targetInfo);
                 }
             }
