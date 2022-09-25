@@ -83,7 +83,7 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCVDetector
             targets = new DetectedObject[faceRects.length];
             for (int i = 0; i < targets.length; i++)
             {
-                targets[i] = new DetectedObject(faceRects[i]);
+                targets[i] = new DetectedObject(faceRects[i], 0.0);
             }
         }
 

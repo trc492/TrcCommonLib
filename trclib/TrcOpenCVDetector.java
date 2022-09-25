@@ -53,38 +53,18 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
     public static class DetectedObject extends TrcVisionTargetInfo.ObjectInfo
     {
         public final Rect rect;
-        public final float angle;
-        public final float response;
-        public final int octave;
-        public final int classId;
+        public final double area;
 
         /**
          * Constructor: Creates an instance of the object.
          *
          * @param rect specifies the rect of the object.
-         * @param angle specifies specifies computed orientation of the keypoint (-1 if not applicable).
-         * @param response specifies the response, by which the strongest keypoints have been selected. Can be used
-         *        for further sorting or subsampling.
-         * @param octave specifies octave (pyramid layer), from which the keypoint has been extracted.
-         * @param classId specifies object ID, that can be used to cluster keypoints by an object they belong to.
+         * @param area specifies the area of the object.
          */
-        public DetectedObject(Rect rect, float angle, float response, int octave, int classId)
+        public DetectedObject(Rect rect, double area)
         {
             this.rect = rect;
-            this.angle = angle;
-            this.response = response;
-            this.octave = octave;
-            this.classId = classId;
-        }   //DetectedObject
-
-        /**
-         * Constructor: Creates an instance of the object.
-         *
-         * @param rect specifies the rect of the object.
-         */
-        public DetectedObject(Rect rect)
-        {
-            this(rect, -1.0f, 0.0f, 0, 0);
+            this.area = area;
         }   //DetectedObject
 
         /**
@@ -106,7 +86,7 @@ public abstract class TrcOpenCVDetector implements TrcVisionProcessor<Mat, TrcOp
         @Override
         public String toString()
         {
-            return "Rect=" + rect.toString();
+            return "Rect=" + rect.toString() + ",area=" + area;
         }   //toString
 
     }   //class DetectedObject
