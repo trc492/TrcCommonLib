@@ -89,6 +89,13 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
             horizontalAngle = Math.toDegrees(horiAngleRadian);
             if (objHeightOffset > 0.0)
             {
+                // If object is elevated off the ground, the object distance would be further than it actually is.
+                // Therefore, we need to calculate the distance adjustment to be subtracted from the Homography
+                // reported distance. Imagine the camera is the sun casting a shadow on the object to the ground.
+                // The shadow length is the distance adjustment.
+                //
+                //  cameraHeight / homographyDistance = objHeightOffset / adjustment
+                //  adjustment = objHeightOffset * homographyDistance / cameraHeight
                 double adjustment =
                     objHeightOffset * TrcUtil.magnitude(distanceFromCamera.x, distanceFromCamera.y) / cameraHeight;
                 double xAdjustment = adjustment * Math.sin(horiAngleRadian);
