@@ -98,10 +98,8 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
                 //  adjustment = objHeightOffset * homographyDistance / cameraHeight
                 double adjustment =
                     objHeightOffset * TrcUtil.magnitude(distanceFromCamera.x, distanceFromCamera.y) / cameraHeight;
-                double xAdjustment = adjustment * Math.sin(horiAngleRadian);
-                double yAdjustment = adjustment * Math.cos(horiAngleRadian);
-                distanceFromCamera.x -= xAdjustment;
-                distanceFromCamera.y -= yAdjustment;
+                distanceFromCamera.x -= adjustment * Math.sin(horiAngleRadian);
+                distanceFromCamera.y -= adjustment * Math.cos(horiAngleRadian);
             }
         }
     }   //TrcVisionTargetInfo
