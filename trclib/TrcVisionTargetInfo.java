@@ -29,7 +29,7 @@ import org.opencv.core.Rect;
 import java.util.Locale;
 
 /**
- * This class stores the info for a vision detected target.
+ * This class calculates and stores the info for a vision detected target.
  */
 public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
 {
