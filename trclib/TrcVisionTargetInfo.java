@@ -34,23 +34,32 @@ import java.util.Locale;
 public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
 {
     /**
-     * This class abstracts the detected object info for different vision processors. This is intended to be extended
-     * by various vision processors and requires them to provide a method to return the detected object rect.
+     * This interface implements a method to get the rectangle of the detected object. This should be implemented by
+     * a vision detector class.
      */
-    public static abstract class ObjectInfo
+    public interface ObjectInfo
     {
         /**
          * This method returns the rect of the detected object.
          *
          * @return rect of the detected object.
          */
-        public abstract Rect getRect();
+        Rect getRect();
 
-    }   //class ObjectInfo
+        /**
+         * This method returns the area of the detected object.
+         *
+         * @return area of the detected object.
+         */
+        double getArea();
+
+    }   //interface ObjectInfo
 
     public O detectedObj;
     public int imageWidth;
     public int imageHeight;
+    public Rect rect;
+    public double area;
     public Point distanceFromImageCenter;
     public Point distanceFromCamera;
     public double targetWidth;
@@ -71,11 +80,11 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
         O detectedObj, int imageWidth, int imageHeight, TrcHomographyMapper homographyMapper,
         double objHeightOffset, double cameraHeight)
     {
-        Rect rect = detectedObj.getRect();
-
         this.detectedObj = detectedObj;
         this.imageWidth = imageWidth;
         this.imageHeight = imageHeight;
+        this.rect = detectedObj.getRect();
+        this.area = detectedObj.getArea();
         distanceFromImageCenter = new Point(
             rect.x + rect.width/2.0 - imageWidth/2.0, rect.y + rect.height/2.0 - imageHeight/2.0);
 

@@ -23,15 +23,57 @@
 package TrcCommonLib.trclib;
 
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Rect;
+import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
 /**
  * This class implements an OpenCV face detector using the provided classifier.
  */
-public abstract class TrcOpenCvFaceDetector extends TrcOpenCVDetector
+public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
 {
+    /**
+     * This class encapsulates info of the detected object. It extends TrcOpenCvDetector.DetectedObject that requires
+     * it to provide a method to return the detected object rect and area.
+     */
+    public static class DetectedObject extends TrcOpenCvDetector.DetectedObject<Rect>
+    {
+        /**
+         * Constructor: Creates an instance of the object.
+         *
+         * @param rect specifies the rect of the detected object.
+         */
+        public DetectedObject(Rect rect)
+        {
+            super(rect);
+        }   //DetectedObject
+
+        /**
+         * This method returns the rect of the detected object.
+         *
+         * @return rect of the detected object.
+         */
+        @Override
+        public Rect getRect()
+        {
+            return object;
+        }   //getRect
+
+        /**
+         * This method returns the area of the detected object.
+         *
+         * @return area of the detected object.
+         */
+        @Override
+        public double getArea()
+        {
+            return object.area();
+        }   //getArea
+
+    }   //class DetectedObject
+
     private final CascadeClassifier faceDetector;
     private final MatOfRect detectedFaceBuffer;
 
@@ -83,7 +125,7 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCVDetector
             targets = new DetectedObject[faceRects.length];
             for (int i = 0; i < targets.length; i++)
             {
-                targets[i] = new DetectedObject(faceRects[i], 0.0);
+                targets[i] = new DetectedObject(faceRects[i]);
             }
         }
 
