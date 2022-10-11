@@ -242,6 +242,16 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
     }   //process
 
     /**
+     * This method returns the image after color threshold filtering.
+     *
+     * @return color threshold filtering output.
+     */
+    public Mat getColorThresholdOutput()
+    {
+        return colorThresholdOutput;
+    }   //getColorThresholdOutput
+
+    /**
      * This method returns the array of detected objects.
      *
      * @return array of detected objects.
@@ -283,7 +293,11 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
     {
         if (useHsv)
         {
-            Imgproc.cvtColor(input, out, Imgproc.COLOR_RGB2HSV);
+            Imgproc.cvtColor(input, out, Imgproc.COLOR_BGR2HSV);
+        }
+        else
+        {
+            Imgproc.cvtColor(input, out, Imgproc.COLOR_BGR2RGB);
         }
 
         Core.inRange(
