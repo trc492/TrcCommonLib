@@ -83,6 +83,14 @@ public interface TrcOpenCvPipeline<O>
     PerformanceMetrics performanceMetrics = new PerformanceMetrics();
 
     /**
+     * This method is called to reset the state of the pipeline if any.
+     */
+    default void reset()
+    {
+        performanceMetrics.reset();
+    }   //reset
+
+    /**
      * This method is called to process the input image through the pipeline.
      *
      * @param input specifies the input image to be processed.

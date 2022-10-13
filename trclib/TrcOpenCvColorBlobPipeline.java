@@ -291,13 +291,10 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
      */
     private void filterByColor(Mat input, boolean useHsv, double[] colorThresholds, Mat out)
     {
+        Imgproc.cvtColor(input, out, Imgproc.COLOR_RGBA2RGB);
         if (useHsv)
         {
-            Imgproc.cvtColor(input, out, Imgproc.COLOR_BGR2HSV);
-        }
-        else
-        {
-            Imgproc.cvtColor(input, out, Imgproc.COLOR_BGR2RGB);
+            Imgproc.cvtColor(out, out, Imgproc.COLOR_RGB2HSV);
         }
 
         Core.inRange(
