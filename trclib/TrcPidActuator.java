@@ -49,7 +49,7 @@ public class TrcPidActuator extends TrcPidMotor
         public double minPos = 0.0, maxPos = 1.0;
         public double scale = 1.0, offset = 0.0;
         public TrcPidController.PidParameters pidParams;
-        public double calPower = 0.3;
+        public double calPower = -0.3;
         public double stallMinPower = 0.0;
         public double stallTolerance = 0.0;
         public double stallTimeout = 0.0;
@@ -385,6 +385,7 @@ public class TrcPidActuator extends TrcPidMotor
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -392,8 +393,8 @@ public class TrcPidActuator extends TrcPidMotor
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        String owner, double delay, int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
-        double timeout)
+        String owner, double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event,
+        TrcNotifier.Receiver callback, double timeout)
     {
         if (validateOwnership(owner))
         {
@@ -412,7 +413,7 @@ public class TrcPidActuator extends TrcPidMotor
                     presetPosition = preset;
                 }
 
-                setTarget(delay, params.posPresets[presetPosition], holdTarget, event, callback, timeout);
+                setTarget(delay, params.posPresets[presetPosition], holdTarget, powerLimit, event, callback, timeout);
             }
         }
     }   //setPresetPosition
@@ -423,6 +424,7 @@ public class TrcPidActuator extends TrcPidMotor
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -430,9 +432,10 @@ public class TrcPidActuator extends TrcPidMotor
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        double delay, int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
+        double timeout)
     {
-        setPresetPosition(null, delay, preset, holdTarget, event, callback, timeout);
+        setPresetPosition(null, delay, preset, holdTarget, powerLimit, event, callback, timeout);
     }   //setPresetPosition
 
     /**
@@ -440,6 +443,7 @@ public class TrcPidActuator extends TrcPidMotor
      *
      * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
      * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -447,9 +451,23 @@ public class TrcPidActuator extends TrcPidMotor
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        int preset, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        int preset, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
+        double timeout)
     {
-        setPresetPosition(null, 0.0, preset, holdTarget, event, callback, timeout);
+        setPresetPosition(null, 0.0, preset, holdTarget, powerLimit, event, callback, timeout);
+    }   //setPresetPosition
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param preset specifies the index to the preset position array.
+     * @param powerLimit specifies the maximum power limit.
+     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param callback specifies the callback handler to notify when done, can be null if not provided.
+     */
+    public void setPresetPosition(int preset, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback)
+    {
+        setPresetPosition(null, 0.0, preset, true, powerLimit, event, callback, 0.0);
     }   //setPresetPosition
 
     /**
@@ -461,7 +479,19 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(int preset, TrcEvent event, TrcNotifier.Receiver callback)
     {
-        setPresetPosition(null, 0.0, preset, true, event, callback, 0.0);
+        setPresetPosition(null, 0.0, preset, true, 1.0, event, callback, 0.0);
+    }   //setPresetPosition
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
+     * @param preset specifies the index to the preset position array.
+     * @param powerLimit specifies the maximum power limit.
+     */
+    public void setPresetPosition(double delay, int preset, double powerLimit)
+    {
+        setPresetPosition(null, delay, preset, true, powerLimit, null, null, 0.0);
     }   //setPresetPosition
 
     /**
@@ -472,7 +502,18 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(double delay, int preset)
     {
-        setPresetPosition(null, delay, preset, true, null, null, 0.0);
+        setPresetPosition(null, delay, preset, true, 1.0, null, null, 0.0);
+    }   //setPresetPosition
+
+    /**
+     * This method sets the actuator to the specified preset position.
+     *
+     * @param preset specifies the index to the preset position array.
+     * @param powerLimit specifies the maximum power limit.
+     */
+    public void setPresetPosition(int preset, double powerLimit)
+    {
+        setPresetPosition(null, 0.0, preset, true, powerLimit, null, null, 0.0);
     }   //setPresetPosition
 
     /**
@@ -482,7 +523,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(int preset)
     {
-        setPresetPosition(null, 0.0, preset, true, null, null, 0.0);
+        setPresetPosition(null, 0.0, preset, true, 1.0, null, null, 0.0);
     }   //setPresetPosition
 
     /**

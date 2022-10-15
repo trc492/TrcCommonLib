@@ -109,7 +109,7 @@ public class TrcPidConveyor extends TrcPidMotor
         /**
          * This method sets the maximum number of objects the conveyor can hold.
          *
-         * @param maxCapacity specifies maximum number of objects the conveyor can hold.
+         * @param capacity specifies maximum number of objects the conveyor can hold.
          * @return this parameter object.
          */
         public Parameters setMaxCapacity(int capacity)
@@ -260,7 +260,7 @@ public class TrcPidConveyor extends TrcPidMotor
             }
             this.onFinishEvent = event;
             this.onFinishCallback = callback;
-            setTarget(units*params.objectDistance, false, null, this::reachedTarget);
+            setTarget(units*params.objectDistance, false, 1.0, null, this::reachedTarget);
         }
     }   //move
 

@@ -155,7 +155,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.syncGain = syncGain;
         this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams, this::getPosition);
         this.lowerLimitSwitch = lowerLimitSwitch;
-        this.defCalPower = -Math.abs(defCalPower);
+        this.defCalPower = defCalPower;
         this.powerCompensation = powerCompensation;
         pidMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
         stopMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".stopMotorTask", this::stopMotorTask);
@@ -575,6 +575,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done, can be null if not provided.
      * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -582,8 +583,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
-        String owner, double delay, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback,
-        double timeout)
+        String owner, double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event,
+        TrcNotifier.Receiver callback, double timeout)
     {
         final String funcName = "setTarget";
 
@@ -604,6 +605,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 stop(false);
             }
 
+            this.powerClamp = Math.abs(powerLimit);
             if (delay > 0.0)
             {
                 this.target = target;
@@ -662,6 +664,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
      * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -669,9 +672,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
-        double delay, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event,
+        TrcNotifier.Receiver callback, double timeout)
     {
-        setTarget(null, delay, target, holdTarget, event, callback, timeout);
+        setTarget(null, delay, target, holdTarget, powerLimit, event, callback, timeout);
     }   //setTarget
 
     /**
@@ -684,6 +688,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
      * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -691,9 +696,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
-        String owner, double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        String owner, double target, boolean holdTarget, double powerLimit, TrcEvent event,
+        TrcNotifier.Receiver callback, double timeout)
     {
-        setTarget(owner, 0.0, target, holdTarget, event, callback, timeout);
+        setTarget(owner, 0.0, target, holdTarget, powerLimit, event, callback, timeout);
     }   //setTarget
 
     /**
@@ -705,6 +711,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
      * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
@@ -712,9 +719,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
-        double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        double target, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
+        double timeout)
     {
-        setTarget(null, 0.0, target, holdTarget, event, callback, timeout);
+        setTarget(null, 0.0, target, holdTarget, powerLimit, event, callback, timeout);
     }   //setTarget
 
     /**
@@ -726,12 +734,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
      * @param callback specifies a callback handler to notify when done, can be null if not provided.
      */
-    public void setTarget(double target, boolean holdTarget, TrcEvent event, TrcNotifier.Receiver callback)
+    public void setTarget(
+        double target, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback)
     {
-        setTarget(null, 0.0, target, holdTarget, event, callback, 0.0);
+        setTarget(null, 0.0, target, holdTarget, powerLimit, event, callback, 0.0);
     }   //setTarget
 
     /**
@@ -743,11 +753,24 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param target specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
      */
-    public void setTarget(double target, boolean holdTarget, TrcEvent event)
+    public void setTarget(double target, boolean holdTarget, double powerLimit, TrcEvent event)
     {
-        setTarget(null, 0.0, target, holdTarget, event, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, powerLimit, event, null, 0.0);
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target.
+     *
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
+     */
+    public void setTarget(double target, boolean holdTarget, double powerLimit)
+    {
+        setTarget(null, 0.0, target, holdTarget, powerLimit, null, null, 0.0);
     }   //setTarget
 
     /**
@@ -758,7 +781,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget)
     {
-        setTarget(null, 0.0, target, holdTarget, null, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, 1.0, null, null, 0.0);
     }   //setTarget
 
     /**
@@ -768,7 +791,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target)
     {
-        setTarget(null, 0.0, target, true, null, null, 0.0);
+        setTarget(null, 0.0, target, true, 1.0, null, null, 0.0);
     }   //setTarget
 
     /**
@@ -778,7 +801,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void delayExpired(Object timer)
     {
-        setTarget(null, 0.0, target, holdTarget, notifyEvent, notifyCallback, timeout);
+        setTarget(null, 0.0, target, holdTarget, powerClamp, notifyEvent, notifyCallback, timeout);
     }   //delayExpired
 
     /**
@@ -1058,13 +1081,12 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     // We are stopping, Relax the power range to max range so we have full power to hold target if
                     // necessary.
                     //
-                    powerClamp = 1.0;
                     if (holdTarget)
                     {
                         //
                         // Hold target at current position.
                         //
-                        setTarget(getPosition(), true, null, null, 0.0);
+                        setTarget(getPosition(), true, 1.0, null, null, 0.0);
                     }
                     else
                     {
@@ -1079,8 +1101,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     //
                     // We changed direction, change the target.
                     //
-                    powerClamp = power;
-                    setTarget(currTarget, holdTarget, null, null, 0.0);
+                    setTarget(currTarget, holdTarget, power, null, null, 0.0);
                 }
                 prevTarget = currTarget;
             }
@@ -1156,12 +1177,22 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
         if (validateOwnership(owner))
         {
+            if (pidActive)
+            {
+                stop(true);
+            }
             //
-            // Calibration power is always negative. Motor 1 always has a lower limit switch. If there is a motor 2,
-            // motor 2 has a lower limit switch only if it is independent of motor 1 and needs synchronizing with
-            // motor 1.
+            // Generally, calibration power should be negative so that the motor will move towards the lower limit
+            // switch. However, in some scenarios such as a turret that can turn all the way around and has only one
+            // limit switch, it may be necessary to use a positive calibration power to move it towards the limit
+            // switch instead of using negative calibration power and turning the long way around that may cause
+            // wires to entangle.
+            // In a multiple-motor scenario, motor 1 always has a lower limit switch. If there is a motor 2, motor 2
+            // has a lower limit switch only if it is independent of motor 1 and needs synchronizing with motor 1.
             //
-            this.calPower = -Math.abs(calPower);
+            this.calPower = calPower;
+            this.notifyEvent = event;
+            this.notifyCallback = notifier;
             calibrating = true;
             motor1ZeroCalDone = false;
             motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
