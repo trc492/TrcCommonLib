@@ -214,7 +214,7 @@ public abstract class TrcGameController
      *
      * @return stick direction in radians.
      */
-    protected double getDirectionRadians(double xValue, double yValue)
+    public double getDirectionRadians(double xValue, double yValue)
     {
         final String funcName = "getDirectionRadians";
         double value = Math.atan2(yValue, xValue);
@@ -236,7 +236,7 @@ public abstract class TrcGameController
      *
      * @return stick direction in degrees.
      */
-    protected double getDirectionDegrees(double xValue, double yValue)
+    public double getDirectionDegrees(double xValue, double yValue)
     {
         final String funcName = "getDirectionDegrees";
         double value = Math.toDegrees(getDirectionRadians(xValue, yValue));
@@ -258,7 +258,7 @@ public abstract class TrcGameController
      * @param y specifies the y value.
      * @return returns the magnitude value.
      */
-    protected double getMagnitude(double x, double y)
+    public double getMagnitude(double x, double y)
     {
         final String funcName = "getMagnitude";
         double value = TrcUtil.magnitude(x, y);
