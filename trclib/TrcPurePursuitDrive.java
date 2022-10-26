@@ -119,6 +119,7 @@ public class TrcPurePursuitDrive
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
+    private volatile boolean incrementalTurn = true;
     private volatile boolean maintainHeading = false;
 
     private TrcPath path;
@@ -167,6 +168,7 @@ public class TrcPurePursuitDrive
                 "xPosPidCoeff is provided but drive base does not support holonomic drive!");
         }
 
+        incrementalTurn = xPosPidCoeff != null;
         if (invertedTarget)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
@@ -367,6 +369,20 @@ public class TrcPurePursuitDrive
     {
         this.fastModeEnabled = enabled;
     }   //setFastModeEnabled
+
+    /**
+     * This method enables/disables incremental turn when running a path segment. Incremental turn is only
+     * applicable for holonomic drive base.
+     *
+     * @param  enabled specifies true to enable incremental turn, false to disable.
+     */
+    public void setIncrementalTurnEnabled(boolean enabled)
+    {
+        if (xPosPidCtrl != null)
+        {
+            this.incrementalTurn = enabled;
+        }
+    }   //setIncrementalTurn
 
     /**
      * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
@@ -1126,7 +1142,8 @@ public class TrcPurePursuitDrive
     {
         if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
-            return interpolate(startWaypoint, endWaypoint, 1.0, xPosPidCtrl == null? robotPose: null);
+            return interpolate(
+                startWaypoint, endWaypoint, 1.0, !incrementalTurn? robotPose: null);
         }
         else
         {
