@@ -810,7 +810,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     public void resetPositionOnDigitalInput(
         TrcDigitalInput digitalInput, TrcTrigger.DigitalTriggerHandler triggerHandler)
     {
-        resetPositionOnDigitalInput(digitalInput, triggerHandler, TriggerMode.OnBoth);
+        resetPositionOnDigitalInput(digitalInput, triggerHandler, TriggerMode.OnActive);
     }   //resetPositionOnDigitalInput
 
     /**

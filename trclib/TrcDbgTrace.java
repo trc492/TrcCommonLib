@@ -180,6 +180,36 @@ public class TrcDbgTrace
     }   //setGlobalTracerConfig
 
     /**
+     * This method prints the stack of the given thread to the trace log.
+     *
+     * @param thread specifies the thread to print its stack.
+     */
+    public static void printThreadStack(Thread thread)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        if (globalTracer == null)
+        {
+            getGlobalTracer();
+        }
+
+        for (StackTraceElement ste : thread.getStackTrace())
+        {
+            sb.append("\n" + ste);
+        }
+
+        globalTracer.traceInfo("triggerEvent", "thread stack: %s", sb.toString());
+    }   //printThreadStack
+
+    /**
+     * This method prints the stack of the current thread to the trace log.
+     */
+    public static void printThreadStack()
+    {
+        printThreadStack(Thread.currentThread());
+    }   //printThreadStack
+
+    /**
      * This method opens a log file for writing all the trace messages to it.
      *
      * @param traceLogName specifies the full trace log file path name.

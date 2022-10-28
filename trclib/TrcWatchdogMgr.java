@@ -155,7 +155,7 @@ public class TrcWatchdogMgr
         {
             StringBuilder sb = new StringBuilder();
 
-            for(StackTraceElement ste : this.thread.getStackTrace())
+            for (StackTraceElement ste : this.thread.getStackTrace())
             {
                 sb.append("\n" + ste);
             }

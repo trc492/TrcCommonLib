@@ -58,9 +58,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         /**
          * This method is called to compute the power compensation to counteract the varying non-linear load.
          *
+         * @param currPower specifies the current motor power.
          * @return compensation value of the actuator.
          */
-        double getCompensation();
+        double getCompensation(double currPower);
 
     }   //interface PowerCompensation
 
@@ -943,7 +944,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "power=%f,rangeLow=%f,rangeHigh=%f,stopPid=%s",
+                                "power=%f,rangeLow=%f,rangeHigh=%f,stopPid=%s)",
                                 power, rangeLow, rangeHigh, Boolean.toString(stopPid));
         }
         //
@@ -964,7 +965,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             //
             if (powerCompensation != null)
             {
-                power += powerCompensation.getCompensation();
+                power += powerCompensation.getCompensation(power);
             }
             power = TrcUtil.clipRange(power, rangeLow, rangeHigh);
             motorPower = power;

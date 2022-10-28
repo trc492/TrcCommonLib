@@ -49,7 +49,8 @@ public class TrcPidActuator extends TrcPidMotor
         public double minPos = 0.0, maxPos = 1.0;
         public double scale = 1.0, offset = 0.0;
         public TrcPidController.PidParameters pidParams;
-        public double calPower = -0.3;
+        public boolean resetPosOnLowerLimit = true;
+        public double calPower = -0.25;
         public double stallMinPower = 0.0;
         public double stallTolerance = 0.0;
         public double stallTimeout = 0.0;
@@ -142,6 +143,18 @@ public class TrcPidActuator extends TrcPidMotor
         }   //setZeroCalibratePower
 
         /**
+         * This method enables/disables the lower limit switch triggering a position reset.
+         *
+         * @param enabled specifies true to enable the lower limit switch trigger to reset position.
+         * @return this parameter object.
+         */
+        public Parameters resetPositionOnLowerLimit(boolean enabled)
+        {
+            this.resetPosOnLowerLimit = enabled;
+            return this;
+        }   //resetPositionOnLowerLimit
+
+        /**
          * This method sets the stall protection parameters of the motor actuator.
          *
          * @param stallMinPower specifies the minimum power applied to the motor before stall detection will kick in.
@@ -215,7 +228,7 @@ public class TrcPidActuator extends TrcPidMotor
         this.upperLimitSwitch = upperLimitSwitch;
         this.params = params;
 
-        if (lowerLimitSwitch != null)
+        if (lowerLimitSwitch != null && params.resetPosOnLowerLimit)
         {
             motor1.resetPositionOnDigitalInput(lowerLimitSwitch);
         }
@@ -264,6 +277,16 @@ public class TrcPidActuator extends TrcPidMotor
     {
         this(instanceName, motor, null, 0.0, lowerLimitSwitch, upperLimitSwitch, params);
     }   //TrcPidActuator
+
+    /**
+     * This method enables/disables lower limit switch to trigger a position reset.
+     *
+     * @param enabled specifies true to enable lower limit switch to trigger a position reset, false to disable.
+     */
+    public void setResetPosOnLowerLimitEnabled(boolean enabled)
+    {
+        params.resetPositionOnLowerLimit(enabled);
+    }   //setResetPosOnLowerLimitEnabled
 
     /**
      * This method checks if the lower limit switch is activated.
