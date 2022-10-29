@@ -231,7 +231,7 @@ public class TrcAnalogSensorTrigger<D> extends TrcTrigger
     {
         TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
         return data != null && data.value != null? data.value: 0.0;
-    }   //getSensorValue
+    }   //getValue
 
     /**
      * This method reads the current digital sensor state (not supported).
