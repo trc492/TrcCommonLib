@@ -406,7 +406,7 @@ public class TrcPidActuator extends TrcPidMotor
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
@@ -416,26 +416,15 @@ public class TrcPidActuator extends TrcPidMotor
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        String owner, double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event,
+        String owner, double delay, int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event,
         TrcNotifier.Receiver callback, double timeout)
     {
         if (validateOwnership(owner))
         {
-            if (params.posPresets != null)
+            presetIndex = validatePresetIndex(presetIndex);
+            if (presetIndex >= 0)
             {
-                if (preset < 0)
-                {
-                    presetPosition = 0;
-                }
-                else if (preset >= params.posPresets.length)
-                {
-                    presetPosition = params.posPresets.length - 1;
-                }
-                else
-                {
-                    presetPosition = preset;
-                }
-
+                presetPosition = presetIndex;
                 setTarget(delay, params.posPresets[presetPosition], holdTarget, powerLimit, event, callback, timeout);
             }
         }
@@ -572,7 +561,37 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public int getPresetPosition()
     {
-        return presetPosition;
+        return validatePresetIndex(presetPosition);
     }   //getPresetPosition
+
+    /**
+     * This method checks if the given preset index is within the index table. If not, it will coerce the index
+     * back to within the valid index range of the table.
+     *
+     * @param index specifies the preset table index to be validated.
+     * @return validated preset index, -1 if there is no preset table.
+     */
+    public int validatePresetIndex(int index)
+    {
+        int validIndex = -1;
+
+        if (params.posPresets != null)
+        {
+            if (index < 0)
+            {
+                validIndex = 0;
+            }
+            else if (index >= params.posPresets.length)
+            {
+                validIndex = params.posPresets.length - 1;
+            }
+            else
+            {
+                validIndex = index;
+            }
+        }
+
+        return validIndex;
+    }   //validatePresetIndex
 
 }   //class TrcPidActuator
