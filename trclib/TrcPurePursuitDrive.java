@@ -122,6 +122,7 @@ public class TrcPurePursuitDrive
     private volatile boolean incrementalTurn = true;
     private volatile boolean maintainHeading = false;
 
+    private String owner = null;
     private TrcPath path;
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
@@ -578,6 +579,7 @@ public class TrcPurePursuitDrive
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
+     * @param owner           specifies the ID string of the caller requesting exclusive access.
      * @param path            The path to follow. Must start at (0,0).
      * @param onFinishedEvent When finished, signal this event.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
@@ -585,7 +587,7 @@ public class TrcPurePursuitDrive
      * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
     public synchronized void start(
-        TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
+        String owner, TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
     {
         final String funcName = "start";
 
@@ -594,63 +596,83 @@ public class TrcPurePursuitDrive
             throw new IllegalArgumentException("Path cannot be null or empty!");
         }
 
-        cancel();
-
-        if (onFinishedEvent != null)
+        if (driveBase.validateOwnership(owner))
         {
-            onFinishedEvent.clear();
-        }
-        this.onFinishedEvent = onFinishedEvent;
+            this.owner = owner;
+            cancel();
 
-        this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
-
-        double currTime = TrcUtil.getCurrentTime();
-        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
-        stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
-
-        referencePose = driveBase.getFieldPosition();
-        pathIndex = 1;
-
-        if (xPosPidCtrl != null)
-        {
-            xPosPidCtrl.reset();
-        }
-        else
-        {
-            //
-            // For non-holonomic drive base, the robot heading must be pointing to the endpoint of the line segment.
-            // So, we must ignore the provided startpoint heading and compute our own based on the startpoint heading
-            // and the relative angle of the startpoint from the endpoint.
-            //
-            for (int i = 0; i < path.getSize() - 1; i++)
+            if (onFinishedEvent != null)
             {
-                TrcWaypoint startPoint = path.getWaypoint(i);
-                TrcWaypoint endPoint = path.getWaypoint(i + 1);
-                startPoint.pose.angle = Math.toDegrees(Math.atan2(endPoint.pose.x - startPoint.pose.x,
-                                                                  endPoint.pose.y - startPoint.pose.y));
+                onFinishedEvent.clear();
             }
-        }
-        yPosPidCtrl.reset();
-        turnPidCtrl.reset();
-        velPidCtrl.reset();
+            this.onFinishedEvent = onFinishedEvent;
 
-        if (invertedTarget)
-        {
+            this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
+
+            double currTime = TrcUtil.getCurrentTime();
+            timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
+            stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
+
+            referencePose = driveBase.getFieldPosition();
+            pathIndex = 1;
+
             if (xPosPidCtrl != null)
             {
-                xPosPidCtrl.setTarget(0.0);
+                xPosPidCtrl.reset();
             }
-            yPosPidCtrl.setTarget(0.0);
-            turnPidCtrl.setTarget(driveBase.getHeading());
-        }
+            else
+            {
+                //
+                // For non-holonomic drive base, the robot heading must be pointing to the endpoint of the line segment.
+                // So, we must ignore the provided startpoint heading and compute our own based on the startpoint heading
+                // and the relative angle of the startpoint from the endpoint.
+                //
+                for (int i = 0; i < path.getSize() - 1; i++)
+                {
+                    TrcWaypoint startPoint = path.getWaypoint(i);
+                    TrcWaypoint endPoint = path.getWaypoint(i + 1);
+                    startPoint.pose.angle = Math.toDegrees(Math.atan2(endPoint.pose.x - startPoint.pose.x,
+                                                                      endPoint.pose.y - startPoint.pose.y));
+                }
+            }
+            yPosPidCtrl.reset();
+            turnPidCtrl.reset();
+            velPidCtrl.reset();
 
-        resetError = true;
-        driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+            if (invertedTarget)
+            {
+                if (xPosPidCtrl != null)
+                {
+                    xPosPidCtrl.setTarget(0.0);
+                }
+                yPosPidCtrl.setTarget(0.0);
+                turnPidCtrl.setTarget(driveBase.getHeading());
+            }
 
-        if (msgTracer != null)
-        {
-            msgTracer.traceInfo(funcName, "Path=%s", path.toAbsolute(referencePose));
+            resetError = true;
+            driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(funcName, "Path=%s", path.toAbsolute(referencePose));
+            }
         }
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     */
+    public void start(
+        TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
+    {
+        start(null, path, onFinishedEvent, timeout, maxVel, maxAccel);
     }   //start
 
     /**
@@ -664,7 +686,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path, TrcEvent onFinishedEvent, Double maxVel, Double maxAccel)
     {
-        start(path, onFinishedEvent, 0.0, maxVel, maxAccel);
+        start(null, path, onFinishedEvent, 0.0, maxVel, maxAccel);
     }   //start
 
     /**
@@ -677,7 +699,21 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path, Double maxVel, Double maxAccel)
     {
-        start(path, null, 0.0, maxVel, maxAccel);
+        start(null, path, null, 0.0, maxVel, maxAccel);
+    }   //start
+
+    /**
+     * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
+     * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
+     *
+     * @param owner           specifies the ID string of the caller requesting exclusive access.
+     * @param path            The path to follow. Must start at (0,0).
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
+     */
+    public void start(String owner, TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    {
+        start(owner, path, onFinishedEvent, timeout, null, null);
     }   //start
 
     /**
@@ -688,9 +724,9 @@ public class TrcPurePursuitDrive
      * @param onFinishedEvent When finished, signal this event.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
      */
-    public synchronized void start(TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    public void start(TrcPath path, TrcEvent onFinishedEvent, double timeout)
     {
-        start(path, onFinishedEvent, timeout, null, null);
+        start(null, path, onFinishedEvent, timeout, null, null);
     }   //start
 
     /**
@@ -702,7 +738,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path, TrcEvent onFinishedEvent)
     {
-        start(path, onFinishedEvent, 0.0, null, null);
+        start(null, path, onFinishedEvent, 0.0, null, null);
     }   //start
 
     /**
@@ -713,7 +749,34 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path)
     {
-        start(path, null, 0.0, null, null);
+        start(null, path, null, 0.0, null, null);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param owner           specifies the ID string of the caller requesting exclusive access.
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+            String owner, TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+            Double maxVel, Double maxAccel, TrcPose2D... poses)
+    {
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
+
+        for (TrcPose2D pose: poses)
+        {
+            pathBuilder.append(pose);
+        }
+
+        start(owner, pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout, maxVel, maxAccel);
     }   //start
 
     /**
@@ -729,17 +792,10 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-            TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
-            Double maxVel, Double maxAccel, TrcPose2D... poses)
+        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        Double maxVel, Double maxAccel, TrcPose2D... poses)
     {
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
-
-        for (TrcPose2D pose: poses)
-        {
-            pathBuilder.append(pose);
-        }
-
-        start(pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout, maxVel, maxAccel);
+        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
@@ -760,7 +816,7 @@ public class TrcPurePursuitDrive
         TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
         Double maxVel, Double maxAccel, String path, boolean loadFromResources)
     {
-        start(onFinishedEvent, timeout, startingPose, incrementalPath, maxVel, maxAccel,
+        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, maxVel, maxAccel,
               TrcPose2D.loadPosesFromCsv(path, loadFromResources));
     }   //start
 
@@ -779,7 +835,7 @@ public class TrcPurePursuitDrive
         TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel,
         TrcPose2D... poses)
     {
-        start(onFinishedEvent, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+        start(null, onFinishedEvent, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
@@ -795,7 +851,25 @@ public class TrcPurePursuitDrive
     public void start(
         TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel, TrcPose2D... poses)
     {
-        start(null, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+        start(null, null, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param owner           specifies the ID string of the caller requesting exclusive access.
+     * @param onFinishedEvent When finished, signal this event.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        String owner, TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        TrcPose2D... poses)
+    {
+        start(owner, onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -811,7 +885,7 @@ public class TrcPurePursuitDrive
     public void start(
         TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
+        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -825,7 +899,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(onFinishedEvent, 0.0, startingPose, incrementalPath, null, null, poses);
+        start(null, onFinishedEvent, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -838,7 +912,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(null, 0.0, startingPose, incrementalPath, null, null, poses);
+        start(null, null, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -857,7 +931,7 @@ public class TrcPurePursuitDrive
      */
     public synchronized void cancel()
     {
-        if (isActive())
+        if (isActive() && driveBase.validateOwnership(owner))
         {
             if (onFinishedEvent != null)
             {
@@ -881,7 +955,8 @@ public class TrcPurePursuitDrive
     private synchronized void stop()
     {
         driveTaskObj.unregisterTask();
-        driveBase.stop();
+        driveBase.stop(owner);
+        owner = null;
     }   //stop
 
     /**
@@ -1017,11 +1092,11 @@ public class TrcPurePursuitDrive
         }
         else if (xPosPidCtrl != null)
         {
-            driveBase.holonomicDrive(xPosPower, yPosPower, turnPower);
+            driveBase.holonomicDrive(owner, xPosPower, yPosPower, turnPower);
         }
         else
         {
-            driveBase.arcadeDrive(yPosPower, turnPower);
+            driveBase.arcadeDrive(owner, yPosPower, turnPower, false);
         }
 
         if (msgTracer != null)

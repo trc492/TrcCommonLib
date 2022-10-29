@@ -526,16 +526,16 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     private void setTarget(
-            double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event, double timeout)
+        double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setTarget";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                    funcName, TrcDbgTrace.TraceLevel.FUNC,
-                    "owner=%s,x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
-                    owner, xTarget, yTarget, turnTarget, holdTarget, event.toString(), timeout);
+                funcName, TrcDbgTrace.TraceLevel.FUNC,
+                "x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
+                xTarget, yTarget, turnTarget, holdTarget, event.toString(), timeout);
         }
 
         double xError = 0.0, yError = 0.0, turnError = 0.0;
@@ -546,8 +546,7 @@ public class TrcPidDrive
             throw new IllegalStateException("X and Y PID controller must have the same absolute setpoint state.");
         }
 
-        if (xPidCtrl != null && !xPidCtrl.hasAbsoluteSetPoint() ||
-            yPidCtrl != null && !yPidCtrl.hasAbsoluteSetPoint())
+        if (xPidCtrl != null && !xPidCtrl.hasAbsoluteSetPoint() || yPidCtrl != null && !yPidCtrl.hasAbsoluteSetPoint())
         {
             driveBase.pushReferenceOdometry();
             savedReferencePose = true;
@@ -610,8 +609,8 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public synchronized void setSensorTarget(
-            String owner, double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event,
-            double timeout)
+        String owner, double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event,
+        double timeout)
     {
         if (absTargetModeEnabled)
         {
@@ -652,7 +651,7 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public void setSensorTarget(
-            double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event, double timeout)
+        double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event, double timeout)
     {
         setSensorTarget(null, xTarget, yTarget, turnTarget, holdTarget, event, timeout);
     }   //setSensorTarget
@@ -688,8 +687,8 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public synchronized void setRelativeTarget(
-            String owner, double xDelta, double yDelta, double turnDelta,
-            boolean holdTarget, TrcEvent event, double timeout)
+        String owner, double xDelta, double yDelta, double turnDelta,
+        boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setRelativeTarget";
 
@@ -793,7 +792,7 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public void setRelativeTarget(
-            double xDelta, double yDelta, double turnDelta, boolean holdTarget, TrcEvent event, double timeout)
+        double xDelta, double yDelta, double turnDelta, boolean holdTarget, TrcEvent event, double timeout)
     {
         setRelativeTarget(null, xDelta, yDelta, turnDelta, holdTarget, event, timeout);
     }   //setRelativeTarget
@@ -956,8 +955,7 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public synchronized void setAbsoluteTarget(
-            String owner, double absX, double absY, double absHeading,
-            boolean holdTarget, TrcEvent event, double timeout)
+        String owner, double absX, double absY, double absHeading, boolean holdTarget, TrcEvent event, double timeout)
     {
         final String funcName = "setAbsoluteTarget";
 
@@ -1030,7 +1028,7 @@ public class TrcPidDrive
      *                specified, it should be set to zero.
      */
     public void setAbsoluteTarget(
-            double absX, double absY, double absHeading, boolean holdTarget, TrcEvent event, double timeout)
+        double absX, double absY, double absHeading, boolean holdTarget, TrcEvent event, double timeout)
     {
         setAbsoluteTarget(null, absX, absY, absHeading, holdTarget, event, timeout);
     }   //setAbsoluteTarget
@@ -1251,8 +1249,7 @@ public class TrcPidDrive
         // and Y PID controllers are turned off during the turn.
         //
         final TrcPose2D currentAbsPose = driveBase.getFieldPosition();
-        setAbsoluteTarget(
-                null, currentAbsPose.x, currentAbsPose.y, absHeading, false, event, timeout);
+        setAbsoluteTarget(null, currentAbsPose.x, currentAbsPose.y, absHeading, false, event, timeout);
     }   //setAbsoluteHeadingTarget
 
     /**
@@ -1279,8 +1276,8 @@ public class TrcPidDrive
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "xPower=%f,yPower=%f,angle=%f", xPower, yPower, headingTarget);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "xPower=%f,yPower=%f,angle=%f", xPower, yPower, headingTarget);
         }
 
         if (xPidCtrl != null)
