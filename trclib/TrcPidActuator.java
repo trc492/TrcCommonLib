@@ -204,7 +204,6 @@ public class TrcPidActuator extends TrcPidMotor
     private final Parameters params;
     private final TrcDigitalInput lowerLimitSwitch;
     private final TrcDigitalInput upperLimitSwitch;
-    private int presetPosition = 0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -402,6 +401,17 @@ public class TrcPidActuator extends TrcPidMotor
     }   //setPower
 
     /**
+     * This method checks if the preset index is within the preset table.
+     *
+     * @param index specifies the preset table index to check.
+     * @return true if there is a preset table and the index is within the table.
+     */
+    public boolean validatePresetIndex(int index)
+    {
+        return params.posPresets != null && index >= 0 && index < params.posPresets.length;
+    }   //validatePresetIndex
+
+    /**
      * This method sets the actuator to the specified preset position.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
@@ -419,13 +429,11 @@ public class TrcPidActuator extends TrcPidMotor
         String owner, double delay, int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event,
         TrcNotifier.Receiver callback, double timeout)
     {
-        if (validateOwnership(owner))
+        if (validatePresetIndex(presetIndex))
         {
-            presetIndex = validatePresetIndex(presetIndex);
-            if (presetIndex >= 0)
+            if (validateOwnership(owner))
             {
-                presetPosition = presetIndex;
-                setTarget(delay, params.posPresets[presetPosition], holdTarget, powerLimit, event, callback, timeout);
+                setTarget(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, callback, timeout);
             }
         }
     }   //setPresetPosition
@@ -539,59 +547,81 @@ public class TrcPidActuator extends TrcPidMotor
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the next preset position up.
-     */
-    public void presetPositionUp()
-    {
-        setPresetPosition(presetPosition + 1);
-    }   //presetPositionUp
-
-    /**
-     * This method sets the actuator to the next preset position down.
-     */
-    public void presetPositionDown()
-    {
-        setPresetPosition(presetPosition - 1);
-    }   //presetPositionDown
-
-    /**
-     * This method returns the last preset level that is set to the actuator.
+     * This method determines the next preset index up from the current position.
      *
-     * @return last preset level set.
+     * @return next preset index up, -1 if there is no preset table.
      */
-    public int getPresetPosition()
+    public int nextPresetIndexUp()
     {
-        return validatePresetIndex(presetPosition);
-    }   //getPresetPosition
-
-    /**
-     * This method checks if the given preset index is within the index table. If not, it will coerce the index
-     * back to within the valid index range of the table.
-     *
-     * @param index specifies the preset table index to be validated.
-     * @return validated preset index, -1 if there is no preset table.
-     */
-    public int validatePresetIndex(int index)
-    {
-        int validIndex = -1;
+        int index = -1;
 
         if (params.posPresets != null)
         {
-            if (index < 0)
+            double currPos = getPosition();
+
+            for (int i = 0; i < params.posPresets.length; i++)
             {
-                validIndex = 0;
-            }
-            else if (index >= params.posPresets.length)
-            {
-                validIndex = params.posPresets.length - 1;
-            }
-            else
-            {
-                validIndex = index;
+                if (params.posPresets[i] > currPos)
+                {
+                    index = i;
+                    break;
+                }
             }
         }
 
-        return validIndex;
-    }   //validatePresetIndex
+        return index;
+    }   //nextPresetIndexUp
+
+    /**
+     * This method determines the next preset index down from the current position.
+     *
+     * @return next preset index down, -1 if there is no preset table.
+     */
+    public int nextPresetIndexDown()
+    {
+        int index = -1;
+
+        if (params.posPresets != null)
+        {
+            double currPos = getPosition();
+
+            for (int i = params.posPresets.length - 1; i >= 0; i--)
+            {
+                if (params.posPresets[i] < currPos)
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        return index;
+    }   //nextPresetIndexDown
+
+    /**
+     * This method sets the actuator to the next preset position up from the current position.
+     */
+    public void presetPositionUp()
+    {
+        int index = nextPresetIndexUp();
+
+        if (index != -1)
+        {
+            setPresetPosition(index);
+        }
+    }   //presetPositionUp
+
+    /**
+     * This method sets the actuator to the next preset position down from the current position.
+     */
+    public void presetPositionDown()
+    {
+        int index = nextPresetIndexDown();
+
+        if (index != -1)
+        {
+            setPresetPosition(index);
+        }
+    }   //presetPositionDown
 
 }   //class TrcPidActuator
