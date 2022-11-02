@@ -75,6 +75,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
 
     private TrcPidController tunePidCtrl = null;
     private PidCoefficients savedPidCoeff = null;
+    private Boolean savedTargetIsAbsolute = null;
     private Boolean savedWarpSpaceEnabled = null;
 
     /**
@@ -211,6 +212,12 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
             savedPidCoeff = null;
         }
 
+        if (savedTargetIsAbsolute != null)
+        {
+            tunePidCtrl.setAbsoluteSetPoint(savedTargetIsAbsolute);
+            savedTargetIsAbsolute = null;
+        }
+
         if (savedWarpSpaceEnabled != null)
         {
             pidDrive.setWarpSpaceEnabled(savedWarpSpaceEnabled);
@@ -272,7 +279,10 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                             pathPoints[0].angle != 0.0 && (tunePidCtrl = turnPidCtrl) != null)
                         {
                             savedPidCoeff = tunePidCtrl.getPidCoefficients();
+                            savedTargetIsAbsolute = tunePidCtrl.hasAbsoluteSetPoint();
+
                             tunePidCtrl.setPidCoefficients(tunePidCoeff);
+                            tunePidCtrl.setAbsoluteSetPoint(false);
 
                             globalTracer.traceInfo("PidTuning", "%s: Kp=%f, Ki=%f, Kd=%f, Kf=%f",
                                                    tunePidCtrl, tunePidCoeff.kP, tunePidCoeff.kI, tunePidCoeff.kD,

@@ -196,7 +196,7 @@ public class TrcPurePursuitDrive
         turnPidCtrl = new TrcPidController(
             instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
         turnPidCtrl.setAbsoluteSetPoint(true);
-        turnPidCtrl.setNoOscillation(true);
+        turnPidCtrl.setNoOscillation(false);
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
         velPidCtrl = new TrcPidController(
             instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
@@ -1083,6 +1083,10 @@ public class TrcPurePursuitDrive
 
         if (stalled || timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
+            TrcDbgTrace.globalTraceInfo(
+                funcName, "Done[index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
+                pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
+
             if (onFinishedEvent != null)
             {
                 onFinishedEvent.signal();

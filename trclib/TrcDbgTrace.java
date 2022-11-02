@@ -195,7 +195,7 @@ public class TrcDbgTrace
 
         for (StackTraceElement ste : thread.getStackTrace())
         {
-            sb.append("\n" + ste);
+            sb.append("\n").append(ste);
         }
 
         globalTracer.traceInfo("triggerEvent", "thread stack: %s", sb.toString());
@@ -377,7 +377,10 @@ public class TrcDbgTrace
                 {
                     TrcPose2D robotPose = driveBase.getFieldPosition();
                     TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
-                    msg.append(" RobotPose=" + robotPose + " TargetPose=" + targetPose);
+                    msg.append(" RobotPose=")
+                       .append(robotPose)
+                       .append(" TargetPose=")
+                       .append(targetPose);
                 }
 
                 if (ppDrive != null && ppDrive.isActive())
@@ -385,10 +388,14 @@ public class TrcDbgTrace
                     TrcPose2D robotPose = driveBase.getFieldPosition();
                     TrcPose2D robotVel = driveBase.getFieldVelocity();
                     TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
-                    msg.append(" RobotPose=" + robotPose +
-                               " TargetPose=" + targetPose +
-                               " vel=" + robotVel +
-                               " Path=" + ppDrive.getPath());
+                    msg.append(" RobotPose=")
+                       .append(robotPose)
+                       .append(" TargetPose=")
+                       .append(targetPose)
+                       .append(" vel=")
+                       .append(robotVel)
+                       .append(" Path=")
+                       .append(ppDrive.getPath());
                 }
             }
 
@@ -621,6 +628,79 @@ public class TrcDbgTrace
     }   //traceMsg
 
     /**
+     * This method is called to print a fatal message to the global tracer.
+     *
+     * @param funcName specifies the calling method name.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceFatal(final String funcName, final String format, Object... args)
+    {
+        globalTraceMsg(funcName, MsgLevel.FATAL, format, args);
+    }   //globalTraceFatal
+
+    /**
+     * This method is called to print an error message to the global tracer.
+     *
+     * @param funcName specifies the calling method name.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceErr(final String funcName, final String format, Object... args)
+    {
+        globalTraceMsg(funcName, MsgLevel.ERR, format, args);
+    }   //globalTraceErr
+
+    /**
+     * This method is called to print a warning message to the global tracer.
+     *
+     * @param funcName specifies the calling method name.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceWarn(final String funcName, final String format, Object... args)
+    {
+        globalTraceMsg(funcName, MsgLevel.WARN, format, args);
+    }   //globalTraceWarn
+
+    /**
+     * This method is called to print an information message to the global tracer.
+     *
+     * @param funcName specifies the calling method name.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceInfo(final String funcName, final String format, Object... args)
+    {
+        globalTraceMsg(funcName, MsgLevel.INFO, format, args);
+    }   //globalTraceInfo
+
+    /**
+     * This method is called to print a verbose message to the global tracer.
+     *
+     * @param funcName specifies the calling method name.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceVerbose(final String funcName, final String format, Object... args)
+    {
+        globalTraceMsg(funcName, MsgLevel.VERBOSE, format, args);
+    }   //globalTraceVerbose
+
+    /**
+     * This method is the common worker for all the global trace message methods.
+     *
+     * @param funcName specifies the calling method name.
+     * @param level specifies the message level.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    private static void globalTraceMsg(final String funcName, MsgLevel level, final String format, Object... args)
+    {
+        getGlobalTracer().traceMsg(funcName, level, format, args);
+   }   //globalTraceMsg
+
+    /**
      * This method returns a trace prefix string. The trace prefix includes the indentation, the instance name and
      * calling method name.
      *
@@ -631,7 +711,7 @@ public class TrcDbgTrace
      */
     private String tracePrefix(final String funcName, boolean enter, boolean newline)
     {
-        String prefix = "";
+        StringBuilder prefix = new StringBuilder();
 
         if (enter)
         {
@@ -640,22 +720,22 @@ public class TrcDbgTrace
 
         for (int i = 0; i < indentLevel; i++)
         {
-            prefix += "| ";
+            prefix.append("| ");
         }
 
-        prefix += instanceName + "." + funcName;
+        prefix.append(instanceName).append(".").append(funcName);
 
         if (enter)
         {
-            prefix += newline? "()\n": "(";
+            prefix.append(newline ? "()\n" : "(");
         }
         else
         {
-            prefix += newline? "!\n": "";
+            prefix.append(newline ? "!\n" : "");
             indentLevel--;
         }
 
-        return prefix;
+        return prefix.toString();
     }   //tracePrefix
 
     /**
