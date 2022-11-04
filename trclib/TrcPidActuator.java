@@ -55,6 +55,7 @@ public class TrcPidActuator extends TrcPidMotor
         public double stallTolerance = 0.0;
         public double stallTimeout = 0.0;
         public double resetTimeout = 0.0;
+        public double presetTolerance = 2.0;
         public double[] posPresets = null;
         public PowerCompensation powerCompensation = null;
 
@@ -69,9 +70,9 @@ public class TrcPidActuator extends TrcPidMotor
             return String .format(
                 Locale.US,
                 "rangePos=(%.1f, %.1f), scale=%.1f, offset=%.1f, pidParams=%s, calPower=%.1f, stallMinPower=%.1f, " +
-                "stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, posPresets=%s",
+                "stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, presetTolerance=%.2f, posPresets=%s",
                 minPos, maxPos, scale, offset, pidParams, calPower, stallMinPower, stallTolerance, stallTimeout,
-                resetTimeout, Arrays.toString(posPresets));
+                resetTimeout, presetTolerance, Arrays.toString(posPresets));
         }   //toString
 
         /**
@@ -173,6 +174,19 @@ public class TrcPidActuator extends TrcPidMotor
             this.resetTimeout = resetTimeout;
             return this;
         }   //setStallProtectionParams
+
+        /**
+         * This method sets the preset tolerance. Preset tolerance specifies the tolerance distance to be within
+         * the preset slot.
+         *
+         * @param tolerance specifies the preset tolerance.
+         * @return this parameter object.
+         */
+        public Parameters setPresetTolerance(double tolerance)
+        {
+            this.presetTolerance = tolerance;
+            return this;
+        }   //setPresetTolerance
 
         /**
          * This method sets an array of preset positions for the motor actuator.
@@ -564,6 +578,10 @@ public class TrcPidActuator extends TrcPidMotor
                 if (params.posPresets[i] > currPos)
                 {
                     index = i;
+                    if (Math.abs(currPos - params.posPresets[i]) <= params.presetTolerance)
+                    {
+                        index++;
+                    }
                     break;
                 }
             }
@@ -595,6 +613,10 @@ public class TrcPidActuator extends TrcPidMotor
                 if (params.posPresets[i] < currPos)
                 {
                     index = i;
+                    if (Math.abs(currPos - params.posPresets[i]) <= params.presetTolerance)
+                    {
+                        index--;
+                    }
                     break;
                 }
             }
