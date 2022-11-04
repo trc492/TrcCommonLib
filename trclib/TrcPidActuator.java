@@ -567,6 +567,11 @@ public class TrcPidActuator extends TrcPidMotor
                     break;
                 }
             }
+
+            if (index == -1)
+            {
+                index = params.posPresets.length - 1;
+            }
         }
 
         return index;
@@ -592,6 +597,11 @@ public class TrcPidActuator extends TrcPidMotor
                     index = i;
                     break;
                 }
+            }
+
+            if (index == -1)
+            {
+                index = 0;
             }
         }
 
