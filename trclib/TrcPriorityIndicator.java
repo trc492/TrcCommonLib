@@ -67,17 +67,20 @@ public abstract class TrcPriorityIndicator<T>
     {
         final T pattern;
         boolean enabled;
+        double expiredTime;
 
         /**
          * Constructor: Create an instance of the object.
          *
          * @param pattern specifies the pattern.
          * @param enabled specifies the initial state of the pattern.
+         * @param expiredTime specifies expired time after which the pattern is turned OFF, zero if no expired time.
          */
-        public PatternState(T pattern, boolean enabled)
+        public PatternState(T pattern, boolean enabled, double expiredTime)
         {
             this.pattern = pattern;
             this.enabled = enabled;
+            this.expiredTime = expiredTime;
         }   //PatternState
 
         /**
@@ -87,7 +90,7 @@ public abstract class TrcPriorityIndicator<T>
          */
         public PatternState(T pattern)
         {
-            this(pattern, false);
+            this(pattern, false, 0.0);
         }   //PatternState
 
         /**
@@ -98,14 +101,17 @@ public abstract class TrcPriorityIndicator<T>
         @Override
         public String toString()
         {
-            return pattern + "/" + enabled;
+            return pattern + "/" + enabled + ":" + expiredTime;
         }   //toString
 
     }   //class PatternState
 
     private final HashMap<String, T> namedPatternMap = new HashMap<>();
     private final String instanceName;
+    private final TrcTaskMgr.TaskObject indicatorTaskObj;
     private PatternState[] patternPriorities = null;
+    private boolean taskEnabled = false;
+    private double nextTaskRunTime;
 
     /**
      * Constructor: Create an instance of the object.
@@ -122,6 +128,7 @@ public abstract class TrcPriorityIndicator<T>
         }
 
         this.instanceName = instanceName;
+        indicatorTaskObj = TrcTaskMgr.createTask(instanceName, this::indicatorTask);
     }   //TrcPriorityIndicator
 
     /**
@@ -134,6 +141,28 @@ public abstract class TrcPriorityIndicator<T>
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method enables/disables the Indicator Task that periodically updates the indicator states.
+     *
+     * @param enabled specifies true to enable task, false to disable.
+     */
+    private void setTaskEnabled(boolean enabled)
+    {
+        if (enabled && !taskEnabled)
+        {
+            // Enabling task.
+            indicatorTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+            nextTaskRunTime = TrcUtil.getCurrentTime();
+        }
+        else if (!enabled && taskEnabled)
+        {
+            // Disabling task.
+            indicatorTaskObj.unregisterTask();
+        }
+
+        taskEnabled = enabled;
+    }   //setTaskEnabled
 
     /**
      * This method prints the Pattern Priority table to the given trace output for debugging purpose.
@@ -149,7 +178,8 @@ public abstract class TrcPriorityIndicator<T>
         {
             for (PatternState state: patternPriorities)
             {
-                msg.append(" " + state);
+                msg.append(" ");
+                msg.append(state);
             }
             tracer.traceInfo(funcName, msg.toString());
         }
@@ -168,8 +198,10 @@ public abstract class TrcPriorityIndicator<T>
      *
      * @param pattern specifies the pattern in the priority list.
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
+     * @param expiredTime specifies the time in seconds the LED stays ON, zero if stays on indefinitely.
+     *        Only applicable when enabled is true.
      */
-    public synchronized void setPatternState(T pattern, boolean enabled)
+    public synchronized void setPatternState(T pattern, boolean enabled, double expiredTime)
     {
         final String funcName = "setPatternState";
         int index = getPatternPriority(pattern);
@@ -183,6 +215,11 @@ public abstract class TrcPriorityIndicator<T>
         if (index != -1)
         {
             patternPriorities[index].enabled = enabled;
+            patternPriorities[index].expiredTime = 0.0;
+            if (enabled && expiredTime > 0.0)
+            {
+                patternPriorities[index].expiredTime = TrcUtil.getCurrentTime() + expiredTime;
+            }
             updateIndicator();
         }
 
@@ -197,11 +234,25 @@ public abstract class TrcPriorityIndicator<T>
      *
      * @param patternName specifies the name of the pattern in the priority list.
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
+     * @param expiredTime specifies the time in seconds the LED stays ON, zero if stays on indefinitely.
+     *        Only applicable when enabled is true.
+     * @throws IllegalAccessError when patternName is not found in the map.
+     */
+    public synchronized void setPatternState(String patternName, boolean enabled, double expiredTime)
+    {
+        setPatternState(namedPatternMap.get(patternName), enabled, expiredTime);
+    }   //setPatternState
+
+    /**
+     * This method enables/disables the pattern in the priority list.
+     *
+     * @param patternName specifies the name of the pattern in the priority list.
+     * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
     public synchronized void setPatternState(String patternName, boolean enabled)
     {
-        setPatternState(namedPatternMap.get(patternName), enabled);
+        setPatternState(namedPatternMap.get(patternName), enabled, 0.0);
     }   //setPatternState
 
     /**
@@ -266,6 +317,7 @@ public abstract class TrcPriorityIndicator<T>
             for (PatternState state : patternPriorities)
             {
                 state.enabled = false;
+                state.expiredTime = 0.0;
             }
 
             reset();
@@ -316,7 +368,8 @@ public abstract class TrcPriorityIndicator<T>
     }   //getPatternPriority
 
     /**
-     * This method sets the pattern priority list for operations that need it.
+     * This method sets the pattern priority list for operations that need it. The priority list must be sorted in
+     * increasing priorities.
      *
      * @param priorities specifies the pattern priority list or null to disregard the previously set list.
      */
@@ -351,14 +404,16 @@ public abstract class TrcPriorityIndicator<T>
                     if (patternState.enabled)
                     {
                         // This will silently fail if this pattern is not in the priority list
-                        setPatternState(patternState.pattern, true);
+                        setPatternState(patternState.pattern, true, patternState.expiredTime);
                     }
                 }
             }
             updateIndicator();
+            setTaskEnabled(true);
         }
         else
         {
+            setTaskEnabled(false);
             patternPriorities = null;
             namedPatternMap.clear();
             reset();
@@ -385,12 +440,22 @@ public abstract class TrcPriorityIndicator<T>
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
 
+        double currTime = TrcUtil.getCurrentTime();
         for (int i = patternPriorities.length - 1; i >= 0; i--)
         {
+            // Going from highest priority and down to low.
             if (patternPriorities[i].enabled)
             {
-                pattern = patternPriorities[i].pattern;
-                break;
+                if (patternPriorities[i].expiredTime > 0.0 && currTime >= patternPriorities[i].expiredTime)
+                {
+                    patternPriorities[i].enabled = false;
+                    patternPriorities[i].expiredTime = 0.0;
+                }
+                else if (pattern == null)
+                {
+                    // Highest priority pattern that's enabled and not expired.
+                    pattern = patternPriorities[i].pattern;
+                }
             }
         }
         //
@@ -406,5 +471,23 @@ public abstract class TrcPriorityIndicator<T>
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "! (pattern=%s)", pattern);
         }
     }   //updateIndicator
+
+    /**
+     * This task when enabled runs every 100 msec to update the indicator states.
+     *
+     * @param taskType specifies the task type (not used).
+     * @param runMode specifies the robot run mode (not used).
+     */
+    private void indicatorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    {
+        double currTime = TrcUtil.getCurrentTime();
+
+        if (currTime >= nextTaskRunTime)
+        {
+            // Runs every 100 msec.
+            nextTaskRunTime = currTime + 0.1;
+            updateIndicator();
+        }
+    }   //indicatorTask
 
 }   //class TrcPriorityIndicator
