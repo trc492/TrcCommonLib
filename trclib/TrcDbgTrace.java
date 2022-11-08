@@ -273,14 +273,14 @@ public class TrcDbgTrace
     }   //closeTraceLog
 
     /**
-     * This method checks if the tracer log is opened.
+     * This method checks if the trace log is opened.
      *
-     * @return true if tracer log is opened, false otherwise.
+     * @return true if trace log is opened, false otherwise.
      */
-    public boolean tracerLogIsOpened()
+    public boolean isTraceLogOpened()
     {
         return traceLogger != null;
-    }   //tracerLogIsOpened
+    }   //isTraceLogOpened
 
     /**
      * This method returns the trace log file name if one is active.
@@ -304,6 +304,16 @@ public class TrcDbgTrace
             traceLogger.setEnabled(enabled);
         }
     }   //setTraceLogEnabled
+
+    /**
+     * This method checks if the trace log is enabled.
+     *
+     * @return true if trace log is enabled, false if disabled.
+     */
+    public boolean isTraceLogEnabled()
+    {
+        return (traceLogger != null && traceLogger.isEnabled());
+    }   //isTraceLogEnabled
 
     /**
      * This method sets the trace level, message level of the debug tracer. It can also enables/disables function

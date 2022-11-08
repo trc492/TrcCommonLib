@@ -38,8 +38,8 @@ public class TrcTaskMgr
 
     public static final long FAST_LOOP_INTERVAL_MS = 20;        // in msec (50 Hz)
     public static final long SLOW_LOOP_INTERVAL_MS = 50;        // in msec (20 Hz)
-    public static final long INPUT_THREAD_INTERVAL_MS = 50;     // in msec
-    public static final long OUTPUT_THREAD_INTERVAL_MS = 50;    // in msec
+    public static final long INPUT_THREAD_INTERVAL_MS = 20;     // in msec
+    public static final long OUTPUT_THREAD_INTERVAL_MS = 20;    // in msec
     public static final long TASKTIME_THRESHOLD_MS = FAST_LOOP_INTERVAL_MS;
 
     /**
