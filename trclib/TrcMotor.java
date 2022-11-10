@@ -166,10 +166,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
     private TrcDigitalInputTrigger digitalTrigger;
     private TrcTrigger.DigitalTriggerHandler digitalTriggerHandler;
-    private TriggerMode triggerMode = TriggerMode.OnBoth;
+    private TriggerMode triggerMode = TriggerMode.OnActive;
 
     protected boolean calibrating = false;
-
 
     private double motorDirSign = 1.0;
     private double posSensorSign = 1.0;
@@ -839,9 +838,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                 funcName, TrcDbgTrace.TraceLevel.CALLBK, "trigger=%s,active=%s", digitalTrigger, active);
         }
 
-        globalTracer.traceInfo(
-            "triggerEvent", "TrcMotor encoder reset! motor=%s,pos=%.2f", instanceName, getMotorPosition());
-
         if (calibrating)
         {
             //
@@ -855,6 +851,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             triggerMode == TriggerMode.OnActive && active ||
             triggerMode == TriggerMode.OnInactive && !active)
         {
+            globalTracer.traceInfo(
+                funcName, "%s: reset %s position on digital trigger! (BeforePos=%.2f)",
+                moduleName, instanceName, getMotorPosition());
             resetPosition(false);
         }
 

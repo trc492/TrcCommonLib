@@ -125,6 +125,7 @@ public class TrcPurePursuitDrive
     private String owner = null;
     private TrcPath path;
     private TrcEvent onFinishedEvent;
+    private TrcNotifier.Receiver onFinishedCallback;
     private double timedOutTime;
     private int pathIndex;
     private TrcPose2D referencePose;
@@ -579,15 +580,17 @@ public class TrcPurePursuitDrive
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
-     * @param owner           specifies the ID string of the caller requesting exclusive access.
-     * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param owner            specifies the ID string of the caller requesting exclusive access.
+     * @param path             The path to follow. Must start at (0,0).
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
      * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
      * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
     public synchronized void start(
-        String owner, TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
+        String owner, TrcPath path, TrcEvent event, TrcNotifier.Receiver callback, double timeout,
+        Double maxVel, Double maxAccel)
     {
         final String funcName = "start";
 
@@ -598,14 +601,20 @@ public class TrcPurePursuitDrive
 
         if (driveBase.validateOwnership(owner))
         {
-            this.owner = owner;
-            cancel();
+            if (isActive())
+            {
+                // We successfully validated the ownership but PurePursuit was active. It means somebody was doing
+                // PurePursuitDrive with no ownership. Let's cancel it before we take over.
+                cancel();
+            }
 
+            this.owner = owner;
+            this.onFinishedEvent = event;
             if (onFinishedEvent != null)
             {
                 onFinishedEvent.clear();
             }
-            this.onFinishedEvent = onFinishedEvent;
+            this.onFinishedCallback = callback;
 
             this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
@@ -664,15 +673,16 @@ public class TrcPurePursuitDrive
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
      * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
      * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
      * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
     public void start(
-        TrcPath path, TrcEvent onFinishedEvent, double timeout, Double maxVel, Double maxAccel)
+        TrcPath path, TrcEvent event, TrcNotifier.Receiver callback, double timeout, Double maxVel, Double maxAccel)
     {
-        start(null, path, onFinishedEvent, timeout, maxVel, maxAccel);
+        start(null, path, event, callback, timeout, maxVel, maxAccel);
     }   //start
 
     /**
@@ -680,13 +690,14 @@ public class TrcPurePursuitDrive
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
      * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
      * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
-    public void start(TrcPath path, TrcEvent onFinishedEvent, Double maxVel, Double maxAccel)
+    public void start(TrcPath path, TrcEvent event, TrcNotifier.Receiver callback, Double maxVel, Double maxAccel)
     {
-        start(null, path, onFinishedEvent, 0.0, maxVel, maxAccel);
+        start(null, path, event, callback, 0.0, maxVel, maxAccel);
     }   //start
 
     /**
@@ -699,7 +710,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path, Double maxVel, Double maxAccel)
     {
-        start(null, path, null, 0.0, maxVel, maxAccel);
+        start(null, path, null, null, 0.0, maxVel, maxAccel);
     }   //start
 
     /**
@@ -708,12 +719,13 @@ public class TrcPurePursuitDrive
      *
      * @param owner           specifies the ID string of the caller requesting exclusive access.
      * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
      */
-    public void start(String owner, TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    public void start(String owner, TrcPath path, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        start(owner, path, onFinishedEvent, timeout, null, null);
+        start(owner, path, event, callback, timeout, null, null);
     }   //start
 
     /**
@@ -721,12 +733,13 @@ public class TrcPurePursuitDrive
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
      * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
      */
-    public void start(TrcPath path, TrcEvent onFinishedEvent, double timeout)
+    public void start(TrcPath path, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        start(null, path, onFinishedEvent, timeout, null, null);
+        start(null, path, event, callback, timeout, null, null);
     }   //start
 
     /**
@@ -734,11 +747,12 @@ public class TrcPurePursuitDrive
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
      * @param path            The path to follow. Must start at (0,0).
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      */
-    public void start(TrcPath path, TrcEvent onFinishedEvent)
+    public void start(TrcPath path, TrcEvent event, TrcNotifier.Receiver callback)
     {
-        start(null, path, onFinishedEvent, 0.0, null, null);
+        start(null, path, event, callback, 0.0, null, null);
     }   //start
 
     /**
@@ -749,14 +763,15 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPath path)
     {
-        start(null, path, null, 0.0, null, null);
+        start(null, path, null, null, 0.0, null, null);
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
      * @param owner           specifies the ID string of the caller requesting exclusive access.
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
@@ -766,8 +781,8 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-            String owner, TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
-            Double maxVel, Double maxAccel, TrcPose2D... poses)
+            String owner, TrcEvent event, TrcNotifier.Receiver callback, double timeout, TrcPose2D startingPose,
+            boolean incrementalPath, Double maxVel, Double maxAccel, TrcPose2D... poses)
     {
         TrcPathBuilder pathBuilder = new TrcPathBuilder(startingPose, incrementalPath);
 
@@ -776,13 +791,14 @@ public class TrcPurePursuitDrive
             pathBuilder.append(pose);
         }
 
-        start(owner, pathBuilder.toRelativeStartPath(), onFinishedEvent, timeout, maxVel, maxAccel);
+        start(owner, pathBuilder.toRelativeStartPath(), event, callback, timeout, maxVel, maxAccel);
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
@@ -792,17 +808,18 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        TrcEvent event, TrcNotifier.Receiver callback, double timeout, TrcPose2D startingPose, boolean incrementalPath,
         Double maxVel, Double maxAccel, TrcPose2D... poses)
     {
-        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, maxVel, maxAccel, poses);
+        start(null, event, callback, timeout, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses read either from the built-in resources
      * or from a file.
      *
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
@@ -813,17 +830,18 @@ public class TrcPurePursuitDrive
      * @param loadFromResources specifies true if the data is from attached resources, false if from file system.
      */
     public void start(
-        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        TrcEvent event, TrcNotifier.Receiver callback, double timeout, TrcPose2D startingPose, boolean incrementalPath,
         Double maxVel, Double maxAccel, String path, boolean loadFromResources)
     {
-        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, maxVel, maxAccel,
+        start(null, event, callback, timeout, startingPose, incrementalPath, maxVel, maxAccel,
               TrcPose2D.loadPosesFromCsv(path, loadFromResources));
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
      *                        false if appending point is in the same reference frame as startingPose.
@@ -832,10 +850,10 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-        TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel,
-        TrcPose2D... poses)
+        TrcEvent event, TrcNotifier.Receiver callback, TrcPose2D startingPose, boolean incrementalPath, Double maxVel,
+        Double maxAccel, TrcPose2D... poses)
     {
-        start(null, onFinishedEvent, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+        start(null, event, callback, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
@@ -851,14 +869,15 @@ public class TrcPurePursuitDrive
     public void start(
         TrcPose2D startingPose, boolean incrementalPath, Double maxVel, Double maxAccel, TrcPose2D... poses)
     {
-        start(null, null, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
+        start(null, null, null, 0.0, startingPose, incrementalPath, maxVel, maxAccel, poses);
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
      * @param owner           specifies the ID string of the caller requesting exclusive access.
-     * @param onFinishedEvent When finished, signal this event.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
@@ -866,40 +885,45 @@ public class TrcPurePursuitDrive
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-        String owner, TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath,
+        String owner, TrcEvent event, TrcNotifier.Receiver callback, double timeout, TrcPose2D startingPose,
+        boolean incrementalPath, TrcPose2D... poses)
+    {
+        start(owner, event, callback, timeout, startingPose, incrementalPath, null, null, poses);
+    }   //start
+
+    /**
+     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
+     *
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
+     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param startingPose specifies the starting pose at the beginning of the path.
+     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
+     *                        false if appending point is in the same reference frame as startingPose.
+     * @param poses specifies an array of waypoint poses in the drive path.
+     */
+    public void start(
+        TrcEvent event, TrcNotifier.Receiver callback, double timeout, TrcPose2D startingPose, boolean incrementalPath,
         TrcPose2D... poses)
     {
-        start(owner, onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
+        start(null, event, callback, timeout, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
      * This method starts the Pure Pursuit drive with the specified poses in the drive path.
      *
-     * @param onFinishedEvent When finished, signal this event.
-     * @param timeout specifies the maximum time allowed for this operation, 0.0 for no timeout.
+     * @param event            When finished, signal this event.
+     * @param callback         When finished, call back this notifier.
      * @param startingPose specifies the starting pose at the beginning of the path.
      * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
      *                        false if appending point is in the same reference frame as startingPose.
      * @param poses specifies an array of waypoint poses in the drive path.
      */
     public void start(
-        TrcEvent onFinishedEvent, double timeout, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
+        TrcEvent event, TrcNotifier.Receiver callback, TrcPose2D startingPose, boolean incrementalPath,
+        TrcPose2D... poses)
     {
-        start(null, onFinishedEvent, timeout, startingPose, incrementalPath, null, null, poses);
-    }   //start
-
-    /**
-     * This method starts the Pure Pursuit drive with the specified poses in the drive path.
-     *
-     * @param onFinishedEvent When finished, signal this event.
-     * @param startingPose specifies the starting pose at the beginning of the path.
-     * @param incrementalPath specifies true if appending point is relative to the previous point in the path,
-     *                        false if appending point is in the same reference frame as startingPose.
-     * @param poses specifies an array of waypoint poses in the drive path.
-     */
-    public void start(TrcEvent onFinishedEvent, TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
-    {
-        start(null, onFinishedEvent, 0.0, startingPose, incrementalPath, null, null, poses);
+        start(null, event, callback, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -912,7 +936,7 @@ public class TrcPurePursuitDrive
      */
     public void start(TrcPose2D startingPose, boolean incrementalPath, TrcPose2D... poses)
     {
-        start(null, null, 0.0, startingPose, incrementalPath, null, null, poses);
+        start(null, null, null, 0.0, startingPose, incrementalPath, null, null, poses);
     }   //start
 
     /**
@@ -933,11 +957,19 @@ public class TrcPurePursuitDrive
     {
         if (isActive() && driveBase.validateOwnership(owner))
         {
+            stop();
+
             if (onFinishedEvent != null)
             {
                 onFinishedEvent.cancel();
+                onFinishedEvent = null;
             }
-            stop();
+
+            if (onFinishedCallback != null)
+            {
+                onFinishedCallback.notify(null);
+                onFinishedCallback = null;
+            }
             //
             // Either the path is done or canceled, call the event handler one last time with index -1 and be done.
             //
@@ -956,6 +988,7 @@ public class TrcPurePursuitDrive
     {
         driveTaskObj.unregisterTask();
         driveBase.stop(owner);
+        path = null;
         owner = null;
     }   //stop
 
@@ -1087,12 +1120,21 @@ public class TrcPurePursuitDrive
                 funcName, "Done[index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
                 pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
 
+            stop();
+
             if (onFinishedEvent != null)
             {
+                TrcDbgTrace.globalTraceInfo(funcName, "Signal finished event.");
                 onFinishedEvent.signal();
+                onFinishedEvent = null;
             }
-            stop();
-            path = null;
+
+            if (onFinishedCallback != null)
+            {
+                TrcDbgTrace.globalTraceInfo(funcName, "Do finished callback.");
+                onFinishedCallback.notify(null);
+                onFinishedCallback = null;
+            }
         }
         else if (xPosPidCtrl != null)
         {
