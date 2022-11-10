@@ -85,7 +85,7 @@ public class TrcGridDrive
         driveBase.releaseExclusiveAccess(moduleName);
         msgTracer.traceInfo("GridDriveStop", "stop: releasing ownership.");
         TrcDbgTrace.printThreadStack();
-        purePursuitDrive.setIncrementalTurnEnabled(true);
+//        purePursuitDrive.setIncrementalTurnEnabled(true);
     }   //stop
 
     /**
@@ -96,27 +96,6 @@ public class TrcGridDrive
         stop();
         gridDriveQueue.clear();
     }   //cancel
-
-//    /**
-//     * This method enables/disables Grid Drive.
-//     *
-//     * @param enabled specifies true to enable grid drive, false to disable.
-//     */
-//    private void setGridDriveEnabled(boolean enabled)
-//    {
-//        if (enabled && !purePursuitDrive.isActive())
-//        {
-//            if (driveBase.acquireExclusiveAccess(moduleName))
-//            {
-//                purePursuitDrive.setIncrementalTurnEnabled(false);
-//                startGridDrive();
-//            }
-//        }
-//        else if (!enabled && purePursuitDrive.isActive())
-//        {
-//            stop();
-//        }
-//    }   //setGridDriveEnabled
 
     /**
      * This method adds an X movement segment to the array list.
@@ -171,7 +150,7 @@ public class TrcGridDrive
                     robotPose, robotCellX, robotCellY, robotCellHeading, gridDriveQueue.size());
             }
 
-            purePursuitDrive.setIncrementalTurnEnabled(false);
+//            purePursuitDrive.setIncrementalTurnEnabled(false);
             while (gridDriveQueue.size() > 0)
             {
                 TrcPose2D currSegment = gridDriveQueue.get(0);
@@ -184,50 +163,99 @@ public class TrcGridDrive
 
                 if (willTurn(lastSegment, currSegment))
                 {
-                    TrcPose2D currSegmentAdj = currSegment.clone();
+                    double lastEndPointDistance = 0.0;
+                    double nextStartPointDistance = 0.0;
+                    double nextStartPointAngleDelta = 0.0;
+                    double nextSegmentPointDistance = 0.0;
                     // Turning, create an endpoint for the first segment and a startpoint for the next segment.
                     if (lastSegment.angle == 0.0)
                     {
                         // Heading is North.
-                        lastSegment.y += turnAdj;
-                        currSegmentAdj.y += 1 - turnAdj;
-                        currSegmentAdj.angle = currSegment.x > 0.0 ? 90.0 : 270.0;
+                        lastEndPointDistance = lastSegment.y + turnAdj;
+                        if (currSegment.x > 0.0)
+                        {
+                            nextStartPointDistance = turnAdj;
+                            nextStartPointAngleDelta = 90.0;
+                            currSegment.angle = 90.0;
+                        }
+                        else
+                        {
+                            nextStartPointDistance = -turnAdj;
+                            nextStartPointAngleDelta = -90.0;
+                            currSegment.angle = 270.0;
+                        }
+                        nextSegmentPointDistance = Math.abs(currSegment.x) - turnAdj;
                     }
                     else if (lastSegment.angle == 180.0)
                     {
                         // Heading is South.
-                        lastSegment.y -= turnAdj;
-                        currSegmentAdj.y -= 1 - turnAdj;
-                        currSegmentAdj.angle = currSegment.x > 0.0 ? 90.0 : 270.0;
+                        lastEndPointDistance = -(lastSegment.y - turnAdj);
+                        if (currSegment.x > 0.0)
+                        {
+                            nextStartPointDistance = -turnAdj;
+                            nextStartPointAngleDelta = -90.0;
+                            currSegment.angle = 90.0;
+                        }
+                        else
+                        {
+                            nextStartPointDistance = turnAdj;
+                            nextStartPointAngleDelta = 90.0;
+                            currSegment.angle = 270.0;
+                        }
+                        nextSegmentPointDistance = Math.abs(currSegment.x) - turnAdj;
                     }
                     else if (lastSegment.angle == 90.0)
                     {
                         // Headihg is East.
-                        lastSegment.x += turnAdj;
-                        currSegmentAdj.x += 1 - turnAdj;
-                        currSegmentAdj.angle = currSegment.y > 0.0 ? 0.0 : 180.0;
+                        lastEndPointDistance = lastSegment.x + turnAdj;
+                        if (currSegment.y > 0.0)
+                        {
+                            nextStartPointDistance = -turnAdj;
+                            nextStartPointAngleDelta = -90.0;
+                            currSegment.angle = 0.0;
+                        }
+                        else
+                        {
+                            nextStartPointDistance = turnAdj;
+                            nextStartPointAngleDelta = 90.0;
+                            currSegment.angle = 180.0;
+                        }
+                        nextSegmentPointDistance = Math.abs(currSegment.x) - turnAdj;
                     }
                     else if (lastSegment.angle == 270.0)
                     {
                         // Heading is West.
-                        lastSegment.x -= turnAdj;
-                        currSegmentAdj.x -= 1 - turnAdj;
-                        currSegmentAdj.angle = currSegment.y > 0.0 ? 0.0 : 180.0;
+                        lastEndPointDistance = -(lastSegment.x - turnAdj);
+                        if (currSegment.y > 0.0)
+                        {
+                            nextStartPointDistance = turnAdj;
+                            nextStartPointAngleDelta = 90.0;
+                            currSegment.angle = 0.0;
+                        }
+                        else
+                        {
+                            nextStartPointDistance = -turnAdj;
+                            nextStartPointAngleDelta = -90.0;
+                            currSegment.angle = 180.0;
+                        }
+                        nextSegmentPointDistance = Math.abs(currSegment.x) - turnAdj;
                     }
 
                     if (msgTracer != null)
                     {
                         msgTracer.traceInfo(
-                            funcName, "Adjusting for turn: lastSegment=%s, currSegmentAdj=%s", lastSegment,
-                            currSegmentAdj);
+                            funcName,
+                            "Turn Adjustments: EndPointDist=%.2f, StartPointDist=%.2f, AngleDelta=%.2f, " +
+                            "nextHeading=%.2f, NextPointDist=%.2f",
+                            lastEndPointDistance, nextSegmentPointDistance, nextStartPointAngleDelta,
+                            currSegment.angle, nextSegmentPointDistance);
                     }
                     // Create endpoint of the first segment.
-                    pathBuilder.append(
-                        new TrcPose2D(lastSegment.x*gridCellSize, lastSegment.y*gridCellSize, 0.0));
+                    pathBuilder.append(new TrcPose2D(0.0, lastEndPointDistance * gridCellSize, 0.0));
                     // Create startpoint of the next segment.
                     pathBuilder.append(
-                        new TrcPose2D(currSegmentAdj.x*gridCellSize, currSegmentAdj.y*gridCellSize,
-                                      currSegmentAdj.angle - lastSegment.angle));
+                        new TrcPose2D(0.0, nextStartPointDistance * gridCellSize, nextStartPointAngleDelta));
+                    pathBuilder.append(new TrcPose2D(0.0, nextSegmentPointDistance * gridCellSize, 0.0));
                     gridDriveQueue.remove(currSegment);
                     lastSegment = currSegment;
                     lastSegment.x = lastSegment.y = 0.0;
@@ -248,11 +276,12 @@ public class TrcGridDrive
                 }
             }
 
-            if (lastSegment.x != 0.0 || lastSegment.y != 0.0)
+            // Create endpoint of the last segment if any. In Grid Drive, either X or Y will be zero. In other words,
+            // only one direction will be non-zero and we are already in the heading of the non-zero direction.
+            double lastSegmentDistance = lastSegment.x + lastSegment.y;
+            if (lastSegmentDistance != 0.0)
             {
-                // Create endpoint of the last segment.
-                pathBuilder.append(
-                    new TrcPose2D(lastSegment.x*gridCellSize, lastSegment.y*gridCellSize, 0.0));
+                pathBuilder.append(new TrcPose2D(0.0, lastSegmentDistance, 0.0));
             }
 
             TrcPath path = pathBuilder.toRelativeStartPath();
