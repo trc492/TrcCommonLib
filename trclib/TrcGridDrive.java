@@ -381,17 +381,17 @@ public class TrcGridDrive
     }   //gridCellHeading
 
     /**
-     * This method determines if the current segment has a compatible heading with the last segment. If not, the robot
+     * This method determines if the next segment has a compatible heading with the previous segment. If not, the robot
      * will turn.
      *
-     * @param lastSegment specifies the last segment position.
-     * @param currSegment specifies the current segment position.
-     * @return true if the robot will turn from the last segment to the current segment, false otherwise.
+     * @param prevSegment specifies the previous segment position.
+     * @param nextSegment specifies the next segment position.
+     * @return true if the robot will turn from the previous segment to the next segment, false otherwise.
      */
-    private boolean willTurn(TrcPose2D lastSegment, TrcPose2D currSegment)
+    private boolean willTurn(TrcPose2D prevSegment, TrcPose2D nextSegment)
     {
-        return (currSegment.x != 0.0 && (lastSegment.angle == 0.0 || lastSegment.angle == 180.0)) ||
-               (currSegment.y != 0.0 && (lastSegment.angle == 90.0 || lastSegment.angle == 270.0));
+        return (nextSegment.x != 0.0 && (prevSegment.angle == 0.0 || prevSegment.angle == 180.0)) ||
+               (nextSegment.y != 0.0 && (prevSegment.angle == 90.0 || prevSegment.angle == 270.0));
     }   //willTurn
 
 }   //class TrcGridDrive
