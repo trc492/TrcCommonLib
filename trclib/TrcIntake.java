@@ -115,14 +115,34 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
     }   //class Parameters
 
+    /**
+     * This class encapsulates all the parameters required to perform the intake action.
+     */
+    private static class ActionParams
+    {
+        String owner;
+        double power;
+        TrcEvent event;
+        TrcNotifier.Receiver callback;
+        double timeout;
+
+        @Override
+        public String toString()
+        {
+            return String.format(Locale.US, "owner=%s,power=%.1f,event=%s,timeout=%.3f", owner, power, event, timeout);
+        }   //toString
+    }   //class ActionParams
+
     private final String instanceName;
     private final TrcMotor motor;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
-    private final TrcTimer timer;
+    private final TrcTimer timeoutTimer;
+    private final TrcTimer delayTimer;
     private TrcEvent onFinishEvent;
     private TrcNotifier.Receiver onFinishCallback;
     private double autoAssistPower = 0.0;
+    private final ActionParams actionParams = new ActionParams();
 
     /**
      * Constructor: Creates an instance of the object.
@@ -146,7 +166,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         motor.setInverted(params.motorInverted);
-        timer = sensorTrigger != null? new TrcTimer(instanceName): null;
+        timeoutTimer = sensorTrigger != null? new TrcTimer(instanceName): null;
+        delayTimer = new TrcTimer(instanceName + ".delayTimer");
     }   //TrcIntake
 
     /**
@@ -293,11 +314,58 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //setPower
 
     /**
+     * This method performs the intake action.
+     *
+     * @param timer specifies the timer that has expired. Only applicable if called by the delay timer callback.
+     */
+    private synchronized void performAction(Object timer)
+    {
+        final String funcName = "performDelayAction";
+
+        if (actionParams.power > 0.0 ^ hasObject())
+        {
+            // Picking up object and we don't have one yet, or dumping object and we still have one.
+            if (params.msgTracer != null)
+            {
+                params.msgTracer.traceInfo(funcName, "%s", actionParams);
+            }
+            motor.set(actionParams.power);
+            this.onFinishEvent = actionParams.event;
+            this.onFinishCallback = actionParams.callback;
+            if (actionParams.timeout > 0.0)
+            {
+                timeoutTimer.set(actionParams.timeout, this::timeoutHandler);
+            }
+            sensorTrigger.setEnabled(true);
+            this.autoAssistPower = actionParams.power;
+        }
+        else
+        {
+            // Picking up object but we already have one, or dumping object but there isn't any.
+            if (params.msgTracer != null)
+            {
+                params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", hasObject());
+            }
+
+            if (actionParams.event != null)
+            {
+                actionParams.event.signal();
+            }
+
+            if (actionParams.callback != null)
+            {
+                actionParams.callback.notify(null);
+            }
+        }
+    }   //performAction
+
+    /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
      * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
      * signaled or it will notify the caller's handler.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
      * @param event specifies the event to signal when object is detected in the intake.
@@ -306,15 +374,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *                must call hasObject() to figure out if it has given up.
      */
     public synchronized void autoAssist(
-        String owner, double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+        String owner, double delay, double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
         final String funcName = "autoAssist";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%.1f,event=%s,timeout=%.3f",
-                owner, power, event, timeout);
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,power=%.1f,event=%s,timeout=%.3f",
+                owner, delay, power, event, timeout);
         }
 
         if (sensorTrigger == null || power == 0.0)
@@ -331,41 +399,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 event.clear();
             }
 
-            if (power > 0.0 ^ hasObject())
+            actionParams.power = power;
+            actionParams.event = event;
+            actionParams.callback = callback;
+            actionParams.timeout = timeout;
+            if (delay > 0.0)
             {
-                // Picking up object and we don't have one yet, or dumping object and we still have one.
-                if (params.msgTracer != null)
-                {
-                    params.msgTracer.traceInfo(
-                        funcName, "owner=%s, power=%.1f, event=%s, timeout=%.3f", owner, power, event, timeout);
-                }
-                motor.set(power);
-                this.onFinishEvent = event;
-                this.onFinishCallback = callback;
-                if (timeout > 0.0)
-                {
-                    timer.set(timeout, this::timeoutHandler);
-                }
-                sensorTrigger.setEnabled(true);
-                this.autoAssistPower = power;
+                delayTimer.set(delay, this::performAction);
             }
             else
             {
-                // Picking up object but we already have one, or dumping object but there isn't any.
-                if (params.msgTracer != null)
-                {
-                    params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", hasObject());
-                }
-
-                if (event != null)
-                {
-                    event.signal();
-                }
-
-                if (callback != null)
-                {
-                    callback.notify(null);
-                }
+                performAction(null);
             }
         }
     }   //autoAssist
@@ -376,12 +420,31 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * signaled or it will notify the caller's handler.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
      */
-    public void autoAssist(String owner, double power)
+    public void autoAssist(String owner, double delay, double power)
     {
-        autoAssist(owner, power, null, null, 0.0);
+        autoAssist(owner, delay, power, null, null, 0.0);
+    }   //autoAssist
+
+    /**
+     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param callback specifies the callback handler to call when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssist(double delay, double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
+    {
+        autoAssist(null, delay, power, event, callback, timeout);
     }   //autoAssist
 
     /**
@@ -398,7 +461,21 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void autoAssist(double power, TrcEvent event, TrcNotifier.Receiver callback, double timeout)
     {
-        autoAssist(null, power, event, callback, timeout);
+        autoAssist(null, 0.0, power, event, callback, timeout);
+    }   //autoAssist
+
+    /**
+     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     */
+    public void autoAssist(double delay, double power)
+    {
+        autoAssist(null, delay, power, null, null, 0.0);
     }   //autoAssist
 
     /**
@@ -411,7 +488,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void autoAssist(double power)
     {
-        autoAssist(null, power, null, null, 0.0);
+        autoAssist(null, 0.0, power, null, null, 0.0);
     }   //autoAssist
 
     /**
@@ -484,7 +561,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             // AutoAssist is still in progress, cancel it.
             motor.set(0.0);
-            timer.cancel();
+            timeoutTimer.cancel();
             sensorTrigger.setEnabled(false);
 
             if (onFinishEvent != null)
@@ -512,7 +589,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         final String funcName = "timeoutHandler";
 
-        if (!this.timer.isCanceled())
+        if (!this.timeoutTimer.isCanceled())
         {
             if (params.msgTracer != null)
             {
