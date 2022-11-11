@@ -212,7 +212,7 @@ public class TrcGridDrive
 
                 if (!willTurn(prevSegment, nextSegment))
                 {
-                    // Not turning, can coalesce the currSegment to the lastSegment.
+                    // Not turning, can coalesce the nextSegment to the prevSegment.
                     prevSegment.x += nextSegment.x;
                     prevSegment.y += nextSegment.y;
                     gridDriveQueue.remove(nextSegment);
