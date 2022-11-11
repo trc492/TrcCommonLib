@@ -36,6 +36,8 @@ public class TrcGridDrive
     private final TrcDriveBase driveBase;
     private final TrcPurePursuitDrive purePursuitDrive;
     private final double gridCellSize;
+    private final double turnStartAdj;
+    private final double turnEndAdj;
     private final TrcTaskMgr.TaskObject gridDriveTaskObj;
     private final ArrayList<TrcPose2D> gridDriveQueue = new ArrayList<>();
     private TrcDbgTrace msgTracer = null;
@@ -46,12 +48,18 @@ public class TrcGridDrive
      * @param driveBase specifies the drive base object.
      * @param purePursuitDrive specifies the pure pursuit drive object.
      * @param gridCellSize specifies the grid cell size in inches.
+     * @param turnStartAdj specifies the distance adjustment for the previous segment endpoint before the turn.
+     * @param turnEndAdj specifies the distance adjustment for the nextsegment startpoint after the turn.
      */
-    public TrcGridDrive(TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize)
+    public TrcGridDrive(
+        TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
+        double turnEndAdj)
     {
         this.driveBase = driveBase;
         this.purePursuitDrive = purePursuitDrive;
         this.gridCellSize = gridCellSize;
+        this.turnStartAdj = turnStartAdj;
+        this.turnEndAdj = turnEndAdj;
         gridDriveTaskObj = TrcTaskMgr.createTask("gridDriveTask", this::gridDriveTask);
     }   //TrcGridDrive
 
@@ -122,6 +130,22 @@ public class TrcGridDrive
     }   //setTaskEnabled
 
     /**
+     * This method resets the drive base odometry to the nearest grid cell center. Odometry may get inaccurate for
+     * various reasons such as odometry wheel slippage, sensor drifting etc. This situation can be corrected by
+     * manually driving the robot to the center of a grid cell and call this method. It assumes the drift is within
+     * the current grid cell. Therefore, it resets the odometry back to the nearest grid cell center.
+     */
+    public void resetGridCellCenter()
+    {
+        TrcPose2D robotPose = driveBase.getFieldPosition();
+        TrcPose2D gridCenterPose = new TrcPose2D(
+            gridCellCenterPosition(robotPose.x) * gridCellSize,
+            gridCellCenterPosition(robotPose.y) * gridCellSize,
+            gridCellHeading(robotPose.angle));
+        driveBase.setFieldPosition(gridCenterPose);
+    }   //resetGridCellCenter
+
+    /**
      * This method adds an X movement segment to the array list.
      *
      * @param gridCells specifies the X movement in number of grid cells, positive for East, negative for West.
@@ -179,8 +203,6 @@ public class TrcGridDrive
     private void startGridDrive()
     {
         final String funcName = "startGridDrive";
-        final double endPointAdj = 0.75;
-        final double turnAdj = 0.35;
 
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
@@ -233,16 +255,16 @@ public class TrcGridDrive
                     if (prevSegment.angle == 0.0)
                     {
                         // Heading is North.
-                        prevEndPoint.y += endPointAdj;
+                        prevEndPoint.y += turnStartAdj;
                         if (nextSegment.x > 0.0)
                         {
-                            nextStartPoint.x = prevSegment.x + turnAdj;
+                            nextStartPoint.x = prevSegment.x + turnEndAdj;
                             nextStartPoint.y = prevSegment.y + 1.0;
                             nextStartPoint.angle = 90.0;
                         }
                         else
                         {
-                            nextStartPoint.x = prevSegment.x - turnAdj;
+                            nextStartPoint.x = prevSegment.x - turnEndAdj;
                             nextStartPoint.y = prevSegment.y + 1.0;
                             nextStartPoint.angle = 270.0;
                         }
@@ -252,16 +274,16 @@ public class TrcGridDrive
                     else if (prevSegment.angle == 180.0)
                     {
                         // Heading is South.
-                        prevEndPoint.y -= endPointAdj;
+                        prevEndPoint.y -= turnStartAdj;
                         if (nextSegment.x > 0.0)
                         {
-                            nextStartPoint.x = prevSegment.x + turnAdj;
+                            nextStartPoint.x = prevSegment.x + turnEndAdj;
                             nextStartPoint.y = prevSegment.y - 1.0;
                             nextStartPoint.angle = 90.0;
                         }
                         else
                         {
-                            nextStartPoint.x = prevSegment.x - turnAdj;
+                            nextStartPoint.x = prevSegment.x - turnEndAdj;
                             nextStartPoint.y = prevSegment.y - 1.0;
                             nextStartPoint.angle = 270.0;
                         }
@@ -271,17 +293,17 @@ public class TrcGridDrive
                     else if (prevSegment.angle == 90.0)
                     {
                         // Headihg is East.
-                        prevEndPoint.x += endPointAdj;
+                        prevEndPoint.x += turnStartAdj;
                         if (nextSegment.y > 0.0)
                         {
                             nextStartPoint.x = prevSegment.x + 1.0;
-                            nextStartPoint.y = prevSegment.y + turnAdj;
+                            nextStartPoint.y = prevSegment.y + turnEndAdj;
                             nextStartPoint.angle = 0.0;
                         }
                         else
                         {
                             nextStartPoint.x = prevSegment.x + 1.0;
-                            nextStartPoint.y = prevSegment.y - turnAdj;
+                            nextStartPoint.y = prevSegment.y - turnEndAdj;
                             nextStartPoint.angle = 180.0;
                         }
                         nextSegmentPoint.x = nextStartPoint.x;
@@ -290,17 +312,17 @@ public class TrcGridDrive
                     else if (prevSegment.angle == 270.0)
                     {
                         // Heading is West.
-                        prevEndPoint.x -= endPointAdj;
+                        prevEndPoint.x -= turnStartAdj;
                         if (nextSegment.y > 0.0)
                         {
                             nextStartPoint.x = prevSegment.x - 1.0;
-                            nextStartPoint.y = prevSegment.y + turnAdj;
+                            nextStartPoint.y = prevSegment.y + turnEndAdj;
                             nextStartPoint.angle = 0.0;
                         }
                         else
                         {
                             nextStartPoint.x = prevSegment.x - 1.0;
-                            nextStartPoint.y = prevSegment.y - turnAdj;
+                            nextStartPoint.y = prevSegment.y - turnEndAdj;
                             nextStartPoint.angle = 180.0;
                         }
                         nextSegmentPoint.x = nextStartPoint.x;

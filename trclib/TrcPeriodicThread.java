@@ -312,7 +312,7 @@ public class TrcPeriodicThread<T>
     /**
      * This method returns the periodic task processing interval.
      *
-     * @return periodic task processing interval in msec.
+     * @return periodic task processing interval in msec. If zero, the task is run as fast as the CPU can go.
      */
     public long getProcessingInterval()
     {
