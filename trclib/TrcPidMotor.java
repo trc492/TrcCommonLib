@@ -1492,16 +1492,34 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         {
             boolean timedOut = timeout != 0.0 && TrcUtil.getCurrentTime() >= timeout;
             boolean onTarget = pidCtrl.isOnTarget();
-            if (stalled || timedOut || !holdTarget && onTarget)
+            boolean stopped = stalled || !holdTarget && (timedOut || onTarget);
+
+            if (stopped)
+            {
+                stop(true);
+            }
+            else
             {
                 //
-                // We stop the motor if we either:
-                // - are stalled
-                // - have reached target and not holding target position
-                // - set a timeout and it has expired.
+                // We are still in business. Call PID controller to calculate the motor power and set it.
                 //
-                stop(true);
+                motorPower = TrcUtil.clipRange(pidCtrl.getOutput(), -powerClamp, powerClamp);
+                setPower(motorPower, MIN_MOTOR_POWER, MAX_MOTOR_POWER, false);
 
+                if (msgTracer != null && tracePidInfo)
+                {
+                    pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                }
+            }
+
+            if (stalled || timedOut || onTarget)
+            {
+                //
+                // We signal done if either we:
+                // - are stalled.
+                // - set a timeout and it has expired.
+                // - have reached target.
+                //
                 if (notifyEvent != null)
                 {
                     notifyEvent.signal();
@@ -1512,37 +1530,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     notifyCallback.notify(null);
                     notifyCallback = null;
-                }
-            }
-            else
-            {
-                //
-                // If we are trying to hold target, we will continue to PID control the motor but we will also signal
-                // the notifyEvent.
-                //
-                if (holdTarget && onTarget)
-                {
-                    if (notifyEvent != null)
-                    {
-                        notifyEvent.signal();
-                        notifyEvent = null;
-                    }
-
-                    if (notifyCallback != null)
-                    {
-                        notifyCallback.notify(null);
-                        notifyCallback = null;
-                    }
-                }
-                //
-                // We are still in business. Call PID controller to calculate the motor power and set it.
-                //
-                motorPower = TrcUtil.clipRange(pidCtrl.getOutput(), -powerClamp, powerClamp);
-                setPower(motorPower, MIN_MOTOR_POWER, MAX_MOTOR_POWER, false);
-
-                if (msgTracer != null && tracePidInfo)
-                {
-                    pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
                 }
             }
         }
