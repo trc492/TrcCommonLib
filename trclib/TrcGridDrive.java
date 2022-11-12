@@ -38,6 +38,7 @@ public class TrcGridDrive
     private final double gridCellSize;
     private final double turnStartAdj;
     private final double turnEndAdj;
+    private final double forwardAdj;
     private final TrcTaskMgr.TaskObject gridDriveTaskObj;
     private final ArrayList<TrcPose2D> gridDriveQueue = new ArrayList<>();
     private TrcDbgTrace msgTracer = null;
@@ -53,13 +54,14 @@ public class TrcGridDrive
      */
     public TrcGridDrive(
         TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
-        double turnEndAdj)
+        double turnEndAdj, double forwardAdj)
     {
         this.driveBase = driveBase;
         this.purePursuitDrive = purePursuitDrive;
-        this.gridCellSize = gridCellSize;
-        this.turnStartAdj = turnStartAdj;
-        this.turnEndAdj = turnEndAdj;
+        this.gridCellSize = Math.abs(gridCellSize);
+        this.turnStartAdj = Math.abs(turnStartAdj);
+        this.turnEndAdj = Math.abs(turnEndAdj);
+        this.forwardAdj = Math.abs(forwardAdj);
         gridDriveTaskObj = TrcTaskMgr.createTask("gridDriveTask", this::gridDriveTask);
     }   //TrcGridDrive
 
@@ -137,12 +139,19 @@ public class TrcGridDrive
      */
     public void resetGridCellCenter()
     {
+        final String funcName = "resetGridCellCenter";
         TrcPose2D robotPose = driveBase.getFieldPosition();
-        TrcPose2D gridCenterPose = new TrcPose2D(
+        TrcPose2D cellCenterPose = new TrcPose2D(
             gridCellCenterPosition(robotPose.x) * gridCellSize,
             gridCellCenterPosition(robotPose.y) * gridCellSize,
-            gridCellHeading(robotPose.angle));
-        driveBase.setFieldPosition(gridCenterPose);
+            robotPose.angle);
+
+        if (msgTracer != null)
+        {
+            msgTracer.traceInfo(funcName, "robotPose=%s, cellCenterPose=%s", robotPose, cellCenterPose);
+        }
+
+        driveBase.setFieldPosition(cellCenterPose);
     }   //resetGridCellCenter
 
     /**
@@ -259,13 +268,13 @@ public class TrcGridDrive
                         if (nextSegment.x > 0.0)
                         {
                             nextStartPoint.x = prevSegment.x + turnEndAdj;
-                            nextStartPoint.y = prevSegment.y + 1.0;
+                            nextStartPoint.y = prevSegment.y + forwardAdj;
                             nextStartPoint.angle = 90.0;
                         }
                         else
                         {
                             nextStartPoint.x = prevSegment.x - turnEndAdj;
-                            nextStartPoint.y = prevSegment.y + 1.0;
+                            nextStartPoint.y = prevSegment.y + forwardAdj;
                             nextStartPoint.angle = 270.0;
                         }
                         nextSegmentPoint.x += prevSegment.x;
@@ -278,13 +287,13 @@ public class TrcGridDrive
                         if (nextSegment.x > 0.0)
                         {
                             nextStartPoint.x = prevSegment.x + turnEndAdj;
-                            nextStartPoint.y = prevSegment.y - 1.0;
+                            nextStartPoint.y = prevSegment.y - forwardAdj;
                             nextStartPoint.angle = 90.0;
                         }
                         else
                         {
                             nextStartPoint.x = prevSegment.x - turnEndAdj;
-                            nextStartPoint.y = prevSegment.y - 1.0;
+                            nextStartPoint.y = prevSegment.y - forwardAdj;
                             nextStartPoint.angle = 270.0;
                         }
                         nextSegmentPoint.x += prevSegment.x;
@@ -296,13 +305,13 @@ public class TrcGridDrive
                         prevEndPoint.x += turnStartAdj;
                         if (nextSegment.y > 0.0)
                         {
-                            nextStartPoint.x = prevSegment.x + 1.0;
+                            nextStartPoint.x = prevSegment.x + forwardAdj;
                             nextStartPoint.y = prevSegment.y + turnEndAdj;
                             nextStartPoint.angle = 0.0;
                         }
                         else
                         {
-                            nextStartPoint.x = prevSegment.x + 1.0;
+                            nextStartPoint.x = prevSegment.x + forwardAdj;
                             nextStartPoint.y = prevSegment.y - turnEndAdj;
                             nextStartPoint.angle = 180.0;
                         }
@@ -315,13 +324,13 @@ public class TrcGridDrive
                         prevEndPoint.x -= turnStartAdj;
                         if (nextSegment.y > 0.0)
                         {
-                            nextStartPoint.x = prevSegment.x - 1.0;
+                            nextStartPoint.x = prevSegment.x - forwardAdj;
                             nextStartPoint.y = prevSegment.y + turnEndAdj;
                             nextStartPoint.angle = 0.0;
                         }
                         else
                         {
-                            nextStartPoint.x = prevSegment.x - 1.0;
+                            nextStartPoint.x = prevSegment.x - forwardAdj;
                             nextStartPoint.y = prevSegment.y - turnEndAdj;
                             nextStartPoint.angle = 180.0;
                         }

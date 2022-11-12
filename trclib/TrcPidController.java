@@ -1371,6 +1371,10 @@ public class TrcPidController
                     pidCtrlState.totalError = minOutput / pidParams.pidCoeff.kI;
                 }
             }
+            else
+            {
+                pidCtrlState.totalError = 0.0;
+            }
 
             pidCtrlState.pTerm = pidParams.pidCoeff.kP * pidCtrlState.currError;
             pidCtrlState.iTerm = pidParams.pidCoeff.kI * pidCtrlState.totalError;
