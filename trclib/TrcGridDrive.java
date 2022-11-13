@@ -64,6 +64,18 @@ public class TrcGridDrive
     }   //TrcGridDrive
 
     /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param driveBase specifies the drive base object.
+     * @param purePursuitDrive specifies the pure pursuit drive object.
+     * @param gridCellSize specifies the grid cell size in inches.
+     */
+    public TrcGridDrive(TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize)
+    {
+        this(driveBase, purePursuitDrive, gridCellSize, 0.0, 0.0);
+    }   //TrcGridDrive
+
+    /**
      * This method enables/disables tracing for the auto-assist task.
      *
      * @param tracer specifies the tracer to use for logging events.
