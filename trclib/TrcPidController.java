@@ -286,6 +286,7 @@ public class TrcPidController
          * adjusting steadyStateError, one can prevent the PID controller from hanging indefinitely and not reaching
          * target by declaring OnTarget.
          *
+         * @param tolerance specifies the tolerance.
          * @param steadyStateError specifies the acceptable steady state error.
          */
         public void setErrorTolerances(double tolerance, double steadyStateError)
