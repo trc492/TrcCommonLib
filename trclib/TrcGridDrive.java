@@ -38,7 +38,6 @@ public class TrcGridDrive
     private final double gridCellSize;
     private final double turnStartAdj;
     private final double turnEndAdj;
-    private final double forwardAdj;
     private final TrcTaskMgr.TaskObject gridDriveTaskObj;
     private final ArrayList<TrcPose2D> gridDriveQueue = new ArrayList<>();
     private TrcDbgTrace msgTracer = null;
@@ -54,14 +53,13 @@ public class TrcGridDrive
      */
     public TrcGridDrive(
         TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
-        double turnEndAdj, double forwardAdj)
+        double turnEndAdj)
     {
         this.driveBase = driveBase;
         this.purePursuitDrive = purePursuitDrive;
         this.gridCellSize = Math.abs(gridCellSize);
         this.turnStartAdj = Math.abs(turnStartAdj);
         this.turnEndAdj = Math.abs(turnEndAdj);
-        this.forwardAdj = Math.abs(forwardAdj);
         gridDriveTaskObj = TrcTaskMgr.createTask("gridDriveTask", this::gridDriveTask);
     }   //TrcGridDrive
 
@@ -260,6 +258,7 @@ public class TrcGridDrive
                     TrcPose2D prevEndPoint = prevSegment.clone();
                     TrcPose2D nextStartPoint = new TrcPose2D();
                     TrcPose2D nextSegmentPoint = nextSegment.clone();
+                    double forwardAdj = turnStartAdj > 0.0? 1.0: 0.0;
                     // Turning, create an endpoint for the first segment and a startpoint for the next segment.
                     if (prevSegment.angle == 0.0)
                     {
