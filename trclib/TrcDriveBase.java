@@ -57,6 +57,41 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private static final boolean SYNC_GYRO_DATA = false;
 
     /**
+     * This enum specifies all the drive orientation modes:
+     * - ROBOT: Robot centric driving mode.
+     * - FIELD: Field centric driving mode.
+     * - INVERTED: Inverted driving mode (i.e. robot front becomes robot rear and vice versa).
+     */
+    public enum DriveOrientation
+    {
+        ROBOT, FIELD, INVERTED;
+
+        public static DriveOrientation nextDriveOrientation(DriveOrientation driveOrientation)
+        {
+            DriveOrientation nextDriveOrientation;
+
+            switch (driveOrientation)
+            {
+                case ROBOT:
+                    nextDriveOrientation = FIELD;
+                    break;
+
+                case FIELD:
+                    nextDriveOrientation = INVERTED;
+                    break;
+
+                default:
+                case INVERTED:
+                    nextDriveOrientation = ROBOT;
+                    break;
+            }
+
+            return nextDriveOrientation;
+        }   //nextDriveOrientation
+
+    }   //enum DriveOrientation
+
+    /**
      * This class implements the drive base odometry. It consists of the position as well as velocity info in all
      * three degrees of movement (x, y, angle).
      */
@@ -310,6 +345,35 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             driveTimerEvent = null;
         }
     }   //driveTimerHandler
+
+    /**
+     * This method returns robot heading to be maintained in teleop drive according to drive orientation mode.
+     *
+     * @param driveOrientation specifies the drive orientation mode.
+     * @return robot heading to be maintained.
+     */
+    public double getDriveGyroAngle(DriveOrientation driveOrientation)
+    {
+        double angle;
+
+        switch (driveOrientation)
+        {
+            case ROBOT:
+                angle = 0.0;
+                break;
+
+            case INVERTED:
+                angle = 180.0;
+                break;
+
+            default:
+            case FIELD:
+                angle = gyro != null? gyro.getZHeading().value: 0.0;
+                break;
+        }
+
+        return angle;
+    }   //getDriveGyroAngle
 
     /**
      * This method checks if synchronize odometries is enabled.
