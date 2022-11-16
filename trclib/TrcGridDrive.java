@@ -142,6 +142,77 @@ public class TrcGridDrive
     }   //setTaskEnabled
 
     /**
+     * This method adjusts the grid cell position to the grid cell center.
+     *
+     * @param gridCellPos specifies the position in grid cell units.
+     * @return adjusted position in grid cell units.
+     */
+    private double adjustToGridCellCenter(double gridCellPos)
+    {
+        return Math.signum(gridCellPos) * (((int) Math.abs(gridCellPos)) + 0.5);
+    }   //adjustToGridCellCenter
+
+    /**
+     * This method adjusts the heading to the nearest 90-degree multiple.
+     *
+     * @param heading specifies the heading to be adjusted to the nearest 90-degree multiple.
+     * @return adjusted heading in the range of [0.0, 360.0)
+     */
+    private double adjustGridCellHeading(double heading)
+    {
+        heading %= 360.0;
+        if (heading < 0.0) heading += 360.0;
+        return (((int) (heading / 90.0 + 0.5)) * 90.0) % 360.0;
+    }   //adjustGridCellHeading
+
+    /**
+     * This method translates a real world pose to a grid cell pose.
+     *
+     * @param pose specifies the pose in real world units.
+     * @return pose in the grid cell units.
+     */
+    public TrcPose2D poseToGridCell(TrcPose2D pose)
+    {
+        return new TrcPose2D(pose.x / gridCellSize, pose.y / gridCellSize, pose.angle);
+    }   //poseToGridCell
+
+    /**
+     * This method translates a grid cell pose to a real world pose.
+     *
+     * @param gridCell specifies the grid cell pose in grid cell units.
+     * @return pose in real world units.
+     */
+    public TrcPose2D gridCellToPose(TrcPose2D gridCell)
+    {
+        return new TrcPose2D(gridCell.x * gridCellSize, gridCell.y * gridCellSize, gridCell.angle);
+    }   //gridCellToPose
+
+    /**
+     * This method takes a grid cell position that may not be at the center of the cell and adjusts it to the center
+     * of the grid cell it's on.
+     *
+     * @param gridCell specifies the grid cell to adjust in the unit of cells.
+     * @return adjusted gridCell in the unit of cells.
+     */
+    public TrcPose2D adjustGridCellCenter(TrcPose2D gridCell)
+    {
+        return new TrcPose2D(
+            adjustToGridCellCenter(gridCell.x), adjustToGridCellCenter(gridCell.y),
+            adjustGridCellHeading(gridCell.angle));
+    }   //adjustGridCellCenter
+
+    /**
+     * This method adjusts the given pose to the nearest grid cell center pose.
+     *
+     * @param pose specifies the pose in real world units to be adjusted.
+     * @return adjusted pose in real world units.
+     */
+    public TrcPose2D adjustPoseToGridCellCenter(TrcPose2D pose)
+    {
+        return gridCellToPose(adjustGridCellCenter(poseToGridCell(pose)));
+    }   //adjustPoseToGridCellCenter
+
+    /**
      * This method resets the drive base odometry to the nearest grid cell center. Odometry may get inaccurate for
      * various reasons such as odometry wheel slippage, sensor drifting etc. This situation can be corrected by
      * manually driving the robot to the center of a grid cell and call this method. It assumes the drift is within
@@ -151,10 +222,9 @@ public class TrcGridDrive
     {
         final String funcName = "resetGridCellCenter";
         TrcPose2D robotPose = driveBase.getFieldPosition();
-        TrcPose2D cellCenterPose = new TrcPose2D(
-            gridCellCenterPosition(robotPose.x) * gridCellSize,
-            gridCellCenterPosition(robotPose.y) * gridCellSize,
-            robotPose.angle);
+        TrcPose2D cellCenterPose = adjustPoseToGridCellCenter(robotPose);
+        // Do not change the heading, use original robot pose heading. We are resetting just the position.
+        cellCenterPose.angle = robotPose.angle;
 
         if (msgTracer != null)
         {
@@ -165,59 +235,15 @@ public class TrcGridDrive
     }   //resetGridCellCenter
 
     /**
-     * This method translates a real world pose to a grid cell pose.
-     *
-     * @param pose specifies the real world pose in the unit of inches.
-     * @return grid cell pose in the units of cells.
-     */
-    public TrcPose2D poseToGridCell(TrcPose2D pose)
-    {
-        return new TrcPose2D(
-            gridCellCenterPosition(pose.x), gridCellCenterPosition(pose.y), gridCellHeading(pose.angle));
-    }   //poseToGridCell
-
-    /**
-     * This method translates a grid cell pose to a real world pose.
-     *
-     * @param gridCell specifies the grid cell pose in the unit of cells.
-     * @return real world pose in the units of inches.
-     */
-    public TrcPose2D gridCellToPose(TrcPose2D gridCell)
-    {
-        return new TrcPose2D(gridCell.x * gridCellSize, gridCell.y * gridCellSize, gridCell.angle);
-    }   //gridCellToPose
-
-    /**
-     * This method adjusts the given pose to the nearest grid cell center.
-     *
-     * @param pose specifies the real world pose in the unit of inches.
-     * @return real world pose of the nearest grid cell center.
-     */
-    public TrcPose2D getGridCellCenterPose(TrcPose2D pose)
-    {
-        return gridCellToPose(poseToGridCell(pose));
-    }   //getGridCellCenterPose
-
-    /**
-     * This method adjusts the current robot pose to the nearest grid cell center.
-     *
-     * @return real world pose of the robot's nearest grid cell center.
-     */
-    public TrcPose2D getGridCellCenterPose()
-    {
-        return getGridCellCenterPose(driveBase.getFieldPosition());
-    }   //getGridCellCenterPose
-
-    /**
      * This method returns an intermediate grid cell so that travelling from the start cell to the end cell will
      * go through the intermediate cell such that the robot will only travel in the direction of north/south and
-     * east/west but not diagonally.
+     * east/west but not diagonally and will be centering itself in the grid cells.
      *
      * @param startCell specifies the start cell.
      * @param endCell specifies the end cell.
      * @return intermediate cell if one is needed, null if end cell is already inline with the start cell.
      */
-    public TrcPose2D getIntermediateGridCell(TrcPose2D startCell, TrcPose2D endCell)
+    private TrcPose2D getIntermediateGridCell(TrcPose2D startCell, TrcPose2D endCell)
     {
         TrcPose2D intermediateCell = null;
 
@@ -268,6 +294,37 @@ public class TrcGridDrive
     }   //setRelativeYGridTarget
 
     /**
+     * This method generate a path from the current robot pose to the endpoint that snaps to the grid so it moves
+     * only in square pattern, never diagonal.
+     *
+     * @param endPoint specifies the endpoint in real world units.
+     */
+    public void driveToEndPoint(TrcPose2D endPoint)
+    {
+        final String funcName = "driveToEndPoint";
+        TrcPose2D robotPose = driveBase.getFieldPosition();
+        TrcPose2D startGridCell = adjustGridCellCenter(poseToGridCell(robotPose));
+        TrcPose2D endGridCell = adjustGridCellCenter(poseToGridCell(endPoint));
+        TrcPose2D intermediateGridCell = getIntermediateGridCell(startGridCell, endGridCell);
+        TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(gridCellToPose(startGridCell));
+
+        if (intermediateGridCell != null)
+        {
+            pathBuilder.append(gridCellToPose(intermediateGridCell));
+        }
+
+        pathBuilder.append(gridCellToPose(endGridCell)).append(endPoint);
+        TrcPath path = pathBuilder.toRelativeStartPath();
+
+        if (msgTracer != null)
+        {
+            msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
+        }
+
+        purePursuitDrive.start(null, path, null, null, 0.0);
+    }   //driveToEndPoint
+
+    /**
      * This method is called periodically to process the drive queue.
      *
      * @param taskType specifies the type of task being run. This may be useful for handling multiple task types.
@@ -301,7 +358,7 @@ public class TrcGridDrive
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
             TrcPose2D robotPose = driveBase.getFieldPosition();
-            TrcPose2D startGridPose = getGridCellCenterPose(robotPose);
+            TrcPose2D startGridPose = adjustPoseToGridCellCenter(robotPose);
             TrcPose2D prevSegment = new TrcPose2D(0.0, 0.0, startGridPose.angle);
             // The first point of the path is center of the grid cell the robot is on.
             TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(startGridPose);
@@ -313,6 +370,7 @@ public class TrcGridDrive
                     robotPose, startGridPose, gridDriveQueue.size());
             }
 
+            boolean deferSegment = false;
             while (gridDriveQueue.size() > 0)
             {
                 TrcPose2D nextSegment = gridDriveQueue.get(0);
@@ -336,6 +394,7 @@ public class TrcGridDrive
                             funcName, "Coalesced compatible segments: prevSegment=%s (QSize=%d)",
                             prevSegment, gridDriveQueue.size());
                     }
+                    deferSegment = true;
                 }
                 else
                 {
@@ -422,12 +481,6 @@ public class TrcGridDrive
                     }
                     nextSegmentPoint.angle = nextStartPoint.angle;
 
-                    if (msgTracer != null)
-                    {
-                        msgTracer.traceInfo(
-                            funcName, "Turn Adjustments: prevEndPoint=%s, nextStartPoint=%s, nextSegPoint=%s",
-                            prevEndPoint, nextStartPoint, nextSegmentPoint);
-                    }
                     // Create endpoint of the previous segment.
                     pathBuilder.append(
                         new TrcPose2D(startGridPose.x + prevEndPoint.x * gridCellSize,
@@ -445,12 +498,21 @@ public class TrcGridDrive
                                       nextSegmentPoint.angle));
 
                     gridDriveQueue.remove(nextSegment);
-                    prevSegment = nextSegment;
-                    prevSegment.x = prevSegment.y = 0.0;
+
+                    if (msgTracer != null)
+                    {
+                        msgTracer.traceInfo(
+                            funcName,
+                            "Turn Adjustments: prevEndPoint=%s, nextStartPoint=%s, nextSegPoint=%s (QSize=%d)",
+                            prevEndPoint, nextStartPoint, nextSegmentPoint, gridDriveQueue.size());
+                    }
+
+                    prevSegment = nextSegmentPoint;
+                    deferSegment = false;
                 }
             }
 
-            if (prevSegment.x != 0.0 || prevSegment.y != 0.0)
+            if (deferSegment)
             {
                 // The last loop was a coalesce loop. It means we have one more segment to add to the path.
                 pathBuilder.append(
@@ -468,31 +530,6 @@ public class TrcGridDrive
              purePursuitDrive.start(moduleName, path, null, null, 0.0);
         }
     }   //startGridDrive
-
-    /**
-     * This method rounds the given position value to the center of a grid cell, meaning it will round the value so
-     * that the position will be at the center of the grid cell in number of grid units.
-     *
-     * @param position specifies the field position in inches.
-     * @return field position at the center of the grid cell in grid units.
-     */
-    private double gridCellCenterPosition(double position)
-    {
-        return Math.signum(position)*(((int) (Math.abs(position) / gridCellSize)) + 0.5);
-    }   //gridCellCenterPosition
-
-    /**
-     * This method adjusts the heading to the nearest 90-degree multiple.
-     *
-     * @param heading specifies the heading to be adjusted to the nearest 90-degree multiple.
-     * @return adjusted heading in the range of [0.0, 360.0)
-     */
-    private double gridCellHeading(double heading)
-    {
-        heading %= 360.0;
-        if (heading < 0.0) heading += 360.0;
-        return (((int) (heading / 90.0 + 0.5)) * 90.0) % 360.0;
-    }   //gridCellHeading
 
     /**
      * This method determines if the next segment has a compatible heading with the previous segment. If not, the robot
