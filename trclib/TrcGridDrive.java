@@ -100,7 +100,10 @@ public class TrcGridDrive
         setTaskEnabled(false);
         gridDriveQueue.clear();
         purePursuitDrive.cancel();
-        driveBase.releaseExclusiveAccess(moduleName);
+        if (driveBase.hasOwnership(moduleName))
+        {
+            driveBase.releaseExclusiveAccess(moduleName);
+        }
     }   //cancel
 
     /**
@@ -302,26 +305,30 @@ public class TrcGridDrive
     public void driveToEndPoint(TrcPose2D endPoint)
     {
         final String funcName = "driveToEndPoint";
-        TrcPose2D robotPose = driveBase.getFieldPosition();
-        TrcPose2D startGridCell = adjustGridCellCenter(poseToGridCell(robotPose));
-        TrcPose2D endGridCell = adjustGridCellCenter(poseToGridCell(endPoint));
-        TrcPose2D intermediateGridCell = getIntermediateGridCell(startGridCell, endGridCell);
-        TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(gridCellToPose(startGridCell));
 
-        if (intermediateGridCell != null)
+        if (driveBase.acquireExclusiveAccess(moduleName))
         {
-            pathBuilder.append(gridCellToPose(intermediateGridCell));
+            TrcPose2D robotPose = driveBase.getFieldPosition();
+            TrcPose2D startGridCell = adjustGridCellCenter(poseToGridCell(robotPose));
+            TrcPose2D endGridCell = adjustGridCellCenter(poseToGridCell(endPoint));
+            TrcPose2D intermediateGridCell = getIntermediateGridCell(startGridCell, endGridCell);
+            TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(gridCellToPose(startGridCell));
+
+            if (intermediateGridCell != null)
+            {
+                pathBuilder.append(gridCellToPose(intermediateGridCell));
+            }
+
+            pathBuilder.append(gridCellToPose(endGridCell)).append(endPoint);
+            TrcPath path = pathBuilder.toRelativeStartPath();
+
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
+            }
+
+            purePursuitDrive.start(moduleName, path, null, this::driveDone, 0.0);
         }
-
-        pathBuilder.append(gridCellToPose(endGridCell)).append(endPoint);
-        TrcPath path = pathBuilder.toRelativeStartPath();
-
-        if (msgTracer != null)
-        {
-            msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
-        }
-
-        purePursuitDrive.start(null, path, null, null, 0.0);
     }   //driveToEndPoint
 
     /**
@@ -527,9 +534,19 @@ public class TrcGridDrive
                 msgTracer.traceInfo(funcName, "GridDrivePath=%s", path);
             }
 
-             purePursuitDrive.start(moduleName, path, null, null, 0.0);
+             purePursuitDrive.start(moduleName, path, null, this::driveDone, 0.0);
         }
     }   //startGridDrive
+
+    /**
+     * This method is called when the PurePursuitDrive operation is done. It releases the ownership of the drive base.
+     *
+     * @param context not used.
+     */
+    private void driveDone(Object context)
+    {
+        cancel();
+    }   //driveDone
 
     /**
      * This method determines if the next segment has a compatible heading with the previous segment. If not, the robot
