@@ -49,7 +49,7 @@ public class TrcGridDrive
      * @param purePursuitDrive specifies the pure pursuit drive object.
      * @param gridCellSize specifies the grid cell size in inches.
      * @param turnStartAdj specifies the distance adjustment for the previous segment endpoint before the turn.
-     * @param turnEndAdj specifies the distance adjustment for the nextsegment startpoint after the turn.
+     * @param turnEndAdj specifies the distance adjustment for the next segment startpoint after the turn.
      */
     public TrcGridDrive(
         TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
@@ -269,31 +269,46 @@ public class TrcGridDrive
     }   //getIntermediateGridCell
 
     /**
-     * This method adds an X movement segment to the array list.
+     * This method adds a movement segment to the drive queue. Note: it is expected that only one argument will be
+     * non-zero and the other one must be zero.
+     *
+     * @param xGridCells specifies the X movement in number of grid cells, positive for East, negative for West.
+     * @param yGridCells specifies the Y movement in number of grid cells, positive for North, negative for South.
+     */
+    private void setRelativeGridTarget(int xGridCells, int yGridCells)
+    {
+        final String funcName = "setRelativeGridTarget";
+
+        if (xGridCells != 0 && yGridCells == 0 || yGridCells != 0 && xGridCells == 0)
+        {
+            gridDriveQueue.add(new TrcPose2D(xGridCells, yGridCells, 0.0));
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(
+                    funcName, "CellUnits=%d/%d (QSize=%d)", xGridCells, yGridCells, gridDriveQueue.size());
+            }
+            setTaskEnabled(true);
+        }
+    }   //setRelativeGridTarget
+
+    /**
+     * This method adds an X movement segment to the drive queue.
      *
      * @param gridCells specifies the X movement in number of grid cells, positive for East, negative for West.
      */
     public void setRelativeXGridTarget(int gridCells)
     {
-        if (gridCells != 0.0)
-        {
-            gridDriveQueue.add(new TrcPose2D(gridCells, 0.0, 0.0));
-            setTaskEnabled(true);
-        }
+        setRelativeGridTarget(gridCells, 0);
     }   //setRelativeXGridTarget
 
     /**
-     * This method adds an Y movement segment to the array list.
+     * This method adds an Y movement segment to the drive queue.
      *
      * @param gridCells specifies the Y movement in number of grid cells, positive for North, negative for South.
      */
     public void setRelativeYGridTarget(int gridCells)
     {
-        if (gridCells != 0.0)
-        {
-            gridDriveQueue.add(new TrcPose2D(0.0, gridCells, 0.0));
-            setTaskEnabled(true);
-        }
+        setRelativeGridTarget(0, gridCells);
     }   //setRelativeYGridTarget
 
     /**
@@ -335,7 +350,7 @@ public class TrcGridDrive
      * This method is called periodically to process the drive queue.
      *
      * @param taskType specifies the type of task being run. This may be useful for handling multiple task types.
-     * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param runMode specifies the current competition mode (e.g. Autonomous, TeleOp, Test).
      */
     private void gridDriveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
@@ -373,7 +388,7 @@ public class TrcGridDrive
             if (msgTracer != null)
             {
                 msgTracer.traceInfo(
-                    funcName, ">>>>> robotPose=%s, startGridPose=%s, QSize=%d",
+                    funcName, "##### robotPose=%s, startGridPose=%s, QSize=%d",
                     robotPose, startGridPose, gridDriveQueue.size());
             }
 
@@ -545,7 +560,7 @@ public class TrcGridDrive
      */
     private void driveDone(Object context)
     {
-        cancel();
+        driveBase.releaseExclusiveAccess(moduleName);
     }   //driveDone
 
     /**
