@@ -28,6 +28,7 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
@@ -239,6 +240,8 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
         {
             Imgproc.rectangle(input, Imgproc.boundingRect(contour), ANNOTATE_RECT_COLOR, 3);
         }
+//        // This line is for tuning Homography.
+//        Imgproc.line(input, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
     }   //process
 
     /**
