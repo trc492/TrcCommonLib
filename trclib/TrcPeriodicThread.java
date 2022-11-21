@@ -431,6 +431,7 @@ public class TrcPeriodicThread<T>
                 Thread.yield();
             }
         }
+
         if (threadWatchdog != null)
         {
             threadWatchdog.unregister();

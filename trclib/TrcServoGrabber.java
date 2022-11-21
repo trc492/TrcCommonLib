@@ -410,7 +410,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     public void finishAutoAssist(Object context)
     {
         final String funcName = "finishAutoAssist";
-        // Only clean up if there is a pending auto-assist operation.
+        // Do clean up only if there is a pending auto-assist operation.
         if (actionParams != null)
         {
             boolean inProximity = objectInProximity();
