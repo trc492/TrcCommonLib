@@ -22,6 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+
 /**
  * This class implements the TrcEvent. TrcEvent is very important in our event driven architecture where things
  * only happen when an event is signaled.
@@ -36,6 +39,13 @@ public class TrcEvent
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private TrcDbgTrace dbgTrace = null;
 
+    /**
+     * An event has three possible states:
+     *  - CLEARED: event should be in this state before starting an asynchronous operation. This is also the default
+     *             state when an event is created.
+     *  - SIGNALED: when an asynchronous operation is completed, the event is set to this state.
+     *  - CANCELED: when an asynchronous operation is canceled, the event is set to this state.
+     */
     public enum EventState
     {
         CLEARED,
@@ -43,8 +53,21 @@ public class TrcEvent
         CANCELED
     }   //enum EventState
 
+    /**
+     * This interface is implemented by the caller so that it can be notified when the event is signaled.
+     */
+    public interface Callback
+    {
+        void notify(Object context);
+    }   //interface Callback
+
+    private static ArrayList<TrcEvent> eventCallbackList = new ArrayList<>();
+    private static TrcTaskMgr.TaskObject eventCallbackTaskObj = null;
+
     private final String instanceName;
-    private EventState eventState;
+    private volatile EventState eventState;
+    private Callback callback;
+    private Object callbackContext;
 
     /**
      * Constructor: Create an instance of the object.
@@ -83,7 +106,7 @@ public class TrcEvent
     @Override
     public String toString()
     {
-        return String.format("%s=%s", instanceName, eventState);
+        return String.format("Event:%s=%s", instanceName, eventState);
     }   //toString
 
     /**
@@ -178,5 +201,89 @@ public class TrcEvent
 
         return canceled;
     }   //isCanceled
+
+    /**
+     * This method sets a callback handler so that when the event is signaled, the callback handler is called on
+     * the main robot thread. This could be very useful if the caller wants to perform some minor actions after an
+     * asynchronous operation is completed. Without the callback, the caller would have to set up a state machine
+     * waiting for the event to signal, then perform the action. Since the callback is done on the main robot thread,
+     * the caller doesn't have to worry about thread safety with the main robot code.
+     *
+     * @param callback specifies the callback handler, null for removing previous callback handler.
+     * @param context specifies the context object passing back to the callback handler.
+     */
+    public void setCallback(Callback callback, Object context)
+    {
+        clear();
+        synchronized (eventCallbackList)
+        {
+            boolean inList = eventCallbackList.contains(this);
+
+            this.callback = callback;
+            this.callbackContext = context;
+            if (callback != null && !inList)
+            {
+                // Callback handler is not already in the callback list, add it.
+                eventCallbackList.add(this);
+                if (eventCallbackTaskObj == null)
+                {
+                    // This is the first time a callback handler is set, create the event callback task on demand.
+                    eventCallbackTaskObj = TrcTaskMgr.createTask("EventCallbackTask", TrcEvent::eventCallbackTask);
+                }
+
+                if (!eventCallbackTaskObj.isRegistered())
+                {
+                    // Enable the task if not already. Registering it as a SYSTEM_TASK will make it run on the main
+                    // robot thread.
+                    eventCallbackTaskObj.registerTask(TrcTaskMgr.TaskType.SYSTEM_TASK);
+                }
+            }
+            else if (callback == null && inList)
+            {
+                // Remove the callback from the list. Note: if the list becomes empty, the task will disable itself.
+                eventCallbackList.remove(this);
+                this.callbackContext = null;
+            }
+        }
+    }   //setCallback
+
+    /**
+     * This method is run periodically on the main robot thread. It checks all the events on the callback list. If
+     * any of them are signaled or canceled, the callback will be issued.
+     *
+     * @param taskType specifies the task type to be SYSTEM_TASK (not used).
+     * @param runMode specifies the current RunMode (not used).
+     */
+    private static void eventCallbackTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    {
+        synchronized (eventCallbackList)
+        {
+            // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
+            Iterator<TrcEvent> listIterator = eventCallbackList.iterator();
+
+            while (listIterator.hasNext())
+            {
+                TrcEvent event = listIterator.next();
+                if (event.isSignaled() || event.isCanceled())
+                {
+                    Callback callback = event.callback;
+                    Object context = event.callbackContext;
+                    // Clear the callback stuff before doing the callback since the callback may reuse and chain to
+                    // another callback.
+                    event.callback = null;
+                    event.callbackContext = null;
+                    callback.notify(context);
+                    // Remove it from the list after the callback is issued.
+                    listIterator.remove();
+                }
+            }
+
+            if (eventCallbackList.isEmpty())
+            {
+                // The list is empty, disable the task.
+                eventCallbackTaskObj.unregisterTask();
+            }
+        }
+    }   //eventCallbackTask
 
 }   //class TrcEvent

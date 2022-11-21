@@ -23,13 +23,14 @@
 package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 /**
  * This class implements a platform independent servo motor. Typically, this class is to be extended by a platform
  * dependent servo class and must provide a set of abstract methods. This makes sure the rest of the TrcLib classes
  * can access the servo without any knowledge of platform dependent implementations.
  */
-public abstract class TrcServo
+public abstract class TrcServo implements TrcExclusiveSubsystem
 {
     protected static final String moduleName = "TrcServo";
     protected static final boolean debugEnabled = false;
@@ -74,6 +75,35 @@ public abstract class TrcServo
      */
     public abstract void stopContinuous();
 
+    /**
+     * This class encapsulates all the parameters required to perform the action.
+     */
+    private static class ActionParams
+    {
+        double power;
+        double pos;
+        TrcEvent event;
+        double timeout;
+        double stepRate;
+
+        ActionParams(double power, double pos, TrcEvent event, double timeout, double stepRate)
+        {
+            this.power = power;
+            this.pos = pos;
+            this.event = event;
+            this.timeout = timeout;
+            this.stepRate = stepRate;
+        }   //ActionParams
+
+        @Override
+        public String toString()
+        {
+            return String.format(
+                Locale.US, "power=%.1f,pos=%.1f,event=%s,timeout=%.3f,stepRate=%.1f",
+                power, pos, event, timeout, stepRate);
+        }   //toString
+    }   //class ActionParams
+
     public static final double SERVO_CONTINUOUS_FWD_MAX = 1.0;
     public static final double SERVO_CONTINUOUS_REV_MAX = 0.0;
     public static final double SERVO_CONTINUOUS_STOP = 0.5;
@@ -89,7 +119,9 @@ public abstract class TrcServo
     private final boolean continuous;
 //    private final TrcDigitalInput lowerLimitSwitch;
 //    private final TrcDigitalInput upperLimitSwitch;
+    private final TrcTimer delayTimer;
     private final TrcTimer timer;
+    private final TrcEvent timerEvent;
     private final TrcTaskMgr.TaskObject servoTaskObj;
     private boolean taskEnabled = false;
 //    private boolean calibrating = false;
@@ -127,7 +159,9 @@ public abstract class TrcServo
         this.continuous = continuous;
 //        this.lowerLimitSwitch = lowerLimitSwitch;
 //        this.upperLimitSwitch = upperLimitSwitch;
+        delayTimer = new TrcTimer(instanceName + ".delayTimer");
         timer = new TrcTimer(instanceName);
+        timerEvent = new TrcEvent(instanceName + ".timerEvent");
 
         servoTaskObj = TrcTaskMgr.createTask(instanceName + ".servoTask", this::servoTask);
         TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask).registerTask(TrcTaskMgr.TaskType.STOP_TASK);
@@ -218,31 +252,48 @@ public abstract class TrcServo
 
     /**
      * This method stops the servo.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
      */
-    public void stop()
+    public void cancel(String owner)
     {
-        final String funcName = "stop";
+        final String funcName = "cancel";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        if (continuous)
+        if (validateOwnership(owner))
         {
-            stopContinuous();
-        }
+            delayTimer.cancel();
+            timer.cancel();
+            timerEvent.setCallback(null, null);
 
-        if (taskEnabled)
-        {
-            setTaskEnabled(false);
+            if (continuous)
+            {
+                stopContinuous();
+            }
+
+            if (taskEnabled)
+            {
+                setTaskEnabled(false);
+            }
         }
 
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
-    }   //stop
+    }   //cancel
+
+    /**
+     * This method stops the servo.
+     */
+    public void cancel()
+    {
+        cancel(null);
+    }   //cancel
 
     /**
      * This method checks if the servo is a continuous servo.
@@ -268,45 +319,75 @@ public abstract class TrcServo
     }   //getPosition
 
     /**
+     * This method performs the setPosition action.
+     *
+     * @param context specifies the parameters for the action.
+     */
+    private void performSetPosition(Object context)
+    {
+        ActionParams actionParams = (ActionParams) context;
+        double logicalPos = toLogicalPosition(TrcUtil.clipRange(actionParams.pos, physicalMin, physicalMax));
+        setLogicalPosition(logicalPos);
+
+        for (TrcServo servo : followers)
+        {
+            servo.setLogicalPosition(logicalPos);
+        }
+
+        if (actionParams.timeout > 0.0)
+        {
+            // A timeout is specified, set a timer for it and signal an event when it expires.
+            // Since servo has no position feedback mechanism, time is used to estimate how long it takes to complete
+            // the operation and signal the caller.
+            timer.set(actionParams.timeout, actionParams.event);
+        }
+    }   //performSetPosition
+
+    /**
      * This method sets the servo motor position. By default, the servo maps its physical position the same as its
      * logical position [0.0, 1.0]. However, if setPhysicalRange was called, it could map a real world physical
-     * range (e.g. [0.0, 180.0] degrees) to the logical range of [0.0, 1.0]. If an event or notifier is given,
-     * it sets event or call the notifier after the given amount of time has expired.
+     * range (e.g. [0.0, 180.0] degrees) to the logical range of [0.0, 1.0]. If an event is given, it sets event
+     * after the given amount of time has expired.
      * <p>
      * Servo motor operates on logical position. On a 180-degree servo, 0.0 is at 0-degree and 1.0 is at 180-degree.
      * For a 90-degree servo, 0->0deg, 1->90deg. If servo direction is inverted, then 0.0 is at 180-degree and 1.0 is
      * at 0-degree. On a continuous servo, 0.0 is rotating full speed in reverse, 0.5 is to stop the motor and 1.0 is
      * rotating the motor full speed forward. Again, motor direction can be inverted if setInverted is called.
+     * </p>
+     * <p>
+     * Note: this method is not applicable for continuous servo.
+     * </p>
      *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param delay speciifes the delay in seconds before setting the position of the servo, can be zero if no delay.
      * @param position specifies the physical position of the servo motor. This value may be in degrees if
      *                 setPhysicalRange is called with the degree range.
-     * @param timeout specifies a maximum time value the operation should be completed in seconds.
      * @param event specifies an event object to signal when the timeout event has expired.
-     * @param notifier specifies the notifier to call when the timeout event has expired.
+     * @param timeout specifies a maximum time value the operation should be completed in seconds.
      */
-    public void setPosition(double position, double timeout, TrcEvent event, TrcNotifier.Receiver notifier)
+    public void setPosition(String owner, double delay, double position, TrcEvent event, double timeout)
     {
         final String funcName = "setPosition";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "pos=%f,event=%s,notifier=%s", position, event, notifier);
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
+                owner, delay, position, event, timeout);
         }
 
-        if (!continuous)
+        if (!continuous && validateOwnership(owner))
         {
-            double logicalPos = toLogicalPosition(TrcUtil.clipRange(position, physicalMin, physicalMax));
-            setLogicalPosition(logicalPos);
+            ActionParams actionParams = new ActionParams(0.0, position, event, timeout, 0.0);
 
-            for (TrcServo servo : followers)
+            if (delay > 0.0)
             {
-                servo.setLogicalPosition(logicalPos);
+                timerEvent.setCallback(this::performSetPosition, actionParams);
+                delayTimer.set(delay, timerEvent);
             }
-
-            if (timeout > 0.0 && (event != null || notifier != null))
+            else
             {
-                timer.set(timeout, event, notifier);
+                performSetPosition(actionParams);
             }
         }
 
@@ -327,14 +408,15 @@ public abstract class TrcServo
      * at 0-degree. On a continuous servo, 0.0 is rotating full speed in reverse, 0.5 is to stop the motor and 1.0 is
      * rotating the motor full speed forward. Again, motor direction can be inverted if setInverted is called.
      *
+     * @param delay speciifes the delay in seconds before setting the position of the servo, can be zero if no delay.
      * @param position specifies the physical position of the servo motor. This value may be in degrees if
      *                 setPhysicalRange is called with the degree range.
-     * @param timeout specifies a maximum time value the operation should be completed in seconds.
      * @param event specifies an event object to signal when the timeout event has expired.
+     * @param timeout specifies a maximum time value the operation should be completed in seconds.
      */
-    public void setPosition(double position, double timeout, TrcEvent event)
+    public void setPosition(double delay, double position, TrcEvent event, double timeout)
     {
-        setPosition(position, timeout, event, null);
+        setPosition(null, delay, position, event, timeout);
     }   //setPosition
 
     /**
@@ -350,12 +432,12 @@ public abstract class TrcServo
      *
      * @param position specifies the physical position of the servo motor. This value may be in degrees if
      *                 setPhysicalRange is called with the degree range.
+     * @param event specifies an event object to signal when the timeout event has expired.
      * @param timeout specifies a maximum time value the operation should be completed in seconds.
-     * @param notifier specifies the notifier to call when the timeout event has expired.
      */
-    public void setPosition(double position, double timeout, TrcNotifier.Receiver notifier)
+    public void setPosition(double position, TrcEvent event, double timeout)
     {
-        setPosition(position, timeout, null, notifier);
+        setPosition(null, 0.0, position, event, timeout);
     }   //setPosition
 
     /**
@@ -374,7 +456,92 @@ public abstract class TrcServo
      */
     public void setPosition(double position)
     {
-        setPosition(position, 0.0, null, null);
+        setPosition(null, 0.0, position, null, 0.0);
+    }   //setPosition
+
+    /**
+     * This method performs the setPositionWithStepRate action.
+     *
+     * @param context specifies the parameters for the action.
+     */
+    private void performSetPositionWithStepRate(Object context)
+    {
+        ActionParams actionParams = (ActionParams) context;
+
+        this.targetPosition = actionParams.pos;
+        this.currStepRate = Math.abs(actionParams.stepRate);
+        this.prevTime = TrcUtil.getCurrentTime();
+        this.currPosition = getPosition();
+        setTaskEnabled(true);
+    }   //performSetPositionWithStepRate
+
+    /**
+     * This method sets the servo to the specifies position but with the specified step rate in effect controlling
+     * the speed to get there.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param delay speciifes the delay in seconds before setting the position of the servo, can be zero if no delay.
+     * @param position specifies the target position.
+     * @param stepRate specifies the stepping rate to get there (physicalPos/sec).
+     * @param event specifies an event object to signal when the servo reaches the position..
+     */
+    public synchronized void setPosition(String owner, double delay, double position, double stepRate, TrcEvent event)
+    {
+        final String funcName = "setPosition";
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
+                owner, delay, position, stepRate, event);
+        }
+
+        if (!continuous && validateOwnership(owner))
+        {
+            ActionParams actionParams = new ActionParams(0.0, position, event, 0.0, stepRate);
+
+            if (delay > 0.0)
+            {
+                timerEvent.setCallback(this::performSetPositionWithStepRate, actionParams);
+                delayTimer.set(delay, timerEvent);
+            }
+            else
+            {
+                performSetPositionWithStepRate(actionParams);
+            }
+        }
+
+        if (debugEnabled)
+        {
+            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+        }
+    }   //setPosition
+
+    /**
+     * This method sets the servo to the specifies position but with the specified step rate in effect controlling
+     * the speed to get there.
+     *
+     * @param delay speciifes the delay in seconds before setting the position of the servo, can be zero if no delay.
+     * @param position specifies the target position.
+     * @param stepRate specifies the stepping rate to get there (physicalPos/sec).
+     * @param event specifies an event object to signal when the servo reaches the position..
+     */
+    public synchronized void setPosition(double delay, double position, double stepRate, TrcEvent event)
+    {
+        setPosition(null, delay, position, stepRate, event);
+    }   //setPosition
+
+    /**
+     * This method sets the servo to the specifies position but with the specified step rate in effect controlling
+     * the speed to get there.
+     *
+     * @param position specifies the target position.
+     * @param stepRate specifies the stepping rate to get there (physicalPos/sec).
+     * @param event specifies an event object to signal when the servo reaches the position..
+     */
+    public synchronized void setPosition(double position, double stepRate, TrcEvent event)
+    {
+        setPosition(null, 0.0, position, stepRate, event);
     }   //setPosition
 
     /**
@@ -386,30 +553,11 @@ public abstract class TrcServo
      */
     public synchronized void setPosition(double position, double stepRate)
     {
-        final String funcName = "setPosition";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "position=%f,stepRate=%f", position, stepRate);
-        }
-
-        if (!continuous)
-        {
-            this.targetPosition = position;
-            this.currStepRate = Math.abs(stepRate);
-            this.prevTime = TrcUtil.getCurrentTime();
-            this.currPosition = getPosition();
-            setTaskEnabled(true);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
+        setPosition(null, 0.0, position, stepRate, null);
     }   //setPosition
 
     /**
-     * This method sets the stepping mode characteristics.
+     * This method sets the stepping mode characteristics. Not applicable for continuous servo.
      *
      * @param maxStepRate specifies the maximum stepping rate (physicalPos/sec).
      * @param minPos specifies the minimum position.
@@ -421,8 +569,9 @@ public abstract class TrcServo
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API,
+                "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
         }
 
         if (!continuous)
@@ -439,21 +588,32 @@ public abstract class TrcServo
     }   //setStepMode
 
     /**
-     * This method sets the power just like a regular motor but for a servo. If it is a continuous servo, it will
-     * set it running with different speed. If it is a regular servo, it will change its step rate.
+     * This method is called when the duration of the continuous servo setPower has expired so we can turn off power.
      *
-     * @param power specifies how fast the servo will turn.
+     * @param context not used.
      */
-    public void setPower(double power)
+    private void durationExpired(Object context)
     {
-        final String funcName = "setPower";
+        ActionParams actionParams = (ActionParams) context;
 
-        if (debugEnabled)
+        setLogicalPosition(SERVO_CONTINUOUS_STOP);
+        if (actionParams.event != null)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%f", power);
+            actionParams.event.signal();
+            actionParams.event = null;
         }
+    }   //durationExpired
 
-        power = TrcUtil.clipRange(power);
+    /**
+     * This method performs the setPower action.
+     *
+     * @param context specifies the parameters for the action.
+     */
+    private void performSetPower(Object context)
+    {
+        ActionParams actionParams = (ActionParams) context;
+
+        double power = TrcUtil.clipRange(actionParams.power);
         if (continuous)
         {
 //            if (lowerLimitSwitch != null && lowerLimitSwitch.isActive() && power < 0.0 ||
@@ -466,41 +626,115 @@ public abstract class TrcServo
 //            }
 //            else
 //            {
-                power = TrcUtil.scaleRange(
-                    power, -1.0, 1.0, SERVO_CONTINUOUS_REV_MAX, SERVO_CONTINUOUS_FWD_MAX);
-                setLogicalPosition(power);
+            power = TrcUtil.scaleRange(
+                power, -1.0, 1.0, SERVO_CONTINUOUS_REV_MAX, SERVO_CONTINUOUS_FWD_MAX);
+            setLogicalPosition(power);
+            if (actionParams.timeout > 0.0)
+            {
+                // A timeout here is actually the duration to spin the continuous servo. Set a timer for the duration,
+                // after which we will turn off the servo.
+                timerEvent.setCallback(this::durationExpired, actionParams);
+                timer.set(actionParams.timeout, timerEvent);
+            }
 //            }
         }
         else if (!isTaskEnabled())
         {
-            //
-            // Not in stepping mode, so start stepping mode.
-            // If we are calibrating, cancel calibration.
-            //
+           // Not a continuous servo and not in stepping mode, so we do a setPosition to the direction according
+            // to the sign of the power and the step rate according to the magnitude of the power.
 //            calibrating = false;
-            setPosition(power > 0.0? maxPos: minPos, Math.abs(power)*maxStepRate);
+            setPosition(null, 0.0, power > 0.0? maxPos: minPos, Math.abs(power)*maxStepRate, actionParams.event);
         }
         else if (power != 0.0)
         {
-            //
             // We are already in stepping mode, just change the stepping parameters.
-            //
             targetPosition = power > 0.0? maxPos: minPos;
             currStepRate = Math.abs(power)*maxStepRate;
         }
         else
         {
-            //
             // We are stopping.
-            //
-            stop();
+            cancel();
         }
         currPower = power;
+    }   //performSetPower
 
-        if (debugEnabled)
+    /**
+     * This method sets power of the continuous servo.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param delay speciifes the delay in seconds before setting the power of the servo, can be zero if no delay.
+     * @param power specifies how fast the servo will turn.
+     * @param duration specifies the duration in seconds to run the servo and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void setPower(String owner, double delay, double power, double duration, TrcEvent event)
+    {
+        if (continuous && validateOwnership(owner))
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            ActionParams actionParams = new ActionParams(power, 0.0, event, duration, 0.0);
+
+            if (delay > 0.0)
+            {
+                timerEvent.setCallback(this::performSetPower, actionParams);
+                delayTimer.set(delay, timerEvent);
+            }
+            else
+            {
+                performSetPower(actionParams);
+            }
         }
+    }   //setPower
+
+    /**
+     * This method sets power of the continuous servo.
+     *
+     * @param delay speciifes the delay in seconds before setting the power of the servo, can be zero if no delay.
+     * @param power specifies how fast the servo will turn.
+     * @param duration specifies the duration in seconds to run the servo and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void setPower(double delay, double power, double duration, TrcEvent event)
+    {
+        setPower(null, delay, power, duration, event);
+    }   //setPower
+
+    /**
+     * This method sets power of the continuous servo.
+     *
+     * @param power specifies how fast the servo will turn.
+     * @param duration specifies the duration in seconds to run the servo and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void setPower(double power, double duration, TrcEvent event)
+    {
+        setPower(null, 0.0, power, duration, event);
+    }   //setPower
+
+    /**
+     * This method sets power of the continuous servo.
+     *
+     * @param power specifies how fast the servo will turn.
+     * @param duration specifies the duration in seconds to run the servo and turns it off afterwards, 0.0 if not
+     *        turning off.
+     */
+    public void setPower(double power, double duration)
+    {
+        setPower(null, 0.0, power, duration, null);
+    }   //setPower
+
+    /**
+     * This method sets the power just like a regular motor but for a servo. If it is a continuous servo, it will
+     * set it running with different speed. If it is a regular servo, it will change its step rate.
+     *
+     * @param power specifies how fast the servo will turn.
+     */
+    public void setPower(double power)
+    {
+        setPower(null, 0.0, power, 0.0, null);
     }   //setPower
 
     /**
@@ -749,7 +983,7 @@ public abstract class TrcServo
                 //
                 // We have reached target and we are not calibrating, so we are done.
                 //
-                stop();
+                cancel();
             }
             prevTime = currTime;
 
@@ -788,7 +1022,7 @@ public abstract class TrcServo
         //
         // Note: stop() will set calibrating to false.
         //
-        stop();
+        cancel();
 
         if (debugEnabled)
         {

@@ -24,6 +24,7 @@ package TrcCommonLib.trclib;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -34,7 +35,7 @@ public class TrcTaskMgr
 {
     private static final String moduleName = "TrcTaskMgr";
     private static final boolean debugEnabled = false;
-    private static TrcDbgTrace dbgTrace = TrcDbgTrace.getGlobalTracer();
+    private static final TrcDbgTrace dbgTrace = TrcDbgTrace.getGlobalTracer();
 
     public static final long FAST_LOOP_INTERVAL_MS = 20;        // in msec (50 Hz)
     public static final long SLOW_LOOP_INTERVAL_MS = 50;        // in msec (20 Hz)
@@ -48,12 +49,12 @@ public class TrcTaskMgr
     public enum TaskType
     {
         /**
-         * START_TASK is called one time before a competition mode is about to start.
+         * START_TASK is called one time before a competition mode is about to start on the main robot thread.
          */
         START_TASK(0),
 
         /**
-         * STOP_TASK is called one time before a competition mode is about to end.
+         * STOP_TASK is called one time before a competition mode is about to end on the main robot thread.
          */
         STOP_TASK(1),
 
@@ -82,25 +83,31 @@ public class TrcTaskMgr
         SLOW_POSTPERIODIC_TASK(5),
 
         /**
+         * SYSTEM_TASK is called periodically at the end of the main robot loop at the fastest rate. This is meant
+         * to be used only by the framework library (i.e. not for general public).
+         */
+        SYSTEM_TASK(6),
+
+        /**
          * INPUT_TASK is called periodically at a rate about 20Hz on its own thread. Typically, it runs code that
          * reads sensor input.
          */
-        INPUT_TASK(6),
+        INPUT_TASK(7),
 
         /**
          * OUTPUT_TASK is called periodically at a rate about 100Hz on its own thread. Typically, it runs code that
          * updates the state of actuators.
          */
-        OUTPUT_TASK(7),
+        OUTPUT_TASK(8),
 
         /**
          * STANDALONE_TASK is called periodically at the specified interval on its own thread. Typically, code that
          * may block for a long time requires its own thread so that it doesn't degrade the performance of the other
          * threads.
          */
-        STANDALONE_TASK(8);
+        STANDALONE_TASK(9);
 
-        public int value;
+        public final int value;
 
         TaskType(int value)
         {
@@ -179,11 +186,11 @@ public class TrcTaskMgr
     {
         private final String taskName;
         private final Task task;
-        private HashSet<TaskType> taskTypes;
-        private long[] taskStartTimes = new long[TaskType.values().length];
-        private long[] taskTotalIntervals = new long[TaskType.values().length];
-        private long[] taskTotalElapsedTimes = new long[TaskType.values().length];
-        private int[] taskTimeSlotCounts = new int[TaskType.values().length];
+        private final HashSet<TaskType> taskTypes;
+        private final long[] taskStartTimes = new long[TaskType.values().length];
+        private final long[] taskTotalIntervals = new long[TaskType.values().length];
+        private final long[] taskTotalElapsedTimes = new long[TaskType.values().length];
+        private final int[] taskTimeSlotCounts = new int[TaskType.values().length];
         private TrcPeriodicThread<Object> taskThread = null;
 
         /**
@@ -505,7 +512,7 @@ public class TrcTaskMgr
 
     }   //class TaskObject
 
-    private static List<TaskObject> taskList = new CopyOnWriteArrayList<>();
+    private static final List<TaskObject> taskList = new CopyOnWriteArrayList<>();
     private static TrcPeriodicThread<Object> inputThread = null;
     private static TrcPeriodicThread<Object> outputThread = null;
 
@@ -634,55 +641,13 @@ public class TrcTaskMgr
      */
     public static void executeTaskType(TaskType type, TrcRobot.RunMode mode)
     {
-        //
-        // Traverse the list backward because we are removing task objects from the list on STOP_TASK.
-        // This way the list order won't be messed up.
-        //
-        for (int i = 0; i < taskList.size(); i++)
+        for (TaskObject taskObj: taskList)
         {
-            TaskObject taskObj = taskList.get(i);
             if (taskObj.hasType(type))
             {
                 Task task = taskObj.getTask();
-
                 taskObj.recordStartTime(type);
-                switch (type)
-                {
-                    case START_TASK:
-                        task.runTask(TaskType.START_TASK, mode);
-                        break;
-
-                    case STOP_TASK:
-                        task.runTask(TaskType.STOP_TASK, mode);
-                        break;
-
-                    case FAST_PREPERIODIC_TASK:
-                        task.runTask(TaskType.FAST_PREPERIODIC_TASK, mode);
-                        break;
-
-                    case FAST_POSTPERIODIC_TASK:
-                        task.runTask(TaskType.FAST_POSTPERIODIC_TASK, mode);
-                        break;
-
-                    case SLOW_PREPERIODIC_TASK:
-                        task.runTask(TaskType.SLOW_PREPERIODIC_TASK, mode);
-                        break;
-
-                    case SLOW_POSTPERIODIC_TASK:
-                        task.runTask(TaskType.SLOW_POSTPERIODIC_TASK, mode);
-                        break;
-
-                    case INPUT_TASK:
-                        task.runTask(TaskType.INPUT_TASK, mode);
-                        break;
-
-                    case OUTPUT_TASK:
-                        task.runTask(TaskType.OUTPUT_TASK, mode);
-                        break;
-
-                    default:
-                        break;
-                }
+                task.runTask(type, mode);
                 taskObj.recordElapsedTime(type);
             }
         }
@@ -728,7 +693,7 @@ public class TrcTaskMgr
                 if (taskElapsedTime > 0.0)
                 {
                     taskTypeCounter++;
-                    msg.append(String.format(" %s=%.6f/%.6f", taskType, taskElapsedTime, taskInterval));
+                    msg.append(String.format(Locale.US, " %s=%.6f/%.6f", taskType, taskElapsedTime, taskInterval));
                 }
             }
 
@@ -752,7 +717,8 @@ public class TrcTaskMgr
 
             for (TaskType type : taskObj.taskTypes)
             {
-                msg.append(" " + type);
+                msg.append(" ");
+                msg.append(type);
             }
 
             tracer.traceInfo("RegisteredTask", "%s", msg);
