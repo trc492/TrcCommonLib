@@ -379,22 +379,22 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     {
         final String funcName = "enableAutoAssist";
         ActionParams actionParams = (ActionParams) context;
-        boolean hasObject = objectInProximity();
+        boolean inProximity = objectInProximity();
         boolean grabbingObject = false;
 
         if (params.msgTracer != null)
         {
             params.msgTracer.traceInfo(
-                funcName, "Enabling: grabberClosed=%s, hasObject=%s (params=%s)",
-                grabberClosed, hasObject, actionParams);
+                funcName, "Enabling: grabberClosed=%s, inProximity=%s (params=%s)",
+                grabberClosed, inProximity, actionParams);
         }
 
-        if (grabberClosed && !hasObject)
+        if (grabberClosed && !inProximity)
         {
             // Grabber is close but has no object, open it to prepare for grabbing.
             open();
         }
-        else if (!grabberClosed && hasObject)
+        else if (!grabberClosed && inProximity)
         {
             // Grabber is open but the object is near by, grab it and signal the event.
             close(actionParams.event);
@@ -423,7 +423,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         // Do clean up only if there is a pending auto-assist operation.
         if (actionParams != null)
         {
-            boolean hasObject = objectInProximity();
+            boolean hasObject = hasObject();
 
             if (params.msgTracer != null)
             {
@@ -538,6 +538,16 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
 
         return inProximity;
     }   //objectInProximity
+
+    /**
+     * This method checks if the grabber has the object.
+     *
+     * @return true if grabber has the object, false otherwise.
+     */
+    public boolean hasObject()
+    {
+        return grabberClosed && objectInProximity();
+    }   //hasObject
 
     /**
      * This method checks if auto-assist is active.
