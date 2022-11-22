@@ -420,7 +420,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     private void cancelAutoAssist(Object context)
     {
         final String funcName = "cancelAutoAssist";
-        // Do clean up only if there is a pending auto-assist operation.
+        // Do clean up only if auto-assist is enabled.
         if (actionParams != null)
         {
             boolean hasObject = hasObject();
