@@ -327,6 +327,10 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void open(TrcEvent event)
     {
+        if (event != null)
+        {
+            event.clear();
+        }
         servo.setPosition(params.openPos, event, params.openTime);
         grabberClosed = false;
     }   //open
@@ -347,6 +351,10 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void close(TrcEvent event)
     {
+        if (event != null)
+        {
+            event.clear();
+        }
         servo.setPosition(params.closePos, event, params.closeTime);
         grabberClosed = true;
     }   //close
@@ -356,100 +364,100 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void close()
     {
-        close(null);
+        close(actionParams != null? actionParams.event: null);
     }   //close
 
     /**
-     * This method performs the auto-assist action which is to close the grabber if it was open and the object is in
-     * proximity or to open the grabber if it was close and the object is in proximity.
+     * This method enables auto-assist grabbing which is to close the grabber if it was open and the object is in
+     * proximity or to open the grabber if it was close and it doesn't have the object. It arms the sensor trigger
+     * to detect the object for auto grabbing. If there is a timeout, it arms the timeout timer for canceling the
+     * auto-assist grabbing operation when the timer expires.
      *
      * @param context specifies the action parameters.
      */
-    private void performAutoAssist(Object context)
+    private void enableAutoAssist(Object context)
     {
-        final String funcName = "performAutoAssist";
+        final String funcName = "enableAutoAssist";
         ActionParams actionParams = (ActionParams) context;
-        boolean inProximity = objectInProximity();
+        boolean hasObject = objectInProximity();
+        boolean grabbingObject = false;
 
-        if (grabberClosed)
+        if (params.msgTracer != null)
         {
-            // Grabber is in close position, whether we have the object or not, just open it.
+            params.msgTracer.traceInfo(
+                funcName, "Enabling: grabberClosed=%s, hasObject=%s (params=%s)",
+                grabberClosed, hasObject, actionParams);
+        }
+
+        if (grabberClosed && !hasObject)
+        {
+            // Grabber is close but has no object, open it to prepare for grabbing.
             open();
-            finishAutoAssist(actionParams);
         }
-        else if (inProximity)
+        else if (!grabberClosed && hasObject)
         {
-            // Grabber is in open position and the object is in proximity. Just close the grabber to get the object.
-            close();
-            finishAutoAssist(actionParams);
+            // Grabber is open but the object is near by, grab it and signal the event.
+            close(actionParams.event);
+            grabbingObject = true;
         }
-        else
+        // Arm the sensor trigger as long as AutoAssist is enabled.
+        sensorTrigger.setEnabled(true);
+        if (!grabbingObject && actionParams.timeout > 0.0)
         {
-            // Grabber is in open position and no object is in sight. Enable trigger sensor with timeout.
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(funcName, "AutoAssist: arm trigger sensor (params=%s)", actionParams);
-            }
-
-            sensorTrigger.setEnabled(true);
-            if (actionParams.timeout > 0.0)
-            {
-                timerEvent.setCallback(this::finishAutoAssist, actionParams);
-                timer.set(actionParams.timeout, timerEvent);
-            }
+            timerEvent.setCallback(this::cancelAutoAssist, actionParams);
+            timer.set(actionParams.timeout, timerEvent);
         }
-    }   //performAutoAssist
+    }   //enableAutoAssist
 
     /**
-     * This method finishes the auto-assist operation and to clean up. It is called either when the sensor trigger
-     * was activated which means the grabber was open and the object just got detected. In this case, we will close
-     * the grabber to grab the object. In all other cases, we just do clean up and perform no other action.
+     * This method cancels the auto-assist operation and to clean up. It is called either by the user for canceling
+     * the operation or if the auto-assist has set a timeout and it has expired. Auto-assist will not be canceled
+     * even if the sensor trigger caused it to grab an object. If a timeout is not set, auto-assist remains enabled
+     * and can auto grab an object over and over again until the user calls this method to cancel the operation.
      *
-     * @param context specifies the ActionParams object, null if called by sensor trigger.
+     * @param context specifies the ActionParams object.
      */
-    public void finishAutoAssist(Object context)
+    private void cancelAutoAssist(Object context)
     {
-        final String funcName = "finishAutoAssist";
+        final String funcName = "cancelAutoAssist";
         // Do clean up only if there is a pending auto-assist operation.
         if (actionParams != null)
         {
-            boolean inProximity = objectInProximity();
+            boolean hasObject = objectInProximity();
 
             if (params.msgTracer != null)
             {
                 params.msgTracer.traceInfo(
-                    funcName, "Cleaning up: grabberClosed=%s, inProximity=%s, timerEvent=%s",
-                    grabberClosed, inProximity, timerEvent);
+                    funcName, "Canceling: grabberClosed=%s, hasObject=%s, timerEvent=%s",
+                    grabberClosed, hasObject, timerEvent);
             }
 
-            if (context == null)
+            if (!hasObject && actionParams.event != null)
             {
-                // This is called by the sensor trigger. It means we just detected the object, just grab it.
-                if (params.msgTracer != null)
-                {
-                    params.msgTracer.traceInfo(funcName, "Grabbing object.");
-                }
-                // Cancel timeout timer if any.
-                timer.cancel();
-                close();
+                actionParams.event.cancel();
             }
 
+            timer.cancel();
             sensorTrigger.setEnabled(false);
-            if (actionParams.event != null)
-            {
-                actionParams.event.signal();
-                actionParams.event = null;
-            }
-
             actionParams = null;
         }
-    }   //finishAutoAssist
+    }   //cancelAutoAssist
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start monitoring the trigger sensor for
+     * This method cancels the auto-assist operation and to clean up. It is called either by the user for canceling
+     * the operation or if the auto-assist has set a timeout and it has expired. Auto-assist will not be canceled
+     * even if the sensor trigger caused it to grab an object. If a timeout is not set, auto-assist remains enabled
+     * and can auto grab an object over and over again until the user calls this method to cancel the operation.
+     */
+    public void cancelAutoAssist()
+    {
+        cancelAutoAssist(null);
+    }   //cancelAutoAssist
+
+    /**
+     * This method enables auto-assist grabbing. It allows the caller to start monitoring the trigger sensor for
      * the object in the vicinity. If the object is within grasp, it will automatically grab the object. If an
-     * event is provided, it will also signal the event when the operation is completed. If the grabber already
-     * has the object, this will immediately release the object.
+     * event is provided, it will also signal the event when the operation is completed.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the grabber subsystem.
      * @param delay specifies the delay time in seconds before executing the action.
@@ -457,29 +465,29 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssist(String owner, double delay, TrcEvent event, double timeout)
+    public void enableAutoAssist(String owner, double delay, TrcEvent event, double timeout)
     {
         if (sensorTrigger == null)
         {
             throw new RuntimeException("Must have sensor to perform AutoAssist.");
         }
         //
-        // This is an auto-assist operation, make sure the caller has ownership.
+        // This is an auto-assist operation, make sure the caller has ownership and autoAssist is not already active.
         //
-        if (validateOwnership(owner))
+        if (actionParams == null && validateOwnership(owner))
         {
             actionParams = new ActionParams(event, timeout);
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::performAutoAssist, actionParams);
+                timerEvent.setCallback(this::enableAutoAssist, actionParams);
                 timer.set(delay, timerEvent);
             }
             else
             {
-                performAutoAssist(actionParams);
+                enableAutoAssist(actionParams);
             }
         }
-    }   //autoAssist
+    }   //enableAutoAssist
 
     /**
      * This method returns the sensor value read from the analog sensor.
