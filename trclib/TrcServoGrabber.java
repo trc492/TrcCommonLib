@@ -454,7 +454,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
 
             if (grabberClosed)
             {
-                open();
+                open((TrcEvent) context);
             }
 
             timer.cancel();
@@ -464,10 +464,19 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     }   //cancelAutoAssist
 
     /**
-     * This method cancels the auto-assist operation and to clean up. It is called either by the user for canceling
-     * the operation or if the auto-assist has set a timeout and it has expired. Auto-assist will not be canceled
-     * even if the sensor trigger caused it to grab an object. If a timeout is not set, auto-assist remains enabled
-     * and can auto grab an object over and over again until the user calls this method to cancel the operation.
+     * This method cancels the auto-assist operation and to clean up. It is called by the user for canceling the
+     * operation.
+     *
+     * @param event specifies the event to signal when cancel finished opening the grabber if it was close.
+     */
+    public void cancelAutoAssist(TrcEvent event)
+    {
+        cancelAutoAssist(event);
+    }   //cancelAutoAssist
+
+    /**
+     * This method cancels the auto-assist operation and to clean up. It is called by the user for canceling the
+     * operation.
      */
     public void cancelAutoAssist()
     {
