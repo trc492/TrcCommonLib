@@ -327,6 +327,13 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void open(TrcEvent event)
     {
+        final String funcName = "open";
+
+        if (params.msgTracer != null)
+        {
+            params.msgTracer.traceInfo(funcName, "Opening: event=%s", event);
+        }
+
         if (event != null)
         {
             event.clear();
@@ -351,6 +358,13 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void close(TrcEvent event)
     {
+        final String funcName = "close";
+
+        if (params.msgTracer != null)
+        {
+            params.msgTracer.traceInfo(funcName, "Closing: event=%s", event);
+        }
+
         if (event != null)
         {
             event.clear();
@@ -398,6 +412,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         {
             // Grabber is open but the object is near by, grab it and signal the event.
             close(actionParams.event);
+            actionParams.event = null;
             grabbingObject = true;
         }
         // Arm the sensor trigger as long as AutoAssist is enabled.
@@ -435,6 +450,11 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             if (!hasObject && actionParams.event != null)
             {
                 actionParams.event.cancel();
+            }
+
+            if (grabberClosed)
+            {
+                open();
             }
 
             timer.cancel();
