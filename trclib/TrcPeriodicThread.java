@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -382,9 +381,8 @@ public class TrcPeriodicThread<T>
                 numThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
+        TrcEvent.registerEventCallback(thread);
         // Do not create a watchdog for the Watchdog Manager task.
-        ArrayList<TrcEvent> callbackEventList = new ArrayList<>();
-        TrcEvent.registerCallbackEventList(thread, callbackEventList);
         TrcWatchdogMgr.Watchdog threadWatchdog =
             instanceName.equals(TrcWatchdogMgr.moduleName)? null: TrcWatchdogMgr.registerWatchdog(instanceName);
         while (!Thread.interrupted())
@@ -411,17 +409,7 @@ public class TrcPeriodicThread<T>
                 }
             }
 
-            // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
-            Iterator<TrcEvent> listIterator = callbackEventList.iterator();
-            while (listIterator.hasNext())
-            {
-                TrcEvent event = listIterator.next();
-                if (event.isSignaled() || event.isCanceled())
-                {
-                    event.doEventCallback();
-                    listIterator.remove();
-                }
-            }
+            TrcEvent.performEventCallback(thread);
 
             if (processingInterval > 0)
             {
@@ -457,7 +445,7 @@ public class TrcPeriodicThread<T>
             threadWatchdog.unregister();
         }
 
-        TrcEvent.unregisterCallbackEventList(thread);
+        TrcEvent.unregisterEventCallback(thread);
 
         numThreads = numActiveThreads.decrementAndGet();
         if (debugEnabled)
