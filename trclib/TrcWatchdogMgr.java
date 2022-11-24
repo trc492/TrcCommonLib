@@ -88,6 +88,7 @@ public class TrcWatchdogMgr
          */
         public boolean sendHeartBeat()
         {
+            final String funcName = "sendHeartBeat";
             boolean success = false;
 
             if (this.thread == Thread.currentThread())
@@ -99,6 +100,12 @@ public class TrcWatchdogMgr
                     heartBeatExpiredTime = currTime + heartBeatThreshold;
                     expired = false;
                 }
+            }
+            else
+            {
+                tracer.traceWarn(
+                    funcName, "Only the thread created this watchdog (%s) is allowed to send heart beat.", name);
+                TrcDbgTrace.printThreadStack();
             }
 
             return success;
@@ -113,11 +120,18 @@ public class TrcWatchdogMgr
          */
         public boolean unregister()
         {
+            final String funcName = "unregister";
             boolean success = false;
 
             if (this.thread == Thread.currentThread())
             {
                 success = unregisterWatchdog(this);
+            }
+            else
+            {
+                tracer.traceWarn(
+                    funcName, "Only the thread created this watchdog (%s) is allowed to unregister.", name);
+                TrcDbgTrace.printThreadStack();
             }
 
             return success;
@@ -145,23 +159,6 @@ public class TrcWatchdogMgr
         {
             return heartBeatThreshold;
         }   //getHeartBeatThreshold
-
-        /**
-         * This method returns the stack trace info of the watchdog thread in string format.
-         *
-         * @return stack trace info in string format.
-         */
-        public String getThreadStackTrace()
-        {
-            StringBuilder sb = new StringBuilder();
-
-            for (StackTraceElement ste : this.thread.getStackTrace())
-            {
-                sb.append("\n" + ste);
-            }
-
-            return sb.toString();
-        }   //getThreadStackTrace
 
     }   //class Watchdog
 
@@ -241,6 +238,7 @@ public class TrcWatchdogMgr
      */
     public static Watchdog registerWatchdog(String name, double heartBeatThreshold)
     {
+        final String funcName = "registerWatchdog";
         Watchdog watchdog = null;
 
         instance = getInstance();
@@ -251,6 +249,11 @@ public class TrcWatchdogMgr
                 watchdog = new Watchdog(name, heartBeatThreshold);
                 watchdogList.add(watchdog);
                 watchdogMap.put(name, watchdog);
+            }
+            else
+            {
+                tracer.traceWarn(funcName, "Watchdog (%s) was already registered.", name);
+                TrcDbgTrace.printThreadStack();
             }
         }
 
@@ -278,12 +281,19 @@ public class TrcWatchdogMgr
      */
     public static boolean unregisterWatchdog(Watchdog watchdog)
     {
+        final String funcName = "unregisterWatchdog";
         boolean success = false;
 
         synchronized (watchdogList)
         {
             watchdogMap.remove(watchdog.name);
             success = watchdogList.remove(watchdog);
+        }
+
+        if (!success)
+        {
+            tracer.traceWarn(funcName, "Watchdog (%s) was never registered.", watchdog.name);
+            TrcDbgTrace.printThreadStack();
         }
 
         return success;
@@ -323,9 +333,8 @@ public class TrcWatchdogMgr
 
                 if (timedout)
                 {
-                    tracer.traceWarn(
-                        funcName, "[%.3f] watchdog (%s) timed out: %s",
-                        currTime, watchdog, watchdog.getThreadStackTrace());
+                    tracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out: %s", currTime, watchdog);
+                    TrcDbgTrace.printThreadStack(watchdog.thread);
                 }
             }
         }

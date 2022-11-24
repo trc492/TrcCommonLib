@@ -22,6 +22,10 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * This class implements a platform independent periodic task by using a separate thread. When enabled, the thread
  * periodically calls the runPeriodic method. Generally, this class is used by TrcTaskMgr to create a standalone
@@ -166,7 +170,7 @@ public class TrcPeriodicThread<T>
 
     }   //class TaskState
 
-    private static volatile int numActiveThreads = 0;
+    private static final AtomicInteger numActiveThreads = new AtomicInteger(0);
     private final String instanceName;
     private final PeriodicTask task;
     private final Object context;
@@ -227,7 +231,7 @@ public class TrcPeriodicThread<T>
      */
     public static int getNumActiveThreads()
     {
-        return numActiveThreads;
+        return numActiveThreads.get();
     }   //getNumActiveThreads
 
     /**
@@ -365,19 +369,22 @@ public class TrcPeriodicThread<T>
     public void run()
     {
         final String funcName = "run";
+        Thread thread = Thread.currentThread();
         @SuppressWarnings("unused") long totalThreadNanoTime = 0;
         @SuppressWarnings("unused") int loopCount = 0;
 
-        numActiveThreads++;
+        int numThreads = numActiveThreads.incrementAndGet();
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK);
-            Thread thread = Thread.currentThread();
-            dbgTrace.traceInfo(moduleName, "Thread %d: name=%s, tid=%d, priority=%d, group=%s",
-                    numActiveThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
+            dbgTrace.traceInfo(
+                moduleName, "Thread %d: name=%s, tid=%d, priority=%d, group=%s",
+                numThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
         // Do not create a watchdog for the Watchdog Manager task.
+        ArrayList<TrcEvent> callbackEventList = new ArrayList<>();
+        TrcEvent.registerCallbackEventList(thread, callbackEventList);
         TrcWatchdogMgr.Watchdog threadWatchdog =
             instanceName.equals(TrcWatchdogMgr.moduleName)? null: TrcWatchdogMgr.registerWatchdog(instanceName);
         while (!Thread.interrupted())
@@ -389,6 +396,7 @@ public class TrcPeriodicThread<T>
             {
                 threadWatchdog.sendHeartBeat();
             }
+
             if (taskState.isTaskEnabled())
             {
                 task.runPeriodic(context);
@@ -400,6 +408,18 @@ public class TrcPeriodicThread<T>
                 {
                     dbgTrace.traceVerbose(funcName, "%s: start=%.6f, elapsed=%.6f",
                             instanceName, startNanoTime/1000000000.0, elapsedNanoTime/1000000000.0);
+                }
+            }
+
+            // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
+            Iterator<TrcEvent> listIterator = callbackEventList.iterator();
+            while (listIterator.hasNext())
+            {
+                TrcEvent event = listIterator.next();
+                if (event.isSignaled() || event.isCanceled())
+                {
+                    event.doEventCallback();
+                    listIterator.remove();
                 }
             }
 
@@ -437,14 +457,16 @@ public class TrcPeriodicThread<T>
             threadWatchdog.unregister();
         }
 
+        TrcEvent.unregisterCallbackEventList(thread);
+
+        numThreads = numActiveThreads.decrementAndGet();
         if (debugEnabled)
         {
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
-            dbgTrace.traceInfo(moduleName, "Exiting thread %d: %s (AvgLoopTime=%.6f)",
-                    numActiveThreads, instanceName, totalThreadNanoTime/1000000000.0/loopCount);
+            dbgTrace.traceInfo(
+                moduleName, "Exiting thread %d: %s (AvgLoopTime=%.6f)",
+                numThreads, instanceName, totalThreadNanoTime/1000000000.0/loopCount);
         }
-
-        numActiveThreads--;
     }   //run
 
 }   //class TrcPeriodicThread
