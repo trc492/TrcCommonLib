@@ -186,6 +186,7 @@ public class TrcDbgTrace
      */
     public static void printThreadStack(Thread thread)
     {
+        final String funcName = "printThreadStack";
         StringBuilder sb = new StringBuilder();
 
         if (globalTracer == null)
@@ -198,7 +199,7 @@ public class TrcDbgTrace
             sb.append("\n").append(ste);
         }
 
-        globalTracer.traceInfo("triggerEvent", "thread stack: %s", sb.toString());
+        globalTracer.traceInfo(funcName, "thread stack: %s", sb.toString());
     }   //printThreadStack
 
     /**
