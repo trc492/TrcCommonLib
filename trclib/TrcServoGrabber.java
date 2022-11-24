@@ -432,7 +432,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      *
      * @param context specifies the ActionParams object.
      */
-    private void cancelAutoAssist(Object context)
+    public void cancelAutoAssist(Object context)
     {
         final String funcName = "cancelAutoAssist";
         // Do clean up only if auto-assist is enabled.
@@ -461,17 +461,6 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             sensorTrigger.setEnabled(false);
             actionParams = null;
         }
-    }   //cancelAutoAssist
-
-    /**
-     * This method cancels the auto-assist operation and to clean up. It is called by the user for canceling the
-     * operation.
-     *
-     * @param event specifies the event to signal when cancel finished opening the grabber if it was close.
-     */
-    public void cancelAutoAssist(TrcEvent event)
-    {
-        cancelAutoAssist(event);
     }   //cancelAutoAssist
 
     /**
