@@ -83,29 +83,23 @@ public class TrcTaskMgr
         SLOW_POSTPERIODIC_TASK(5),
 
         /**
-         * SYSTEM_TASK is called periodically at the end of the main robot loop at the fastest rate. This is meant
-         * to be used only by the framework library (i.e. not for general public).
-         */
-        SYSTEM_TASK(6),
-
-        /**
          * INPUT_TASK is called periodically at a rate about 20Hz on its own thread. Typically, it runs code that
          * reads sensor input.
          */
-        INPUT_TASK(7),
+        INPUT_TASK(6),
 
         /**
          * OUTPUT_TASK is called periodically at a rate about 100Hz on its own thread. Typically, it runs code that
          * updates the state of actuators.
          */
-        OUTPUT_TASK(8),
+        OUTPUT_TASK(7),
 
         /**
          * STANDALONE_TASK is called periodically at the specified interval on its own thread. Typically, code that
          * may block for a long time requires its own thread so that it doesn't degrade the performance of the other
          * threads.
          */
-        STANDALONE_TASK(9);
+        STANDALONE_TASK(8);
 
         public final int value;
 
