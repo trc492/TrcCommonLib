@@ -333,7 +333,7 @@ public class TrcWatchdogMgr
 
                 if (timedout)
                 {
-                    tracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out: %s", currTime, watchdog);
+                    tracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out: %s", currTime, watchdog, timedout);
                     TrcDbgTrace.printThreadStack(watchdog.thread);
                 }
             }
