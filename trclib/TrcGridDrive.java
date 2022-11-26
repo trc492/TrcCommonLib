@@ -39,6 +39,7 @@ public class TrcGridDrive
     private final double turnStartAdj;
     private final double turnEndAdj;
     private final TrcTaskMgr.TaskObject gridDriveTaskObj;
+    private final TrcEvent callbackEvent;
     private final ArrayList<TrcPose2D> gridDriveQueue = new ArrayList<>();
     private TrcDbgTrace msgTracer = null;
 
@@ -61,6 +62,7 @@ public class TrcGridDrive
         this.turnStartAdj = Math.abs(turnStartAdj);
         this.turnEndAdj = Math.abs(turnEndAdj);
         gridDriveTaskObj = TrcTaskMgr.createTask("gridDriveTask", this::gridDriveTask);
+        callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
     }   //TrcGridDrive
 
     /**
@@ -342,7 +344,6 @@ public class TrcGridDrive
                 msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
             }
 
-            TrcEvent callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
             callbackEvent.setCallback(this::driveDone, null);
             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
@@ -551,9 +552,8 @@ public class TrcGridDrive
                 msgTracer.traceInfo(funcName, "GridDrivePath=%s", path);
             }
 
-            TrcEvent callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
             callbackEvent.setCallback(this::driveDone, null);
-             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
+            purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
     }   //startGridDrive
 

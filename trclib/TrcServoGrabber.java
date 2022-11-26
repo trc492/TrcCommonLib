@@ -382,6 +382,18 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     }   //close
 
     /**
+     * This method is called by the sensor trigger to close the grabber when it detected an object. This is usually
+     * a result of enableAutoAssist. Therefore, we will signal its completion event.
+     */
+    public void closeOnTrigger()
+    {
+        if (actionParams != null)
+        {
+            close(actionParams.event);
+        }
+    }   //closeOnTrigger
+
+    /**
      * This method enables auto-assist grabbing which is to close the grabber if it was open and the object is in
      * proximity or to open the grabber if it was close and it doesn't have the object. It arms the sensor trigger
      * to detect the object for auto grabbing. If there is a timeout, it arms the timeout timer for canceling the
