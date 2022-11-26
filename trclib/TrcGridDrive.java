@@ -342,7 +342,9 @@ public class TrcGridDrive
                 msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
             }
 
-            purePursuitDrive.start(moduleName, path, null, this::driveDone, 0.0);
+            TrcEvent callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
+            callbackEvent.setCallback(this::driveDone, null);
+            purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
     }   //driveToEndPoint
 
@@ -549,7 +551,9 @@ public class TrcGridDrive
                 msgTracer.traceInfo(funcName, "GridDrivePath=%s", path);
             }
 
-             purePursuitDrive.start(moduleName, path, null, this::driveDone, 0.0);
+            TrcEvent callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
+            callbackEvent.setCallback(this::driveDone, null);
+             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
     }   //startGridDrive
 
