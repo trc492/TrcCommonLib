@@ -46,7 +46,6 @@ public class TrcSongPlayer
     private double barDuration = 0.0;
     private boolean repeat = false;
     private TrcEvent event = null;
-    private TrcNotifier.Receiver receiver = null;
 
     /**
      * Constructor: Create and initialize an instance of the object.
@@ -180,27 +179,24 @@ public class TrcSongPlayer
      * @param repeat specifies true to play the song repeatedly, false otherwise.
      * @param pause specifies true to pause the song, false to start it immediately.
      * @param event specifies the event to be notified on song completion.
-     * @param receiver specifies the notification receiver on song completion.
      */
     private synchronized void playSongWorker(
-            TrcSong song, double barDuration, boolean repeat, boolean pause, TrcEvent event,
-            TrcNotifier.Receiver receiver)
+        TrcSong song, double barDuration, boolean repeat, boolean pause, TrcEvent event)
     {
         final String funcName = "playSongWorker";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s,receiver=%s",
+                                "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s",
                                 song.toString(), barDuration, Boolean.toString(repeat), Boolean.toString(pause),
-                                event == null? "null": event, receiver == null? "null": receiver);
+                                event == null? "null": event);
         }
 
         this.song = song;
         this.barDuration = barDuration;
         this.repeat = repeat;
         this.event = repeat? null: event;
-        this.receiver = repeat? null: receiver;
         setTaskEnabled(!pause);
 
         if (debugEnabled)
@@ -219,7 +215,7 @@ public class TrcSongPlayer
      */
     public void playSong(TrcSong song, double barDuration, boolean repeat, boolean pause)
     {
-        playSongWorker(song, barDuration, repeat, pause, null, null);
+        playSongWorker(song, barDuration, repeat, pause, null);
     }   //playSong
 
     /**
@@ -232,7 +228,7 @@ public class TrcSongPlayer
      */
     public void playSong(TrcSong song, double barDuration, boolean pause, TrcEvent event)
     {
-        playSongWorker(song, barDuration, false, pause, event, null);
+        playSongWorker(song, barDuration, false, pause, event);
     }   //playSong
 
     /**
@@ -241,12 +237,11 @@ public class TrcSongPlayer
      * @param song specifies the song to be played.
      * @param barDuration specifies the bar duration in seconds.
      * @param pause specifies true to pause the song, false to start it immediately.
-     * @param receiver specifies the notification receiver on song completion.
      */
     public void playSong(
-            TrcSong song, double barDuration, boolean pause, TrcNotifier.Receiver receiver)
+        TrcSong song, double barDuration, boolean pause)
     {
-        playSongWorker(song, barDuration, false, pause, null, receiver);
+        playSongWorker(song, barDuration, false, pause, null);
     }   //playSong
 
     /**
@@ -257,7 +252,7 @@ public class TrcSongPlayer
      */
     public void playSong(TrcSong song, double barDuration)
     {
-        playSongWorker(song, barDuration, false, false, null, null);
+        playSongWorker(song, barDuration, false, false, null);
     }   //playSong
 
     /**
@@ -599,10 +594,6 @@ public class TrcSongPlayer
                     if (event != null)
                     {
                         event.signal();
-                    }
-                    if (receiver != null)
-                    {
-                        receiver.notify(this);
                     }
                     break;
                 }

@@ -54,9 +54,7 @@ public class TrcNotifier
     {
         /**
          * This method is called to notify the occurrence of an event. In general, notification handler should do its
-         * processing and return very quickly because the notification may be running on a time critical thread. For
-         * example, if this is a timer notification, notify is called on the {@link TrcTimerMgr} thread. Any delay in
-         * the notify call will prevent other timers from expiring on-time.
+         * processing and return very quickly because the notification may be running on a time critical thread.
          *
          * @param context specifies the context of the event, can be null.
          */
