@@ -334,7 +334,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
             servo.setLogicalPosition(logicalPos);
         }
 
-        if (actionParams.timeout > 0.0)
+        if (actionParams.timeout > 0.0 && actionParams.event != null)
         {
             // A timeout is specified, set a timer for it and signal an event when it expires.
             // Since servo has no position feedback mechanism, time is used to estimate how long it takes to complete
