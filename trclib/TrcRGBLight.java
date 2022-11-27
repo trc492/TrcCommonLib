@@ -105,7 +105,7 @@ public abstract class TrcRGBLight
         RGB_CYAN(COLOR_CYAN),
         RGB_WHITE(COLOR_WHITE);
 
-        private int value;
+        private final int value;
 
         /**
          * Constructor: Create an instance of the enum object with the given value.
@@ -165,7 +165,6 @@ public abstract class TrcRGBLight
     private double onPeriod = 0.0;
     private double offPeriod = 0.0;
     private TrcEvent notifyEvent = null;
-    private TrcNotifier.Receiver notifyReceiver = null;
 
     /**
      * Constructor: Create an instance of the object.
@@ -354,43 +353,11 @@ public abstract class TrcRGBLight
      * @param color specifies the color.
      * @param onPeriod specifies the period for the light to stay ON.
      * @param event specifies the event to signal when done.
-     * @param receiver specifies the notification receiver to call when done.
-     */
-    public void setColor(RGBColor color, double onPeriod, TrcEvent event, TrcNotifier.Receiver receiver)
-    {
-        setColor(color, onPeriod, 0.0);
-        this.notifyEvent = event;
-        this.notifyReceiver = receiver;
-    }   //setColor
-
-    /**
-     * This method sets the RGB light ON with the specified color for the specified amount of time. When the amount
-     * of time expired, the specified event is signaled.
-     *
-     * @param color specifies the color.
-     * @param onPeriod specifies the period for the light to stay ON.
-     * @param event specifies the event to signal when done.
      */
     public void setColor(RGBColor color, double onPeriod, TrcEvent event)
     {
         setColor(color, onPeriod, 0.0);
         this.notifyEvent = event;
-        this.notifyReceiver = null;
-    }   //setColor
-
-    /**
-     * This method sets the RGB light ON with the specified color for the specified amount of time. When the amount
-     * of time expired, the specified event is signaled.
-     *
-     * @param color specifies the color.
-     * @param onPeriod specifies the period for the light to stay ON.
-     * @param receiver specifies the notification receiver to call when done.
-     */
-    public void setColor(RGBColor color, double onPeriod, TrcNotifier.Receiver receiver)
-    {
-        setColor(color, onPeriod, 0.0);
-        this.notifyEvent = null;
-        this.notifyReceiver = receiver;
     }   //setColor
 
     /**
@@ -455,10 +422,6 @@ public abstract class TrcRGBLight
                     if (notifyEvent != null)
                     {
                         notifyEvent.signal();
-                    }
-                    if (notifyReceiver != null)
-                    {
-                        notifyReceiver.notify(this);
                     }
                     sm.stop();
                     setTaskEnabled(false);

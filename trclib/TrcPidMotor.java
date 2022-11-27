@@ -33,12 +33,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     protected static final String moduleName = "TrcPidMotor";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
+
     private static final boolean verbosePidInfo = false;
-    protected TrcDbgTrace dbgTrace = null;
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
     private boolean tracePidInfo = false;
@@ -89,7 +85,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private double target = 0.0;
     private boolean holdTarget = false;
     private TrcEvent notifyEvent = null;
-    private TrcNotifier.Receiver notifyCallback = null;
     private double timeout = 0.0;
     private volatile boolean calibrating = false;
     private double calPower = 0.0;
@@ -134,12 +129,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower,
         PowerCompensation powerCompensation)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ? globalTracer :
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         if (motor1 == null && motor2 == null)
         {
             throw new IllegalArgumentException("Must have at least one motor.");
@@ -304,16 +293,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public TrcMotor getMotor(boolean primary)
     {
-        final String funcName = "getMotor";
-        TrcMotor motor = primary? motor1: motor2;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "primary=%b", primary);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", motor);
-        }
-
-        return motor;
+        return primary? motor1: motor2;
     }   //getMotor
 
     /**
@@ -343,14 +323,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized boolean isPidActive()
     {
-        final String funcName = "isPidActive";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", pidActive);
-        }
-
         return pidActive;
     }   //isPidActive
 
@@ -362,12 +334,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private synchronized void stop(boolean stopMotor)
     {
-        final String funcName = "stop";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "stopMotor=%s", Boolean.toString(stopMotor));
-        }
         //
         // Canceling previous PID operation if any.
         //
@@ -382,11 +348,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         motorPower = 0.0;
         calibrating = false;
         stalled = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //stop
 
     /**
@@ -396,13 +357,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void cancel(String owner)
     {
-        final String funcName = "cancel";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s", owner);
-        }
-
         if (validateOwnership(owner) && pidActive)
         {
             //
@@ -414,11 +368,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 notifyEvent.cancel();
                 notifyEvent = null;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //cancel
 
@@ -439,15 +388,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPositionScale(double positionScale, double positionOffset)
     {
-        final String funcName = "setPositionScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "scale=%f,offset=%f", positionScale, positionOffset);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.positionScale = positionScale;
         this.positionOffset = positionOffset;
     }   //setPositionScale
@@ -470,7 +410,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public double getPosition()
     {
-        final String funcName = "getPosition";
         int n = 1;
         double pos = motor1.getPosition();
 
@@ -481,12 +420,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         }
         pos *= positionScale/n;
         pos += positionOffset;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pos);
-        }
 
         return pos;
     }   //getPosition
@@ -501,16 +434,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void setBeep(TrcTone beepDevice, double beepLowFrequency, double beepHighFrequency, double beepDuration)
     {
-        final String funcName = "setBeep";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "beep=%s,lowFreq=%.0f,hiFreq=%.0f,duration=%.3f",
-                                beepDevice.toString(), beepLowFrequency, beepHighFrequency, beepDuration);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.beepDevice = beepDevice;
         this.beepLowFrequency = beepLowFrequency;
         this.beepHighFrequency = beepHighFrequency;
@@ -549,16 +472,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void setStallProtection(double stallMinPower, double stallTolerance, double stallTimeout, double resetTimeout)
     {
-        final String funcName = "setStallProtection";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "stallMinPower=%f,stallTolerance=%f,stallTimeout=%f,resetTimeout=%f",
-                                stallMinPower, stallTolerance, stallTimeout, resetTimeout);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.stallMinPower = stallMinPower;
         this.stallTolerance = stallTolerance;
         this.stallTimeout = stallTimeout;
@@ -578,24 +491,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done, can be null if not provided.
-     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public synchronized void setTarget(
         String owner, double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event,
-        TrcNotifier.Receiver callback, double timeout)
+        double timeout)
     {
-        final String funcName = "setTarget";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,target=%f,hold=%s,event=%s,timeout=%f",
-                owner, delay, target, holdTarget, event, timeout);
-        }
-
         if (validateOwnership(owner))
         {
             if (pidActive)
@@ -612,7 +515,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 this.target = target;
                 this.holdTarget = holdTarget;
                 this.notifyEvent = event;
-                this.notifyCallback = callback;
                 this.timeout = timeout;
                 if (timer == null)
                 {
@@ -637,7 +539,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
                 this.holdTarget = holdTarget;
                 this.notifyEvent = event;
-                this.notifyCallback = callback;
                 //
                 // If a timeout is provided, set the expired time.
                 //
@@ -647,11 +548,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 setTaskEnabled(true);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setTarget
 
@@ -667,16 +563,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
-     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public synchronized void setTarget(
-        double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event,
-        TrcNotifier.Receiver callback, double timeout)
+    public void setTarget(
+        double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setTarget(null, delay, target, holdTarget, powerLimit, event, callback, timeout);
+        setTarget(null, delay, target, holdTarget, powerLimit, event, timeout);
     }   //setTarget
 
     /**
@@ -691,58 +585,34 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies an event object to signal when done.
-     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
-     */
-    public synchronized void setTarget(
-        String owner, double target, boolean holdTarget, double powerLimit, TrcEvent event,
-        TrcNotifier.Receiver callback, double timeout)
-    {
-        setTarget(owner, 0.0, target, holdTarget, powerLimit, event, callback, timeout);
-    }   //setTarget
-
-    /**
-     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
-     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
-     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
-     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
-     * holding position.
-     *
-     * @param target specifies the PID target.
-     * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param powerLimit specifies the maximum power limit.
-     * @param event specifies an event object to signal when done.
-     * @param callback specifies a callback handler to notify when done, can be null if not provided.
-     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
-     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
-     *                specified, it should be set to zero.
-     */
-    public synchronized void setTarget(
-        double target, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
-        double timeout)
-    {
-        setTarget(null, 0.0, target, holdTarget, powerLimit, event, callback, timeout);
-    }   //setTarget
-
-    /**
-     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
-     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
-     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
-     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
-     * holding position.
-     *
-     * @param target specifies the PID target.
-     * @param holdTarget specifies true to hold target after PID operation is completed.
-     * @param powerLimit specifies the maximum power limit.
-     * @param event specifies an event object to signal when done.
-     * @param callback specifies a callback handler to notify when done, can be null if not provided.
      */
     public void setTarget(
-        double target, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback)
+        String owner, double target, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setTarget(null, 0.0, target, holdTarget, powerLimit, event, callback, 0.0);
+        setTarget(owner, 0.0, target, holdTarget, powerLimit, event, timeout);
+    }   //setTarget
+
+    /**
+     * This method starts a PID operation by setting the PID target. Generally, when PID operation has reached target,
+     * event will be notified and PID operation will end. However, if holdTarget is true, PID operation cannot end
+     * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
+     * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
+     * holding position.
+     *
+     * @param target specifies the PID target.
+     * @param holdTarget specifies true to hold target after PID operation is completed.
+     * @param powerLimit specifies the maximum power limit.
+     * @param event specifies an event object to signal when done.
+     * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
+     *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
+     *                specified, it should be set to zero.
+     */
+    public void setTarget(double target, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
+    {
+        setTarget(null, 0.0, target, holdTarget, powerLimit, event, timeout);
     }   //setTarget
 
     /**
@@ -759,7 +629,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget, double powerLimit, TrcEvent event)
     {
-        setTarget(null, 0.0, target, holdTarget, powerLimit, event, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, powerLimit, event, 0.0);
     }   //setTarget
 
     /**
@@ -771,7 +641,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget, double powerLimit)
     {
-        setTarget(null, 0.0, target, holdTarget, powerLimit, null, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, powerLimit, null, 0.0);
     }   //setTarget
 
     /**
@@ -782,7 +652,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target, boolean holdTarget)
     {
-        setTarget(null, 0.0, target, holdTarget, 1.0, null, null, 0.0);
+        setTarget(null, 0.0, target, holdTarget, 1.0, null, 0.0);
     }   //setTarget
 
     /**
@@ -792,7 +662,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setTarget(double target)
     {
-        setTarget(null, 0.0, target, true, 1.0, null, null, 0.0);
+        setTarget(null, 0.0, target, true, 1.0, null, 0.0);
     }   //setTarget
 
     /**
@@ -802,7 +672,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void delayExpired(Object timer)
     {
-        setTarget(null, 0.0, target, holdTarget, powerClamp, notifyEvent, notifyCallback, timeout);
+        setTarget(null, 0.0, target, holdTarget, powerClamp, notifyEvent, timeout);
     }   //delayExpired
 
     /**
@@ -814,11 +684,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private void performStallDetection(double power)
     {
         final String funcName = "performStallDetection";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "power=%f", power);
-        }
 
         if (stallMinPower > 0.0 && stallTimeout > 0.0)
         {
@@ -853,11 +718,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 }
             }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //performStallDetection
 
     /**
@@ -869,13 +729,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private boolean resetStall(double power)
     {
-        final String funcName = "resetStall";
         boolean wasStalled = stalled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
 
         if (stalled)
         {
@@ -902,11 +756,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             }
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%s", wasStalled);
-        }
-
         return wasStalled;
     }   //resetStall
 
@@ -917,14 +766,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public double getPower()
     {
-        final String funcName = "getPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", motorPower);
-        }
-
         return motorPower;
     }   //getPower
 
@@ -939,14 +780,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private synchronized void setPower(double power, double rangeLow, double rangeHigh, boolean stopPid)
     {
-        final String funcName = "setPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "power=%f,rangeLow=%f,rangeHigh=%f,stopPid=%s)",
-                                power, rangeLow, rangeHigh, Boolean.toString(stopPid));
-        }
         //
         // Note: this method does not handle zero calibration, so do not call this method in zero calibration mode.
         //
@@ -971,11 +804,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             motorPower = power;
             performStallDetection(power);
             setMotorPower(motorPower);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
     }   //setPower
 
@@ -1056,15 +884,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPowerWithinPosRange(String owner, double power, double minPos, double maxPos, boolean holdTarget)
     {
-        final String funcName = "setPowerWithinPosRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "power=%.2f,minPos=%.1f,maxPos=%.1f,hold=%s",
-                                power, minPos, maxPos, Boolean.toString(holdTarget));
-        }
-
         if (validateOwnership(owner))
         {
             //
@@ -1087,7 +906,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                         //
                         // Hold target at current position.
                         //
-                        setTarget(getPosition(), true, 1.0, null, null, 0.0);
+                        setTarget(getPosition(), true, 1.0, null, 0.0);
                     }
                     else
                     {
@@ -1102,7 +921,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     //
                     // We changed direction, change the target.
                     //
-                    setTarget(currTarget, holdTarget, power, null, null, 0.0);
+                    setTarget(currTarget, holdTarget, power, null, 0.0);
                 }
                 prevTarget = currTarget;
             }
@@ -1120,11 +939,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 powerClamp = power;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setPowerWithinPosRange
 
@@ -1165,17 +979,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
      * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
-     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
      */
-    public synchronized void zeroCalibrate(String owner, double calPower, TrcEvent event, TrcNotifier.Receiver notifier)
+    public synchronized void zeroCalibrate(String owner, double calPower, TrcEvent event)
     {
-        final String funcName = "zeroCalibrate";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "calPower=%f", calPower);
-        }
-
         if (validateOwnership(owner))
         {
             if (pidActive)
@@ -1193,18 +999,29 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             //
             this.calPower = calPower;
             this.notifyEvent = event;
-            this.notifyCallback = notifier;
             calibrating = true;
             motor1ZeroCalDone = false;
             motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
             prevTime = TrcUtil.getCurrentTime();
             setTaskEnabled(true);
         }
+    }   //zeroCalibrate
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
+     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
+     *                 power specified in the constructor.
+     * @param callback specifies a callback handler when zero calibration is done.
+     * @param callbackContext specifies the context object to pass back to the callback handler.
+     */
+    public void zeroCalibrate(String owner, double calPower, TrcEvent.Callback callback, Object callbackContext)
+    {
+        TrcEvent callbackEvent = new TrcEvent(moduleName + ".callbackEvent");
+        callbackEvent.setCallback(callback, callbackContext);
+        zeroCalibrate(owner, calPower, callbackEvent);
     }   //zeroCalibrate
 
     /**
@@ -1213,12 +1030,24 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
-     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
-     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
+     * @param callback specifies a callback handler when zero calibration is done.
+     * @param callbackContext specifies the context object to pass back to the callback handler.
      */
-    public void zeroCalibrate(double calPower, TrcEvent event, TrcNotifier.Receiver notifier)
+    public void zeroCalibrate(double calPower, TrcEvent.Callback callback, Object callbackContext)
     {
-        zeroCalibrate(null, calPower, event, notifier);
+        zeroCalibrate(null, calPower, callback, callbackContext);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     *
+     * @param callback specifies a callback handler when zero calibration is done.
+     * @param callbackContext specifies the context object to pass back to the callback handler.
+     */
+    public void zeroCalibrate(TrcEvent.Callback callback, Object callbackContext)
+    {
+        zeroCalibrate(null, defCalPower, callback, callbackContext);
     }   //zeroCalibrate
 
     /**
@@ -1231,20 +1060,18 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void zeroCalibrate(double calPower, TrcEvent event)
     {
-        zeroCalibrate(null, calPower, event, null);
+        zeroCalibrate(null, calPower, event);
     }   //zeroCalibrate
 
     /**
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
      * switch is hit or the motor is stalled.
      *
-     * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
-     *                 power specified in the constructor.
-     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
+     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
      */
-    public void zeroCalibrate(double calPower, TrcNotifier.Receiver notifier)
+    public void zeroCalibrate(TrcEvent event)
     {
-        zeroCalibrate(null, calPower, null, notifier);
+        zeroCalibrate(null, defCalPower, event);
     }   //zeroCalibrate
 
     /**
@@ -1254,9 +1081,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
      */
-    public synchronized void zeroCalibrate(double calPower)
+    public void zeroCalibrate(double calPower)
     {
-        zeroCalibrate(null, calPower, null, null);
+        zeroCalibrate(null, calPower, null);
     }   //zeroCalibrate
 
     /**
@@ -1265,20 +1092,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      */
-    public synchronized void zeroCalibrate(String owner)
+    public void zeroCalibrate(String owner)
     {
-        zeroCalibrate(owner, defCalPower, null, null);
-    }   //zeroCalibrate
-
-    /**
-     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
-     * switch is hit or the motor is stalled.
-     *
-     * @param notifier specifies a notifier to callback when zero calibration is done, can be null if not provided.
-     */
-    public synchronized void zeroCalibrate(TrcNotifier.Receiver notifier)
-    {
-        zeroCalibrate(null, defCalPower, null, notifier);
+        zeroCalibrate(owner, defCalPower, null);
     }   //zeroCalibrate
 
     /**
@@ -1287,7 +1103,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void zeroCalibrate()
     {
-        zeroCalibrate(null, defCalPower, null, null);
+        zeroCalibrate(null, defCalPower, null);
     }   //zeroCalibrate
 
     /**
@@ -1298,11 +1114,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private void setMotorPower(double power)
     {
         final String funcName = "setMotorPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%f", power);
-        }
 
         power = TrcUtil.clipRange(power, MIN_MOTOR_POWER, MAX_MOTOR_POWER);
 
@@ -1351,14 +1162,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "P=%.2f,dP=%.2f,pos1=%.0f,pos2=%.0f,P1=%.2f,P2=%.2f",
-                                   power, deltaPower, pos1, pos2, power1, power2);
+                globalTracer.traceInfo(
+                    funcName, "P=%.2f,dP=%.2f,pos1=%.0f,pos2=%.0f,P1=%.2f,P2=%.2f",
+                    power, deltaPower, pos1, pos2, power1, power2);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setMotorPower
 
@@ -1369,13 +1176,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             pidMotorTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
@@ -1387,11 +1187,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             stopMotorTaskObj.unregisterTask();
         }
         this.pidActive = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTaskEnabled
 
     /**
@@ -1417,8 +1212,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     beepDevice.playTone(beepLowFrequency, beepDuration);
                 }
-                TrcDbgTrace.getGlobalTracer().traceWarn(
-                    funcName, "%s is stalled, lower limit switch might have failed!", instanceName);
+                globalTracer.traceWarn(funcName, "%s is stalled, lower limit switch might have failed!", instanceName);
             }
             stalled = false;
             motor.set(0.0);
@@ -1445,13 +1239,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private synchronized void pidMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        final String funcName = "pidMotorTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         if (calibrating)
         {
             //
@@ -1479,12 +1266,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     notifyEvent.signal();
                     notifyEvent = null;
-                }
-
-                if (notifyCallback != null)
-                {
-                    notifyCallback.notify(null);
-                    notifyCallback = null;
                 }
             }
         }
@@ -1525,18 +1306,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     notifyEvent.signal();
                     notifyEvent = null;
                 }
-
-                if (notifyCallback != null)
-                {
-                    notifyCallback.notify(null);
-                    notifyCallback = null;
-                }
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //pidMotorTask
 
@@ -1548,20 +1318,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void stopMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        final String funcName = "stopMotorTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
-
         stop(true);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //stopMotorTask
 
 }   //class TrcPidMotor

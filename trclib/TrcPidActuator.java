@@ -331,21 +331,9 @@ public class TrcPidActuator extends TrcPidMotor
     @Override
     public void setPower(String owner, double power)
     {
-        final String funcName = "setPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owener=%s,power=%s", owner, power);
-        }
-
         // Cancel previous PID operation such as setTarget if any.
         cancel();
         super.setPower(owner, power);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPower
 
     /**
@@ -371,24 +359,12 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPidPower(String owner, double power, boolean hold)
     {
-        final String funcName = "setPidPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,power=%s,hold=%s", owner, power, hold);
-        }
-
         if (params.minPos == 0.0 && params.maxPos == 0.0)
         {
             throw new RuntimeException("setPidPower requires position range to be set.");
         }
 
         setPowerWithinPosRange(owner, power, params.minPos, params.maxPos, hold);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPidPower
 
     /**
@@ -434,20 +410,19 @@ public class TrcPidActuator extends TrcPidMotor
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
         String owner, double delay, int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event,
-        TrcNotifier.Receiver callback, double timeout)
+        double timeout)
     {
         if (validatePresetIndex(presetIndex))
         {
             if (validateOwnership(owner))
             {
-                setTarget(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, callback, timeout);
+                setTarget(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
             }
         }
     }   //setPresetPosition
@@ -460,16 +435,14 @@ public class TrcPidActuator extends TrcPidMotor
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
-        double timeout)
+        double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setPresetPosition(null, delay, preset, holdTarget, powerLimit, event, callback, timeout);
+        setPresetPosition(null, delay, preset, holdTarget, powerLimit, event, timeout);
     }   //setPresetPosition
 
     /**
@@ -479,16 +452,13 @@ public class TrcPidActuator extends TrcPidMotor
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setPresetPosition(
-        int preset, boolean holdTarget, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback,
-        double timeout)
+    public void setPresetPosition(int preset, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setPresetPosition(null, 0.0, preset, holdTarget, powerLimit, event, callback, timeout);
+        setPresetPosition(null, 0.0, preset, holdTarget, powerLimit, event, timeout);
     }   //setPresetPosition
 
     /**
@@ -497,11 +467,10 @@ public class TrcPidActuator extends TrcPidMotor
      * @param preset specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void setPresetPosition(int preset, double powerLimit, TrcEvent event, TrcNotifier.Receiver callback)
+    public void setPresetPosition(int preset, double powerLimit, TrcEvent event)
     {
-        setPresetPosition(null, 0.0, preset, true, powerLimit, event, callback, 0.0);
+        setPresetPosition(null, 0.0, preset, true, powerLimit, event, 0.0);
     }   //setPresetPosition
 
     /**
@@ -509,11 +478,10 @@ public class TrcPidActuator extends TrcPidMotor
      *
      * @param preset specifies the index to the preset position array.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void setPresetPosition(int preset, TrcEvent event, TrcNotifier.Receiver callback)
+    public void setPresetPosition(int preset, TrcEvent event)
     {
-        setPresetPosition(null, 0.0, preset, true, 1.0, event, callback, 0.0);
+        setPresetPosition(null, 0.0, preset, true, 1.0, event, 0.0);
     }   //setPresetPosition
 
     /**
@@ -525,7 +493,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(double delay, int preset, double powerLimit)
     {
-        setPresetPosition(null, delay, preset, true, powerLimit, null, null, 0.0);
+        setPresetPosition(null, delay, preset, true, powerLimit, null, 0.0);
     }   //setPresetPosition
 
     /**
@@ -536,7 +504,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(double delay, int preset)
     {
-        setPresetPosition(null, delay, preset, true, 1.0, null, null, 0.0);
+        setPresetPosition(null, delay, preset, true, 1.0, null, 0.0);
     }   //setPresetPosition
 
     /**
@@ -547,7 +515,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(int preset, double powerLimit)
     {
-        setPresetPosition(null, 0.0, preset, true, powerLimit, null, null, 0.0);
+        setPresetPosition(null, 0.0, preset, true, powerLimit, null, 0.0);
     }   //setPresetPosition
 
     /**
@@ -557,7 +525,7 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public void setPresetPosition(int preset)
     {
-        setPresetPosition(null, 0.0, preset, true, 1.0, null, null, 0.0);
+        setPresetPosition(null, 0.0, preset, true, 1.0, null, 0.0);
     }   //setPresetPosition
 
     /**

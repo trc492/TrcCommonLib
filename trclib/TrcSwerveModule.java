@@ -150,7 +150,7 @@ public class TrcSwerveModule
 
         if (steerMotor != null)
         {
-            steerMotor.zeroCalibrate(this::doneZeroCalibrate);
+            steerMotor.zeroCalibrate(this::doneZeroCalibrate, null);
         }
         else
         {

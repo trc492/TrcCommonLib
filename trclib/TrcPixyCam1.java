@@ -35,12 +35,8 @@ import java.util.Locale;
 public abstract class TrcPixyCam1
 {
     protected static final String moduleName = "TrcPixyCam1";
+    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     private static final byte PIXY_SYNC_HIGH                    = (byte)0xaa;
     private static final int PIXY_START_WORD                    = 0xaa55;
@@ -72,7 +68,7 @@ public abstract class TrcPixyCam1
     /**
      * This class implements the pixy camera object block communication protocol. 
      */
-    public class ObjectBlock
+    public static class ObjectBlock
     {
         public int sync;
         public int checksum;
@@ -107,7 +103,7 @@ public abstract class TrcPixyCam1
 
     private final String instanceName;
     private final boolean msbFirst;
-    private ArrayList<ObjectBlock> objects = new ArrayList<>();
+    private final ArrayList<ObjectBlock> objects = new ArrayList<>();
     private ObjectBlock[] detectedObjects = null;
     private ObjectBlock currBlock = null;
     private boolean started = false;
@@ -120,13 +116,6 @@ public abstract class TrcPixyCam1
      */
     public TrcPixyCam1(final String instanceName, boolean msbFirst)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.msbFirst = msbFirst;
     }   //TrcPixyCam1
@@ -187,13 +176,6 @@ public abstract class TrcPixyCam1
      */
     public void setLED(byte red, byte green, byte blue)
     {
-        final String funcName = "setLED";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "red=%d,green=%d,blue=%d", red, green, blue);
-        }
-
         byte[] data = new byte[5];
         data[0] = 0x00;
         data[1] = PIXY_CMD_SET_LED;
@@ -202,11 +184,6 @@ public abstract class TrcPixyCam1
         data[4] = blue;
 
         asyncWriteData(null, data);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setLED
 
     /**
@@ -216,24 +193,12 @@ public abstract class TrcPixyCam1
      */
     public void setBrightness(byte brightness)
     {
-        final String funcName = "setBrightness";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "brightness=%d", brightness);
-        }
-
         byte[] data = new byte[3];
         data[0] = 0x00;
         data[1] = PIXY_CMD_SET_BRIGHTNESS;
         data[2] = brightness;
 
         asyncWriteData(null, data);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setBrightness
 
     /**
@@ -243,13 +208,6 @@ public abstract class TrcPixyCam1
      */
     public void setPanTilt(int pan, int tilt)
     {
-        final String funcName = "setPanTilt";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "pan=%d,tilt=%d", pan, tilt);
-        }
-
         if (pan < 0 || pan > 1000 || tilt < 0 || tilt > 1000)
         {
             throw new IllegalArgumentException("Invalid pan/tilt range.");
@@ -264,11 +222,6 @@ public abstract class TrcPixyCam1
         data[5] = (byte)(tilt >> 8);
 
         asyncWriteData(null, data);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPanTilt
 
     /**
@@ -279,23 +232,12 @@ public abstract class TrcPixyCam1
      */
     public ObjectBlock[] getDetectedObjects()
     {
-        final String funcName = "getDetectedObjects";
         ObjectBlock[] objectBlocks;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
 
         synchronized (this)
         {
             objectBlocks = detectedObjects;
             detectedObjects = null;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
         return objectBlocks;
@@ -315,7 +257,7 @@ public abstract class TrcPixyCam1
 
         if (debugEnabled)
         {
-            dbgTrace.traceVerbose(funcName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
+            globalTracer.traceVerbose(funcName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
         }
 
         switch (requestId)
@@ -338,7 +280,7 @@ public abstract class TrcPixyCam1
                     asyncReadData(RequestId.SYNC, 2);
                     if (debugEnabled)
                     {
-                        dbgTrace.traceWarn(funcName, "Unexpected data length %d in %s", length, requestId);
+                        globalTracer.traceWarn(funcName, "Unexpected data length %d in %s", length, requestId);
                     }
                 }
                 else
@@ -362,7 +304,7 @@ public abstract class TrcPixyCam1
                         asyncReadData(RequestId.ALIGN, 1);
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "Word misaligned, realigning...");
+                            globalTracer.traceInfo(funcName, "Word misaligned, realigning...");
                         }
                     }
                     else
@@ -375,7 +317,7 @@ public abstract class TrcPixyCam1
                         {
                             if (word != 0)
                             {
-                                dbgTrace.traceWarn(funcName, "Unexpected word 0x%04x read in %s", word, requestId);
+                                globalTracer.traceWarn(funcName, "Unexpected word 0x%04x read in %s", word, requestId);
                             }
                         }
                     }
@@ -407,7 +349,7 @@ public abstract class TrcPixyCam1
                     asyncReadData(RequestId.SYNC, 2);
                     if (debugEnabled)
                     {
-                        dbgTrace.traceWarn(funcName, "Unexpected data byte 0x%02x in %s", data[0], requestId);
+                        globalTracer.traceWarn(funcName, "Unexpected data byte 0x%02x in %s", data[0], requestId);
                     }
                 }
                 break;
@@ -446,7 +388,7 @@ public abstract class TrcPixyCam1
                                 {
                                     for (int i = 0; i < detectedObjects.length; i++)
                                     {
-                                        dbgTrace.traceInfo(funcName, "[%02d] %s", i, detectedObjects[i].toString());
+                                        globalTracer.traceInfo(funcName, "[%02d] %s", i, detectedObjects[i].toString());
                                     }
                                 }
                             }
@@ -548,14 +490,14 @@ public abstract class TrcPixyCam1
                         //
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "Object(%s)", currBlock);
+                            globalTracer.traceInfo(funcName, "Object(%s)", currBlock);
                         }
                         objects.add(currBlock);
                         currBlock = null;
                     }
                     else if (debugEnabled)
                     {
-                        dbgTrace.traceWarn(funcName, "Incorrect checksum %d (expecting %d).",
+                        globalTracer.traceWarn(funcName, "Incorrect checksum %d (expecting %d).",
                             runningChecksum, currBlock.checksum);
                     }
                     //
@@ -593,13 +535,7 @@ public abstract class TrcPixyCam1
      */
     public void requestHandler(Object context)
     {
-        final String funcName = "requestHandler";
         TrcSerialBusDevice.Request request = (TrcSerialBusDevice.Request) context;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "request=%s", request);
-        }
 
         if (request.readRequest && request.address == -1 && request.buffer != null)
         {
@@ -607,11 +543,6 @@ public abstract class TrcPixyCam1
             {
                 processData((RequestId)request.requestId, request.buffer, request.buffer.length);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
         }
     }   //requestHanlder
 

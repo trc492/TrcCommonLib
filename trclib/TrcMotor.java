@@ -313,7 +313,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     public void addFollowingMotor(TrcMotor motor)
     {
         followingMotorsList.add(motor);
-    }   //setFollowingMotor
+    }   //addFollowingMotor
 
     /**
      * This method calls the motor subclass to set the motor output value. The value can be power or velocity

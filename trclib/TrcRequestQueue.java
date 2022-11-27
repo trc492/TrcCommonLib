@@ -49,22 +49,22 @@ public class TrcRequestQueue<R>
      */
     public class RequestEntry
     {
-        private R request;
-        private TrcNotifier.Receiver requestHandler;
-        private boolean repeat;
+        private final R request;
+        private final TrcEvent notifyEvent;
+        private final boolean repeat;
         private boolean canceled;
 
         /**
          * Constructor: Create an instance of the object.
          *
          * @param request specifies the request.
-         * @param requestHandler specifies the request handler to call when the request is up for processing.
+         * @param event specifies the event to notify when the request is up for processing.
          * @param repeat specifies true to re-queue the request when completed.
          */
-        public RequestEntry(R request, TrcNotifier.Receiver requestHandler, boolean repeat)
+        public RequestEntry(R request, TrcEvent event, boolean repeat)
         {
             this.request = request;
-            this.requestHandler = requestHandler;
+            this.notifyEvent = event;
             this.repeat = repeat;
             this.canceled = false;
         }   //RequestEntry
@@ -202,12 +202,12 @@ public class TrcRequestQueue<R>
      * This method queues a request at the end of the request queue to be processed asynchronously on a thread.
      *
      * @param request specifies the request to be queued.
-     * @param requestHandler specifies the handler to call when the request is up for processing.
+     * @param event specifies the event to notify when the request is up for processing.
      * @param repeat specifies true to re-queue the request when completed.
      * @return request entry added to the end of the queue. It can be used to cancel the request if it is still in
      *         queue.
      */
-    public RequestEntry add(R request, TrcNotifier.Receiver requestHandler, boolean repeat)
+    public RequestEntry add(R request, TrcEvent event, boolean repeat)
     {
         final String funcName = "add";
 
@@ -219,7 +219,7 @@ public class TrcRequestQueue<R>
         RequestEntry entry = null;
         if (isEnabled())
         {
-            entry = new RequestEntry(request, requestHandler, repeat);
+            entry = new RequestEntry(request, event, repeat);
             requestQueue.add(entry);
         }
 
@@ -237,11 +237,11 @@ public class TrcRequestQueue<R>
      * be added to the queue and null is returned.
      *
      * @param request specifies the priority request.
-     * @param requestHandler specifies the handler to call when the request is up for processing.
+     * @param event specifies the event to notify when the request is up for processing.
      * @return request entry added to the head of the queue. It can be used to cancel the request if it is still in
      *         queue. It may return null if the priority request failed to be added to the queue.
      */
-    public synchronized RequestEntry addPriorityRequest(R request, TrcNotifier.Receiver requestHandler)
+    public synchronized RequestEntry addPriorityRequest(R request, TrcEvent event)
     {
         final String funcName = "addPriorityRequest";
         RequestEntry entry = null;
@@ -253,7 +253,7 @@ public class TrcRequestQueue<R>
 
         if (priorityRequest == null)
         {
-            entry = new RequestEntry(request, requestHandler, false);
+            entry = new RequestEntry(request, event, false);
             priorityRequest = entry;
         }
 
@@ -349,7 +349,7 @@ public class TrcRequestQueue<R>
                 }
 
                 long startNanoTime = TrcUtil.getNanoTime();
-                entry.requestHandler.notify(entry);
+                entry.notifyEvent.signal();
                 long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
         
                 totalNanoTime += elapsedTime;

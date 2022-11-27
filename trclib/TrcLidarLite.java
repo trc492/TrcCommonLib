@@ -30,12 +30,8 @@ import java.util.Arrays;
 public class TrcLidarLite
 {
     private static final String moduleName = "TrcLidarLite";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = true;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     public enum RequestId
     {
@@ -133,9 +129,10 @@ public class TrcLidarLite
 //    private static final byte PWRCTRL_DEVICE_SLEEP      = (byte)0x04;//Device Sleep, wakes upon I2C transaction
 
     private final TrcSerialBusDevice device;
+    private final TrcEvent notifyEvent;
     private boolean started = false;
 
-    private TrcSensor.SensorData<Double> distance = new TrcSensor.SensorData<>(0.0, null);
+    private final TrcSensor.SensorData<Double> distance = new TrcSensor.SensorData<>(0.0, null);
 //    private int status = 0;
 //    private int signalCount = 0;
 //    private int acqConfig = 0;
@@ -166,14 +163,8 @@ public class TrcLidarLite
      */
     public TrcLidarLite(String instanceName, TrcSerialBusDevice device)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.device = device;
+        notifyEvent = new TrcEvent(moduleName + ".notifyEvent");
     }   //TrcLidarLite
 
     /**
@@ -181,9 +172,14 @@ public class TrcLidarLite
      */
     public void start()
     {
+        final String funcName = "start";
+
         if (!started)
         {
-            dbgTrace.traceInfo("Start", "Starting Lidar");
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(funcName, "Starting Lidar");
+            }
             started = true;
             writeAcquisitionCommand(ACQCMD_DISTANCE_WITH_BIAS);
         }
@@ -197,11 +193,6 @@ public class TrcLidarLite
  private void writeAcquisitionCommand(byte command)
  {
      final String funcName = "writeAcquisitionCommand";
-
-     if (debugEnabled)
-     {
-         dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "command=0x%02x", command);
-     }
 
      RequestId requestId;
      byte[] data = new byte[1];
@@ -220,13 +211,12 @@ public class TrcLidarLite
              break;
      }
 
-     dbgTrace.traceInfo(funcName, "Id=%s,data=%s", requestId, Arrays.toString(data));
-     device.asyncWrite(requestId, REG_ACQ_COMMAND, data, data.length, null, this::notify);
-
      if (debugEnabled)
      {
-         dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+         globalTracer.traceInfo(funcName, "Id=%s,data=%s", requestId, Arrays.toString(data));
      }
+     notifyEvent.setCallback(this::notify, null);
+     device.asyncWrite(requestId, REG_ACQ_COMMAND, data, data.length, notifyEvent);
  }   //writeAcquistionCommand
 
     /**
@@ -236,20 +226,10 @@ public class TrcLidarLite
      */
     public TrcSensor.SensorData<Double> getDistance()
     {
-        final String funcName = "getDistance";
 //        if (distance == null) throw new RuntimeException("distance is null");
 //        if (distance.value == null) throw new RuntimeException("value is null");
-        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
+        return new TrcSensor.SensorData<>(
             distance.timestamp, distance.value == null? 0: distance.value*TrcUtil.INCHES_PER_CM);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-        }
-
-        return data;
     }   //getDistance
 
 //    /**
@@ -585,13 +565,7 @@ public class TrcLidarLite
      */
     public void notify(Object context)
     {
-        final String funcName = "notify";
         TrcSerialBusDevice.Request request = (TrcSerialBusDevice.Request) context;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "request=%s", request);
-        }
 
         if (request.readRequest)
         {
@@ -600,14 +574,15 @@ public class TrcLidarLite
                 switch ((RequestId)request.requestId)
                 {
                     case READ_DISTANCE:
+                        notifyEvent.setCallback(this::notify, null);
                         if ((request.buffer[0] & 0x1) == 0x1)
                         {
                             // Not ready yet, read status again.
-                            device.asyncRead(request.requestId, REG_STATUS, 1, null, this::notify);
+                            device.asyncRead(request.requestId, REG_STATUS, 1, notifyEvent);
                         }
                         else
                         {
-                            device.asyncRead(RequestId.GET_DISTANCE, REG_FULL_DELAY_HIGH, 2, null, this::notify);
+                            device.asyncRead(RequestId.GET_DISTANCE, REG_FULL_DELAY_HIGH, 2, notifyEvent);
                         }
                         break;
 
@@ -623,20 +598,11 @@ public class TrcLidarLite
         }
         else
         {
-            switch ((RequestId)request.requestId)
+            if (request.requestId == RequestId.READ_DISTANCE)
             {
-                case READ_DISTANCE:
-                    device.asyncRead(request.requestId, REG_STATUS, 1, null, this::notify);
-                    break;
-
-                default:
-                    break;
+                notifyEvent.setCallback(this::notify, null);
+                device.asyncRead(request.requestId, REG_STATUS, 1, notifyEvent);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
         }
     }   //notify
 

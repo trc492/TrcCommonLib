@@ -125,11 +125,9 @@ public class TrcPidConveyor extends TrcPidMotor
     private final Parameters params;
     private final TrcDigitalInputTrigger entranceTrigger;
     private final TrcDigitalInputTrigger exitTrigger;
-    private TrcNotifier.Receiver entranceEventHandler;
-    private TrcNotifier.Receiver exitEventHandler;
+    private TrcEvent entranceEvent;
+    private TrcEvent exitEvent;
     private int numObjects = 0;
-    private TrcEvent onFinishEvent;
-    private TrcNotifier.Receiver onFinishCallback;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -154,7 +152,7 @@ public class TrcPidConveyor extends TrcPidMotor
         if (entranceSensor != null)
         {
             entranceTrigger = new TrcDigitalInputTrigger(
-                instanceName + ".entranceTrigger", entranceSensor, this::entranceEvent);
+                instanceName + ".entranceTrigger", entranceSensor, this::onEntranceEvent);
             entranceTrigger.setEnabled(true);
         }
         else
@@ -165,7 +163,7 @@ public class TrcPidConveyor extends TrcPidMotor
         if (exitSensor != null)
         {
             exitTrigger = new TrcDigitalInputTrigger(
-                instanceName + ".exitTrigger", entranceSensor, this::exitEvent);
+                instanceName + ".exitTrigger", entranceSensor, this::onExitEvent);
             exitTrigger.setEnabled(true);
         }
         else
@@ -197,30 +195,30 @@ public class TrcPidConveyor extends TrcPidMotor
     }   //setPreloadedObjects
 
     /**
-     * This method registers an event handler to be notified when the entrance sensor is triggered.
+     * This method registers an event to be signaled when the entrance sensor is triggered.
      *
-     * @param handler event handler to be notified.
+     * @param event specifies event to signal when an object has entered the conveyor.
      */
-    public void registerEntranceEventHandler(TrcNotifier.Receiver handler)
+    public void registerEntranceEvent(TrcEvent event)
     {
         if (entranceTrigger != null)
         {
-            entranceEventHandler = handler;
+            entranceEvent = event;
         }
-    }   //registerEntranceEventHandler
+    }   //registerEntranceEvent
 
     /**
-     * This method registers an event handler to be notified when the exit sensor is triggered.
+     * This method registers an event to be signaled when the exit sensor is triggered.
      *
-     * @param handler event handler to be notified.
+     * @param event specifies event to signal when an object has exited the conveyor.
      */
-    public void registerExitEventHandler(TrcNotifier.Receiver handler)
+    public void registerExitEvent(TrcEvent event)
     {
         if (exitTrigger != null)
         {
-            exitEventHandler = handler;
+            exitEvent = event;
         }
-    }   //registerExitEventHandler
+    }   //registerExitEvent
 
     /**
      * This method returns the sensor state read from the digital sensor.
@@ -248,9 +246,8 @@ public class TrcPidConveyor extends TrcPidMotor
      * @param owner specifies the owner ID to check if the caller has ownership of the conveyor.
      * @param units specifies the number of object units to advance or negative number to back up.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void move(String owner, int units, TrcEvent event, TrcNotifier.Receiver callback)
+    public void move(String owner, int units, TrcEvent event)
     {
         if (validateOwnership(owner))
         {
@@ -258,9 +255,7 @@ public class TrcPidConveyor extends TrcPidMotor
             {
                 event.clear();
             }
-            this.onFinishEvent = event;
-            this.onFinishCallback = callback;
-            setTarget(units*params.objectDistance, false, 1.0, null, this::reachedTarget);
+            setTarget(units*params.objectDistance, false, 1.0, event);
         }
     }   //move
 
@@ -269,11 +264,10 @@ public class TrcPidConveyor extends TrcPidMotor
      *
      * @param units specifies the number of object units to advance or negative number to back up.
      * @param event specifies the event to signal when done, can be null if not provided.
-     * @param callback specifies the callback handler to notify when done, can be null if not provided.
      */
-    public void move(int units, TrcEvent event, TrcNotifier.Receiver callback)
+    public void move(int units, TrcEvent event)
     {
-        move(null, units, event, callback);
+        move(null, units, event);
     }   //move
 
     /**
@@ -283,7 +277,7 @@ public class TrcPidConveyor extends TrcPidMotor
      */
     public void move(int units)
     {
-        move(null, units, null, null);
+        move(null, units, null);
     }   //move
 
     /**
@@ -291,7 +285,7 @@ public class TrcPidConveyor extends TrcPidMotor
      */
     public void advance()
     {
-        move(null, 1, null, null);
+        move(null, 1, null);
     }   //advance
 
     /**
@@ -299,7 +293,7 @@ public class TrcPidConveyor extends TrcPidMotor
      */
     public void backup()
     {
-        move(null, -1, null, null);
+        move(null, -1, null);
     }   //backup
 
     /**
@@ -307,7 +301,7 @@ public class TrcPidConveyor extends TrcPidMotor
      *
      * @param active specifies true if an object has activated the sensor, false if the object has deactivated it.
      */
-    private void entranceEvent(boolean active)
+    private void onEntranceEvent(boolean active)
     {
         if (active)
         {
@@ -319,18 +313,18 @@ public class TrcPidConveyor extends TrcPidMotor
             setPower(0.0);
         }
 
-        if (entranceEventHandler != null)
+        if (entranceEvent != null)
         {
-            entranceEventHandler.notify(active);
+            entranceEvent.signal();
         }
-    }   //entranceEvent
+    }   //onEntranceEvent
 
     /**
      * This method is called when the exit sensor is triggered.
      *
      * @param active specifies true if an object has activated the sensor, false if the object has deactivated it.
      */
-    private void exitEvent(boolean active)
+    private void onExitEvent(boolean active)
     {
         if (active)
         {
@@ -341,30 +335,10 @@ public class TrcPidConveyor extends TrcPidMotor
             setPower(0.0);
         }
 
-        if (exitEventHandler != null)
+        if (exitEvent != null)
         {
-            exitEventHandler.notify(active);
+            exitEvent.signal();
         }
-    }   //exitEvent
-
-    /**
-     * This method is called when a previous call to move the conveyor has reached its target.
-     *
-     * @param context specifies the callback context (not used).
-     */
-    private void reachedTarget(Object context)
-    {
-        if (onFinishEvent != null)
-        {
-            onFinishEvent.signal();
-            onFinishEvent = null;
-        }
-
-        if (onFinishCallback != null)
-        {
-            onFinishCallback.notify(null);
-            onFinishCallback = null;
-        }
-    }   //reachedTarget
+    }   //onExitEvent
 
 }   //class TrcPidConveyor
