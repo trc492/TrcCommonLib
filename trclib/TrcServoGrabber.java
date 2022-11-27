@@ -382,18 +382,6 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     }   //close
 
     /**
-     * This method is called by the sensor trigger to close the grabber when it detected an object. This is usually
-     * a result of enableAutoAssist. Therefore, we will signal its completion event.
-     */
-    public void closeOnTrigger()
-    {
-        if (actionParams != null)
-        {
-            close(actionParams.event);
-        }
-    }   //closeOnTrigger
-
-    /**
      * This method enables auto-assist grabbing which is to close the grabber if it was open and the object is in
      * proximity or to open the grabber if it was close and it doesn't have the object. It arms the sensor trigger
      * to detect the object for auto grabbing. If there is a timeout, it arms the timeout timer for canceling the
@@ -433,6 +421,43 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         {
             timerEvent.setCallback(this::cancelAutoAssist, actionParams);
             timer.set(actionParams.timeout, timerEvent);
+        }
+    }   //enableAutoAssist
+
+    /**
+     * This method enables auto-assist grabbing. It allows the caller to start monitoring the trigger sensor for
+     * the object in the vicinity. If the object is within grasp, it will automatically grab the object. If an
+     * event is provided, it will also signal the event when the operation is completed.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the grabber subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void enableAutoAssist(String owner, double delay, TrcEvent event, double timeout)
+    {
+        if (sensorTrigger == null)
+        {
+            throw new RuntimeException("Must have sensor to perform AutoAssist.");
+        }
+        //
+        // This is an auto-assist operation, make sure the caller has ownership.
+        //
+        if (validateOwnership(owner))
+        {
+            // In case there is an existing auto-assist still pending, cancel it first.
+            cancelAutoAssist(null);
+            actionParams = new ActionParams(event, timeout);
+            if (delay > 0.0)
+            {
+                timerEvent.setCallback(this::enableAutoAssist, actionParams);
+                timer.set(delay, timerEvent);
+            }
+            else
+            {
+                enableAutoAssist(actionParams);
+            }
         }
     }   //enableAutoAssist
 
@@ -483,41 +508,6 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     {
         cancelAutoAssist(null);
     }   //cancelAutoAssist
-
-    /**
-     * This method enables auto-assist grabbing. It allows the caller to start monitoring the trigger sensor for
-     * the object in the vicinity. If the object is within grasp, it will automatically grab the object. If an
-     * event is provided, it will also signal the event when the operation is completed.
-     *
-     * @param owner specifies the owner ID to check if the caller has ownership of the grabber subsystem.
-     * @param delay specifies the delay time in seconds before executing the action.
-     * @param event specifies the event to signal when object is detected in the intake.
-     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-     *                must call hasObject() to figure out if it has given up.
-     */
-    public void enableAutoAssist(String owner, double delay, TrcEvent event, double timeout)
-    {
-        if (sensorTrigger == null)
-        {
-            throw new RuntimeException("Must have sensor to perform AutoAssist.");
-        }
-        //
-        // This is an auto-assist operation, make sure the caller has ownership and autoAssist is not already active.
-        //
-        if (actionParams == null && validateOwnership(owner))
-        {
-            actionParams = new ActionParams(event, timeout);
-            if (delay > 0.0)
-            {
-                timerEvent.setCallback(this::enableAutoAssist, actionParams);
-                timer.set(delay, timerEvent);
-            }
-            else
-            {
-                enableAutoAssist(actionParams);
-            }
-        }
-    }   //enableAutoAssist
 
     /**
      * This method returns the sensor value read from the analog sensor.
