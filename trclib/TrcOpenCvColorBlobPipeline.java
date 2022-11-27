@@ -158,7 +158,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
     private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0);
 
     private final String instanceName;
-    private final boolean useHsv;
+    private final int colorConversion;
     private final double[] colorThresholds;
     private final FilterContourParams filterContourParams;
     private final TrcDbgTrace tracer;
@@ -170,7 +170,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param useHsv specifies true for HSV color space, false for RGB.
+     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
      * @param colorThresholds specifies an array of color thresholds. If useHsv is false, the array contains RGB
      *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If useHsv is true, the array contains
      *        HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
@@ -178,7 +178,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvColorBlobPipeline(
-        String instanceName, boolean useHsv, double[] colorThresholds, FilterContourParams filterContourParams,
+        String instanceName, int colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
         TrcDbgTrace tracer)
     {
         if (colorThresholds == null || colorThresholds.length != 6)
@@ -187,7 +187,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
         }
 
         this.instanceName = instanceName;
-        this.useHsv = useHsv;
+        this.colorConversion = colorConversion;
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
         this.tracer = tracer;
@@ -220,7 +220,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
         ArrayList<MatOfPoint> filterContoursOutput = new ArrayList<>();
         double startTime = TrcUtil.getCurrentTime();
 
-        filterByColor(input, useHsv, colorThresholds, colorThresholdOutput);
+        filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
         findContours(colorThresholdOutput, false, contoursOutput);
         if (filterContourParams != null)
         {
@@ -287,19 +287,14 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
      * This method process the image by filtering with the specified color ranges.
      *
      * @param input specifies the input frame.
-     * @param useHsv specifies true if input should be converted to HSV and color ranges are in HSV, false otherwise.
+     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
      * @param colorThresholds specifies the color ranges (redMin, redMax, greenMin, greenMax, blueMin, blueMax) or
      *        (hueMin, hueMax, satMin, satMax, valueMin, valueMax) if useHsv is true.
      * @param out specifies the output frame for the result.
      */
-    private void filterByColor(Mat input, boolean useHsv, double[] colorThresholds, Mat out)
+    private void filterByColor(Mat input, int colorConversion, double[] colorThresholds, Mat out)
     {
-        Imgproc.cvtColor(input, out, Imgproc.COLOR_RGBA2RGB);
-        if (useHsv)
-        {
-            Imgproc.cvtColor(out, out, Imgproc.COLOR_RGB2HSV);
-        }
-
+        Imgproc.cvtColor(input, out, colorConversion);
         Core.inRange(
             out, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), out);
