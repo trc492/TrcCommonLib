@@ -368,7 +368,7 @@ public class TrcPeriodicThread<T>
     public void run()
     {
         final String funcName = "run";
-        Thread thread = Thread.currentThread();
+        final Thread thread = Thread.currentThread();
         @SuppressWarnings("unused") long totalThreadNanoTime = 0;
         @SuppressWarnings("unused") int loopCount = 0;
 
@@ -381,7 +381,7 @@ public class TrcPeriodicThread<T>
                 numThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
-        TrcEvent.registerEventCallback(thread);
+        TrcEvent.registerEventCallback();
         // Do not create a watchdog for the Watchdog Manager task.
         TrcWatchdogMgr.Watchdog threadWatchdog =
             instanceName.equals(TrcWatchdogMgr.moduleName)? null: TrcWatchdogMgr.registerWatchdog(instanceName);
@@ -409,7 +409,7 @@ public class TrcPeriodicThread<T>
                 }
             }
 
-            TrcEvent.performEventCallback(thread);
+            TrcEvent.performEventCallback();
 
             if (processingInterval > 0)
             {
@@ -445,7 +445,7 @@ public class TrcPeriodicThread<T>
             threadWatchdog.unregister();
         }
 
-        TrcEvent.unregisterEventCallback(thread);
+        TrcEvent.unregisterEventCallback();
 
         numThreads = numActiveThreads.decrementAndGet();
         if (debugEnabled)
