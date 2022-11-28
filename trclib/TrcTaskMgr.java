@@ -589,7 +589,7 @@ public class TrcTaskMgr
      */
     public static void terminateAllThreads()
     {
-        TrcTimerMgr.shutdown();
+        TrcTimer.shutdown();
 
         for (TaskObject taskObj: taskList)
         {
