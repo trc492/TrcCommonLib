@@ -242,16 +242,22 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 double assistPower = getGyroAssistPower((leftPower - rightPower)/2.0);
                 leftPower += assistPower;
                 rightPower -= assistPower;
-                double maxMag = Math.max(Math.abs(leftPower), Math.abs(rightPower));
-                if (maxMag > 1.0)
-                {
-                    leftPower /= maxMag;
-                    rightPower /= maxMag;
-                }
             }
 
-            leftPower = clipMotorOutput(leftPower);
-            rightPower = clipMotorOutput(rightPower);
+            if (isAntiTippingEnabled())
+            {
+                double antiTippingPower = getAntiTippingPower(false);
+                leftPower += antiTippingPower;
+                rightPower += antiTippingPower;
+            }
+
+            double maxMag = Math.max(Math.abs(leftPower), Math.abs(rightPower));
+            if (maxMag > 1.0)
+            {
+                leftPower /= maxMag;
+                rightPower /= maxMag;
+            }
+
             if (leftPower == 0.0 && rightPower == 0.0)
             {
                 // reset stall start time to zero if drive base is stopped.

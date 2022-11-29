@@ -144,11 +144,11 @@ public class TrcPidController
      */
     public static class PidParameters
     {
-        private PidCoefficients pidCoeff;
-        private double tolerance;
-        private final double settlingTime;
-        private double steadyStateError;
-        private double stallErrRateThreshold;
+        public PidCoefficients pidCoeff;
+        public double tolerance;
+        public final double settlingTime;
+        public double steadyStateError;
+        public double stallErrRateThreshold;
 
         /**
          * Constructor: Create an instance of the object.
@@ -495,186 +495,24 @@ public class TrcPidController
     }   //toString
 
     /**
-     * This method displays the PID information on the dashboard for debugging and tuning purpose. Note that the
-     * PID info occupies two dashboard lines.
+     * This method returns the PID parameters.
      *
-     * @param lineNum specifies the starting line number of the dashboard to display the info.
+     * @return PID parameters.
      */
-    public void displayPidInfo(int lineNum)
+    public PidParameters getPidParameters()
     {
-        synchronized (pidCtrlState)
-        {
-            dashboard.displayPrintf(
-                lineNum, "%s:Target=%.1f,Input=%.1f,Error=%.1f",
-                instanceName, pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.currError);
-            dashboard.displayPrintf(
-                lineNum + 1, "minOutput=%.1f,Output=%.1f,maxOutput=%.1f",
-                minOutput, pidCtrlState.output, maxOutput);
-        }
-    }   //displayPidInfo
+        return pidParams;
+    }   //getPidParameters
 
     /**
-     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
-     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
+     * This method returns the PidInput interface.
      *
-     * @param tracer specifies the tracer object to print the PID info to.
-     * @param verbose specifies true to print verbose info, false to print summary info.
-     * @param battery specifies the battery object to get battery info, can be null if not provided.
+     * @return PidInput interface.
      */
-    public void printPidInfo(TrcDbgTrace tracer, boolean verbose, TrcRobotBattery battery)
+    public PidInput getPidInput()
     {
-        final String funcName = "printPidInfo";
-
-        if (tracer == null)
-        {
-            tracer = dbgTrace;
-        }
-        //
-        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device. In the
-        // worst case, the commented code below makes 3 calls to String.format that costs about 15 msec!
-        //
-        if (tracer != null)
-        {
-            synchronized (pidCtrlState)
-            {
-                if (verbose)
-                {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f" +
-                            ", Volt=%.1f(%.1f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            TrcUtil.getModeElapsedTime(pidCtrlState.currTime),
-                            battery.getVoltage(), battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
-                    }
-                }
-                else
-                {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)" +
-                            ", Volt=%.1f(%.1f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            battery.getVoltage(), battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput);
-                    }
-                }
-//                StringBuilder msg = new StringBuilder();
-//
-//                msg.append(String.format(
-//                    Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
-//                    TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-//                    pidCtrlState.error, pidCtrlState.output, minOutput, maxOutput));
-//
-//                if (verbose)
-//                {
-//                    msg.append(String.format(
-//                        Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
-//                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-//                        pidCtrlState.deltaTime, TrcUtil.getModeElapsedTime(pidCtrlState.timestamp)));
-//                }
-//
-//                if (battery != null)
-//                {
-//                    msg.append(String.format(Locale.US, ", Volt=%.1f(%.1f)",
-//                        battery.getVoltage(), battery.getLowestVoltage()));
-//                }
-//
-//                tracer.traceInfo(funcName, msg.toString());
-            }
-        }
-    }   //printPidInfo
-
-    /**
-     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
-     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
-     *
-     * @param tracer specifies the tracer object to print the PID info to.
-     * @param verbose specifies true to print verbose info, false to print summary info.
-     */
-    public void printPidInfo(TrcDbgTrace tracer, boolean verbose)
-    {
-        printPidInfo(tracer, verbose, null);
-    }   //printPidInfo
-
-    /**
-     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
-     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
-     *
-     * @param tracer specifies the tracer object to print the PID info to.
-     */
-    public void printPidInfo(TrcDbgTrace tracer)
-    {
-        printPidInfo(tracer, false, null);
-    }   //printPidInfo
-
-    /**
-     * This method prints the PID information to the default debug tracer.
-     */
-    public void printPidInfo()
-    {
-        printPidInfo(null, false, null);
-    }   //printPidInfo
-
-    /**
-     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
-     * very useful for debugging or tuning PID control.
-     *
-     * @param tracer  specifies the tracer to be used for debug tracing.
-     * @param enabled specifies true to enable the debug tracer, false to disable.
-     * @param verbose specifies true to enable verbose trace mode, false to disable.
-     */
-    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled, boolean verbose)
-    {
-        synchronized (pidCtrlState)
-        {
-            debugTracer = enabled ? tracer : null;
-            verboseTrace = enabled && verbose;
-        }
-    }   //setDebugTraceEnabled
-
-    /**
-     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
-     * very useful for debugging or tuning PID control.
-     *
-     * @param tracer  specifies the tracer to be used for debug tracing.
-     * @param enabled specifies true to enable the debug tracer, false to disable.
-     */
-    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
-    {
-        setDebugTraceEnabled(tracer, enabled, false);
-    }   //setDebugTraceEnabled
+        return pidInput;
+    }   //getPidInput
 
     /**
      * This method inverts the sign of the calculated error. Normally, the calculated error starts with a large
@@ -1408,5 +1246,187 @@ public class TrcPidController
             return pidCtrlState.output;
         }
     }   //getOutput
+
+    /**
+     * This method displays the PID information on the dashboard for debugging and tuning purpose. Note that the
+     * PID info occupies two dashboard lines.
+     *
+     * @param lineNum specifies the starting line number of the dashboard to display the info.
+     */
+    public void displayPidInfo(int lineNum)
+    {
+        synchronized (pidCtrlState)
+        {
+            dashboard.displayPrintf(
+                lineNum, "%s:Target=%.1f,Input=%.1f,Error=%.1f",
+                instanceName, pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.currError);
+            dashboard.displayPrintf(
+                lineNum + 1, "minOutput=%.1f,Output=%.1f,maxOutput=%.1f",
+                minOutput, pidCtrlState.output, maxOutput);
+        }
+    }   //displayPidInfo
+
+    /**
+     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
+     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
+     *
+     * @param tracer specifies the tracer object to print the PID info to.
+     * @param verbose specifies true to print verbose info, false to print summary info.
+     * @param battery specifies the battery object to get battery info, can be null if not provided.
+     */
+    public void printPidInfo(TrcDbgTrace tracer, boolean verbose, TrcRobotBattery battery)
+    {
+        final String funcName = "printPidInfo";
+
+        if (tracer == null)
+        {
+            tracer = dbgTrace;
+        }
+        //
+        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device. In the
+        // worst case, the commented code below makes 3 calls to String.format that costs about 15 msec!
+        //
+        if (tracer != null)
+        {
+            synchronized (pidCtrlState)
+            {
+                if (verbose)
+                {
+                    if (battery != null)
+                    {
+                        tracer.traceInfo(
+                            funcName,
+                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
+                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f" +
+                            ", Volt=%.1f(%.1f)",
+                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
+                            pidCtrlState.output, minOutput, maxOutput,
+                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
+                            TrcUtil.getModeElapsedTime(pidCtrlState.currTime),
+                            battery.getVoltage(), battery.getLowestVoltage());
+                    }
+                    else
+                    {
+                        tracer.traceInfo(
+                            funcName,
+                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
+                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
+                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
+                            pidCtrlState.output, minOutput, maxOutput,
+                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
+                    }
+                }
+                else
+                {
+                    if (battery != null)
+                    {
+                        tracer.traceInfo(
+                            funcName,
+                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
+                            ", Output=%6.3f(%6.3f/%6.3f)" +
+                            ", Volt=%.1f(%.1f)",
+                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
+                            pidCtrlState.output, minOutput, maxOutput,
+                            battery.getVoltage(), battery.getLowestVoltage());
+                    }
+                    else
+                    {
+                        tracer.traceInfo(
+                            funcName,
+                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
+                            ", Output=%6.3f(%6.3f/%6.3f)",
+                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
+                            pidCtrlState.output, minOutput, maxOutput);
+                    }
+                }
+//                StringBuilder msg = new StringBuilder();
+//
+//                msg.append(String.format(
+//                    Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
+//                    TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+//                    pidCtrlState.error, pidCtrlState.output, minOutput, maxOutput));
+//
+//                if (verbose)
+//                {
+//                    msg.append(String.format(
+//                        Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
+//                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
+//                        pidCtrlState.deltaTime, TrcUtil.getModeElapsedTime(pidCtrlState.timestamp)));
+//                }
+//
+//                if (battery != null)
+//                {
+//                    msg.append(String.format(Locale.US, ", Volt=%.1f(%.1f)",
+//                        battery.getVoltage(), battery.getLowestVoltage()));
+//                }
+//
+//                tracer.traceInfo(funcName, msg.toString());
+            }
+        }
+    }   //printPidInfo
+
+    /**
+     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
+     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
+     *
+     * @param tracer specifies the tracer object to print the PID info to.
+     * @param verbose specifies true to print verbose info, false to print summary info.
+     */
+    public void printPidInfo(TrcDbgTrace tracer, boolean verbose)
+    {
+        printPidInfo(tracer, verbose, null);
+    }   //printPidInfo
+
+    /**
+     * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
+     * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
+     *
+     * @param tracer specifies the tracer object to print the PID info to.
+     */
+    public void printPidInfo(TrcDbgTrace tracer)
+    {
+        printPidInfo(tracer, false, null);
+    }   //printPidInfo
+
+    /**
+     * This method prints the PID information to the default debug tracer.
+     */
+    public void printPidInfo()
+    {
+        printPidInfo(null, false, null);
+    }   //printPidInfo
+
+    /**
+     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
+     * very useful for debugging or tuning PID control.
+     *
+     * @param tracer  specifies the tracer to be used for debug tracing.
+     * @param enabled specifies true to enable the debug tracer, false to disable.
+     * @param verbose specifies true to enable verbose trace mode, false to disable.
+     */
+    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled, boolean verbose)
+    {
+        synchronized (pidCtrlState)
+        {
+            debugTracer = enabled ? tracer : null;
+            verboseTrace = enabled && verbose;
+        }
+    }   //setDebugTraceEnabled
+
+    /**
+     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
+     * very useful for debugging or tuning PID control.
+     *
+     * @param tracer  specifies the tracer to be used for debug tracing.
+     * @param enabled specifies true to enable the debug tracer, false to disable.
+     */
+    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
+    {
+        setDebugTraceEnabled(tracer, enabled, false);
+    }   //setDebugTraceEnabled
 
 }   //class TrcPidController

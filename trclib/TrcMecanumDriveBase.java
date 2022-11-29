@@ -118,6 +118,19 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 rotation += getGyroAssistPower(rotation);
             }
 
+            if (isAntiTippingEnabled())
+            {
+                x1 += getAntiTippingPower(true);
+                y1 += getAntiTippingPower(false);
+            }
+
+            double maxMag = Math.max(Math.abs(x1), Math.abs(y1));
+            if (maxMag > 1.0)
+            {
+                x1 /= maxMag;
+                y1 /= maxMag;
+            }
+
             double[] wheelPowers = new double[4];
             wheelPowers[MotorType.LEFT_FRONT.value] = x1 + y1 + rotation;
             wheelPowers[MotorType.RIGHT_FRONT.value] = -x1 + y1 - rotation;

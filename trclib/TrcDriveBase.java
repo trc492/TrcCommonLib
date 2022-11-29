@@ -247,6 +247,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private double gyroMaxRotationRate = 0.0;
     private double gyroAssistGain = 1.0;
     private boolean gyroAssistEnabled = false;
+    private TrcPidController xTippingPidCtrl = null;
+    private TrcPidController yTippingPidCtrl = null;
+    private boolean antiTippingEnabled = false;
     private Odometry referenceOdometry = null;
     private boolean synchronizeOdometries = false;
     // Change of basis matrices to convert between coordinate systems
@@ -1047,7 +1050,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //enableGyroAssist
 
     /**
-     * This method enables/disables gyro assist drive.
+     * This method disables gyro assist drive.
      */
     public void disableGyroAssist()
     {
@@ -1101,6 +1104,95 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         return gyroAssistPower;
     }   //getGyroAssistPower
+
+    /**
+     * This method enables anti-tipping drive.
+     *
+     * @param xTippingPidParams specifies the anti-tipping PID controller parameters for the X direction, null for
+     *        non-holonomic drive base.
+     * @param xPidInput specifies the PidInput interface for the X direction, null for non-holonomic drive base.
+     * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
+     * @param yPidInput specifies the PidInput interface for the Y direction.
+     */
+    public void enableAntiTipping(
+        TrcPidController.PidParameters xTippingPidParams, TrcPidController.PidInput xPidInput,
+        TrcPidController.PidParameters yTippingPidParams, TrcPidController.PidInput yPidInput)
+    {
+        if (yTippingPidParams == null || yPidInput == null)
+        {
+            throw new IllegalArgumentException("yTippingPidParams and yPidInput must not be null.");
+        }
+
+        if (xTippingPidParams != null)
+        {
+            if (xPidInput == null)
+            {
+                throw new IllegalArgumentException("xPidInput must not be null.");
+            }
+
+            xTippingPidCtrl = new TrcPidController("xAntiTippingPidCtrl", xTippingPidParams, xPidInput);
+            xTippingPidCtrl.setAbsoluteSetPoint(true);
+            xTippingPidCtrl.setTarget(xPidInput.get());
+        }
+
+        yTippingPidCtrl = new TrcPidController("yAntiTippingPidCtrl", yTippingPidParams, yPidInput);
+        yTippingPidCtrl.setAbsoluteSetPoint(true);
+        yTippingPidCtrl.setTarget(yPidInput.get());
+
+        antiTippingEnabled = true;
+    }   //enableAntiTipping
+
+    /**
+     * This method enables anti-tipping drive.
+     *
+     * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
+     * @param yPidInput specifies the PidInput interface for the Y direction.
+     */
+    public void enableAntiTipping(
+        TrcPidController.PidParameters yTippingPidParams, TrcPidController.PidInput yPidInput)
+    {
+        enableAntiTipping(null, null, yTippingPidParams, yPidInput);
+    }   //enableAntiTipping
+
+    /**
+     * This method disables anti-tipping drive.
+     */
+    public void disableAntiTipping()
+    {
+        xTippingPidCtrl = null;
+        yTippingPidCtrl = null;
+        antiTippingEnabled = false;
+    }   //disableAntiTipping
+
+    /**
+     * This method checks if anti-tipping drive is enabled.
+     *
+     * @return true if anti-tipping drive is enabled, false otherwise.
+     */
+    public boolean isAntiTippingEnabled()
+    {
+        return antiTippingEnabled;
+    }   //isAntiTippingEnabled
+
+    /**
+     * This method calculates and returns the anti-tipping power.
+     *
+     * @param xTippingControl specifies true for the X anti-tipping power, false for the Y anti-tipping power.
+     * @return calculated anti-tipping power.
+     */
+    public double getAntiTippingPower(boolean xTippingControl)
+    {
+        double power = 0.0;
+        TrcPidController tippingPidCtrl = xTippingControl? xTippingPidCtrl: yTippingPidCtrl;
+
+        power = tippingPidCtrl.getOutput();
+        if (Math.abs(tippingPidCtrl.getError()) <= tippingPidCtrl.getPidParameters().tolerance)
+        {
+            power = 0.0;
+        }
+
+        return power;
+    }   //getAntiTippingPower
 
     /**
      * This method checks if it supports holonomic drive. Subclasses that support holonomic drive should override
