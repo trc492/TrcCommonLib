@@ -38,16 +38,12 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 public class TrcWatchdogMgr
 {
     public static final String moduleName = "TrcWatchdogMgr";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = true;
 
     private static final double DEF_TASK_INTERVAL = 1.0;        // in seconds.
     private static final double DEF_HEARTBEAT_THRESHOLD = 1.0;  // in seconds.
-    private static final TrcDbgTrace tracer = TrcDbgTrace.getGlobalTracer();
+
     private static TrcWatchdogMgr instance;
     private static ArrayList<Watchdog> watchdogList;
     private static HashMap<String, Watchdog> watchdogMap;
@@ -103,7 +99,7 @@ public class TrcWatchdogMgr
             }
             else
             {
-                tracer.traceWarn(
+                globalTracer.traceWarn(
                     funcName, "Only the thread created this watchdog (%s) is allowed to send heart beat.", name);
                 TrcDbgTrace.printThreadStack();
             }
@@ -129,7 +125,7 @@ public class TrcWatchdogMgr
             }
             else
             {
-                tracer.traceWarn(
+                globalTracer.traceWarn(
                     funcName, "Only the thread created this watchdog (%s) is allowed to unregister.", name);
                 TrcDbgTrace.printThreadStack();
             }
@@ -196,8 +192,15 @@ public class TrcWatchdogMgr
      */
     public static void shutdown()
     {
+        final String funcName = "shutdown";
+
         if (instance != null)
         {
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(funcName, "Shutting down Watchdog Manager.");
+            }
+
             synchronized (watchdogList)
             {
                 watchdogTaskObj.unregisterTask();
@@ -215,17 +218,14 @@ public class TrcWatchdogMgr
      */
     private TrcWatchdogMgr(double taskInterval)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         watchdogList = new ArrayList<>();
         watchdogMap = new HashMap<>();
         watchdogTaskObj = TrcTaskMgr.createTask(moduleName, this::watchdogTask);
         watchdogTaskObj.registerTask(TaskType.STANDALONE_TASK, (long) (taskInterval*1000));
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(moduleName, "Starting Watchdog Manager.");
+        }
     }   //TrcWatchdogMgr
 
     /**
@@ -242,6 +242,13 @@ public class TrcWatchdogMgr
         Watchdog watchdog = null;
 
         instance = getInstance();
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(
+                funcName, "Registering watchdog %s (heartBeatThreshold=%.3f).", name, heartBeatThreshold);
+            TrcDbgTrace.printThreadStack();
+        }
+
         synchronized (watchdogList)
         {
             if (!watchdogMap.containsKey(name))
@@ -252,7 +259,7 @@ public class TrcWatchdogMgr
             }
             else
             {
-                tracer.traceWarn(funcName, "Watchdog (%s) was already registered.", name);
+                globalTracer.traceWarn(funcName, "Watchdog (%s) was already registered.", name);
                 TrcDbgTrace.printThreadStack();
             }
         }
@@ -284,6 +291,12 @@ public class TrcWatchdogMgr
         final String funcName = "unregisterWatchdog";
         boolean success = false;
 
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "Unregistering watchdog %s.", watchdog);
+            TrcDbgTrace.printThreadStack();
+        }
+
         synchronized (watchdogList)
         {
             watchdogMap.remove(watchdog.name);
@@ -292,7 +305,7 @@ public class TrcWatchdogMgr
 
         if (!success)
         {
-            tracer.traceWarn(funcName, "Watchdog (%s) was never registered.", watchdog.name);
+            globalTracer.traceWarn(funcName, "Watchdog (%s) was never registered.", watchdog.name);
             TrcDbgTrace.printThreadStack();
         }
 
@@ -308,11 +321,6 @@ public class TrcWatchdogMgr
     private void watchdogTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "watchdogTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
 
         synchronized (watchdogList)
         {
@@ -333,15 +341,10 @@ public class TrcWatchdogMgr
 
                 if (timedout)
                 {
-                    tracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out.", currTime, watchdog);
+                    globalTracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out.", currTime, watchdog);
                     TrcDbgTrace.printThreadStack(watchdog.thread);
                 }
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //watchdogTask
 
