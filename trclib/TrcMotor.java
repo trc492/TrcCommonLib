@@ -23,6 +23,7 @@
 package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
@@ -37,14 +38,9 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsystem
 {
-    protected static final String moduleName = "TrcMotor";
+    private static final String moduleName = "TrcMotor";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     public enum TriggerMode
     {
@@ -149,26 +145,26 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     // Global objects.
     //
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
-    protected static TrcElapsedTimer motorGetPosElapsedTimer;
-    protected static TrcElapsedTimer motorSetElapsedTimer;
+    private static TrcElapsedTimer motorGetPosElapsedTimer;
+    private static TrcElapsedTimer motorSetElapsedTimer;
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
     private final String instanceName;
+    private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
     private MotorState motorState = MotorState.done;
     private double motorValue;
     private double duration;
     private TrcEvent notifyEvent;
-    private final TrcOdometrySensor.Odometry odometry;
     private static TrcTaskMgr.TaskObject odometryTaskObj;
-    private static TrcTaskMgr.TaskObject cleanupTaskObj;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
 
     private TrcDigitalInputTrigger digitalTrigger;
-    private TrcTrigger.DigitalTriggerHandler digitalTriggerHandler;
-    private TriggerMode triggerMode = TriggerMode.OnActive;
+    private TriggerMode triggerMode;
+    private TrcEvent.Callback triggerCallback;
+    private TrcEvent triggerCallbackEvent;
 
-    protected boolean calibrating = false;
+    private boolean calibrating = false;
 
     private double motorDirSign = 1.0;
     private double posSensorSign = 1.0;
@@ -191,15 +187,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     public TrcMotor(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ? globalTracer :
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.odometry = new TrcOdometrySensor.Odometry(this);
-        timer = new TrcTimer("motorTimer." + instanceName);
+        timer = new TrcTimer(instanceName);
 
         if (odometryTaskObj == null)
         {
@@ -210,7 +200,8 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             // many threads.
             //
             odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
-            cleanupTaskObj = TrcTaskMgr.createTask(instanceName + ".cleanupTask", this::cleanupTask);
+            TrcTaskMgr.TaskObject cleanupTaskObj = TrcTaskMgr.createTask(
+                instanceName + ".cleanupTask", this::cleanupTask);
             cleanupTaskObj.registerTask(TaskType.STOP_TASK);
         }
         velocityCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
@@ -335,12 +326,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         else
         {
             setMotorPower(value);
-            if (followingMotorsList != null)
+            for (TrcMotor motor: followingMotorsList)
             {
-                for (TrcMotor motor: followingMotorsList)
-                {
-                    motor.setMotorPower(value);
-                }
+                motor.setMotorPower(value);
             }
         }
 
@@ -366,9 +354,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,value=%f,duration=%.3f",
-                owner, delay, value, duration);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: owner=%s,delay=%.3f,value=%f,duration=%.3f",
+                moduleName, instanceName, owner, delay, value, duration);
         }
 
         if (validateOwnership(owner))
@@ -390,13 +378,8 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             this.motorValue = value;
             if (delay > 0.0)
             {
-                if (motorState == MotorState.doDuration)
-                {
-                    // We had a previous operation spinning the motor for a duration, cancel it and stop the motor
-                    // first.
-                    setMotorValue(0.0);
-                }
-
+                // The motor may be spinning, let's stop it.
+                setMotorValue(0.0);
                 motorState = MotorState.doDelay;
                 this.duration = duration;
                 this.notifyEvent = event;
@@ -412,12 +395,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                     this.notifyEvent = event;
                     timer.set(duration, this::motorEventHandler);
                 }
+                else
+                {
+                    motorState = MotorState.done;
+                }
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "! (value=%f)", value);
         }
     }   //set
 
@@ -538,8 +520,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "hardware=%s", hardware);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "%s.%s: hardware=%s", moduleName, instanceName, hardware);
         }
 
         if (hardware)
@@ -574,11 +555,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         final String funcName = "getPosition";
         double currPos;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (odometryEnabled)
         {
             synchronized (odometry)
@@ -594,7 +570,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.0f", currPos);
+            globalTracer.traceInfo(funcName, "%s.%s: pos=%.0f", moduleName, instanceName, currPos);
         }
 
         return currPos;
@@ -614,11 +590,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         final String funcName = "getVelocity";
         final double velocity;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (odometryEnabled)
         {
             synchronized (odometry)
@@ -634,7 +605,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.0f", velocity);
+            globalTracer.traceInfo(funcName, "%s.%s: vel=%.0f", moduleName, instanceName, velocity);
         }
 
         return velocity;
@@ -653,8 +624,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "swapped=%s", swapped);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "%s.%s: swapped=%s", moduleName, instanceName, swapped);
         }
 
         limitSwitchesSwapped = swapped;
@@ -672,8 +642,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", isActive);
+            globalTracer.traceInfo(funcName, "%s.%s: lowerLimitActive=%s", moduleName, instanceName, isActive);
         }
 
         return isActive;
@@ -691,8 +660,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", isActive);
+            globalTracer.traceInfo(funcName, "%s.%s: upperLimitActive=%s", moduleName, instanceName, isActive);
         }
 
         return isActive;
@@ -711,10 +679,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "lowerEnabled=%s,upperEnabled=%s",
-                lowerLimitEnabled, upperLimitEnabled);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: lowerEnabled=%s,upperEnabled=%s",
+                moduleName, instanceName, lowerLimitEnabled, upperLimitEnabled);
         }
 
         softLowerLimitEnabled = lowerLimitEnabled;
@@ -733,8 +700,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "lowerLimit=%.1f", lowerLimit);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "%s.%s: lowerLimit=%.1f", moduleName, instanceName, lowerLimit);
         }
 
         softLowerLimit = lowerLimit;
@@ -752,8 +718,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "upperLimit=%.1f", upperLimit);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "%s.%s: upperLimit=%.1f", moduleName, instanceName, upperLimit);
         }
 
         softUpperLimit = upperLimit;
@@ -778,23 +743,29 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * Therefore, it is not designed to be ownership-aware.
      *
      * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
-     * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
      * @param triggerMode specifies the trigger mode.
+     * @param triggerCallback specifies an event callback if the trigger occurred, null if none specified.
      */
     public void resetPositionOnDigitalInput(
-        TrcDigitalInput digitalInput, TrcTrigger.DigitalTriggerHandler triggerHandler, TriggerMode triggerMode)
+        TrcDigitalInput digitalInput, TriggerMode triggerMode, TrcEvent.Callback triggerCallback)
     {
         final String funcName = "resetPositionOnDigitalInput";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "digitalInput=%s", digitalInput);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: digitalInput=%s,triggerMode=%s,callback=%s",
+                moduleName, instanceName, digitalInput, triggerMode, triggerCallback != null);
         }
 
-        digitalTrigger = new TrcDigitalInputTrigger(instanceName, digitalInput, this::triggerEvent);
-        digitalTriggerHandler = triggerHandler;
+        digitalTrigger = new TrcDigitalInputTrigger(instanceName + ".digitalTrigger", digitalInput, this::triggerEvent);
         this.triggerMode = triggerMode;
+        this.triggerCallback = triggerCallback;
+
+        if (triggerCallback != null)
+        {
+            triggerCallbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+        }
         digitalTrigger.setEnabled(true);
     }   //resetPositionOnDigitalInput
 
@@ -804,12 +775,24 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * Therefore, it is not designed to be ownership-aware.
      *
      * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
-     * @param triggerHandler specifies an event callback if the trigger occurred, null if none specified.
+     * @param triggerMode specifies the trigger mode.
      */
-    public void resetPositionOnDigitalInput(
-        TrcDigitalInput digitalInput, TrcTrigger.DigitalTriggerHandler triggerHandler)
+    public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput, TriggerMode triggerMode)
     {
-        resetPositionOnDigitalInput(digitalInput, triggerHandler, TriggerMode.OnActive);
+        resetPositionOnDigitalInput(digitalInput, triggerMode, null);
+    }   //resetPositionOnDigitalInput
+
+    /**
+     * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
+     * reading when the digital input is triggered. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param digitalInput   specifies the digital input sensor that will trigger a position reset.
+     * @param triggerCallback specifies an event callback if the trigger occurred, null if none specified.
+     */
+    public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput, TrcEvent.Callback triggerCallback)
+    {
+        resetPositionOnDigitalInput(digitalInput, TriggerMode.OnActive, triggerCallback);
     }   //resetPositionOnDigitalInput
 
     /**
@@ -820,22 +803,23 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     public void resetPositionOnDigitalInput(TrcDigitalInput digitalInput)
     {
-        resetPositionOnDigitalInput(digitalInput, null, TriggerMode.OnActive);
+        resetPositionOnDigitalInput(digitalInput, TriggerMode.OnActive, null);
     }   //resetPositionOnDigitalInput
 
     /**
      * This method is called when the digital input device has changed state.
      *
-     * @param active specifies true if the digital device state is active, false otherwise.
+     * @param context specifies true if the digital device state is active, false otherwise.
      */
-    private void triggerEvent(boolean active)
+    private void triggerEvent(Object context)
     {
         final String funcName = "triggerEvent";
+        boolean active = ((AtomicBoolean) context).get();
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.CALLBK, "trigger=%s,active=%s", digitalTrigger, active);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: trigger=%s,active=%s", moduleName, instanceName, digitalTrigger, active);
         }
 
         if (calibrating)
@@ -852,19 +836,15 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             triggerMode == TriggerMode.OnInactive && !active)
         {
             globalTracer.traceInfo(
-                funcName, "%s: reset %s position on digital trigger! (BeforePos=%.2f)",
+                funcName, "%s.%s: reset position on digital trigger! (BeforePos=%.2f)",
                 moduleName, instanceName, getMotorPosition());
             resetPosition(false);
         }
 
-        if (digitalTriggerHandler != null)
+        if (triggerCallbackEvent != null)
         {
-            digitalTriggerHandler.digitalTriggerEvent(active);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
+            triggerCallbackEvent.setCallback(triggerCallback, active);
+            triggerCallbackEvent.signal();
         }
     }   //triggerEvent
 
@@ -949,9 +929,9 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,resetOd=%s,hwReset=%s",
-                enabled, resetOdometry, resetHardware);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: enabled=%s,resetOd=%s,hwReset=%s",
+                moduleName, instanceName, enabled, resetOdometry, resetHardware);
         }
 
         if (enabled)
@@ -994,11 +974,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             }
         }
         odometryEnabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setOdometryEnabled
 
     /**
@@ -1069,11 +1044,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     {
         final String funcName = moduleName + ".odometryTask";
 
-        if (debugEnabled)
-        {
-            globalTracer.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         synchronized (odometryMotors)
         {
             for (TrcMotor motor : odometryMotors)
@@ -1110,7 +1080,8 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                         if (Math.getExponent(high / low) >= 27)
                         {
                             globalTracer.traceWarn(
-                                funcName, "WARNING: Spurious encoder detected on motor %s! odometry=%s", motor, motor.odometry);
+                                funcName, "%s.%s: WARNING-Spurious encoder detected! odometry=%s",
+                                moduleName, motor, motor.odometry);
                             // Throw away spurious data and use previous data instead.
                             motor.odometry.currPos = motor.odometry.prevPos;
                         }
@@ -1132,15 +1103,10 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
                     if (debugEnabled)
                     {
-                        globalTracer.traceInfo(funcName, "Odometry: %s=(%s)", motor, motor.odometry);
+                        globalTracer.traceInfo(funcName, "%s.%s: Odometry=%s", moduleName, motor, motor.odometry);
                     }
                 }
             }
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //odometryTask
 
@@ -1152,19 +1118,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     private void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        final String funcName = "cleanupTask";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         clearOdometryMotorsList(false);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //cleanupTask
 
     //
@@ -1177,6 +1131,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      * @param maxVelocity     specifies the maximum velocity the motor can run, in sensor units per second.
      * @param pidCoefficients specifies the PID coefficients to use to compute a desired torque value for the motor.
      *                        E.g. these coefficients go from velocity error percent to desired stall torque percent.
+     * @throws IllegalArgumentException if pidCoefficients is null.
      */
     public synchronized void enableVelocityMode(double maxVelocity, TrcPidController.PidCoefficients pidCoefficients)
     {
@@ -1184,8 +1139,8 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "maxVel=%f,pidCoef=%s", maxVelocity,
-                pidCoefficients.toString());
+            globalTracer.traceInfo(
+                funcName, "%s.%s: maxVel=%f,pidCoef=%s", moduleName, instanceName, maxVelocity, pidCoefficients);
         }
 
         if (pidCoefficients == null)
@@ -1199,16 +1154,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         }
 
         this.maxMotorVelocity = maxVelocity;
-        velocityPidCtrl = new TrcPidController(instanceName + ".velocityCtrl", pidCoefficients, 1.0,
-            this::getNormalizedVelocity);
+        velocityPidCtrl = new TrcPidController(
+            instanceName + ".velocityCtrl", pidCoefficients, 1.0, this::getNormalizedVelocity);
         velocityPidCtrl.setAbsoluteSetPoint(true);
 
         velocityCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //enableVelocityMode
 
     /**
@@ -1216,14 +1166,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     public synchronized void disableVelocityMode()
     {
-        final String funcName = "disableVelocityMode";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (velocityPidCtrl != null)
         {
             velocityCtrlTaskObj.unregisterTask();
@@ -1239,16 +1181,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     private double getNormalizedVelocity()
     {
-        final String funcName = "getNormalizedVelocity";
-        double normalizedVel = maxMotorVelocity != 0.0 ? getVelocity() / maxMotorVelocity : 0.0;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", normalizedVel);
-        }
-
-        return normalizedVel;
+        return maxMotorVelocity != 0.0 ? getVelocity() / maxMotorVelocity : 0.0;
     }   //getNormalizedVelocity
 
     /**
@@ -1263,36 +1196,23 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     {
         final String funcName = "velocityCtrlTask";
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         if (velocityPidCtrl != null)
         {
             double desiredStallTorquePercentage = velocityPidCtrl.getOutput();
             double motorPower = transformTorqueToMotorPower(desiredStallTorquePercentage);
 
             setMotorPower(motorPower);
-            if (followingMotorsList != null)
+            for (TrcMotor motor: followingMotorsList)
             {
-                for (TrcMotor motor: followingMotorsList)
-                {
-                    motor.setMotorPower(motorPower);
-                }
+                motor.setMotorPower(motorPower);
             }
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(instanceName,
-                    "targetSpeed=%.2f, currSpeed=%.2f, desiredStallTorque=%.2f, motorPower=%.2f",
-                    velocityPidCtrl.getTarget(), getVelocity(), desiredStallTorquePercentage, motorPower);
+                globalTracer.traceInfo(funcName,
+                    "%s: targetSpeed=%.2f, currSpeed=%.2f, desiredStallTorque=%.2f, motorPower=%.2f",
+                    moduleName, velocityPidCtrl.getTarget(), getVelocity(), desiredStallTorquePercentage, motorPower);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //velocityCtrlTask
 
@@ -1308,11 +1228,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     {
         final String funcName = "transformTorqueToMotorPower";
         double power;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "torque=%f", desiredStallTorquePercentage);
-        }
         //
         // Leverage motor curve information to linearize torque output across varying RPM
         // as best we can. We know that max torque is available at 0 RPM and zero torque is
@@ -1337,7 +1252,8 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", power);
+            globalTracer.traceInfo(
+                funcName, "%s.%s: torque=%f,power=%f", moduleName, instanceName, desiredStallTorquePercentage, power);
         }
 
         return power;

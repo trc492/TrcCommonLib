@@ -24,7 +24,6 @@ package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -83,7 +82,7 @@ public class TrcEvent
     @Override
     public String toString()
     {
-        return String.format("Event:%s=%s", instanceName, eventState.get());
+        return String.format("(%s=%s)", instanceName, eventState.get());
     }   //toString
 
     /**
@@ -149,18 +148,19 @@ public class TrcEvent
 
     /**
      * This method sets a callback handler so that when the event is signaled, the callback handler is called on
-     * the same thread as this call. This could be very useful if the caller wants to perform some minor actions
+     * the same thread as original caller. This could be very useful if the caller wants to perform some minor actions
      * after an asynchronous operation is completed. Without the callback, the caller would have to set up a state
      * machine waiting for the event to signal, then perform the action. Since the callback is done on the same
-     * thread, the caller doesn't have to worry about thread safety.
+     * thread, the caller doesn't have to worry about thread safety. Note: this method is called by another thread
+     * on behalf of the original caller.
      *
+     * @param thread specifies the thread of the original caller to do the callback.
      * @param callback specifies the callback handler, null for removing previous callback handler.
      * @param callbackContext specifies the context object passing back to the callback handler.
      */
-    public void setCallback(Callback callback, Object callbackContext)
+    public void setCallback(Thread thread, Callback callback, Object callbackContext)
     {
         final String funcName = "setCallback";
-        final Thread thread = Thread.currentThread();
         ArrayList<TrcEvent> eventList;
 
         clear();
@@ -183,7 +183,8 @@ public class TrcEvent
                 if (debugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName, "Adding event %s:%s to the callback list.", thread.getName(), instanceName);
+                        funcName, "Adding event %s to the callback list for thread %s.",
+                        instanceName, thread.getName());
                 }
             }
             else if (callback == null && inList)
@@ -194,33 +195,32 @@ public class TrcEvent
                 if (debugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName, "Removing event %s:%s from the callback list.", thread.getName(), instanceName);
+                        funcName, "Removing event %s from the callback list for thread %s.",
+                        instanceName, thread.getName());
                 }
             }
         }
         else
         {
-            globalTracer.traceWarn(funcName, "%s is not registered.", thread.getName());
+            globalTracer.traceWarn(funcName, "Thread %s is not registered.", thread.getName());
             TrcDbgTrace.printThreadStack();
         }
     }   //setCallback
 
-//    /**
-//     * This method creates a callback event with the callback handler and context. This is useful for callers who
-//     * just want to do a callback and not bothering with creating one themselves (lazy caller: create and forget).
-//     *
-//     * @param eventName specifies the event name for the created event.
-//     * @param callback specifies the callback handler, null for removing previous callback handler.
-//     * @param callbackContext specifies the context object passing back to the callback handler.
-//     * @return created event.
-//     */
-//    public static TrcEvent createCallbackEvent(String eventName, Callback callback, Object callbackContext)
-//    {
-//        TrcEvent callbackEvent = new TrcEvent(eventName);
-//
-//        callbackEvent.setCallback(callback, callbackContext);
-//        return callbackEvent;
-//    }   //createCallbackEvent
+    /**
+     * This method sets a callback handler so that when the event is signaled, the callback handler is called on
+     * the same thread as this call. This could be very useful if the caller wants to perform some minor actions
+     * after an asynchronous operation is completed. Without the callback, the caller would have to set up a state
+     * machine waiting for the event to signal, then perform the action. Since the callback is done on the same
+     * thread, the caller doesn't have to worry about thread safety.
+     *
+     * @param callback specifies the callback handler, null for removing previous callback handler.
+     * @param callbackContext specifies the context object passing back to the callback handler.
+     */
+    public void setCallback(Callback callback, Object callbackContext)
+    {
+        setCallback(Thread.currentThread(), callback, callbackContext);
+    }   //setCallback
 
     /**
      * This method is called by a periodic thread when the thread has just been started and before it enters its
@@ -246,12 +246,12 @@ public class TrcEvent
                 callbackEventListMap.put(thread, new ArrayList<>());
                 if (debugEnabled)
                 {
-                    globalTracer.traceInfo(funcName, "Registered %s for event callback.", thread.getName());
+                    globalTracer.traceInfo(funcName, "Registering thread %s for event callback.", thread.getName());
                 }
             }
             else
             {
-                globalTracer.traceWarn(funcName, "%s is already registered.", thread.getName());
+                globalTracer.traceWarn(funcName, "Thread %s is already registered.", thread.getName());
                 TrcDbgTrace.printThreadStack();
             }
         }
@@ -278,12 +278,12 @@ public class TrcEvent
 
         if (callbackEventList == null)
         {
-            globalTracer.traceWarn(funcName, "%s was never registered.", thread.getName());
+            globalTracer.traceWarn(funcName, "Thread %s was never registered.", thread.getName());
             TrcDbgTrace.printThreadStack();
         }
         else if (debugEnabled)
         {
-            globalTracer.traceInfo(funcName, "Unregistered %s for event callback.", thread.getName());
+            globalTracer.traceInfo(funcName, "Unregistering thread %s for event callback.", thread.getName());
         }
 
         return callbackEventList != null;
@@ -291,7 +291,7 @@ public class TrcEvent
 
     /**
      * This method is called by a periodic thread in its thread loop to check if any events in the list are signaled
-     * canceled. When that happens, it performs the event callback on the periodic thread.
+     * or canceled. When that happens, it performs the event callback on the periodic thread.
      */
     public static void performEventCallback()
     {
@@ -306,17 +306,19 @@ public class TrcEvent
 
         if (callbackEventList != null)
         {
-            ArrayList<TrcEvent> removeList = new ArrayList<>();
             // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
-            Iterator<TrcEvent> listIterator = callbackEventList.iterator();
-            while (listIterator.hasNext())
+//            Iterator<TrcEvent> listIterator = callbackEventList.iterator();
+//            while (listIterator.hasNext())
+            for (int i = callbackEventList.size() - 1; i >= 0; i--)
             {
-                TrcEvent event = listIterator.next();
+//                TrcEvent event = listIterator.next();
+                TrcEvent event = callbackEventList.get(i);
                 if (event.isSignaled() || event.isCanceled())
                 {
                     if (debugEnabled)
                     {
-                        globalTracer.traceInfo(funcName, "Doing event callback for %s.", event);
+                        globalTracer.traceInfo(
+                            funcName, "Doing event callback for %s on thread %s.", event, thread.getName());
                     }
 
                     Callback callback = event.callback;
@@ -326,14 +328,9 @@ public class TrcEvent
                     event.callback = null;
                     event.callbackContext = null;
                     callback.notify(context);
-                    removeList.add(event);
 //                    listIterator.remove();
+                    callbackEventList.remove(i);
                 }
-            }
-
-            for (TrcEvent entry: removeList)
-            {
-                callbackEventList.remove(entry);
             }
         }
         else

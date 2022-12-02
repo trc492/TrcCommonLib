@@ -140,7 +140,7 @@ public class TrcTaskMgr
          * FastPostPeriodicTask:
          *  This contains code that runs periodically at a fast rate on the main robot thread after fastPeriodic().
          *  Typically, you will put code that deals with actions that requires high frequency processing.
-
+         *
          * SlowPrePeriodicTask:
          *  This contains code that runs periodically at a slow rate on the main robot thread before slowPeriodic().
          *  Typically, you will put code that deals with slower input or sensor readings here that slowPeriodic may
@@ -622,7 +622,6 @@ public class TrcTaskMgr
     public static void shutdown()
     {
         terminateAllThreads();
-        TrcNotifier.shutdown();
         taskList.clear();
     }   //shutdown
 

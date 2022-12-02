@@ -39,14 +39,14 @@ public class TrcWatchdogMgr
 {
     public static final String moduleName = "TrcWatchdogMgr";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = true;
+    private static final boolean debugEnabled = false;
 
     private static final double DEF_TASK_INTERVAL = 1.0;        // in seconds.
     private static final double DEF_HEARTBEAT_THRESHOLD = 1.0;  // in seconds.
 
     private static TrcWatchdogMgr instance;
-    private static ArrayList<Watchdog> watchdogList;
-    private static HashMap<String, Watchdog> watchdogMap;
+    private static final ArrayList<Watchdog> watchdogList = new ArrayList<>();
+    private static final HashMap<String, Watchdog> watchdogMap = new HashMap<>();
     private static TrcTaskMgr.TaskObject watchdogTaskObj;
 
     /**
@@ -79,13 +79,10 @@ public class TrcWatchdogMgr
         /**
          * This method is called by the thread that registered the watchdog to send a heart beat. This will update
          * the next heart beat expiration time.
-         *
-         * @return true if the calling thread is the owner of the watchdog, false otherwise.
          */
-        public boolean sendHeartBeat()
+        public void sendHeartBeat()
         {
             final String funcName = "sendHeartBeat";
-            boolean success = false;
 
             if (this.thread == Thread.currentThread())
             {
@@ -100,11 +97,10 @@ public class TrcWatchdogMgr
             else
             {
                 globalTracer.traceWarn(
-                    funcName, "Only the thread created this watchdog (%s) is allowed to send heart beat.", name);
+                    funcName, "Only the thread created this watchdog %s is allowed to send heart beat (thread=%s).",
+                    name, thread.getName());
                 TrcDbgTrace.printThreadStack();
             }
-
-            return success;
         }   //sendHeartBeat
 
         /**
@@ -112,7 +108,7 @@ public class TrcWatchdogMgr
          * Important: this method must be called in the thread the watchdog is monitoring. In other words, the
          * caller's thread must be the owner of the watchdog.
          *
-         * @return true if watchdog is successfully unregister, false otherwise.
+         * @return true if watchdog is unregistered successfully, false if watchdog does not exist.
          */
         public boolean unregister()
         {
@@ -126,7 +122,8 @@ public class TrcWatchdogMgr
             else
             {
                 globalTracer.traceWarn(
-                    funcName, "Only the thread created this watchdog (%s) is allowed to unregister.", name);
+                    funcName, "Only the thread created this watchdog %s is allowed to unregister (thread=%s).",
+                    name, thread.getName());
                 TrcDbgTrace.printThreadStack();
             }
 
@@ -218,8 +215,6 @@ public class TrcWatchdogMgr
      */
     private TrcWatchdogMgr(double taskInterval)
     {
-        watchdogList = new ArrayList<>();
-        watchdogMap = new HashMap<>();
         watchdogTaskObj = TrcTaskMgr.createTask(moduleName, this::watchdogTask);
         watchdogTaskObj.registerTask(TaskType.STANDALONE_TASK, (long) (taskInterval*1000));
         if (debugEnabled)
@@ -259,7 +254,7 @@ public class TrcWatchdogMgr
             }
             else
             {
-                globalTracer.traceWarn(funcName, "Watchdog (%s) was already registered.", name);
+                globalTracer.traceWarn(funcName, "Watchdog %s was already registered.", name);
                 TrcDbgTrace.printThreadStack();
             }
         }
@@ -289,7 +284,7 @@ public class TrcWatchdogMgr
     public static boolean unregisterWatchdog(Watchdog watchdog)
     {
         final String funcName = "unregisterWatchdog";
-        boolean success = false;
+        boolean success;
 
         if (debugEnabled)
         {
@@ -305,7 +300,7 @@ public class TrcWatchdogMgr
 
         if (!success)
         {
-            globalTracer.traceWarn(funcName, "Watchdog (%s) was never registered.", watchdog.name);
+            globalTracer.traceWarn(funcName, "Watchdog %s was never registered.", watchdog.name);
             TrcDbgTrace.printThreadStack();
         }
 
@@ -330,18 +325,15 @@ public class TrcWatchdogMgr
             {
                 boolean timedout = false;
 
-                synchronized (watchdog)
+                if (!watchdog.expired && currTime > watchdog.heartBeatExpiredTime)
                 {
-                    if (!watchdog.expired && currTime > watchdog.heartBeatExpiredTime)
-                    {
-                        watchdog.expired = true;
-                        timedout = true;
-                    }
+                    watchdog.expired = true;
+                    timedout = true;
                 }
 
                 if (timedout)
                 {
-                    globalTracer.traceWarn(funcName, "[%.3f] watchdog (%s) timed out.", currTime, watchdog);
+                    globalTracer.traceWarn(funcName, "[%.3f] watchdog %s timed out.", currTime, watchdog);
                     TrcDbgTrace.printThreadStack(watchdog.thread);
                 }
             }

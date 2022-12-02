@@ -22,14 +22,21 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * This class implements a ThresholdTrigger. It monitors the value source against the lower and upper threshold
  * values. If the value stays within the lower and upper thresholds for at least the given settling period, the
- * the trigger state is set to active and the trigger handler is called. If the value exits the threshold range,
- * the trigger state is set to inactive and the trigger handler is also called.
+ * the trigger state is set to active and the trigger callback is called. If the value exits the threshold range,
+ * the trigger state is set to inactive and the trigger callback is also called.
  */
-public class TrcThresholdTrigger extends TrcTrigger
+public class TrcThresholdTrigger implements TrcTrigger
 {
+    private static final String moduleName = "TrcThresholdTrigger";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
+
     /**
      * This interface implements the method to read the sensor value.
      */
@@ -44,64 +51,78 @@ public class TrcThresholdTrigger extends TrcTrigger
 
     }   //interface ValueSource
 
+    /**
+     * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
+     * synchronized).
+     */
+    private static class TriggerState
+    {
+        Double lowerThreshold = null;
+        Double upperThreshold = null;
+        Double settlingPeriod = null;
+        volatile boolean triggerActive = false;
+        volatile double startTime = 0.0;
+        volatile boolean triggerEnabled = false;
+
+        @Override
+        public String toString()
+        {
+            return String.format(
+                Locale.US,
+                "(lowerThreshold=%.3f,upperThreshold=%.3f,settling=%.3f,active=%s,startTime=%.3f,enabled=%s)",
+                lowerThreshold, upperThreshold, settlingPeriod, triggerActive, startTime, triggerEnabled);
+        }   //toString
+
+    }   //class TriggerState
+
+    private final String instanceName;
     private final ValueSource valueSource;
-    private final DigitalTriggerHandler triggerHandler;
+    private final TrcEvent.Callback triggerCallback;
+    private final TriggerState triggerState;
+    private final TrcEvent callbackEvent;
+    private final AtomicBoolean callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
-    private Double lowerThreshold, upperThreshold, settlingPeriod;
-    private boolean taskEnabled = false;
-    private boolean triggerActive = false;
-    private double startTime;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
      * @param valueSource specifies the interface that implements the value source.
-     * @param triggerHandler specifies the object to handle the trigger event.
+     * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcThresholdTrigger(String instanceName, ValueSource valueSource, DigitalTriggerHandler triggerHandler)
+    public TrcThresholdTrigger(String instanceName, ValueSource valueSource, TrcEvent.Callback triggerCallback)
     {
-        super(instanceName);
-
-        if (valueSource == null || triggerHandler == null)
+        if (valueSource == null || triggerCallback == null)
         {
-            throw new IllegalArgumentException("ValueSource/TriggerHandler cannot be null.");
+            throw new IllegalArgumentException("ValueSource/TriggerCallback cannot be null.");
         }
 
+        this.instanceName = instanceName;
         this.valueSource = valueSource;
-        this.triggerHandler = triggerHandler;
+        this.triggerCallback = triggerCallback;
+        triggerState = new TriggerState();
+        callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+        callbackContext = new AtomicBoolean();
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
     }   //TrcThresholdTrigger
 
     /**
-     * This method sets the lower/upper threshold values within which the sensor reading must stay for at least the
-     * settling period for it to trigger the notification.
+     * This method returns the instance name and its state.
      *
-     * @param lowerThreshold specifies the lower threshold value for the trigger.
-     * @param upperThreshold specifies the upper threshold value for the trigger.
-     * @param settlingPeriod specifies the period in seconds the sensor value must stay within threshold range for it
-     *                       to trigger.
+     * @return instance name and state.
      */
-    public synchronized void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod)
+    @Override
+    public String toString()
     {
-        final String funcName = "setTrigger";
+        String str;
 
-        if (debugEnabled)
+        synchronized (triggerState)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "lowerThreshold=%f,upperThreshold=%f,settingPeriod=%.3f",
-                lowerThreshold, upperThreshold, settlingPeriod);
+            str = String.format(Locale.US, "%s.%s=%s", moduleName, instanceName, triggerState);
         }
 
-        this.lowerThreshold = lowerThreshold;
-        this.upperThreshold = upperThreshold;
-        this.settlingPeriod = settlingPeriod;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-    }   //setTrigger
+        return str;
+    }   //toString
 
     //
     // Implements TrcSensorTrigger abstract methods.
@@ -113,35 +134,35 @@ public class TrcThresholdTrigger extends TrcTrigger
      * @param enabled specifies true to enable, false to disable.
      */
     @Override
-    public synchronized void setEnabled(boolean enabled)
+    public void setEnabled(boolean enabled)
     {
         final String funcName = "setEnabled";
 
-        if (debugEnabled)
+        synchronized (triggerState)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
-
-        if (enabled && !taskEnabled)
-        {
-            if (lowerThreshold == null || upperThreshold == null || settlingPeriod == null)
+            if (enabled && !triggerState.triggerEnabled)
             {
-                throw new RuntimeException("Must call setTrigger first before enabling the trigger.");
+                if (triggerState.lowerThreshold == null || triggerState.upperThreshold == null ||
+                    triggerState.settlingPeriod == null)
+                {
+                    throw new RuntimeException("Must call setTrigger first before enabling the trigger.");
+                }
+
+                triggerState.startTime = TrcUtil.getCurrentTime();
+                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
             }
+            else if (!enabled && triggerState.triggerEnabled)
+            {
+                triggerTaskObj.unregisterTask();
+            }
+            triggerState.triggerActive = false;
+            triggerState.triggerEnabled = enabled;
 
-            startTime = TrcUtil.getCurrentTime();
-            triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
-        }
-        else if (!enabled && taskEnabled)
-        {
-            triggerTaskObj.unregisterTask();
-        }
-        triggerActive = false;
-        this.taskEnabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "%s.%s: enabled=%s (state=%s)", moduleName, instanceName, enabled, triggerState);
+            }
         }
     }   //setEnabled
 
@@ -151,9 +172,9 @@ public class TrcThresholdTrigger extends TrcTrigger
      * @return true if enabled, false otherwise.
      */
     @Override
-    public synchronized boolean isEnabled()
+    public boolean isEnabled()
     {
-        return taskEnabled;
+        return triggerState.triggerEnabled;
     }   //isEnabled
 
     /**
@@ -175,8 +196,36 @@ public class TrcThresholdTrigger extends TrcTrigger
     @Override
     public boolean getState()
     {
-        return triggerActive;
+        return triggerState.triggerActive;
     }   //getState
+
+    /**
+     * This method sets the lower/upper threshold values within which the sensor reading must stay for at least the
+     * settling period for it to trigger the notification.
+     *
+     * @param lowerThreshold specifies the lower threshold value for the trigger.
+     * @param upperThreshold specifies the upper threshold value for the trigger.
+     * @param settlingPeriod specifies the period in seconds the sensor value must stay within threshold range for it
+     *                       to trigger.
+     */
+    public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod)
+    {
+        final String funcName = "setTrigger";
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(
+                funcName, "%s.%s: lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f",
+                moduleName, instanceName, lowerThreshold, upperThreshold, settlingPeriod);
+        }
+
+        synchronized (triggerState)
+        {
+            triggerState.lowerThreshold = lowerThreshold;
+            triggerState.upperThreshold = upperThreshold;
+            triggerState.settlingPeriod = settlingPeriod;
+        }
+    }   //setTrigger
 
     /**
      * This method is called periodically to check if the sensor value is within the lower and upper threshold range.
@@ -184,41 +233,52 @@ public class TrcThresholdTrigger extends TrcTrigger
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
      */
-    private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
         double currTime = TrcUtil.getCurrentTime();
         double currValue = valueSource.getValue();
+        boolean triggered = false;
+        boolean active = false;
 
-        if (debugEnabled)
+        synchronized (triggerState)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
-        if (currValue < lowerThreshold || currValue > upperThreshold)
-        {
-            if (triggerActive)
+            if (currValue < triggerState.lowerThreshold || currValue > triggerState.upperThreshold)
             {
-                // Only fires a trigger event when the threshold range is first exited (i.e. edge event).
-                triggerActive = false;
-                triggerHandler.digitalTriggerEvent(triggerActive);
+                // Outside of threshold range.
+                if (triggerState.triggerActive)
+                {
+                    // Only fires a trigger event when the threshold range is first exited (i.e. edge event).
+                    triggerState.triggerActive = false;
+                    triggered = true;
+                }
+                triggerState.startTime = currTime;
             }
-            startTime = currTime;
-        }
-        else if (currTime >= startTime + settlingPeriod)
-        {
-            if (!triggerActive)
+            else if (currTime >= triggerState.startTime + triggerState.settlingPeriod)
             {
-                // Only fires a trigger event when the threshold range is first entered and stayed for settling period
-                // (i.e. edge event).
-                triggerActive = true;
-                triggerHandler.digitalTriggerEvent(triggerActive);
+                // Inside of threshold range and past settling period.
+                if (!triggerState.triggerActive)
+                {
+                    // Only fires a trigger event when the threshold range is first entered and stayed for settling
+                    // period (i.e. edge event).
+                    triggerState.triggerActive = true;
+                    triggered = true;
+                }
             }
+            active = triggerState.triggerActive;
         }
 
-        if (debugEnabled)
+        if (triggered)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "%s.%s: Triggered (state=%s)", moduleName, instanceName, active);
+            }
+
+            callbackContext.set(active);
+            callbackEvent.setCallback(triggerCallback, callbackContext);
+            callbackEvent.signal();
         }
     }   //triggerTask
 

@@ -49,7 +49,7 @@ public class TrcPidActuator extends TrcPidMotor
         public double minPos = 0.0, maxPos = 1.0;
         public double scale = 1.0, offset = 0.0;
         public TrcPidController.PidParameters pidParams;
-        public boolean resetPosOnLowerLimit = true;
+        public boolean resetPosOnLowerLimit = false;
         public double calPower = -0.25;
         public double stallMinPower = 0.0;
         public double stallTolerance = 0.0;
@@ -325,7 +325,7 @@ public class TrcPidActuator extends TrcPidMotor
      * This method runs the actuator with the specified power. Note that this method does not do PID control. To do
      * PID control, use setPidPower.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
      * @param power specifies the power to run the actuator.
      */
     @Override

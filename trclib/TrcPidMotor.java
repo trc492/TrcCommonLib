@@ -76,12 +76,12 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private final TrcDigitalInput lowerLimitSwitch;
     private final double defCalPower;
     private final PowerCompensation powerCompensation;
+    private final TrcTimer timer;
     private final TrcTaskMgr.TaskObject pidMotorTaskObj;
     private final TrcTaskMgr.TaskObject stopMotorTaskObj;
     private boolean pidActive = false;
     private double positionScale = 1.0;
     private double positionOffset = 0.0;
-    private TrcTimer timer = null;
     private double target = 0.0;
     private boolean holdTarget = false;
     private TrcEvent notifyEvent = null;
@@ -149,6 +149,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.powerCompensation = powerCompensation;
         pidMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
         stopMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".stopMotorTask", this::stopMotorTask);
+        timer = new TrcTimer(instanceName);
     }   //TrcPidMotor
 
     /**
@@ -359,6 +360,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     {
         if (validateOwnership(owner) && pidActive)
         {
+            timer.cancel();
             //
             // Stop the physical motor(s). If there is a notification event, signal it canceled.
             //
@@ -509,26 +511,20 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 stop(false);
             }
 
+            this.target = target;
+            this.holdTarget = holdTarget;
             this.powerClamp = Math.abs(powerLimit);
+            this.notifyEvent = event;
+            this.timeout = timeout;
+            //
+            // Set the PID motor task enabled.
+            //
             if (delay > 0.0)
             {
-                this.target = target;
-                this.holdTarget = holdTarget;
-                this.notifyEvent = event;
-                this.timeout = timeout;
-                if (timer == null)
-                {
-                    timer = new TrcTimer(instanceName);
-                }
                 timer.set(delay, this::delayExpired);
             }
             else
             {
-                //
-                // Set a new PID target.
-                //
-                pidCtrl.setTarget(target);
-
                 //
                 // If a notification event is provided, clear it.
                 //
@@ -536,16 +532,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     event.clear();
                 }
-
-                this.holdTarget = holdTarget;
-                this.notifyEvent = event;
                 //
                 // If a timeout is provided, set the expired time.
                 //
                 this.timeout = timeout > 0.0? timeout + TrcUtil.getCurrentTime(): 0.0;
                 //
-                // Set the PID motor task enabled.
+                // Set a new PID target.
                 //
+                pidCtrl.setTarget(target);
                 setTaskEnabled(true);
             }
         }
@@ -1163,8 +1157,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             if (debugEnabled)
             {
                 globalTracer.traceInfo(
-                    funcName, "P=%.2f,dP=%.2f,pos1=%.0f,pos2=%.0f,P1=%.2f,P2=%.2f",
-                    power, deltaPower, pos1, pos2, power1, power2);
+                    funcName, "%s.%s: power=%.2f,deltaPower=%.2f,pos1=%.0f,pos2=%.0f,power1=%.2f,power2=%.2f",
+                    moduleName, instanceName, power, deltaPower, pos1, pos2, power1, power2);
             }
         }
     }   //setMotorPower
@@ -1212,7 +1206,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     beepDevice.playTone(beepLowFrequency, beepDuration);
                 }
-                globalTracer.traceWarn(funcName, "%s is stalled, lower limit switch might have failed!", instanceName);
+                globalTracer.traceWarn(
+                    funcName, "%s.%s: Stalled, lower limit switch might have failed!", moduleName, instanceName);
             }
             stalled = false;
             motor.set(0.0);

@@ -22,40 +22,94 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * This class implements a trigger for a digital input device. A digital input trigger consists of a digital input
- * device. It monitors the device state and calls the notification handler if the state changes.
+ * device. It monitors the device state and notifies the callback handler if the state changes.
  */
-public class TrcDigitalInputTrigger extends TrcTrigger
+public class TrcDigitalInputTrigger implements TrcTrigger
 {
+    private static final String moduleName = "TrcDigitInputTrigger";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
+
+    /**
+     * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
+     * synchronized).
+     */
+    private static class TriggerState
+    {
+        volatile boolean sensorState;
+        volatile boolean triggerEnabled;
+
+        TriggerState(boolean state, boolean enabled)
+        {
+            this.sensorState = state;
+            this.triggerEnabled = enabled;
+        }   //TriggerState
+
+        @Override
+        public String toString()
+        {
+            return String.format(Locale.US, "(state=%s,enabled=%s)", sensorState, triggerEnabled);
+        }   //toString
+
+    }   //class TriggerState
+
+    private final String instanceName;
     private final TrcDigitalInput sensor;
-    private final DigitalTriggerHandler triggerHandler;
+    private final TrcEvent.Callback triggerCallback;
+    private final Thread callbackThread;
+    private final TriggerState triggerState;
+    private final TrcEvent callbackEvent;
+    private final AtomicBoolean callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
-    private boolean sensorState;
-    private boolean enabled = false;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
      * @param sensor specifies the digital input device.
-     * @param triggerHandler specifies the object that will be called to handle the digital input device state change.
+     * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcDigitalInputTrigger(String instanceName, TrcDigitalInput sensor, DigitalTriggerHandler triggerHandler)
+    public TrcDigitalInputTrigger(
+        String instanceName, TrcDigitalInput sensor, TrcEvent.Callback triggerCallback)
     {
-        super(instanceName);
-
-        if (sensor == null || triggerHandler == null)
+        if (sensor == null || triggerCallback == null)
         {
-            throw new IllegalArgumentException("Sensor/TriggerHandler cannot be null.");
+            throw new IllegalArgumentException("Sensor/TriggerCallback cannot be null.");
         }
 
+        this.instanceName = instanceName;
         this.sensor = sensor;
-        this.triggerHandler = triggerHandler;
-        triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
+        this.triggerCallback = triggerCallback;
+        callbackThread = Thread.currentThread();
 
-        sensorState = sensor.isActive();
+        triggerState = new TriggerState(sensor.isActive(), false);
+        callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+        callbackContext = new AtomicBoolean();
+        triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
     }   //TrcDigitalInputTrigger
+
+    /**
+     * This method returns the instance name and its state.
+     *
+     * @return instance name and state.
+     */
+    @Override
+    public String toString()
+    {
+        String str;
+
+        synchronized (triggerState)
+        {
+            str = String.format(Locale.US, "%s.%s=%s", moduleName, instanceName, triggerState);
+        }
+
+        return str;
+    }   //toString
 
     //
     // Implements TrcSensorTrigger abstract methods.
@@ -67,29 +121,28 @@ public class TrcDigitalInputTrigger extends TrcTrigger
      * @param enabled specifies true to enable, false to disable.
      */
     @Override
-    public synchronized void setEnabled(boolean enabled)
+    public void setEnabled(boolean enabled)
     {
         final String funcName = "setEnabled";
 
-        if (debugEnabled)
+        synchronized (triggerState)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
+            if (enabled)
+            {
+                triggerState.sensorState = sensor.isActive();
+                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            }
+            else
+            {
+                triggerTaskObj.unregisterTask();
+            }
+            triggerState.triggerEnabled = enabled;
 
-        if (enabled)
-        {
-            sensorState = sensor.isActive();
-            triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
-        }
-        else
-        {
-            triggerTaskObj.unregisterTask();
-        }
-        this.enabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "%s.%s: enabled=%s (state=%s)", moduleName, instanceName, enabled, triggerState);
+            }
         }
     }   //setEnabled
 
@@ -98,9 +151,10 @@ public class TrcDigitalInputTrigger extends TrcTrigger
      *
      * @return true if enabled, false otherwise.
      */
+    @Override
     public boolean isEnabled()
     {
-        return enabled;
+        return triggerState.triggerEnabled;
     }   //isEnabled
 
     /**
@@ -127,38 +181,39 @@ public class TrcDigitalInputTrigger extends TrcTrigger
 
     /**
      * This method is called periodically to check the current sensor state. If it has changed from the previous
-     * state, the triggerHandler will be notified.
+     * state, the triggerCallback will be notified.
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
      */
-    private synchronized void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
         boolean currState = getState();
+        boolean triggered = false;
+        boolean prevState = false;
 
-        if (debugEnabled)
+        synchronized (triggerState)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
+            if (currState != triggerState.sensorState)
+            {
+                prevState = triggerState.sensorState;
+                triggerState.sensorState = currState;
+                triggered = true;
+            }
         }
 
-        if (currState != sensorState)
+        if (triggered)
         {
-            if (triggerHandler != null)
-            {
-                triggerHandler.digitalTriggerEvent(currState);
-            }
-
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "%s changes state %s->%s", instanceName, sensorState, currState);
+                globalTracer.traceInfo(
+                    funcName, "%s.%s: changes state %s->%s", moduleName, instanceName, prevState, currState);
             }
-        }
-        sensorState = currState;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
+            callbackContext.set(currState);
+            callbackEvent.setCallback(callbackThread, triggerCallback, callbackContext);
+            callbackEvent.signal();
         }
     }   //triggerTask
 
