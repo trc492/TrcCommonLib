@@ -84,6 +84,13 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     public abstract double getMotorPower();
 
     /**
+     * This method returns the motor current.
+     *
+     * @return motor current.
+     */
+    public abstract double getMotorCurrent();
+
+    /**
      * This method resets the motor position sensor, typically an encoder.
      * Note: Do not call this method to reset motor position, call resetPosition() instead. This method is intended
      * to be called internally by TrcMotor only.
@@ -469,6 +476,16 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     {
         set(null, 0.0, value, 0.0, null);
     }   //set
+
+    /**
+     * This method returns the motor current.
+     *
+     * @return motor current.
+     */
+    public double getCurrent()
+    {
+        return getMotorCurrent();
+    }   //getCurrent
 
     /**
      * This method is called when the motor power set timer has expired. It will turn the motor off.
