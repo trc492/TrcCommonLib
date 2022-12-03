@@ -142,7 +142,13 @@ public class TrcEvent
         void notify(Object context);
     }   //interface Callback
 
-    private static final HashMap<Thread, ArrayList<TrcEvent>> callbackEventListMap = new HashMap<>();
+    private static class CallbackEventList
+    {
+        final ArrayList<TrcEvent> eventList = new ArrayList<>();
+        final Object listLock = new Object();
+    }   //class CallbackEventList
+
+    private static final HashMap<Thread, CallbackEventList> callbackEventListMap = new HashMap<>();
     private Callback callback;
     private Object callbackContext;
 
@@ -154,49 +160,51 @@ public class TrcEvent
      * thread, the caller doesn't have to worry about thread safety. Note: this method is called by another thread
      * on behalf of the original caller.
      *
-     * @param thread specifies the thread of the original caller to do the callback.
+     * @param thread specifies the thread to do the callback.
      * @param callback specifies the callback handler, null for removing previous callback handler.
      * @param callbackContext specifies the context object passing back to the callback handler.
      */
     public void setCallback(Thread thread, Callback callback, Object callbackContext)
     {
         final String funcName = "setCallback";
-        ArrayList<TrcEvent> eventList;
+        CallbackEventList callbackEventList;
 
         clear();
         synchronized (callbackEventListMap)
         {
-            eventList = callbackEventListMap.get(thread);
+            callbackEventList = callbackEventListMap.get(thread);
         }
 
-        // eventList is only accessed by the thread that created it, so it doesn't need thread-safe protection.
-        if (eventList != null)
+        if (callbackEventList != null)
         {
-            boolean inList = eventList.contains(this);
+            synchronized (callbackEventList.listLock)
+            {
+                boolean inList = callbackEventList.eventList.contains(this);
 
-            this.callback = callback;
-            this.callbackContext = callbackContext;
-            if (callback != null && !inList)
-            {
-                // Callback handler is not already in the callback list, add it.
-                eventList.add(this);
-                if (debugEnabled)
+                this.callback = callback;
+                this.callbackContext = callbackContext;
+                if (callback != null && !inList)
                 {
-                    globalTracer.traceInfo(
-                        funcName, "Adding event %s to the callback list for thread %s.",
-                        instanceName, thread.getName());
+                    // Callback handler is not already in the callback list, add it.
+                    callbackEventList.eventList.add(this);
+                    if (debugEnabled)
+                    {
+                        globalTracer.traceInfo(
+                            funcName, "Adding event %s to the callback list for thread %s.",
+                            instanceName, thread.getName());
+                    }
                 }
-            }
-            else if (callback == null && inList)
-            {
-                // Remove the callback from the list.
-                eventList.remove(this);
-                this.callbackContext = null;
-                if (debugEnabled)
+                else if (callback == null && inList)
                 {
-                    globalTracer.traceInfo(
-                        funcName, "Removing event %s from the callback list for thread %s.",
-                        instanceName, thread.getName());
+                    // Remove the callback from the list.
+                    callbackEventList.eventList.remove(this);
+                    this.callbackContext = null;
+                    if (debugEnabled)
+                    {
+                        globalTracer.traceInfo(
+                            funcName, "Removing event %s from the callback list for thread %s.",
+                            instanceName, thread.getName());
+                    }
                 }
             }
         }
@@ -243,7 +251,7 @@ public class TrcEvent
 
             if (!alreadyRegistered)
             {
-                callbackEventListMap.put(thread, new ArrayList<>());
+                callbackEventListMap.put(thread, new CallbackEventList());
                 if (debugEnabled)
                 {
                     globalTracer.traceInfo(funcName, "Registering thread %s for event callback.", thread.getName());
@@ -269,7 +277,7 @@ public class TrcEvent
     {
         final String funcName = "unregisterEventCallback";
         final Thread thread = Thread.currentThread();
-        ArrayList<TrcEvent> callbackEventList;
+        CallbackEventList callbackEventList;
 
         synchronized (callbackEventListMap)
         {
@@ -297,7 +305,7 @@ public class TrcEvent
     {
         final String funcName = "performEventCallback";
         final Thread thread = Thread.currentThread();
-        ArrayList<TrcEvent> callbackEventList;
+        CallbackEventList callbackEventList;
 
         synchronized (callbackEventListMap)
         {
@@ -306,31 +314,41 @@ public class TrcEvent
 
         if (callbackEventList != null)
         {
-            // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
-//            Iterator<TrcEvent> listIterator = callbackEventList.iterator();
-//            while (listIterator.hasNext())
-            for (int i = callbackEventList.size() - 1; i >= 0; i--)
-            {
-//                TrcEvent event = listIterator.next();
-                TrcEvent event = callbackEventList.get(i);
-                if (event.isSignaled() || event.isCanceled())
-                {
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(
-                            funcName, "Doing event callback for %s on thread %s.", event, thread.getName());
-                    }
+            ArrayList<TrcEvent> callbackList = new ArrayList<>();
 
-                    Callback callback = event.callback;
-                    Object context = event.callbackContext;
-                    // Clear the callback stuff before doing the callback since the callback may reuse and chain
-                    // to another callback.
-                    event.callback = null;
-                    event.callbackContext = null;
-                    callback.notify(context);
-//                    listIterator.remove();
-                    callbackEventList.remove(i);
+            synchronized (callbackEventList.listLock)
+            {
+//                // Use a list Iterator because it is fail-fast and allows removing entries while iterating the list.
+//                Iterator<TrcEvent> listIterator = callbackEventList.iterator();
+//                while (listIterator.hasNext())
+                // Iterating the list backward so that removing an event will not affect iteration.
+                for (int i = callbackEventList.eventList.size() - 1; i >= 0; i--)
+                {
+//                    TrcEvent event = listIterator.next();
+                    TrcEvent event = callbackEventList.eventList.get(i);
+                    if (event.isSignaled() || event.isCanceled())
+                    {
+                        callbackList.add(event);
+//                        listIterator.remove();
+                        callbackEventList.eventList.remove(i);
+                    }
                 }
+            }
+
+            for (TrcEvent event: callbackList)
+            {
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(
+                        funcName, "Doing event callback for %s on thread %s.", event, thread.getName());
+                }
+                Callback callback = event.callback;
+                Object context = event.callbackContext;
+                // Clear the callback stuff before doing the callback since the callback may reuse and chain to
+                // another callback.
+                event.callback = null;
+                event.callbackContext = null;
+                callback.notify(context);
             }
         }
         else
