@@ -335,6 +335,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private synchronized void stop(boolean stopMotor)
     {
+        final String funcName = "stop";
         //
         // Canceling previous PID operation if any.
         //
@@ -349,6 +350,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         motorPower = 0.0;
         calibrating = false;
         stalled = false;
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "%s.%s: Stopping motor (stop=%s).", moduleName, instanceName, stopMotor);
+        }
     }   //stop
 
     /**
@@ -358,8 +364,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public synchronized void cancel(String owner)
     {
+        final String funcName = "cancel";
+
         if (validateOwnership(owner) && pidActive)
         {
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "%s.%s: canceling (owner=%s, event=%s).", moduleName, instanceName, owner, notifyEvent);
+            }
+
             timer.cancel();
             //
             // Stop the physical motor(s). If there is a notification event, signal it canceled.
@@ -501,6 +515,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         String owner, double delay, double target, boolean holdTarget, double powerLimit, TrcEvent event,
         double timeout)
     {
+        final String funcName = "setTarget";
+
         if (validateOwnership(owner))
         {
             if (pidActive)
@@ -521,6 +537,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             //
             if (delay > 0.0)
             {
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(funcName, "%s.%s: delay=%.3f", moduleName, instanceName, delay);
+                }
                 timer.set(delay, this::delayExpired);
             }
             else
@@ -539,6 +559,12 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 // Set a new PID target.
                 //
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(
+                        funcName, "%s.%s: target=%.1f, hold=%s, limit=%.1f, event=%s, timeout=%.3f",
+                        moduleName, instanceName, target, holdTarget, powerLimit, event, timeout);
+                }
                 pidCtrl.setTarget(target);
                 setTaskEnabled(true);
             }
@@ -708,7 +734,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
                 if (msgTracer != null)
                 {
-                    msgTracer.traceInfo(funcName, "%s: stalled", instanceName);
+                    msgTracer.traceInfo(funcName, "%s.%s: stalled", moduleName, instanceName);
                 }
             }
         }
@@ -1234,6 +1260,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private synchronized void pidMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
+        final String funcName = "pidMotorTask";
+
         if (calibrating)
         {
             //
@@ -1296,6 +1324,14 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // - set a timeout and it has expired.
                 // - have reached target.
                 //
+                if (msgTracer != null)
+                {
+                    msgTracer.traceInfo(
+                        funcName, "%s.%s: stalled=%s, timedOut=%s, onTarget=%s, event=%s",
+                        moduleName, instanceName, stalled, timedOut, onTarget, notifyEvent);
+                    pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                }
+
                 if (notifyEvent != null)
                 {
                     notifyEvent.signal();
