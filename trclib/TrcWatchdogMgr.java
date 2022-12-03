@@ -184,31 +184,6 @@ public class TrcWatchdogMgr
     }   //getInstance
 
     /**
-     * This method is called to shutdown the Watchdog Manager. It basically stops the watchdog task and clears the
-     * watchdog list and map.
-     */
-    public static void shutdown()
-    {
-        final String funcName = "shutdown";
-
-        if (instance != null)
-        {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(funcName, "Shutting down Watchdog Manager.");
-            }
-
-            synchronized (watchdogList)
-            {
-                watchdogTaskObj.unregisterTask();
-                watchdogMap.clear();
-                watchdogList.clear();
-                instance = null;
-            }
-        }
-    }   //shutdown
-
-    /**
      * Constructor: Creates an instance of the object.
      *
      * @param taskInterval specifies the watchdog task interval.
