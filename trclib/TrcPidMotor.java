@@ -1324,16 +1324,15 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // - set a timeout and it has expired.
                 // - have reached target.
                 //
-                if (msgTracer != null)
-                {
-                    msgTracer.traceInfo(
-                        funcName, "%s.%s: stalled=%s, timedOut=%s, onTarget=%s, event=%s",
-                        moduleName, instanceName, stalled, timedOut, onTarget, notifyEvent);
-                    pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                }
-
                 if (notifyEvent != null)
                 {
+                    if (msgTracer != null)
+                    {
+                        msgTracer.traceInfo(
+                            funcName, "%s.%s: stalled=%s, timedOut=%s, onTarget=%s, event=%s",
+                            moduleName, instanceName, stalled, timedOut, onTarget, notifyEvent);
+                        pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                    }
                     notifyEvent.signal();
                     notifyEvent = null;
                 }
