@@ -47,7 +47,6 @@ public class TrcWatchdogMgr
     private static TrcWatchdogMgr instance;
     private static final ArrayList<Watchdog> watchdogList = new ArrayList<>();
     private static final HashMap<String, Watchdog> watchdogMap = new HashMap<>();
-    private static TrcTaskMgr.TaskObject watchdogTaskObj;
 
     /**
      * This class encapsulates the state of the watchdog. A watchdog has an identifiable name, an associated thread,
@@ -60,6 +59,7 @@ public class TrcWatchdogMgr
         private final Thread thread;
         private volatile double heartBeatExpiredTime;
         private volatile boolean expired;
+        private volatile boolean paused;
 
         /**
          * Constructor: Creates an instance of the object.
@@ -74,7 +74,26 @@ public class TrcWatchdogMgr
             this.thread = Thread.currentThread();
             this.heartBeatExpiredTime = TrcUtil.getCurrentTime() + heartBeatThreshold;
             this.expired = false;
+            this.paused = false;
         }   //Watchdog
+
+        /**
+         * This method is called to pause watchdog monitoring. It is useful for a thread to call this before going
+         * into sleep or a wait knowing it won't be able to send periodic heartbeat to prevent a watchdog timeout.
+         */
+        public synchronized void pauseWatch()
+        {
+            paused = true;
+        }   //pauseWatch
+
+        /**
+         * This method is called to resume watchdog monitoring. It is useful for a thread to call this right after
+         * waking up from a sleep or a wait so watchdog monitoring will be resumed.
+         */
+        public synchronized void resumeWatch()
+        {
+            paused = false;
+        }   //resumeWatch
 
         /**
          * This method is called by the thread that registered the watchdog to send a heart beat. This will update
@@ -90,8 +109,10 @@ public class TrcWatchdogMgr
 
                 synchronized (this)
                 {
+                    // Sending a heartbeat will also unpause a paused watchdog.
                     heartBeatExpiredTime = currTime + heartBeatThreshold;
                     expired = false;
+                    paused = false;
                 }
             }
             else
@@ -102,6 +123,26 @@ public class TrcWatchdogMgr
                 TrcDbgTrace.printThreadStack();
             }
         }   //sendHeartBeat
+
+        /**
+         * This method checks if the watchdog has expired.
+         *
+         * @return true if no heartbeat has been received for the specified threshold period, false otherwise.
+         */
+        private synchronized boolean checkForExpiration()
+        {
+            final String funcName = "checkForExpiration";
+            double currTime = TrcUtil.getCurrentTime();
+
+            if (!paused && !expired && currTime > heartBeatExpiredTime)
+            {
+                expired = true;
+                globalTracer.traceWarn(funcName, "[%.3f] watchdog %s expired.", currTime, this);
+                TrcDbgTrace.printThreadStack(thread);
+            }
+
+            return expired;
+        }   //checkForExpiration
 
         /**
          * This method unregisters this watchdog from Watchdog Manager.
@@ -139,8 +180,8 @@ public class TrcWatchdogMgr
         public String toString()
         {
             return String.format(
-                Locale.US, "[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s",
-                TrcUtil.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired);
+                Locale.US, "[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s, paused=%s",
+                TrcUtil.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired, paused);
         }   //toString
 
         /**
@@ -190,7 +231,7 @@ public class TrcWatchdogMgr
      */
     private TrcWatchdogMgr(double taskInterval)
     {
-        watchdogTaskObj = TrcTaskMgr.createTask(moduleName, this::watchdogTask);
+        TrcTaskMgr.TaskObject watchdogTaskObj = TrcTaskMgr.createTask(moduleName, this::watchdogTask);
         watchdogTaskObj.registerTask(TaskType.STANDALONE_TASK, (long) (taskInterval*1000));
         if (debugEnabled)
         {
@@ -290,27 +331,11 @@ public class TrcWatchdogMgr
      */
     private void watchdogTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        final String funcName = "watchdogTask";
-
         synchronized (watchdogList)
         {
-            double currTime = TrcUtil.getCurrentTime();
-
             for (Watchdog watchdog: watchdogList)
             {
-                boolean timedout = false;
-
-                if (!watchdog.expired && currTime > watchdog.heartBeatExpiredTime)
-                {
-                    watchdog.expired = true;
-                    timedout = true;
-                }
-
-                if (timedout)
-                {
-                    globalTracer.traceWarn(funcName, "[%.3f] watchdog %s timed out.", currTime, watchdog);
-                    TrcDbgTrace.printThreadStack(watchdog.thread);
-                }
+                watchdog.checkForExpiration();
             }
         }
     }   //watchdogTask

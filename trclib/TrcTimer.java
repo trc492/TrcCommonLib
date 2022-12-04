@@ -421,13 +421,15 @@ public class TrcTimer
         }
 
         TrcWatchdogMgr.Watchdog timerThreadWatchdog = TrcWatchdogMgr.registerWatchdog("TimerThread");
-        long halfHeartBeatThresholdInMsec = (long) (timerThreadWatchdog.getHeartBeatThreshold()*500);
         while (!shuttingDown)
         {
+            // Sending heartbeat will also unpause the watchdog if it was paused.
             timerThreadWatchdog.sendHeartBeat();
+
             try
             {
                 long sleepTimeInMsec;
+
                 synchronized (timerList)
                 {
                     if (nextTimerToExpire == null && timerList.isEmpty())
@@ -436,8 +438,12 @@ public class TrcTimer
                         {
                             globalTracer.traceInfo(funcName, "%s: waiting for timer ...", moduleName);
                         }
-
+                        // Must take the timerList lock before calling wait because it will release the ownership
+                        // and wait for notification.
+                        // We need to pause the watchdog before we wait because we can't send heartbeat while waiting.
+                        timerThreadWatchdog.pauseWatch();
                         timerList.wait();
+                        timerThreadWatchdog.resumeWatch();
 
                         if (debugEnabled)
                         {
@@ -450,34 +456,25 @@ public class TrcTimer
                         // There is no timer in progress, get one from the timer queue.
                         nextTimerToExpire = timerList.remove(0);
                     }
+                }
 
-                    // sleepTimeInMsec is not zero only if we have a pending timer to process.
-                    sleepTimeInMsec = nextTimerToExpire != null?
-                        nextTimerToExpire.getExpiredTimeInMsec() - TrcUtil.getCurrentTimeMillis(): 0;
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(
-                            funcName, "[%d]: timer=%s, sleepTimeInMsec=%d",
-                            TrcUtil.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
-                    }
+                // sleepTimeInMsec is not zero only if we have a pending timer to process.
+                sleepTimeInMsec = nextTimerToExpire != null?
+                    nextTimerToExpire.getExpiredTimeInMsec() - TrcUtil.getCurrentTimeMillis(): 0;
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(
+                        funcName, "[%d]: timer=%s, sleepTimeInMsec=%d",
+                        TrcUtil.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
                 }
 
                 if (sleepTimeInMsec > 0)
                 {
-                    // We need to send heartbeat to the watchdog timer periodically so we can't sleep the whole way.
-                    // We will wake up every half heartbeat threshold time, send the heartbeat and go back to sleep
-                    // until the timer expires.
-                    while (sleepTimeInMsec > halfHeartBeatThresholdInMsec)
-                    {
-                        sleepTimeInMsec -= halfHeartBeatThresholdInMsec;
-                        Thread.sleep(halfHeartBeatThresholdInMsec);
-                        timerThreadWatchdog.sendHeartBeat();
-                    }
-
-                    if (sleepTimeInMsec > 0)
-                    {
-                        Thread.sleep(sleepTimeInMsec);
-                    }
+                    // We need to pause the watchdog before we go to sleep because we can't send heartbeat while
+                    // sleeping.
+                    timerThreadWatchdog.pauseWatch();
+                    Thread.sleep(sleepTimeInMsec);
+                    timerThreadWatchdog.resumeWatch();
                 }
 
                 if (nextTimerToExpire != null)
