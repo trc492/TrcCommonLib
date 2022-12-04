@@ -427,27 +427,30 @@ public class TrcTimer
             timerThreadWatchdog.sendHeartBeat();
             try
             {
-                boolean waitForNewTimer = false;
                 long sleepTimeInMsec;
                 synchronized (timerList)
                 {
-                    if (nextTimerToExpire == null)
+                    if (nextTimerToExpire == null && timerList.isEmpty())
                     {
-                        // There is no current active timer, go get one.
-                        if (timerList.isEmpty())
+                        if (debugEnabled)
                         {
-                            //
-                            // No more timer to process. Let's wait but don't do the wait here because we are holding
-                            // the timerList lock. Do the wait after we released the lock.
-                            //
-                            waitForNewTimer = true;
+                            globalTracer.traceInfo(funcName, "%s: waiting for timer ...", moduleName);
                         }
-                        else
+
+                        timerList.wait();
+
+                        if (debugEnabled)
                         {
-                            // Get one from the timer queue.
-                            nextTimerToExpire = timerList.remove(0);
+                            globalTracer.traceInfo(funcName, "%s: new timer arrived.", moduleName);
                         }
                     }
+
+                    if (nextTimerToExpire == null)
+                    {
+                        // There is no timer in progress, get one from the timer queue.
+                        nextTimerToExpire = timerList.remove(0);
+                    }
+
                     // sleepTimeInMsec is not zero only if we have a pending timer to process.
                     sleepTimeInMsec = nextTimerToExpire != null?
                         nextTimerToExpire.getExpiredTimeInMsec() - TrcUtil.getCurrentTimeMillis(): 0;
@@ -487,18 +490,6 @@ public class TrcTimer
                     }
                     nextTimerToExpire.setExpired();
                     nextTimerToExpire = null;
-                }
-                else if (waitForNewTimer)
-                {
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Waiting for timer...");
-                    }
-                    timerList.wait();
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "New timer arrived.");
-                    }
                 }
             }
             catch (InterruptedException e)
