@@ -50,13 +50,13 @@ public interface TrcTrigger
      *
      * @return current sensor value.
      */
-    double getValue();
+    double getSensorValue();
 
     /**
      * This method reads the current digital sensor state. For analog sensor trigger, it will throw a RuntimeException.
      *
      * @return current sensor state.
      */
-    boolean getState();
+    boolean getSensorState();
 
 }   //interface TrcTrigger

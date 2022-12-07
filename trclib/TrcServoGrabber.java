@@ -516,7 +516,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public double getSensorValue()
     {
-        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getValue(): 0.0;
+        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getSensorValue(): 0.0;
     }   //getSensorValue
 
     /**
@@ -526,7 +526,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public boolean getSensorState()
     {
-        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getState();
+        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getSensorState();
     }   //getSensorState
 
     /**

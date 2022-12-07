@@ -183,7 +183,7 @@ public class TrcThresholdTrigger implements TrcTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getValue()
+    public double getSensorValue()
     {
         return valueSource.getValue();
     }   //getValue
@@ -194,7 +194,7 @@ public class TrcThresholdTrigger implements TrcTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getState()
+    public boolean getSensorState()
     {
         return triggerState.triggerActive;
     }   //getState

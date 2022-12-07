@@ -163,7 +163,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getValue()
+    public double getSensorValue()
     {
         throw new UnsupportedOperationException("Digital sensor does not support analog value.");
     }   //getSensorValue
@@ -174,7 +174,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getState()
+    public boolean getSensorState()
     {
         return sensor.isActive();
     }   //getSensorState
@@ -189,7 +189,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
     private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        boolean currState = getState();
+        boolean currState = getSensorState();
         boolean triggered = false;
         boolean prevState = false;
 

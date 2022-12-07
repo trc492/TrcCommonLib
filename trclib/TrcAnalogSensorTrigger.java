@@ -117,7 +117,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
         }
         this.triggerCallback = triggerCallback;
 
-        double value = getValue();
+        double value = getSensorValue();
         triggerState = new TriggerState(value, getValueZone(value), false);
         callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new CallbackContext();
@@ -160,7 +160,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
         {
             if (enabled)
             {
-                triggerState.sensorValue = getValue();
+                triggerState.sensorValue = getSensorValue();
                 triggerState.sensorZone = getValueZone(triggerState.sensorValue);
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
             }
@@ -195,11 +195,11 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
-    public double getValue()
+    public double getSensorValue()
     {
         TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
         return data != null && data.value != null? data.value: 0.0;
-    }   //getValue
+    }   //getSensorValue
 
     /**
      * This method reads the current digital sensor state (not supported).
@@ -207,7 +207,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
      * @return current sensor state.
      */
     @Override
-    public boolean getState()
+    public boolean getSensorState()
     {
         throw new UnsupportedOperationException("Analog sensor does not support digital state.");
     }   //getSensorState
@@ -221,16 +221,6 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
     {
         return triggerState.sensorZone;
     }   //getCurrentZone
-
-    /**
-     * This method returns the last sensor value.
-     *
-     * @return last sensor value.
-     */
-    public double getCurrentValue()
-    {
-        return triggerState.sensorValue;
-    }   //getCurrentValue
 
     /**
      * This method determines the sensor zone with the given sensor value.
@@ -334,7 +324,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
     private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        double currValue = getValue();
+        double currValue = getSensorValue();
         int currZone = getValueZone(currValue);
         boolean triggered = false;
         int prevZone = -1;
