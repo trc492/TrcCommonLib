@@ -81,7 +81,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
          * @param name specifies the name of the pattern.
          * @param colorPattern specifies the color pattern as an array of colors, one for each pixel in the LED strip.
          */
-        public Pattern(TrcColor[] colorPattern)
+        public Pattern(String name, TrcColor[] colorPattern)
         {
             commonInit(name, Type.Fixed, colorPattern, 0.0);
         }   //Pattern

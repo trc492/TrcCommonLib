@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -381,19 +380,14 @@ public class TrcPeriodicThread<T>
                 numThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
-        TrcEvent.registerEventCallback();
         // Do not create a watchdog for the Watchdog Manager task.
         TrcWatchdogMgr.Watchdog threadWatchdog =
             instanceName.equals(TrcWatchdogMgr.moduleName)? null: TrcWatchdogMgr.registerWatchdog(instanceName);
+        TrcEvent.registerEventCallback();
         while (!Thread.interrupted())
         {
             long startNanoTime = TrcUtil.getNanoTime();
             long elapsedNanoTime;
-
-            if (threadWatchdog != null)
-            {
-                threadWatchdog.sendHeartBeat();
-            }
 
             if (taskState.isTaskEnabled())
             {
@@ -410,6 +404,10 @@ public class TrcPeriodicThread<T>
             }
 
             TrcEvent.performEventCallback();
+            if (threadWatchdog != null)
+            {
+                threadWatchdog.sendHeartBeat();
+            }
 
             if (processingInterval > 0)
             {
@@ -440,12 +438,11 @@ public class TrcPeriodicThread<T>
             }
         }
 
+        TrcEvent.unregisterEventCallback();
         if (threadWatchdog != null)
         {
             threadWatchdog.unregister();
         }
-
-        TrcEvent.unregisterEventCallback();
 
         numThreads = numActiveThreads.decrementAndGet();
         if (debugEnabled)

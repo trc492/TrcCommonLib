@@ -231,6 +231,18 @@ public class TrcEvent
     }   //setCallback
 
     /**
+     * This method is called to set the callback context object typically before the event is signaled. In some
+     * scenarios, the callbackContext is set by the one who's signaling the event, not the one who calls setCallback.
+     * Therefore, this method provides a way to do just that.
+     *
+     * @param callbackContext specifies the callback context object.
+     */
+    public void setCallbackContext(Object callbackContext)
+    {
+        this.callbackContext = callbackContext;
+    }   //setCallbackContext
+
+    /**
      * This method is called by a periodic thread when the thread has just been started and before it enters its
      * thread loop to register for event callback. When a callback handler is set for an event, the event is added
      * to the event list for the thread. The periodic thread will then periodically call checkForEventCallback

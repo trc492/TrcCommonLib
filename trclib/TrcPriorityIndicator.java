@@ -232,6 +232,17 @@ public abstract class TrcPriorityIndicator<T>
     /**
      * This method enables/disables the pattern in the priority list.
      *
+     * @param pattern specifies the pattern in the priority list.
+     * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
+     */
+    public synchronized void setPatternState(T pattern, boolean enabled)
+    {
+        setPatternState(pattern, enabled, 0.0);
+    }   //setPatternState
+
+    /**
+     * This method enables/disables the pattern in the priority list.
+     *
      * @param patternName specifies the name of the pattern in the priority list.
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      * @param expiredTime specifies the time in seconds the LED stays ON, zero if stays on indefinitely.

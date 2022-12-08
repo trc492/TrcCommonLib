@@ -476,6 +476,7 @@ public abstract class TrcSerialBusDevice
 
         if (request.completionEvent != null)
         {
+            request.completionEvent.setCallbackContext(request);
             request.completionEvent.signal();
         }
     }   //requestHandler
