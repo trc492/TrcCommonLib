@@ -463,7 +463,7 @@ public abstract class TrcEmic2TextToSpeech
      *
      * @param context specifies the read request.
      */
-    public void notify(Object context)
+    protected void notify(Object context)
     {
         final String funcName = "notify";
         TrcSerialBusDevice.Request request = (TrcSerialBusDevice.Request) context;

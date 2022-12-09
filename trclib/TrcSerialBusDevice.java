@@ -111,7 +111,7 @@ public abstract class TrcSerialBusDevice
 
     private final String instanceName;
     private final TrcRequestQueue<Request> requestQueue;
-    private final TrcEvent requestEvent;
+    private final TrcEvent processRequestEvent;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -122,7 +122,7 @@ public abstract class TrcSerialBusDevice
     {
         this.instanceName = instanceName;
         requestQueue = useRequestQueue ? new TrcRequestQueue<>(instanceName) : null;
-        requestEvent = new TrcEvent(moduleName + ".requestEvent");
+        processRequestEvent = new TrcEvent(moduleName + ".processRequestEvent");
     }   //TrcSerialBusDevice
 
     /**
@@ -168,6 +168,8 @@ public abstract class TrcSerialBusDevice
      */
     public byte[] syncRead(int address, int length)
     {
+        final String funcName = "syncRead";
+
         if (!isEnabled())
         {
             throw new RuntimeException("Device is not enabled, must call setEnabled first.");
@@ -176,10 +178,10 @@ public abstract class TrcSerialBusDevice
         byte[] data = null;
         if (requestQueue != null)
         {
-            TrcEvent completionEvent = new TrcEvent(instanceName + ".syncReadEvent");
+            TrcEvent completionEvent = new TrcEvent(instanceName + "." + funcName);
             Request request = new Request(null, true, address, null, length, completionEvent);
-            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, requestEvent, false);
-            requestEvent.setCallback(this::requestHandler, entry);
+            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, processRequestEvent, false);
+            processRequestEvent.setCallback(this::requestHandler, entry);
 
             while (!completionEvent.isSignaled())
             {
@@ -195,6 +197,11 @@ public abstract class TrcSerialBusDevice
         else
         {
             data = readData(address, length);
+        }
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "address=0x%x, len=%d, data=%s", address, length, Arrays.toString(data));
         }
 
         return data;
@@ -221,6 +228,8 @@ public abstract class TrcSerialBusDevice
      */
     public int syncWrite(int address, byte[] data, int length)
     {
+        final String funcName = "syncWrite";
+
         if (!isEnabled())
         {
             throw new RuntimeException("Must call setEnabled first.");
@@ -229,10 +238,10 @@ public abstract class TrcSerialBusDevice
         int bytesWritten = 0;
         if (requestQueue != null)
         {
-            TrcEvent completionEvent = new TrcEvent(instanceName + ".syncWriteEvent");
+            TrcEvent completionEvent = new TrcEvent(instanceName + "." + funcName);
             Request request = new Request(null, false, address, data, length, completionEvent);
-            TrcRequestQueue<Request>.RequestEntry  entry = requestQueue.add(request, requestEvent, false);
-            requestEvent.setCallback(this::requestHandler, entry);
+            TrcRequestQueue<Request>.RequestEntry  entry = requestQueue.add(request, processRequestEvent, false);
+            processRequestEvent.setCallback(this::requestHandler, entry);
 
             while (!completionEvent.isSignaled())
             {
@@ -247,6 +256,11 @@ public abstract class TrcSerialBusDevice
         else
         {
             bytesWritten = writeData(address, data, length);
+        }
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "address=0x%x, len=%d, data=%s", address, length, Arrays.toString(data));
         }
 
         return bytesWritten;
@@ -277,11 +291,20 @@ public abstract class TrcSerialBusDevice
      */
     public void asyncRead(Object requestId, int address, int length, boolean repeat, TrcEvent completionEvent)
     {
+        final String funcName = "asyncRead";
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(
+                funcName, "reqId=%s, address=0x%x, len=%d, repeat=%s, event=%s",
+                requestId, address, length, repeat, completionEvent);
+        }
+
         if (requestQueue != null)
         {
             Request request = new Request(requestId, true, address, null, length, completionEvent);
-            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, requestEvent, repeat);
-            requestEvent.setCallback(this::requestHandler, entry);
+            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, processRequestEvent, repeat);
+            processRequestEvent.setCallback(this::requestHandler, entry);
         }
         else
         {
@@ -292,42 +315,66 @@ public abstract class TrcSerialBusDevice
     /**
      * This method is doing an asynchronous read from the device with the specified length to read.
      *
-     * @param requestCtxt specifies the request context and is not interpreted by the TrcSerialBusDevice class.
+     * @param requestId specifies the request ID and is not interpreted by the TrcSerialBusDevice class.
+     *                    it is just passed back to the requester's notification handler.
+     * @param address specifies the data address if any, can be -1 if no address is required.
+     * @param length specifies the number of bytes to read.
+     * @param repeat specifies true to re-queue the request when completed.
+     * @param completionCallback specifies the callback handler when the request is completed.
+     * @param callbackContext specifies the object to pass back to the callback.
+     */
+    public void asyncRead(
+        Object requestId, int address, int length, boolean repeat, TrcEvent.Callback callback, Object callbackContext)
+    {
+        if (callback == null)
+        {
+            throw new IllegalArgumentException("callback must not be null.");
+        }
+
+        TrcEvent callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+        callbackEvent.setCallback(callback, callbackContext);
+        asyncRead(requestId, address, length, repeat, callbackEvent);
+    }   //asyncRead
+
+    /**
+     * This method is doing an asynchronous read from the device with the specified length to read.
+     *
+     * @param requestId specifies the request ID and is not interpreted by the TrcSerialBusDevice class.
      *                    it is just passed back to the requester's notification handler.
      * @param address specifies the data address if any, can be -1 if no address is required.
      * @param length specifies the number of bytes to read.
      * @param event specifies the event to signal when the request is completed, can be null if none specified.
      */
-    public void asyncRead(Object requestCtxt, int address, int length, TrcEvent event)
+    public void asyncRead(Object requestId, int address, int length, TrcEvent event)
     {
-        asyncRead(requestCtxt, address, length, false, event);
+        asyncRead(requestId, address, length, false, event);
     }   //asyncRead
 
     /**
      * This method is doing an asynchronous read from the device with the specified length to read.
      *
-     * @param requestCtxt specifies the request context and is not interpreted by the TrcSerialBusDevice class.
+     * @param requestId specifies the request ID and is not interpreted by the TrcSerialBusDevice class.
      *                    it is just passed back to the requester's notification handler.
      * @param length specifies the number of bytes to read.
      * @param repeat specifies true to re-queue the request when completed.
      * @param event specifies the event to signal when the request is completed, can be null if none specified.
      */
-    public void asyncRead(Object requestCtxt, int length, boolean repeat, TrcEvent event)
+    public void asyncRead(Object requestId, int length, boolean repeat, TrcEvent event)
     {
-        asyncRead(requestCtxt, -1, length, repeat, event);
+        asyncRead(requestId, -1, length, repeat, event);
     }   //asyncRead
 
     /**
      * This method is doing an asynchronous read from the device with the specified length to read.
      *
-     * @param requestCtxt specifies the request context and is not interpreted by the TrcSerialBusDevice class.
+     * @param requestId specifies the request context and is not interpreted by the TrcSerialBusDevice class.
      *                    it is just passed back to the requester's notification handler.
      * @param length specifies the number of bytes to read.
      * @param event specifies the event to signal when the request is completed, can be null if none specified.
      */
-    public void asyncRead(Object requestCtxt, int length, TrcEvent event)
+    public void asyncRead(Object requestId, int length, TrcEvent event)
     {
-        asyncRead(requestCtxt, -1, length, false, event);
+        asyncRead(requestId, -1, length, false, event);
     }   //asyncRead
 
     /**
@@ -343,11 +390,20 @@ public abstract class TrcSerialBusDevice
      */
     public void asyncWrite(Object requestId, int address, byte[] data, int length, TrcEvent completionEvent)
     {
+        final String funcName = "asyncWrite";
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(
+                funcName, "reqId=%s, address=0x%x, data=%s, len=%d, event=%s",
+                requestId, address, Arrays.toString(data), length, completionEvent);
+        }
+
         if (requestQueue != null)
         {
             Request request = new Request(requestId, false, address, data, length, completionEvent);
-            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, requestEvent, false);
-            requestEvent.setCallback(this::requestHandler, entry);
+            TrcRequestQueue<Request>.RequestEntry entry = requestQueue.add(request, processRequestEvent, false);
+            processRequestEvent.setCallback(this::requestHandler, entry);
         }
         else
         {
@@ -359,15 +415,39 @@ public abstract class TrcSerialBusDevice
     /**
      * This method is doing an asynchronous write to the device with the specified data and length
      *
-     * @param requestCtxt specifies the request context and is not interpreted by the TrcSerialBusDevice class.
+     * @param requestId specifies the request ID and is not interpreted by the TrcSerialBusDevice class.
+     *                    it is just passed back to the requester's notification handler.
+     * @param address specifies the data address if any, can be -1 if no address is required.
+     * @param data specifies the buffer containing the data to write to the device.
+     * @param length specifies the number of bytes to write.
+     * @param completionCallback specifies the callback handler when the request is completed.
+     * @param callbackContext specifies the object to pass back to the callback.
+     */
+    public void asyncWrite(
+        Object requestId, int address, byte[] data, int length, TrcEvent.Callback callback, Object callbackContext)
+    {
+        if (callback == null)
+        {
+            throw new IllegalArgumentException("callback must not be null.");
+        }
+
+        TrcEvent callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+        callbackEvent.setCallback(callback, callbackContext);
+        asyncWrite(requestId, address, data, length, callbackEvent);
+    }   //asyncWrite
+
+    /**
+     * This method is doing an asynchronous write to the device with the specified data and length
+     *
+     * @param requestId specifies the request ID and is not interpreted by the TrcSerialBusDevice class.
      *                    it is just passed back to the requester's notification handler.
      * @param data specifies the buffer containing the data to write to the device.
      * @param length specifies the number of bytes to write.
      * @param event specifies the event to signal when the request is completed, can be null if none specified.
      */
-    public void asyncWrite(Object requestCtxt, byte[] data, int length, TrcEvent event)
+    public void asyncWrite(Object requestId, byte[] data, int length, TrcEvent event)
     {
-        asyncWrite(requestCtxt, -1, data, length, event);
+        asyncWrite(requestId, -1, data, length, event);
     }   //asyncWrite
 
     /**
@@ -379,11 +459,18 @@ public abstract class TrcSerialBusDevice
      */
     public synchronized void preemptiveWrite(int address, byte[] data, int length)
     {
+        final String funcName = "preemptiveWrite";
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "address=0x%x, data=%s, len=%d", address, Arrays.toString(data), length);
+        }
+
         if (requestQueue != null)
         {
             TrcRequestQueue<Request>.RequestEntry entry = requestQueue.addPriorityRequest(
-                new Request(null, false, address, data, length, null), requestEvent);
-            requestEvent.setCallback(this::requestHandler, entry);
+                new Request(null, false, address, data, length, null), processRequestEvent);
+            processRequestEvent.setCallback(this::requestHandler, entry);
         }
         else
         {
@@ -478,6 +565,11 @@ public abstract class TrcSerialBusDevice
         {
             request.completionEvent.setCallbackContext(request);
             request.completionEvent.signal();
+        }
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(funcName, "request=%s", request);
         }
     }   //requestHandler
 

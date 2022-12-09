@@ -533,7 +533,7 @@ public abstract class TrcPixyCam1
      *
      * @param context specifies the read request.
      */
-    public void requestHandler(Object context)
+    protected void requestHandler(Object context)
     {
         TrcSerialBusDevice.Request request = (TrcSerialBusDevice.Request) context;
 
