@@ -165,7 +165,7 @@ public class TrcTaskMgr
          *  the main robot thread, input or output threads.
          *
          * @param taskType specifies the type of task being run. This may be useful for handling multiple task types.
-         * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+         * @param runMode specifies the competition mode (e.g. Autonomous, TeleOp, Test).
          */
         void runTask(TaskType taskType, TrcRobot.RunMode runMode);
 
