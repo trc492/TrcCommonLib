@@ -155,11 +155,11 @@ public abstract class TrcAutoTask<T>
      */
     private void setTaskEnabled(boolean enabled)
     {
-        if (enabled && !sm.isEnabled())
+        if (enabled && !autoTaskObj.isRegistered())
         {
             autoTaskObj.registerTask(taskType);
         }
-        else if (!enabled && sm.isEnabled())
+        else if (!enabled && autoTaskObj.isRegistered())
         {
             sm.stop();
             autoTaskObj.unregisterTask();
