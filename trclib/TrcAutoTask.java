@@ -85,7 +85,7 @@ public abstract class TrcAutoTask<T>
         this.taskType = taskType;
         this.msgTracer = msgTracer;
         autoTaskObj = TrcTaskMgr.createTask(instanceName, this::autoTask);
-        sm = new TrcStateMachine<T>(instanceName);
+        sm = new TrcStateMachine<>(instanceName);
     }   //TrcAutoTask
 
     /**
