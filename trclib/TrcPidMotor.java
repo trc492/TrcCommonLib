@@ -322,7 +322,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @return true if PID motor has a PID operation or zero calibration in progress, false otherwise.
      */
-    public synchronized boolean isPidActive()
+    public boolean isPidActive()
     {
         return pidActive;
     }   //isPidActive
@@ -333,7 +333,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param stopMotor specifies true if also stopping the physical motor(s), false otherwise.
      */
-    private synchronized void stop(boolean stopMotor)
+    private void stop(boolean stopMotor)
     {
         final String funcName = "stop";
         //
@@ -366,7 +366,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     {
         final String funcName = "cancel";
 
-        if (validateOwnership(owner) && pidActive)
+        if (validateOwnership(owner))
         {
             if (debugEnabled)
             {
@@ -390,7 +390,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     /**
      * This method cancels a previous active PID motor operation.
      */
-    public synchronized void cancel()
+    public void cancel()
     {
         cancel(null);
     }   //cancel
@@ -796,9 +796,12 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param power specifies the motor power.
      * @param rangeLow specifies the power range low limit.
      * @param rangeHigh specifies the power range high limit.
+     * @param duration specifies the duration in seconds to run the motor after which it is turned off automatically.
+     * @param event specifies the event to signal when duration has expired, can be null if not provided.
      * @param stopPid specifies true to stop previous PID operation, false otherwise.
      */
-    private synchronized void setPower(double power, double rangeLow, double rangeHigh, boolean stopPid)
+    private synchronized void setPower(
+        double power, double rangeLow, double rangeHigh, double duration, TrcEvent event, boolean stopPid)
     {
         //
         // Note: this method does not handle zero calibration, so do not call this method in zero calibration mode.
@@ -824,6 +827,93 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             motorPower = power;
             performStallDetection(power);
             setMotorPower(motorPower);
+            if (duration > 0.0)
+            {
+                notifyEvent = event;
+                timer.set(duration, this::durationExpired);
+            }
+        }
+    }   //setPower
+
+    /**
+     * This method is called when the setPower duration has expired so it can turn off the motor and signal for
+     * completion if necessary.
+     *
+     * @param context specifies the callback context (not used).
+     */
+    private void durationExpired(Object context)
+    {
+        setMotorPower(0.0);
+        if (notifyEvent != null)
+        {
+            notifyEvent.signal();
+            notifyEvent = null;
+        }
+    }   //durationExpired
+
+    /**
+     * This class encapsulates the parameters for the setPower call.
+     */
+    private static class SetPowerParams
+    {
+        double power;
+        double rangeLow;
+        double rangeHigh;
+        double duration;
+        TrcEvent event;
+        boolean stopPid;
+
+        SetPowerParams(
+            double power, double rangeLow, double rangeHigh, double duration, TrcEvent event, boolean stopPid)
+        {
+            this.power = power;
+            this.rangeLow = rangeLow;
+            this.rangeHigh = rangeHigh;
+            this.duration = duration;
+            this.event = event;
+            this.stopPid = stopPid;
+        }   //SetPowerParams
+    }   //class SetPowerParams
+
+    /**
+     * This method is called to perform the setPower call.
+     *
+     * @param context specifies the SetPowerParams object.
+     */
+    private void performSetPower(Object context)
+    {
+        SetPowerParams params = (SetPowerParams) context;
+        setPower(params.power, params.rangeLow, params.rangeHigh, params.duration, params.event, params.stopPid);
+    }   //performSetPower
+
+    /**
+     * This method sets the PID motor power. It will also check for stalled condition and cut motor power if stalled
+     * detected. It will also check to reset the stalled condition if reset timeout was specified.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
+     * @param delay specifies the delay in seconds before performing the setPower.
+     * @param power specifies the motor power.
+     * @param rangeLow specifies the power range low limit.
+     * @param rangeHigh specifies the power range high limit.
+     * @param duration specifies the duration in seconds to run the motor after which it is turned off automatically.
+     * @param event specifies the event to signal when duration expired.
+     * @param stopPid specifies true to stop previous PID operation, false otherwise.
+     */
+    public void setPower(
+        String owner, double delay, double power, double rangeLow, double rangeHigh, double duration, TrcEvent event,
+        boolean stopPid)
+    {
+        if (validateOwnership(owner))
+        {
+            SetPowerParams params = new SetPowerParams(power, rangeLow, rangeHigh, duration, event, stopPid);
+            if (delay > 0.0)
+            {
+                timer.set(delay, this::performSetPower, params);
+            }
+            else
+            {
+                performSetPower(params);
+            }
         }
     }   //setPower
 
@@ -839,10 +929,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPower(String owner, double power, double rangeLow, double rangeHigh)
     {
-        if (validateOwnership(owner))
-        {
-            setPower(power, rangeLow, rangeHigh, true);
-        }
+        setPower(owner, 0.0, power, rangeLow, rangeHigh, 0.0, null, true);
     }   //setPower
 
     /**
@@ -856,7 +943,22 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPower(double power, double rangeLow, double rangeHigh)
     {
-        setPower(power, rangeLow, rangeHigh, true);
+        setPower(null, 0.0, power, rangeLow, rangeHigh, 0.0, null, true);
+    }   //setPower
+
+    /**
+     * This method sets the PID motor power. It will check for the limit switches. If activated, it won't allow the
+     * motor to go in that direction. It will also check for stalled condition and cut motor power if stalled detected.
+     * It will also check to reset the stalled condition if reset timeout was specified.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
+     * @param power specifies the motor power.
+     * @param duration specifies the duration in seconds to run the motor after which it is turned off automatically.
+     * @param event specifies the event to signal when duration expired.
+     */
+    public void setPower(String owner, double power, double duration, TrcEvent event)
+    {
+        setPower(owner, 0.0, power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, duration, event, true);
     }   //setPower
 
     /**
@@ -869,10 +971,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPower(String owner, double power)
     {
-        if (validateOwnership(owner))
-        {
-            setPower(power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, true);
-        }
+        setPower(owner, 0.0, power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, 0.0, null, true);
     }   //setPower
 
     /**
@@ -884,7 +983,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPower(double power)
     {
-        setPower(power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, true);
+        setPower(null, 0.0, power, MIN_MOTOR_POWER, MAX_MOTOR_POWER, 0.0, null, true);
     }   //setPower
 
     /**
@@ -1121,7 +1220,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
      * switch is hit or the motor is stalled.
      */
-    public synchronized void zeroCalibrate()
+    public void zeroCalibrate()
     {
         zeroCalibrate(null, defCalPower, null);
     }   //zeroCalibrate
@@ -1308,7 +1407,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // We are still in business. Call PID controller to calculate the motor power and set it.
                 //
                 motorPower = TrcUtil.clipRange(pidCtrl.getOutput(), -powerClamp, powerClamp);
-                setPower(motorPower, MIN_MOTOR_POWER, MAX_MOTOR_POWER, false);
+                setPower(motorPower, MIN_MOTOR_POWER, MAX_MOTOR_POWER, 0.0, null, false);
 
                 if (msgTracer != null && tracePidInfo)
                 {
