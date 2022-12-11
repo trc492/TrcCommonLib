@@ -133,7 +133,21 @@ public abstract class TrcAutoTask<T>
     {
         setTaskEnabled(false);
         stopSubsystems();
-        releaseSubsystemsOwnership();
+
+        try
+        {
+            releaseSubsystemsOwnership();
+        }
+        catch (IllegalStateException e)
+        {
+            if (completed)
+            {
+                // Re-throw the exception because we should be able to release subsystem ownership.
+                // If we are canceling auto-assist, there is a chance that the ownership is already released.
+                throw e;
+            }
+        }
+
         if (completionEvent != null)
         {
             if (completed)
