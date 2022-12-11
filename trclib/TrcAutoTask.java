@@ -140,12 +140,12 @@ public abstract class TrcAutoTask<T>
         }
         catch (IllegalStateException e)
         {
-            if (completed)
-            {
-                // Re-throw the exception because we should be able to release subsystem ownership.
-                // If we are canceling auto-assist, there is a chance that the ownership is already released.
-                throw e;
-            }
+//            if (completed)
+//            {
+//                // Re-throw the exception because we should be able to release subsystem ownership.
+//                // If we are canceling auto-assist, there is a chance that the ownership is already released.
+//                throw e;
+//            }
         }
 
         if (completionEvent != null)
