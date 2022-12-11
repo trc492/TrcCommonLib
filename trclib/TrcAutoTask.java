@@ -63,6 +63,7 @@ public abstract class TrcAutoTask<T>
         Object params, T state, double timeout, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode);
 
     private final String instanceName;
+    private final String owner;
     private final TrcTaskMgr.TaskType taskType;
     private final TrcDbgTrace msgTracer;
     private final TrcTaskMgr.TaskObject autoTaskObj;
@@ -76,12 +77,14 @@ public abstract class TrcAutoTask<T>
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the task name.
+     * @param owner specifies the owner to acquire ownership, can be null if not requiring ownership.
      * @param taskType specifies the auto-assist task type (e.g. TaskType.FAST_POSTPERIODIC_TASK).
      * @param msgTracer specifies the tracer for logging events, can be null if not provided.
      */
-    protected TrcAutoTask(String instanceName, TrcTaskMgr.TaskType taskType, TrcDbgTrace msgTracer)
+    protected TrcAutoTask(String instanceName, String owner, TrcTaskMgr.TaskType taskType, TrcDbgTrace msgTracer)
     {
         this.instanceName = instanceName;
+        this.owner = owner;
         this.taskType = taskType;
         this.msgTracer = msgTracer;
         autoTaskObj = TrcTaskMgr.createTask(instanceName, this::autoTask);
@@ -111,7 +114,7 @@ public abstract class TrcAutoTask<T>
     {
         final String funcName = "startAutoTask";
 
-        if (acquireSubsystemsOwnership())
+        if (owner == null || acquireSubsystemsOwnership())
         {
             this.taskParams = taskParams;
             this.completionEvent = completionEvent;
@@ -134,18 +137,9 @@ public abstract class TrcAutoTask<T>
         setTaskEnabled(false);
         stopSubsystems();
 
-        try
+        if (owner != null)
         {
             releaseSubsystemsOwnership();
-        }
-        catch (IllegalStateException e)
-        {
-//            if (completed)
-//            {
-//                // Re-throw the exception because we should be able to release subsystem ownership.
-//                // If we are canceling auto-assist, there is a chance that the ownership is already released.
-//                throw e;
-//            }
         }
 
         if (completionEvent != null)
