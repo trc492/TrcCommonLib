@@ -55,12 +55,11 @@ public abstract class TrcAutoTask<T>
      *
      * @param params specifies the task parameters.
      * @param state specifies the current state of the task.
-     * @param timeout specifies the timeout for executing the current state, can be zero if no timeout.
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode (e.g. Autonomous, TeleOp, Test).
      */
     protected abstract void runTaskState(
-        Object params, T state, double timeout, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode);
+        Object params, T state, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode);
 
     private final String instanceName;
     private final String owner;
@@ -71,7 +70,6 @@ public abstract class TrcAutoTask<T>
 
     private Object taskParams;
     private TrcEvent completionEvent;
-    private double expireTime;
 
     /**
      * Constructor: Create an instance of the object.
@@ -108,9 +106,8 @@ public abstract class TrcAutoTask<T>
      * @param startState specifies the state to start the state machine.
      * @param taskParams specifies the task parameters.
      * @param completionEvent specifies the event to signal when the task is completed, can be null if none provided.
-     * @param timeout specifies the timeout for the task, can be zero if no timeout.
      */
-    protected void startAutoTask(T startState, Object taskParams, TrcEvent completionEvent, double timeout)
+    protected void startAutoTask(T startState, Object taskParams, TrcEvent completionEvent)
     {
         final String funcName = "startAutoTask";
 
@@ -118,7 +115,6 @@ public abstract class TrcAutoTask<T>
         {
             this.taskParams = taskParams;
             this.completionEvent = completionEvent;
-            this.expireTime = timeout > 0.0 ? TrcUtil.getCurrentTime() + timeout : 0.0;
             sm.start(startState);
             setTaskEnabled(true);
         }
@@ -134,27 +130,40 @@ public abstract class TrcAutoTask<T>
      */
     protected void stopAutoTask(boolean completed)
     {
-        setTaskEnabled(false);
-        stopSubsystems();
-
-        if (owner != null)
+        if (isActive())
         {
-            releaseSubsystemsOwnership();
-        }
+            setTaskEnabled(false);
+            stopSubsystems();
 
-        if (completionEvent != null)
-        {
-            if (completed)
+            if (owner != null)
             {
-                completionEvent.signal();
+                releaseSubsystemsOwnership();
             }
-            else
+
+            if (completionEvent != null)
             {
-                completionEvent.cancel();
+                if (completed)
+                {
+                    completionEvent.signal();
+                }
+                else
+                {
+                    completionEvent.cancel();
+                }
+                completionEvent = null;
             }
-            completionEvent = null;
         }
     }   //stopAutoTask
+
+    /**
+     * This method checks if the auto task is active.
+     *
+     * @return true if auto assist task is active, false otherwise.
+     */
+    public boolean isActive()
+    {
+        return sm.isEnabled();
+    }   //isActive
 
     /**
      * This method enables/disables the auto-assist task.
@@ -186,8 +195,7 @@ public abstract class TrcAutoTask<T>
 
         if (state != null)
         {
-            runTaskState(
-                taskParams, state, expireTime == 0.0? 0.0: expireTime - TrcUtil.getCurrentTime(), taskType, runMode);
+            runTaskState(taskParams, state, taskType, runMode);
 
             if (msgTracer != null)
             {
