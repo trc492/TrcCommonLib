@@ -47,7 +47,8 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         public boolean servo1Inverted = false;
         public boolean servo2Inverted = false;
         public boolean triggerInverted = false;
-        public Double analogThreshold = null;
+        public Double triggerThreshold = null;
+        public Double hasObjectThreshold = null;
         public double openPos = 0.0;
         public double openTime = 0.5;
         public double closePos = 1.0;
@@ -64,9 +65,9 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             return String.format(
                 Locale.US,
                 "maxStepRate=%.1f,minPos=%.1f,maxPos=%.1f,servosInverted(%s,%s),triggerInverted=%s," +
-                "analogThreshold=%s,openPos=%.1f,openTime=%.1f,closePos=%.1f,closeTime=%.1f",
-                maxStepRate, minPos, maxPos, servo1Inverted, servo2Inverted, triggerInverted, analogThreshold,
-                openPos, openTime, closePos, closeTime);
+                "triggerThreshold=%s,hasObjThreshold=%s,openPos=%.1f,openTime=%.1f,closePos=%.1f,closeTime=%.1f",
+                maxStepRate, minPos, maxPos, servo1Inverted, servo2Inverted, triggerInverted, triggerThreshold,
+                hasObjectThreshold, openPos, openTime, closePos, closeTime);
         }   //toString
 
         /**
@@ -129,14 +130,16 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         /**
          * This method sets the analog sensor threshold value.
          *
-         * @param threshold specifies the sensor threshold value.
+         * @param triggerThreshold specifies the trigger threshold value.
+         * @param hasObjectThreshold specifies the threshold value to detect object possession.
          * @return this parameter object.
          */
-        public Parameters setAnalogThreshold(double threshold)
+        public Parameters setThresholds(double triggerThreshold, double hasObjectThreshold)
         {
-            this.analogThreshold = threshold;
+            this.triggerThreshold = triggerThreshold;
+            this.hasObjectThreshold = hasObjectThreshold;
             return this;
-        }   //setAnalogThreshold
+        }   //setThresholds
 
         /**
          * This method sets the open parameters of the servo grabber.
@@ -516,7 +519,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public double getSensorValue()
     {
-        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getSensorValue(): 0.0;
+        return sensorTrigger != null? sensorTrigger.getSensorValue(): 0.0;
     }   //getSensorValue
 
     /**
@@ -526,7 +529,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public boolean getSensorState()
     {
-        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getSensorState();
+        return sensorTrigger != null && sensorTrigger.getSensorState();
     }   //getSensorState
 
     /**
@@ -541,9 +544,9 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
 
         if (sensorTrigger != null)
         {
-            if (params.analogThreshold != null)
+            if (params.hasObjectThreshold != null)
             {
-                inProximity = getSensorValue() > params.analogThreshold;
+                inProximity = getSensorValue() > params.hasObjectThreshold;
             }
             else
             {
