@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -63,14 +65,16 @@ public class TrcThresholdTrigger implements TrcTrigger
         volatile boolean triggerActive = false;
         volatile double startTime = 0.0;
         volatile boolean triggerEnabled = false;
+        final ArrayList<Double> recordedData = new ArrayList<>();
 
         @Override
         public String toString()
         {
             return String.format(
                 Locale.US,
-                "(lowerThreshold=%.3f,upperThreshold=%.3f,settling=%.3f,active=%s,startTime=%.3f,enabled=%s)",
-                lowerThreshold, upperThreshold, settlingPeriod, triggerActive, startTime, triggerEnabled);
+                "(lowerThreshold=%.3f,upperThreshold=%.3f,settling=%.3f,active=%s,startTime=%.3f,enabled=%s,data=%s)",
+                lowerThreshold, upperThreshold, settlingPeriod, triggerActive, startTime, triggerEnabled,
+                Arrays.toString(recordedData.toArray()));
         }   //toString
 
     }   //class TriggerState
@@ -149,6 +153,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                 }
 
                 triggerState.startTime = TrcUtil.getCurrentTime();
+                triggerState.recordedData.clear();
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
             }
             else if (!enabled && triggerState.triggerEnabled)
@@ -228,6 +233,29 @@ public class TrcThresholdTrigger implements TrcTrigger
     }   //setTrigger
 
     /**
+     * This method returns an array of the data recorded during the trigger settling period.
+     *
+     * @return array of trigger settling data, null if no data recorded.
+     */
+    public Double[] getTriggerSettlingData()
+    {
+        Double[] data = null;
+
+        synchronized (triggerState)
+        {
+            int arraySize = triggerState.recordedData.size();
+
+            if (arraySize > 0)
+            {
+                data = new Double[arraySize];
+                triggerState.recordedData.toArray(data);
+            }
+        }
+
+        return data;
+    }   //getTriggerSettlingData
+
+    /**
      * This method is called periodically to check if the sensor value is within the lower and upper threshold range.
      *
      * @param taskType specifies the type of task being run.
@@ -239,7 +267,7 @@ public class TrcThresholdTrigger implements TrcTrigger
         double currTime = TrcUtil.getCurrentTime();
         double currValue = valueSource.getValue();
         boolean triggered = false;
-        boolean active = false;
+        boolean active;
 
         synchronized (triggerState)
         {
@@ -253,6 +281,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                     triggered = true;
                 }
                 triggerState.startTime = currTime;
+                triggerState.recordedData.clear();
             }
             else if (currTime >= triggerState.startTime + triggerState.settlingPeriod)
             {
@@ -261,9 +290,14 @@ public class TrcThresholdTrigger implements TrcTrigger
                 {
                     // Only fires a trigger event when the threshold range is first entered and stayed for settling
                     // period (i.e. edge event).
+                    triggerState.recordedData.add(currValue);
                     triggerState.triggerActive = true;
                     triggered = true;
                 }
+            }
+            else
+            {
+                triggerState.recordedData.add(currValue);
             }
             active = triggerState.triggerActive;
         }
