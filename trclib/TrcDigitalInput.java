@@ -28,12 +28,8 @@ package TrcCommonLib.trclib;
 public abstract class TrcDigitalInput
 {
     protected static final String moduleName = "TrcDigitalInput";
+    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     /**
      * This method is provided by the platform dependent digital input device to check the state of the device.
@@ -43,7 +39,7 @@ public abstract class TrcDigitalInput
     public abstract boolean isActive();
 
     protected static TrcElapsedTimer getInputElapsedTimer = null;
-    private String instanceName;
+    protected String instanceName;
 
     /**
      * Constructor: Create an instance of the object.
@@ -52,13 +48,6 @@ public abstract class TrcDigitalInput
      */
     public TrcDigitalInput(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcDigitalInput
 
