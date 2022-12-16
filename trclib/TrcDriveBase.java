@@ -340,12 +340,15 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void driveTimerHandler(Object context)
     {
-        stop(driveOwner);
-        driveOwner = null;
-        if (driveTimerEvent != null)
+        if (driveOwner != null)
         {
-            driveTimerEvent.signal();
-            driveTimerEvent = null;
+            stop(driveOwner);
+            driveOwner = null;
+            if (driveTimerEvent != null)
+            {
+                driveTimerEvent.signal();
+                driveTimerEvent = null;
+            }
         }
     }   //driveTimerHandler
 
@@ -1304,6 +1307,17 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         if (validateOwnership(owner))
         {
+            if (driveOwner != null)
+            {
+                driveTimer.cancel();
+                if (driveTimerEvent != null)
+                {
+                    driveTimerEvent.cancel();
+                    driveTimerEvent = null;
+                }
+                driveOwner = null;
+            }
+
             for (TrcMotor motor : motors)
             {
                 motor.set(0.0);
