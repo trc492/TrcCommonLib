@@ -199,7 +199,7 @@ public abstract class TrcAutoTask<T>
 
             if (msgTracer != null)
             {
-                msgTracer.traceStateInfo(sm.toString(), sm.getState());
+                msgTracer.traceStateInfo(sm.toString(), state);
             }
         }
     }   //autoTask

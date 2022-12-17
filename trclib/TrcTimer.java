@@ -269,14 +269,25 @@ public class TrcTimer
         TrcEvent event;
         synchronized (state)
         {
-            state.expiredTimeInMsec.set(0);
-            state.expired.set(true);
-            state.canceled.set(false);
-            event = state.notifyEvent;
-            state.notifyEvent = null;
+            if (!state.canceled.get())
+            {
+                state.expiredTimeInMsec.set(0);
+                state.expired.set(true);
+                state.canceled.set(false);
+                event = state.notifyEvent;
+                state.notifyEvent = null;
+            }
+            else
+            {
+                // Timer was canceled, event would have been notified already.
+                event = null;
+            }
         }
         // If there is a notification callback, it will be done automatically by the event.
-        event.signal();
+        if (event != null)
+        {
+            event.signal();
+        }
 
         if (debugEnabled)
         {

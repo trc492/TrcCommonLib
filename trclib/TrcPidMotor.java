@@ -526,6 +526,13 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 stop(false);
             }
+            //
+            // If a notification event is provided, clear it.
+            //
+            if (event != null)
+            {
+                event.clear();
+            }
 
             this.target = target;
             this.holdTarget = holdTarget;
@@ -545,13 +552,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             }
             else
             {
-                //
-                // If a notification event is provided, clear it.
-                //
-                if (event != null)
-                {
-                    event.clear();
-                }
                 //
                 // If a timeout is provided, set the expired time.
                 //
