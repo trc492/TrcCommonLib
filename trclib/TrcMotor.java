@@ -41,6 +41,12 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private static final String moduleName = "TrcMotor";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
+    private boolean resetForbidden = false;
+
+    public void forbidReset(boolean enabled)
+    {
+        resetForbidden = enabled;
+    }
 
     public enum TriggerMode
     {
@@ -546,6 +552,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             resetMotorPosition();
         }
 
+        if (resetForbidden)
+        {
+            globalTracer.traceInfo(funcName, "%s: motor position is %.3f", getMotorPosition());
+            throw new RuntimeException("Somebody illegally reset the encoder position.");
+        }
         // Call platform-dependent subclass to read current position as the zero position.
         // Note: the above resetMotorPosition call may have timed out and not resetting the hardware. We will still
         // do soft reset as a safety measure.
