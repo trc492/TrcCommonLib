@@ -464,8 +464,20 @@ public class TrcTimer
 
                     if (nextTimerToExpire == null)
                     {
-                        // There is no timer in progress, get one from the timer queue.
-                        nextTimerToExpire = timerList.remove(0);
+                        if (!timerList.isEmpty())
+                        {
+                            if (debugEnabled)
+                            {
+                                globalTracer.traceInfo(
+                                    funcName, "Get a timer from the queue (qSize=%d).", timerList.size());
+                            }
+                            // There is no timer in progress, get one from the timer queue.
+                            nextTimerToExpire = timerList.remove(0);
+                        }
+                        else
+                        {
+                            globalTracer.traceWarn(funcName, "Expecting a timer from the queue but there is none.");
+                        }
                     }
                 }
 
