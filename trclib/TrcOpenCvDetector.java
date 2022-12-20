@@ -64,7 +64,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         @Override
         public String toString()
         {
-            return "Rect=" + getRect() + ",area=" + getArea();
+            return "(Rect=" + getRect() + ",area=" + getArea() + ")";
         }   //toString
 
     }   //class DetectedObject
