@@ -153,8 +153,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "r=%d,g=%d,b=%d", red, green, blue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "r=%d,g=%d,b=%d", red, green, blue);
         }
 
         currPattern = new Pattern("WholeLengthColor", new TrcColor(red, green, blue), numLEDs);
@@ -174,9 +173,8 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "h=%d,s=%d,v=%d", hue, sat, value);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
+            globalTracer.traceInfo(funcName, "h=%d,s=%d,v=%d", hue, sat, value);
+       }
 
         // TODO: Implement TrcColor.hsvToRgb
         // updateLED(currPattern.colorPattern);
@@ -193,8 +191,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "color=%s", color);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "color=%s", color);
         }
 
         currPattern = new Pattern("PartialLengthColor", color, numLEDs);
@@ -217,8 +214,7 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", currPattern);
+            globalTracer.traceInfo(funcName, "currPattern=%s", currPattern);
         }
 
         return currPattern;
@@ -236,16 +232,11 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "pattern=%s", pattern);
+            globalTracer.traceInfo(funcName, "pattern=%s", pattern);
         }
 
         this.currPattern = pattern;
         updateLED(currPattern != null? currPattern.colorPattern: null);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPattern
 
 }   //class TrcAddressableLED

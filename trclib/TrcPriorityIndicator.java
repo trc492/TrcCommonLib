@@ -39,12 +39,8 @@ import java.util.HashMap;
 public abstract class TrcPriorityIndicator<T>
 {
     private static final String moduleName = "TrcPriorityIndicator";
+    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     /**
      * This method gets the current set pattern.
@@ -120,13 +116,6 @@ public abstract class TrcPriorityIndicator<T>
      */
     public TrcPriorityIndicator(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                TrcDbgTrace.getGlobalTracer() :
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         indicatorTaskObj = TrcTaskMgr.createTask(instanceName, this::indicatorTask);
     }   //TrcPriorityIndicator
@@ -208,8 +197,7 @@ public abstract class TrcPriorityIndicator<T>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "pattern=%s,enabled=%s,index=%d", pattern, enabled, index);
+            globalTracer.traceInfo(funcName, "pattern=%s,enabled=%s,index=%d", pattern, enabled, index);
         }
 
         if (index != -1)
@@ -222,11 +210,6 @@ public abstract class TrcPriorityIndicator<T>
             }
             updateIndicator();
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPatternState
 
     /**
@@ -235,7 +218,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param pattern specifies the pattern in the priority list.
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      */
-    public synchronized void setPatternState(T pattern, boolean enabled)
+    public void setPatternState(T pattern, boolean enabled)
     {
         setPatternState(pattern, enabled, 0.0);
     }   //setPatternState
@@ -261,7 +244,7 @@ public abstract class TrcPriorityIndicator<T>
      * @param enabled specifies true to turn the pattern ON, false to turn it OFF.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
-    public synchronized void setPatternState(String patternName, boolean enabled)
+    public void setPatternState(String patternName, boolean enabled)
     {
         setPatternState(namedPatternMap.get(patternName), enabled, 0.0);
     }   //setPatternState
@@ -279,11 +262,6 @@ public abstract class TrcPriorityIndicator<T>
         boolean state = false;
         int index = getPatternPriority(pattern);
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "pattern=%s,index=%d", pattern, index);
-        }
-
         if (index != -1)
         {
             state = patternPriorities[index].enabled;
@@ -291,7 +269,7 @@ public abstract class TrcPriorityIndicator<T>
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", state);
+            globalTracer.traceInfo(funcName, "pattern=%s,index=%d,state=%s", pattern, index, state);
         }
 
         return state;
@@ -318,11 +296,6 @@ public abstract class TrcPriorityIndicator<T>
     {
         final String funcName = "resetAllPatternStates";
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (patternPriorities != null)
         {
             for (PatternState state : patternPriorities)
@@ -332,11 +305,6 @@ public abstract class TrcPriorityIndicator<T>
             }
 
             reset();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetAllPatternStates
 
@@ -353,11 +321,6 @@ public abstract class TrcPriorityIndicator<T>
         final String funcName = "getPatternPriority";
         int priority = -1;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "pattern=%s", pattern);
-        }
-
         if (patternPriorities != null)
         {
             for (int i = 0; i < patternPriorities.length; i++)
@@ -372,7 +335,7 @@ public abstract class TrcPriorityIndicator<T>
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%d", priority);
+            globalTracer.traceInfo(funcName, "pattern=%s,priority=%d", pattern, priority);
         }
 
         return priority;
@@ -380,7 +343,7 @@ public abstract class TrcPriorityIndicator<T>
 
     /**
      * This method sets the pattern priority list for operations that need it. The priority list must be sorted in
-     * increasing priorities.
+     * decreasing priorities.
      *
      * @param priorities specifies the pattern priority list or null to disregard the previously set list.
      */
@@ -391,8 +354,8 @@ public abstract class TrcPriorityIndicator<T>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "priorityList=%s",
-                priorities == null ? "null" : Arrays.toString(priorities));
+            globalTracer.traceInfo(
+                funcName, "priorityList=%s", priorities == null ? "null" : Arrays.toString(priorities));
         }
 
         if (priorities != null)
@@ -429,11 +392,6 @@ public abstract class TrcPriorityIndicator<T>
             namedPatternMap.clear();
             reset();
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setPatternPriorities
 
     /**
@@ -446,13 +404,8 @@ public abstract class TrcPriorityIndicator<T>
         final String funcName = "updateIndicator";
         T pattern = null;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
-
         double currTime = TrcUtil.getCurrentTime();
-        for (int i = patternPriorities.length - 1; i >= 0; i--)
+        for (int i = 0; i < patternPriorities.length; i++)
         {
             // Going from highest priority and down to low.
             if (patternPriorities[i].enabled)
@@ -479,7 +432,7 @@ public abstract class TrcPriorityIndicator<T>
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "! (pattern=%s)", pattern);
+            globalTracer.traceInfo(funcName, "pattern=%s", pattern);
         }
     }   //updateIndicator
 
