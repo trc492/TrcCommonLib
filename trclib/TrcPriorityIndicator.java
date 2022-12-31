@@ -38,7 +38,6 @@ import java.util.HashMap;
  */
 public abstract class TrcPriorityIndicator<T>
 {
-    private static final String moduleName = "TrcPriorityIndicator";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
 
@@ -294,8 +293,6 @@ public abstract class TrcPriorityIndicator<T>
      */
     public synchronized void resetAllPatternStates()
     {
-        final String funcName = "resetAllPatternStates";
-
         if (patternPriorities != null)
         {
             for (PatternState state : patternPriorities)
