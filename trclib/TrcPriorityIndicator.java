@@ -141,7 +141,7 @@ public abstract class TrcPriorityIndicator<T>
         {
             // Enabling task.
             indicatorTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
-            nextTaskRunTime = TrcUtil.getCurrentTime();
+            nextTaskRunTime = TrcTimer.getCurrentTime();
         }
         else if (!enabled && taskEnabled)
         {
@@ -205,7 +205,7 @@ public abstract class TrcPriorityIndicator<T>
             patternPriorities[index].expiredTime = 0.0;
             if (enabled && expiredTime > 0.0)
             {
-                patternPriorities[index].expiredTime = TrcUtil.getCurrentTime() + expiredTime;
+                patternPriorities[index].expiredTime = TrcTimer.getCurrentTime() + expiredTime;
             }
             updateIndicator();
         }
@@ -344,7 +344,6 @@ public abstract class TrcPriorityIndicator<T>
      *
      * @param priorities specifies the pattern priority list or null to disregard the previously set list.
      */
-    @SuppressWarnings("unchecked")
     public synchronized void setPatternPriorities(T[] priorities)
     {
         final String funcName = "setPatternPriorities";
@@ -401,21 +400,21 @@ public abstract class TrcPriorityIndicator<T>
         final String funcName = "updateIndicator";
         T pattern = null;
 
-        double currTime = TrcUtil.getCurrentTime();
-        for (int i = 0; i < patternPriorities.length; i++)
+        double currTime = TrcTimer.getCurrentTime();
+        for (PatternState patternState: patternPriorities)//.int i = 0; i < patternPriorities.length; i++)
         {
             // Going from highest priority and down to low.
-            if (patternPriorities[i].enabled)
+            if (patternState.enabled)
             {
-                if (patternPriorities[i].expiredTime > 0.0 && currTime >= patternPriorities[i].expiredTime)
+                if (patternState.expiredTime > 0.0 && currTime >= patternState.expiredTime)
                 {
-                    patternPriorities[i].enabled = false;
-                    patternPriorities[i].expiredTime = 0.0;
+                    patternState.enabled = false;
+                    patternState.expiredTime = 0.0;
                 }
                 else if (pattern == null)
                 {
                     // Highest priority pattern that's enabled and not expired.
-                    pattern = patternPriorities[i].pattern;
+                    pattern = patternState.pattern;
                 }
             }
         }
@@ -441,7 +440,7 @@ public abstract class TrcPriorityIndicator<T>
      */
     private void indicatorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
 
         if (currTime >= nextTaskRunTime)
         {

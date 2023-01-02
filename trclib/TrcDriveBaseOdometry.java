@@ -171,12 +171,9 @@ public class TrcDriveBaseOdometry
             }
         }
 
-        if (ySensors != null)
+        for (AxisSensor s: ySensors)
         {
-            for (AxisSensor s: ySensors)
-            {
-                s.sensor.resetOdometry(true);
-            }
+            s.sensor.resetOdometry(true);
         }
 
         angleSensor.resetOdometry(true);
@@ -257,6 +254,7 @@ public class TrcDriveBaseOdometry
                 if (sensor == s.sensor)
                 {
                     isUsed = true;
+                    break;
                 }
             }
         }
@@ -453,7 +451,7 @@ public class TrcDriveBaseOdometry
             if (debugTracer != null)
             {
                 debugTracer.traceInfo(moduleName, "%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
-                        position? "Pos": "Vel", i, TrcUtil.getModeElapsedTime(s.odometry.currTimestamp),
+                        position? "Pos": "Vel", i, TrcTimer.getModeElapsedTime(s.odometry.currTimestamp),
                         angleOdometry.currPos, position? s.odometry.currPos: s.odometry.velocity, data,
                         value/(i + 1));
             }

@@ -148,7 +148,7 @@ public abstract class TrcRobotBattery
             }
 
             totalEnergy = 0.0;
-            lastTimestamp = TrcUtil.getCurrentTime();
+            lastTimestamp = TrcTimer.getCurrentTime();
             robotBatteryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         else
@@ -278,7 +278,7 @@ public abstract class TrcRobotBattery
     private synchronized void robotBatteryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "robotBatteryTask";
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
         double voltage = 0.0, current = 0.0, power;
 
         if (debugEnabled)

@@ -139,13 +139,13 @@ public abstract class TrcI2cDevice
      * by the writeBuffer field. The presence of a writeBuffer indicates it is a write request. It is a read request
      * otherwise.
      */
-    private class Request
+    private static class Request
     {
-        private int regAddress;
-        private int length;
-        private byte[] writeBuffer;
-        private CompletionHandler handler;
-        private double timeout;
+        private final int regAddress;
+        private final int length;
+        private final byte[] writeBuffer;
+        private final CompletionHandler handler;
+        private final double timeout;
         private boolean expired;
 
         /**
@@ -429,7 +429,7 @@ public abstract class TrcI2cDevice
                         expiredTime = currRequest.timeout;
                         if (expiredTime != 0.0)
                         {
-                            expiredTime += TrcUtil.getCurrentTime();
+                            expiredTime += TrcTimer.getCurrentTime();
                         }
                         currRequest.expired = false;
                         portCommandSM.setState(PortCommandState.SEND_PORT_COMMAND);
@@ -468,7 +468,7 @@ public abstract class TrcI2cDevice
                         }
                         portCommandSM.setState(PortCommandState.WAIT_PORT_COMMAND_COMPLETE);
                     }
-                    else if (expiredTime != 0.0 && TrcUtil.getCurrentTime() > expiredTime)
+                    else if (expiredTime != 0.0 && TrcTimer.getCurrentTime() > expiredTime)
                     {
                         currRequest.expired = true;
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
@@ -517,7 +517,7 @@ public abstract class TrcI2cDevice
                                                        state.toString(), Arrays.toString(dataRead));
                                 }
                             }
-                            else if (expiredTime != 0.0 && TrcUtil.getCurrentTime() > expiredTime)
+                            else if (expiredTime != 0.0 && TrcTimer.getCurrentTime() > expiredTime)
                             {
                                 currRequest.expired = true;
                                 portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
@@ -528,7 +528,7 @@ public abstract class TrcI2cDevice
                             }
                         }
                     }
-                    else if (expiredTime != 0.0 && TrcUtil.getCurrentTime() > expiredTime)
+                    else if (expiredTime != 0.0 && TrcTimer.getCurrentTime() > expiredTime)
                     {
                         currRequest.expired = true;
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
@@ -554,7 +554,7 @@ public abstract class TrcI2cDevice
                         if (currRequest.writeBuffer == null)
                         {
                             if (currRequest.handler.readCompletion(currRequest.regAddress, currRequest.length,
-                                                                   TrcUtil.getCurrentTime(), dataRead,
+                                                                   TrcTimer.getCurrentTime(), dataRead,
                                                                    currRequest.expired))
                             {
                                 //

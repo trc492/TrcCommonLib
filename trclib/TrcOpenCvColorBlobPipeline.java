@@ -218,7 +218,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
     {
         ArrayList<MatOfPoint> contoursOutput = new ArrayList<>();
         ArrayList<MatOfPoint> filterContoursOutput = new ArrayList<>();
-        double startTime = TrcUtil.getCurrentTime();
+        double startTime = TrcTimer.getCurrentTime();
 
         filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
         findContours(colorThresholdOutput, false, contoursOutput);

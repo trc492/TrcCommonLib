@@ -42,7 +42,7 @@ public class TrcStateMachine<T>
     private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
-    private ArrayList<TrcEvent> eventList = new ArrayList<>();
+    private final ArrayList<TrcEvent> eventList = new ArrayList<>();
     private T currState = null;
     private T nextState = null;
     private boolean enabled = false;
@@ -266,7 +266,7 @@ public class TrcStateMachine<T>
             // If a timeout was specifies and we have past the timeout time, we will put the state machine back to
             // ready mode but indicate the timeout had expired.
             //
-            if (expiredTime > 0.0 && TrcUtil.getCurrentTime() >= expiredTime)
+            if (expiredTime > 0.0 && TrcTimer.getCurrentTime() >= expiredTime)
             {
                 expiredTime = 0.0;
                 ready = true;
@@ -389,7 +389,7 @@ public class TrcStateMachine<T>
         this.expiredTime = timeout;
         if (timeout > 0.0)
         {
-            this.expiredTime += TrcUtil.getCurrentTime();
+            this.expiredTime += TrcTimer.getCurrentTime();
         }
         this.waitForAllEvents = waitForAllEvents;
         ready = false;

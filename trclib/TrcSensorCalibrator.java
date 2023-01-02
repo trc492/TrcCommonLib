@@ -38,11 +38,11 @@ public class TrcSensorCalibrator<D>
     private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
-    private TrcSensor<D> sensor;
-    private int numAxes;
-    private D dataType;
-    private double[] zeroOffsets;
-    private double[] deadbands;
+    private final TrcSensor<D> sensor;
+    private final int numAxes;
+    private final D dataType;
+    private final double[] zeroOffsets;
+    private final double[] deadbands;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -87,7 +87,6 @@ public class TrcSensorCalibrator<D>
      * @param numCalSamples specifies the number of calibration sample to take.
      * @param calInterval specifies the interval between each calibration sample in msec.
      */
-    @SuppressWarnings("unchecked")
     public void calibrate(int numCalSamples, long calInterval)
     {
         final String funcName = "calibrate";
@@ -123,7 +122,7 @@ public class TrcSensorCalibrator<D>
                     maxValues[i] = value;
                 }
             }
-            TrcUtil.sleep(calInterval);
+            TrcTimer.sleep(calInterval);
         }
 
         for (int i = 0; i < numAxes; i++)

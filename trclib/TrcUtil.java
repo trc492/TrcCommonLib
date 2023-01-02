@@ -27,10 +27,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.Locale;
 
 /**
  * This class contains platform independent utility methods. All methods in this class are static. It is not
@@ -42,7 +39,6 @@ public class TrcUtil
     public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
-    private static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -58,119 +54,6 @@ public class TrcUtil
         T get();
 
     }   //interface DataSupplier
-
-    /**
-     * This method is called at the start of a competition mode to set the mode start timestamp so that
-     * getModeElapsedTime can calculate the mode elapsed time.
-     */
-    public static void recordModeStartTime()
-    {
-        modeStartTime.recordTimestamp();
-    }   //recordModeStartTime
-
-    /**
-     * This method returns the competition mode elapsed time by subtracting mode start time from the current time.
-     * If this method is called before the competition mode is started, the system elapsed time is returned instead.
-     *
-     * @return mode elapsed time in seconds.
-     */
-    public static double getModeElapsedTime()
-    {
-        return modeStartTime.getElapsedTime();
-    }   //getModeElapsedTime
-
-    /**
-     * This method returns the elapsed time in seconds of the specified epoch time from the competition mode start
-     * epoch time.
-     *
-     * @param epochTime specifies the epoch time to compute the elapsed time from the mode start time.
-     * @return elapsed time in seconds from last mode start time.
-     */
-    public static double getModeElapsedTime(double epochTime)
-    {
-        return modeStartTime.getElapsedTime(epochTime);
-    }   //getModeElapsedTime
-
-    /**
-     * Returns the current time in seconds.  Note that while the unit of time of the return value is in seconds,
-     * the precision is in nanoseconds but not necessarily nanosecond resolution (that is, how frequently the value
-     * changes). There is no guarantee except that the resolution is at least as good as that of
-     * System.currentTimeMillis().
-     *
-     * @return the time difference in seconds, between the current time and midnight, January 1, 1970 UTC with
-     *         nanosecond precision.
-     */
-    public static double getCurrentTime()
-    {
-        return modeStartTime.getCurrentTime();
-    }   //getCurrentTime
-
-    /**
-     * This method returns the nano second timestamp since a fixed arbitrary time referenced by the Java VM.
-     * Note: this is not epoch time so it is not interchangeable with the time returned from getCurrentTime().
-     *
-     * @return current time in nano second.
-     */
-    public static long getNanoTime()
-    {
-        return System.nanoTime();
-    }   //getNanoTime
-
-    /**
-     * This method returns the current epoch time in msec.
-     *
-     * @return current time in msec.
-     */
-    public static long getCurrentTimeMillis()
-    {
-        return System.currentTimeMillis();
-    }   //getCurrentTimeMillis
-
-    /**
-     * This method returns the current time stamp with the specified format.
-     *
-     * @param format specifies the time stamp format.
-     * @return current time stamp string with the specified format.
-     */
-    public static String getCurrentTimeString(String format)
-    {
-        SimpleDateFormat dateFormat = new SimpleDateFormat(format, Locale.US);
-        return dateFormat.format(new Date());
-    }   //getCurrentTimeString
-
-    /**
-     * This method returns the current time stamp with the default format.
-     *
-     * @return current time stamp string with the default format.
-     */
-    public static String getCurrentTimeString()
-    {
-        return getCurrentTimeString("yyyyMMdd@HHmmss");
-    }   //getCurrentTimeString
-
-    /**
-     * This method puts the current thread to sleep for the given time in msec. It handles InterruptException where
-     * it recalculates the remaining time and calls sleep again repeatedly until the specified sleep time has past.
-     *
-     * @param milliTime specifies sleep time in msec.
-     */
-    public static void sleep(long milliTime)
-    {
-        long wakeupTime = System.currentTimeMillis() + milliTime;
-
-        while (milliTime > 0)
-        {
-            try
-            {
-                Thread.sleep(milliTime);
-                break;
-            }
-            catch (InterruptedException e)
-            {
-                milliTime = wakeupTime - System.currentTimeMillis();
-            }
-        }
-    }   //sleep
 
 //    /**
 //     * This method loads data points from a CSV file either on the external file system or attached resources.
@@ -676,7 +559,7 @@ public class TrcUtil
      */
     public static int bytesToInt(byte data)
     {
-        return (int) data;
+        return data;
     }   //bytesToInt
 
     /**

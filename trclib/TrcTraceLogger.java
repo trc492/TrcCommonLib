@@ -167,10 +167,10 @@ public class TrcTraceLogger
      */
     private void writeMessage(String msg)
     {
-        long startNanoTime = TrcUtil.getNanoTime();
+        long startNanoTime = TrcTimer.getNanoTime();
         traceLog.print(msg + "\r\n");
         traceLog.flush();
-        double elapsedNanoTime = TrcUtil.getNanoTime() - startNanoTime;
+        double elapsedNanoTime = TrcTimer.getNanoTime() - startNanoTime;
         totalNanoTime += elapsedNanoTime;
         totalMessages++;
         //
@@ -219,7 +219,7 @@ public class TrcTraceLogger
                 writeMessage(msg);
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%.3f] Logging message <%s>", TrcUtil.getCurrentTime(), msg);
+                    dbgTrace.traceInfo(funcName, "[%.3f] Logging message <%s>", TrcTimer.getCurrentTime(), msg);
                 }
             }
             catch (InterruptedException e)
@@ -239,7 +239,7 @@ public class TrcTraceLogger
             writeMessage(msg);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "[%.3f] Emptying message <%s>", TrcUtil.getCurrentTime(), msg);
+                dbgTrace.traceInfo(funcName, "[%.3f] Emptying message <%s>", TrcTimer.getCurrentTime(), msg);
             }
         }
 

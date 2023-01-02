@@ -72,7 +72,7 @@ public class TrcWatchdogMgr
             this.name = name;
             this.heartBeatThreshold = heartBeatThreshold;
             this.thread = Thread.currentThread();
-            this.heartBeatExpiredTime = TrcUtil.getCurrentTime() + heartBeatThreshold;
+            this.heartBeatExpiredTime = TrcTimer.getCurrentTime() + heartBeatThreshold;
             this.expired = false;
             this.paused = false;
         }   //Watchdog
@@ -105,7 +105,7 @@ public class TrcWatchdogMgr
 
             if (this.thread == Thread.currentThread())
             {
-                double currTime = TrcUtil.getCurrentTime();
+                double currTime = TrcTimer.getCurrentTime();
 
                 synchronized (this)
                 {
@@ -132,7 +132,7 @@ public class TrcWatchdogMgr
         private synchronized boolean checkForExpiration()
         {
             final String funcName = "checkForExpiration";
-            double currTime = TrcUtil.getCurrentTime();
+            double currTime = TrcTimer.getCurrentTime();
 
             if (!paused && !expired && currTime > heartBeatExpiredTime)
             {
@@ -181,7 +181,7 @@ public class TrcWatchdogMgr
         {
             return String.format(
                 Locale.US, "[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s, paused=%s",
-                TrcUtil.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired, paused);
+                TrcTimer.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired, paused);
         }   //toString
 
         /**

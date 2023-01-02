@@ -988,7 +988,7 @@ public class TrcPidController
                 pidCtrlState.totalError = 0.0;
                 pidCtrlState.setPointSign = Math.signum(error);
 
-                pidCtrlState.currTime = pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
+                pidCtrlState.currTime = pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
             }
         }
 
@@ -1087,7 +1087,7 @@ public class TrcPidController
 
         synchronized (pidCtrlState)
         {
-            double currTime = TrcUtil.getCurrentTime();
+            double currTime = TrcTimer.getCurrentTime();
             double absErr = Math.abs(pidCtrlState.currError);
 
             if (noOscillation)
@@ -1111,7 +1111,7 @@ public class TrcPidController
                      absErr > pidParams.tolerance &&
                      Math.abs(pidCtrlState.errorRate) > pidParams.stallErrRateThreshold)
             {
-                pidCtrlState.settlingStartTime = TrcUtil.getCurrentTime();
+                pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
 
                 if (debugEnabled)
                 {
@@ -1178,7 +1178,7 @@ public class TrcPidController
             }
 
             double prevTime = pidCtrlState.currTime;
-            pidCtrlState.currTime = TrcUtil.getCurrentTime();
+            pidCtrlState.currTime = TrcTimer.getCurrentTime();
             pidCtrlState.deltaTime = pidCtrlState.currTime - prevTime;
 
             double prevError = pidCtrlState.currError;
@@ -1299,11 +1299,11 @@ public class TrcPidController
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
                             ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f" +
                             ", Volt=%.1f(%.1f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput,
                             pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            TrcUtil.getModeElapsedTime(pidCtrlState.currTime),
+                            TrcTimer.getModeElapsedTime(pidCtrlState.currTime),
                             battery.getVoltage(), battery.getLowestVoltage());
                     }
                     else
@@ -1312,7 +1312,7 @@ public class TrcPidController
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
                             ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput,
                             pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
@@ -1327,7 +1327,7 @@ public class TrcPidController
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
                             ", Output=%6.3f(%6.3f/%6.3f)" +
                             ", Volt=%.1f(%.1f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput,
                             battery.getVoltage(), battery.getLowestVoltage());
@@ -1338,7 +1338,7 @@ public class TrcPidController
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
                             ", Output=%6.3f(%6.3f/%6.3f)",
-                            TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
+                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput);
                     }

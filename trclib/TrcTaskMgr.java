@@ -441,7 +441,7 @@ public class TrcTaskMgr
          */
         private synchronized void recordStartTime(TaskType taskType)
         {
-            long currNanoTime = TrcUtil.getNanoTime();
+            long currNanoTime = TrcTimer.getNanoTime();
             long taskInterval = taskStartTimes[taskType.value] > 0 ? currNanoTime - taskStartTimes[taskType.value] : 0;
 
             taskStartTimes[taskType.value] = currNanoTime;
@@ -456,7 +456,7 @@ public class TrcTaskMgr
         private synchronized void recordElapsedTime(TaskType taskType)
         {
             final String funcName = "recordElapsedTime";
-            long currNanoTime = TrcUtil.getNanoTime();
+            long currNanoTime = TrcTimer.getNanoTime();
             long startTime = taskStartTimes[taskType.value];
             long elapsedTime = currNanoTime - startTime;
 

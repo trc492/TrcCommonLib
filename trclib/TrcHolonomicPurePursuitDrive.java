@@ -66,7 +66,7 @@ public class TrcHolonomicPurePursuitDrive
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
 
-        private int value;
+        private final int value;
 
         InterpolationType(int value)
         {
@@ -95,7 +95,7 @@ public class TrcHolonomicPurePursuitDrive
     private double positionInput;
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
-    private TrcWarpSpace warpSpace;
+    private final TrcWarpSpace warpSpace;
     private TrcPurePursuitDrive.WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean maintainHeading = false;
@@ -394,7 +394,7 @@ public class TrcHolonomicPurePursuitDrive
 
         this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
-        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
+        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcTimer.getCurrentTime() + timeout;
         pathIndex = 1;
         positionInput = 0;
         startHeading = driveBase.getHeading();
@@ -693,15 +693,15 @@ public class TrcHolonomicPurePursuitDrive
         {
             TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDrive.driveTask",
                 "[%.6f] RobotPose=%s,RobotVel:%.2f,TargetPose=%s,TargetVel:%.2f,pathIndex=%d,r=%.2f,theta=%.1f",
-                TrcUtil.getModeElapsedTime(), pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
+                TrcTimer.getModeElapsedTime(), pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
         }
         TrcDbgTrace.getGlobalTracer().traceInfo(
             "TrcHolonomicPurePursuitDrive.driveTask",
             "<><><> [%.6f] RobotPose=%s,RobotVel:%.2f,TargetPose=%s,TargetVel:%.2f,pathIndex=%d,r=%.2f,theta=%.1f",
-            TrcUtil.getModeElapsedTime(), pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
+            TrcTimer.getModeElapsedTime(), pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
 
         // If we have timed out or finished, stop the operation.
-        boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
+        boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = dist <= posTolerance;
         boolean headingOnTarget = maintainHeading || (!maintainHeading && turnPidCtrl.isOnTarget());
         if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
@@ -726,9 +726,9 @@ public class TrcHolonomicPurePursuitDrive
 
             if (tracePidInfo)
             {
-                if (posPidCtrl != null) posPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (velPidCtrl != null) velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (turnPidCtrl != null) turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                posPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
             }
         }
     }   //driveTask

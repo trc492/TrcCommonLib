@@ -345,12 +345,12 @@ public class TrcRequestQueue<R>
 
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%.3f] processing request %s", TrcUtil.getCurrentTime(), entry);
+                    dbgTrace.traceInfo(funcName, "[%.3f] processing request %s", TrcTimer.getCurrentTime(), entry);
                 }
 
-                long startNanoTime = TrcUtil.getNanoTime();
+                long startNanoTime = TrcTimer.getNanoTime();
                 entry.notifyEvent.signal();
-                long elapsedTime = TrcUtil.getNanoTime() - startNanoTime;
+                long elapsedTime = TrcTimer.getNanoTime() - startNanoTime;
         
                 totalNanoTime += elapsedTime;
                 totalRequests++;
@@ -387,7 +387,7 @@ public class TrcRequestQueue<R>
             {
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%.3f] Canceling request %s", TrcUtil.getCurrentTime(), entry);
+                    dbgTrace.traceInfo(funcName, "[%.3f] Canceling request %s", TrcTimer.getCurrentTime(), entry);
                 }
                 cancelRequest(entry);
             }

@@ -250,7 +250,7 @@ public class TrcDbgTrace
         //
         // Create full log file path.
         //
-        String logFileName = folderPath + File.separator + TrcUtil.getCurrentTimeString();
+        String logFileName = folderPath + File.separator + TrcTimer.getCurrentTimeString();
 
         if (fileName != null)
         {
@@ -357,7 +357,7 @@ public class TrcDbgTrace
     public void logEvent(final String funcName, final String eventName, final String format, Object... args)
     {
         String newFormat = String.format(Locale.US, "<Event name=\"%s\" time=\"%.3f\" %s />",
-                eventName, TrcUtil.getModeElapsedTime(), format);
+                eventName, TrcTimer.getModeElapsedTime(), format);
         traceMsg(funcName, MsgLevel.INFO, newFormat, args);
     }   //logEvent
 

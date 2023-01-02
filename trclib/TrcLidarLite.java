@@ -587,7 +587,7 @@ public class TrcLidarLite
                         break;
 
                     case GET_DISTANCE:
-                        distance.timestamp = TrcUtil.getCurrentTime();
+                        distance.timestamp = TrcTimer.getCurrentTime();
                         distance.value = (double)TrcUtil.bytesToInt(request.buffer[1], request.buffer[0]);
                         break;
 

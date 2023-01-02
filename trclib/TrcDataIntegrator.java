@@ -55,7 +55,6 @@ public class TrcDataIntegrator<D>
      * @param dataType specifies the data type to be integrated.
      * @param doubleIntegration specifies true to do double integration, false otherwise.
      */
-    @SuppressWarnings("unchecked")
     public TrcDataIntegrator(
         final String instanceName, final TrcSensor<D> sensor, final D dataType, final boolean doubleIntegration)
     {
@@ -163,7 +162,7 @@ public class TrcDataIntegrator<D>
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        prevTimes[index] = TrcUtil.getCurrentTime();
+        prevTimes[index] = TrcTimer.getCurrentTime();
         integratedData[index].value = 0.0;
         if (doubleIntegratedData != null)
         {

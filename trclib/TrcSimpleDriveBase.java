@@ -394,7 +394,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
         if (Math.abs(delta.velocity.y) > stallVelThreshold)
         {
             // reset stall start time to current time if drive base has movement.
-            stallStartTime = TrcUtil.getCurrentTime();
+            stallStartTime = TrcTimer.getCurrentTime();
         }
 
         if (debugEnabled)

@@ -62,12 +62,12 @@ public class TrcHolonomicPurePursuitDriveV2
     private int pathIndex = 1;
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
-    private TrcWarpSpace warpSpace;
+    private final TrcWarpSpace warpSpace;
     private double startHeading;
     private TrcPose2D referencePose;
     private double moveOutputLimit = Double.POSITIVE_INFINITY;
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
-    private double accelFF; // acceleration feedforward
+    private final double accelFF; // acceleration feedforward
 
     /**
      * Constructor: Create an instance of the object.
@@ -268,7 +268,7 @@ public class TrcHolonomicPurePursuitDriveV2
         this.onFinishedEvent = onFinishedEvent;
 
         this.path = path;
-        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcUtil.getCurrentTime() + timeout;
+        timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : TrcTimer.getCurrentTime() + timeout;
         pathIndex = 1;
         startHeading = driveBase.getHeading();
 
@@ -431,13 +431,13 @@ public class TrcHolonomicPurePursuitDriveV2
             TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDriveV2.driveTask",
                 "[%.3f] pos=%s, followingPoint=%s, targetPoint=%s, vel=%.2f, targetVel=%.2f, " +
                 "targetAccel=%.2f, pathIndex=%d, r=%.2f, theta=%.2f",
-                TrcUtil.getModeElapsedTime(), pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(),
+                TrcTimer.getModeElapsedTime(), pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(),
                 velocity, targetVel, targetPoint.acceleration, pathIndex, r, theta);
         }
 
         // If we have timed out or finished, stop the operation.
 
-        boolean timedOut = TrcUtil.getCurrentTime() >= timedOutTime;
+        boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = pose.distanceTo(path.getLastWaypoint().getPositionPose()) <= posTolerance;
         boolean headingOnTarget = turnPidCtrl.isOnTarget();
         boolean velOnTarget = velocity <= velTolerance;

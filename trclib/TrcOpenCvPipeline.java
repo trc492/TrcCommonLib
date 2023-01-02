@@ -46,7 +46,7 @@ public interface TrcOpenCvPipeline<O>
          */
         public void reset()
         {
-            startTime = TrcUtil.getCurrentTime();
+            startTime = TrcTimer.getCurrentTime();
             totalProcessedTime = 0.0;
             totalProcessedFrames = 0;
         }   //reset
@@ -58,7 +58,7 @@ public interface TrcOpenCvPipeline<O>
          */
         public void logProcessingTime(double startTime)
         {
-            totalProcessedTime += TrcUtil.getCurrentTime() - startTime;
+            totalProcessedTime += TrcTimer.getCurrentTime() - startTime;
             totalProcessedFrames++;
         }   //logProcessingTime
 
@@ -74,7 +74,7 @@ public interface TrcOpenCvPipeline<O>
                 tracer.traceInfo(
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
                     totalProcessedTime/totalProcessedFrames,
-                    totalProcessedFrames/(TrcUtil.getCurrentTime() - startTime));
+                    totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
             }
         }   //printMetrics
 

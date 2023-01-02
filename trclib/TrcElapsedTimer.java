@@ -86,7 +86,7 @@ public class TrcElapsedTimer
      */
     public synchronized void recordStartTime()
     {
-        startTime = TrcUtil.getNanoTime();
+        startTime = TrcTimer.getNanoTime();
     }   //recordStartTime
 
     /**
@@ -101,7 +101,7 @@ public class TrcElapsedTimer
         //
         if (startTime != 0L)
         {
-            long elapsedTime = TrcUtil.getNanoTime() - startTime;
+            long elapsedTime = TrcTimer.getNanoTime() - startTime;
 
             if (elapsedTime < minElapsedTime)
             {
@@ -159,7 +159,7 @@ public class TrcElapsedTimer
      */
     public synchronized double getAverageElapsedTime()
     {
-        return elapsedTimeQueue.isEmpty()? 0.0: totalElapsedTime/elapsedTimeQueue.size()/1000000000.0;
+        return elapsedTimeQueue.isEmpty()? 0.0: (double)totalElapsedTime/elapsedTimeQueue.size()/1000000000.0;
     }   //getAverageElapsedTime
 
     /**

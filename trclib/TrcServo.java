@@ -470,7 +470,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
         this.targetPosition = actionParams.pos;
         this.currStepRate = Math.abs(actionParams.stepRate);
-        this.prevTime = TrcUtil.getCurrentTime();
+        this.prevTime = TrcTimer.getCurrentTime();
         this.currPosition = getPosition();
         setTaskEnabled(true);
     }   //performSetPositionWithStepRate
@@ -959,7 +959,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 //                }
 //            }
 
-            double currTime = TrcUtil.getCurrentTime();
+            double currTime = TrcTimer.getCurrentTime();
             double deltaPos = currStepRate * (currTime - prevTime);
 
             if (currPosition < targetPosition)

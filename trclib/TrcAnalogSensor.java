@@ -70,7 +70,7 @@ public class TrcAnalogSensor extends TrcAnalogInput
     {
         final String funcName = "getRawData";
         Double rawData = dataSource.getData();
-        SensorData<Double> data = rawData != null? new SensorData<>(TrcUtil.getCurrentTime(), rawData): null;
+        SensorData<Double> data = rawData != null? new SensorData<>(TrcTimer.getCurrentTime(), rawData): null;
 
         if (debugEnabled)
         {

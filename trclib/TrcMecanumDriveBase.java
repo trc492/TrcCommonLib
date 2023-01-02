@@ -224,7 +224,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
         {
             // reset stall start time to current time if drive base has movement.
             // Note: y movement is taken care of by the superclass TrcSimpleDriveBase.
-            stallStartTime = TrcUtil.getCurrentTime();
+            stallStartTime = TrcTimer.getCurrentTime();
         }
 
         return delta;

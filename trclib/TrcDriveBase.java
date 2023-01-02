@@ -424,9 +424,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,resetHW=%s", enabled, resetHardware);
         }
 
-        for (int i = 0; i < motors.length; i++)
+        for (TrcMotor motor: motors)
         {
-            motors[i].setOdometryEnabled(enabled, true, resetHardware);
+            motor.setOdometryEnabled(enabled, true, resetHardware);
         }
 
         if (enabled)
@@ -889,7 +889,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     motorsState.prevMotorOdometries[i] = null;
                     motorsState.currMotorOdometries[i].prevTimestamp
                         = motorsState.currMotorOdometries[i].currTimestamp
-                        = TrcUtil.getCurrentTime();
+                        = TrcTimer.getCurrentTime();
                     motorsState.currMotorOdometries[i].prevPos
                         = motorsState.currMotorOdometries[i].currPos
                         = motorsState.currMotorOdometries[i].velocity = 0.0;
@@ -1185,7 +1185,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getAntiTippingPower(boolean xTippingControl)
     {
-        double power = 0.0;
+        double power;
         TrcPidController tippingPidCtrl = xTippingControl? xTippingPidCtrl: yTippingPidCtrl;
 
         power = tippingPidCtrl.getOutput();
@@ -1266,7 +1266,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         // stallStartTime is set to current time whenever there is wheel movement.
         // stallStartTime is reset to zero whenever the drive base is stopped (i.e. power set to zero).
-        return stallStartTime != 0.0 && TrcUtil.getCurrentTime() > stallStartTime + stallTime;
+        return stallStartTime != 0.0 && TrcTimer.getCurrentTime() > stallStartTime + stallTime;
     }   //isStalled
 
     /**
@@ -1495,7 +1495,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void curveDrive(String owner, double magnitude, double curve, boolean inverted)
     {
-        curveDrive(owner, magnitude, curve, false, 0.0, null);
+        curveDrive(owner, magnitude, curve, inverted, 0.0, null);
     }   //curveDrive
 
     /**
@@ -1687,7 +1687,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     protected void holonomicDrive(String owner, double x, double y, double rotation, boolean inverted, double gyroAngle)
     {
-        holonomicDrive(owner, x, y, rotation, inverted, 0.0, 0.0, null);
+        holonomicDrive(owner, x, y, rotation, inverted, gyroAngle, 0.0, null);
     }   //holonomicDrive
 
     /**
@@ -2052,7 +2052,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     Math.abs(odometryDelta.velocity.y) > stallVelThreshold)
                 {
                     // reset stall start time to current time if drive base has movement.
-                    stallStartTime = TrcUtil.getCurrentTime();
+                    stallStartTime = TrcTimer.getCurrentTime();
                 }
             }
             else

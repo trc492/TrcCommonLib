@@ -36,7 +36,7 @@ public class TrcStopwatch
     public synchronized void start()
     {
         lastElapsedTime = 0.0;
-        startTime = TrcUtil.getCurrentTime();
+        startTime = TrcTimer.getCurrentTime();
     }   //start
 
     /**
@@ -46,7 +46,7 @@ public class TrcStopwatch
     {
         if (isRunning())
         {
-            lastElapsedTime = TrcUtil.getCurrentTime() - startTime;
+            lastElapsedTime = TrcTimer.getCurrentTime() - startTime;
             startTime = 0.0;
         }
     }   //stop
@@ -69,7 +69,7 @@ public class TrcStopwatch
      */
     public synchronized double getElapsedTime()
     {
-        return isRunning() ? TrcUtil.getCurrentTime() - startTime : lastElapsedTime;
+        return isRunning() ? TrcTimer.getCurrentTime() - startTime : lastElapsedTime;
     }   //getElapsedTime;
 
 }   //class TrcStopwatch

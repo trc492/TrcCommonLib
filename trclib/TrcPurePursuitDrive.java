@@ -614,7 +614,7 @@ public class TrcPurePursuitDrive
 
             this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
-            double currTime = TrcUtil.getCurrentTime();
+            double currTime = TrcTimer.getCurrentTime();
             timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
             stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
@@ -1058,7 +1058,7 @@ public class TrcPurePursuitDrive
         {
             dbgTrace.traceInfo(
                 funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
-                pathIndex, TrcUtil.getModeElapsedTime(), robotPose, targetPoint.pose, relativeTargetPose);
+                pathIndex, TrcTimer.getModeElapsedTime(), robotPose, targetPoint.pose, relativeTargetPose);
             dbgTrace.traceInfo(
                 funcName,
                 "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
@@ -1069,7 +1069,7 @@ public class TrcPurePursuitDrive
         }
 
         // If we have timed out or finished, stop the operation.
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
         boolean timedOut = currTime >= timedOutTime;
         boolean stalled =
             stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);

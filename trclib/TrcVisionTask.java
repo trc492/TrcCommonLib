@@ -115,7 +115,7 @@ public class TrcVisionTask<I, O>
             detectedObjects = null;
             totalTime = 0.0;
             totalFrames = 0;
-            taskStartTime = TrcUtil.getCurrentTime();
+            taskStartTime = TrcTimer.getCurrentTime();
             visionTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK);
         }
         else if (!enabled && taskEnabled)
@@ -235,7 +235,7 @@ public class TrcVisionTask<I, O>
 
         if (visionProcessor.getFrame(imageBuffers[imageIndex]))
         {
-            double startTime = TrcUtil.getCurrentTime();
+            double startTime = TrcTimer.getCurrentTime();
             //
             // Capture an image and subject it for object detection. The object detector produces an array of
             // rectangles representing objects detected.
@@ -247,14 +247,14 @@ public class TrcVisionTask<I, O>
                 visionProcessor.annotateFrame(imageBuffers[imageIndex], detectedObjects);
             }
 
-            double elapsedTime = TrcUtil.getCurrentTime() - startTime;
+            double elapsedTime = TrcTimer.getCurrentTime() - startTime;
             totalTime += elapsedTime;
             totalFrames++;
             if (tracer != null)
             {
                 tracer.traceInfo(
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
-                    totalTime/totalFrames, totalFrames/(TrcUtil.getCurrentTime() - taskStartTime));
+                    totalTime/totalFrames, totalFrames/(TrcTimer.getCurrentTime() - taskStartTime));
             }
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.

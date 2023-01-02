@@ -22,7 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -112,7 +114,7 @@ public class TrcTimer
             //
             // In case the timer is still active, cancel it first.
             //
-            state.expiredTimeInMsec.set(TrcUtil.getCurrentTimeMillis() + (long)(time*1000));
+            state.expiredTimeInMsec.set(TrcTimer.getCurrentTimeMillis() + (long)(time*1000));
             state.expired.set(false);
             state.canceled.set(false);
             // Notification callback requires an event. If the caller did not provide one, create one ourselves.
@@ -299,11 +301,125 @@ public class TrcTimer
     // Timer Management: It is a singleton. Therefore, everything here are static.
     //
 
+    private static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
     private static final ArrayList<TrcTimer> timerList = new ArrayList<>();
     private static Thread timerThread = null;
     private static boolean shuttingDown = false;
     private static TrcTimer nextTimerToExpire = null;
     private static TrcTimer preemptingTimer = null;
+
+    /**
+     * This method is called at the start of a competition mode to set the mode start timestamp so that
+     * getModeElapsedTime can calculate the mode elapsed time.
+     */
+    public static void recordModeStartTime()
+    {
+        modeStartTime.recordTimestamp();
+    }   //recordModeStartTime
+
+    /**
+     * This method returns the competition mode elapsed time by subtracting mode start time from the current time.
+     * If this method is called before the competition mode is started, the system elapsed time is returned instead.
+     *
+     * @return mode elapsed time in seconds.
+     */
+    public static double getModeElapsedTime()
+    {
+        return modeStartTime.getElapsedTime();
+    }   //getModeElapsedTime
+
+    /**
+     * This method returns the elapsed time in seconds of the specified epoch time from the competition mode start
+     * epoch time.
+     *
+     * @param epochTime specifies the epoch time to compute the elapsed time from the mode start time.
+     * @return elapsed time in seconds from last mode start time.
+     */
+    public static double getModeElapsedTime(double epochTime)
+    {
+        return modeStartTime.getElapsedTime(epochTime);
+    }   //getModeElapsedTime
+
+    /**
+     * Returns the current time in seconds.  Note that while the unit of time of the return value is in seconds,
+     * the precision is in nanoseconds but not necessarily nanosecond resolution (that is, how frequently the value
+     * changes). There is no guarantee except that the resolution is at least as good as that of
+     * System.currentTimeMillis().
+     *
+     * @return the time difference in seconds, between the current time and midnight, January 1, 1970 UTC with
+     *         nanosecond precision.
+     */
+    public static double getCurrentTime()
+    {
+        return modeStartTime.getCurrentTime();
+    }   //getCurrentTime
+
+    /**
+     * This method returns the nano second timestamp since a fixed arbitrary time referenced by the Java VM.
+     * Note: this is not epoch time so it is not interchangeable with the time returned from getCurrentTime().
+     *
+     * @return current time in nano second.
+     */
+    public static long getNanoTime()
+    {
+        return System.nanoTime();
+    }   //getNanoTime
+
+    /**
+     * This method returns the current epoch time in msec.
+     *
+     * @return current time in msec.
+     */
+    public static long getCurrentTimeMillis()
+    {
+        return System.currentTimeMillis();
+    }   //getCurrentTimeMillis
+
+    /**
+     * This method returns the current time stamp with the specified format.
+     *
+     * @param format specifies the time stamp format.
+     * @return current time stamp string with the specified format.
+     */
+    public static String getCurrentTimeString(String format)
+    {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(format, Locale.US);
+        return dateFormat.format(new Date());
+    }   //getCurrentTimeString
+
+    /**
+     * This method returns the current time stamp with the default format.
+     *
+     * @return current time stamp string with the default format.
+     */
+    public static String getCurrentTimeString()
+    {
+        return getCurrentTimeString("yyyyMMdd@HHmmss");
+    }   //getCurrentTimeString
+
+    /**
+     * This method puts the current thread to sleep for the given time in msec. It handles InterruptException where
+     * it recalculates the remaining time and calls sleep again repeatedly until the specified sleep time has past.
+     *
+     * @param milliTime specifies sleep time in msec.
+     */
+    public static void sleep(long milliTime)
+    {
+        long wakeupTime = System.currentTimeMillis() + milliTime;
+
+        while (milliTime > 0)
+        {
+            try
+            {
+                Thread.sleep(milliTime);
+                break;
+            }
+            catch (InterruptedException e)
+            {
+                milliTime = wakeupTime - System.currentTimeMillis();
+            }
+        }
+    }   //sleep
 
     /**
      * This method adds the timer to the timer list in the order of expiration.
@@ -323,7 +439,7 @@ public class TrcTimer
                 {
                     globalTracer.traceInfo(
                         funcName, "[%d] Adding timer %s preempting %s.",
-                        TrcUtil.getCurrentTimeMillis(), timer, nextTimerToExpire);
+                        TrcTimer.getCurrentTimeMillis(), timer, nextTimerToExpire);
                 }
                 //
                 // The added new timer expires sooner than the one we are sleeping on. Let's interrupt its sleep and
@@ -350,7 +466,7 @@ public class TrcTimer
                 {
                     globalTracer.traceInfo(
                         funcName, "[%d] Adding timer %s to queue position %d.",
-                        TrcUtil.getCurrentTimeMillis(), timer, position);
+                        TrcTimer.getCurrentTimeMillis(), timer, position);
                 }
                 timerList.add(position, timer);
                 //
@@ -483,12 +599,12 @@ public class TrcTimer
 
                 // sleepTimeInMsec is not zero only if we have a pending timer to process.
                 sleepTimeInMsec = nextTimerToExpire != null?
-                    nextTimerToExpire.getExpiredTimeInMsec() - TrcUtil.getCurrentTimeMillis(): 0;
+                    nextTimerToExpire.getExpiredTimeInMsec() - TrcTimer.getCurrentTimeMillis(): 0;
                 if (debugEnabled)
                 {
                     globalTracer.traceInfo(
                         funcName, "[%d]: timer=%s, sleepTimeInMsec=%d",
-                        TrcUtil.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
+                        TrcTimer.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
                 }
 
                 if (sleepTimeInMsec > 0)
@@ -506,7 +622,7 @@ public class TrcTimer
                     if (debugEnabled)
                     {
                         globalTracer.traceInfo(
-                            funcName, "[%d]: timer %s expired.", TrcUtil.getCurrentTimeMillis(), nextTimerToExpire);
+                            funcName, "[%d]: timer %s expired.", TrcTimer.getCurrentTimeMillis(), nextTimerToExpire);
                     }
                     nextTimerToExpire.setExpired();
                     nextTimerToExpire = null;
@@ -535,7 +651,7 @@ public class TrcTimer
                         {
                             globalTracer.traceInfo(
                                 funcName, "[%d] Timer %s is preempting %s.",
-                                TrcUtil.getCurrentTimeMillis(), preemptingTimer, nextTimerToExpire);
+                                TrcTimer.getCurrentTimeMillis(), preemptingTimer, nextTimerToExpire);
                         }
 
                         nextTimerToExpire = preemptingTimer;
@@ -547,7 +663,7 @@ public class TrcTimer
                         {
                             globalTracer.traceInfo(
                                 funcName, "[%d] timer %s was canceled.",
-                                TrcUtil.getCurrentTimeMillis(), nextTimerToExpire);
+                                TrcTimer.getCurrentTimeMillis(), nextTimerToExpire);
                         }
                         nextTimerToExpire = null;
                     }

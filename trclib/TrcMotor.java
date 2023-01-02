@@ -1030,7 +1030,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         synchronized (odometry)
         {
             resetPosition(resetHardware);
-            odometry.prevTimestamp = odometry.currTimestamp = TrcUtil.getCurrentTime();
+            odometry.prevTimestamp = odometry.currTimestamp = TrcTimer.getCurrentTime();
             odometry.prevPos = odometry.currPos = 0.0;
             odometry.velocity = 0.0;
         }
@@ -1080,7 +1080,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                 {
                     motor.odometry.prevTimestamp = motor.odometry.currTimestamp;
                     motor.odometry.prevPos = motor.odometry.currPos;
-                    motor.odometry.currTimestamp = TrcUtil.getCurrentTime();
+                    motor.odometry.currTimestamp = TrcTimer.getCurrentTime();
 
                     if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordStartTime();
                     motor.odometry.currPos = (motor.getMotorPosition() - motor.zeroPosition)*motor.posSensorSign;

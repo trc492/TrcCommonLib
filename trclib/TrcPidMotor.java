@@ -555,7 +555,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 //
                 // If a timeout is provided, set the expired time.
                 //
-                this.timeout = timeout > 0.0? timeout + TrcUtil.getCurrentTime(): 0.0;
+                this.timeout = timeout > 0.0? timeout + TrcTimer.getCurrentTime(): 0.0;
                 //
                 // Set a new PID target.
                 //
@@ -716,10 +716,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             if (Math.abs(power) < Math.abs(stallMinPower) || Math.abs(currPos - prevPos) > stallTolerance || prevTime == 0.0)
             {
                 prevPos = currPos;
-                prevTime = TrcUtil.getCurrentTime();
+                prevTime = TrcTimer.getCurrentTime();
             }
 
-            if (TrcUtil.getCurrentTime() - prevTime > stallTimeout)
+            if (TrcTimer.getCurrentTime() - prevTime > stallTimeout)
             {
                 //
                 // We have detected a stalled condition for at least stallTimeout. Kill power to protect
@@ -759,10 +759,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // We had a stalled condition but if power is removed for at least reset timeout, we clear the
                 // stalled condition.
                 //
-                if (resetTimeout == 0.0 || TrcUtil.getCurrentTime() - prevTime > resetTimeout)
+                if (resetTimeout == 0.0 || TrcTimer.getCurrentTime() - prevTime > resetTimeout)
                 {
                     prevPos = getPosition();
-                    prevTime = TrcUtil.getCurrentTime();
+                    prevTime = TrcTimer.getCurrentTime();
                     stalled = false;
                     if (beepDevice != null)
                     {
@@ -772,7 +772,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             }
             else
             {
-                prevTime = TrcUtil.getCurrentTime();
+                prevTime = TrcTimer.getCurrentTime();
             }
         }
 
@@ -1121,7 +1121,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             calibrating = true;
             motor1ZeroCalDone = false;
             motor2ZeroCalDone = motor2 == null || syncGain == 0.0;
-            prevTime = TrcUtil.getCurrentTime();
+            prevTime = TrcTimer.getCurrentTime();
             setTaskEnabled(true);
         }
     }   //zeroCalibrate
@@ -1393,7 +1393,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         }
         else
         {
-            boolean timedOut = timeout != 0.0 && TrcUtil.getCurrentTime() >= timeout;
+            boolean timedOut = timeout != 0.0 && TrcTimer.getCurrentTime() >= timeout;
             boolean onTarget = pidCtrl.isOnTarget();
             boolean stopped = stalled || !holdTarget && (timedOut || onTarget);
 

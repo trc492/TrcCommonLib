@@ -576,7 +576,7 @@ public class TrcPidDrive
         }
         this.notifyEvent = event;
 
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
         expiredTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
         stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
@@ -762,10 +762,7 @@ public class TrcPidDrive
                     yPidCtrl.setNoOscillation(yDelta != 0.0);
                 }
 
-                if (turnPidCtrl != null)
-                {
-                    turnPidCtrl.setNoOscillation(turnDelta != 0.0);
-                }
+                turnPidCtrl.setNoOscillation(turnDelta != 0.0);
             }
 
             if (debugEnabled)
@@ -1004,10 +1001,7 @@ public class TrcPidDrive
                     yPidCtrl.setNoOscillation(absY != absTargetPose.y);
                 }
 
-                if (turnPidCtrl != null)
-                {
-                    turnPidCtrl.setNoOscillation(absHeading != absTargetPose.angle);
-                }
+                turnPidCtrl.setNoOscillation(absHeading != absTargetPose.angle);
             }
 
             absTargetPose = newTargetPose;
@@ -1473,8 +1467,8 @@ public class TrcPidDrive
         double yPower = turnOnly || yPidCtrl == null? 0.0: yPidCtrl.getOutput();
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
 
-        double currTime = TrcUtil.getCurrentTime();
-        boolean expired = TrcUtil.getCurrentTime() >= expiredTime;
+        double currTime = TrcTimer.getCurrentTime();
+        boolean expired = TrcTimer.getCurrentTime() >= expiredTime;
         boolean stalled =
             stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();

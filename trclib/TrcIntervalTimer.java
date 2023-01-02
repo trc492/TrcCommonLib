@@ -59,7 +59,7 @@ public class TrcIntervalTimer
 
         this.instanceName = instanceName;
         this.interval = interval;
-        this.expirationTime = TrcUtil.getCurrentTime();
+        this.expirationTime = TrcTimer.getCurrentTime();
     }   //TrcIntervalTimer
 
     /**
@@ -82,7 +82,7 @@ public class TrcIntervalTimer
     public boolean hasExpired()
     {
         final String funcName = "hasExpired";
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
         boolean expired = currTime >= expirationTime;
 
         if (debugEnabled)

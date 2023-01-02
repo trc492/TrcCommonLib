@@ -152,7 +152,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                     throw new RuntimeException("Must call setTrigger first before enabling the trigger.");
                 }
 
-                triggerState.startTime = TrcUtil.getCurrentTime();
+                triggerState.startTime = TrcTimer.getCurrentTime();
                 triggerState.recordedData.clear();
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
             }
@@ -264,7 +264,7 @@ public class TrcThresholdTrigger implements TrcTrigger
     private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
     {
         final String funcName = "triggerTask";
-        double currTime = TrcUtil.getCurrentTime();
+        double currTime = TrcTimer.getCurrentTime();
         double currValue = valueSource.getValue();
         boolean triggered = false;
         boolean active;

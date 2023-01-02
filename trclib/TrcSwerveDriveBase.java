@@ -511,7 +511,8 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         for (int i = 0; i < numMotors; i++)
         {
             TrcSwerveModule swerveModule = driveMotorToModuleMap.get(currOdometries[i].sensor);
-            double angle = swerveModule.getSteerAngle();
+            // swerveModule won't be null but checking it to shut up the compiler warning.
+            double angle = swerveModule != null? swerveModule.getSteerAngle(): 0.0;
             double posDelta = currOdometries[i].currPos - prevOdometries[i].currPos;
             // xScale and yScale on SwerveDrive should be identical.
             wheelPosVectors[i] = TrcUtil.polarToCartesian(posDelta, angle).mapMultiply(xScale);
@@ -534,7 +535,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         if (TrcUtil.magnitude(delta.velocity.x, delta.velocity.y) > stallVelThreshold)
         {
             // reset stall start time to current time if drive base has movement.
-            stallStartTime = TrcUtil.getCurrentTime();
+            stallStartTime = TrcTimer.getCurrentTime();
         }
 
         double x = wheelBaseWidth / 2;
