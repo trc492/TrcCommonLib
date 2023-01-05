@@ -32,13 +32,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public abstract class TrcI2cDevice
 {
-    protected static final String moduleName = "TrcI2cDevice";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     /**
      * This method checks if the I2C port is ready for bus transaction.
@@ -184,13 +179,6 @@ public abstract class TrcI2cDevice
      */
     public TrcI2cDevice(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         i2cDeviceTaskObj = TrcTaskMgr.createTask(instanceName + ".i2cDeviceTask", this::i2cDeviceTask);
         portCommandSM = new TrcStateMachine<>(instanceName);
@@ -214,13 +202,6 @@ public abstract class TrcI2cDevice
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             i2cDeviceTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK);
@@ -230,11 +211,6 @@ public abstract class TrcI2cDevice
         {
             portCommandSM.stop();
             i2cDeviceTaskObj.unregisterTask();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setTaskEnabled
 
@@ -252,8 +228,7 @@ public abstract class TrcI2cDevice
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "addr=%x,len=%d", regAddress, length);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "addr=%x,len=%d", regAddress, length);
         }
 
         requestQueue.add(new Request(regAddress, length, null, handler, timeout));
@@ -304,8 +279,7 @@ public abstract class TrcI2cDevice
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "addr=%x,len=%d", regAddress, length);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "addr=%x,len=%d", regAddress, length);
         }
 
         requestQueue.add(new Request(regAddress, length, writeBuffer, handler, timeout));
@@ -360,8 +334,7 @@ public abstract class TrcI2cDevice
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "command=%x", command);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "command=%x", command);
         }
     }   //sendByteCommand
 
@@ -382,8 +355,7 @@ public abstract class TrcI2cDevice
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "command=%x", command);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "command=%x", command);
         }
     }   //sendWordCommand
 
@@ -392,15 +364,13 @@ public abstract class TrcI2cDevice
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void i2cDeviceTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void i2cDeviceTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "i2cDeviceTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
 
         if (portCommandSM.isReady())
         {
@@ -424,7 +394,7 @@ public abstract class TrcI2cDevice
                     {
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "%s", state.toString());
+                            globalTracer.traceInfo(funcName, "%s", state);
                         }
                         expiredTime = currRequest.timeout;
                         if (expiredTime != 0.0)
@@ -446,9 +416,10 @@ public abstract class TrcI2cDevice
                     {
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "%s: Request(addr=%x,len=%d,%s)",
-                                               state.toString(), currRequest.regAddress,
-                                               currRequest.length, currRequest.writeBuffer == null? "read": "write");
+                            globalTracer.traceInfo(
+                                funcName, "%s: Request(addr=%x,len=%d,%s)",
+                                state.toString(), currRequest.regAddress, currRequest.length,
+                                currRequest.writeBuffer == null? "read": "write");
                         }
 
                         dataRead = null;
@@ -474,8 +445,7 @@ public abstract class TrcI2cDevice
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "%s: Port timed out, busy with another request.",
-                                               state.toString());
+                            globalTracer.traceInfo(funcName, "%s: Port timed out, busy with another request.", state);
                         }
                     }
                     break;
@@ -494,7 +464,7 @@ public abstract class TrcI2cDevice
                             portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
                             if (debugEnabled)
                             {
-                                dbgTrace.traceInfo(funcName, "%s: write command completed.", state.toString());
+                                globalTracer.traceInfo(funcName, "%s: write command completed.", state);
                             }
                         }
                         else
@@ -513,8 +483,8 @@ public abstract class TrcI2cDevice
                                 portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
                                 if (debugEnabled)
                                 {
-                                    dbgTrace.traceInfo(funcName, "%s: read command completed. %s",
-                                                       state.toString(), Arrays.toString(dataRead));
+                                    globalTracer.traceInfo(
+                                        funcName, "%s: read command completed. %s", state, Arrays.toString(dataRead));
                                 }
                             }
                             else if (expiredTime != 0.0 && TrcTimer.getCurrentTime() > expiredTime)
@@ -523,7 +493,7 @@ public abstract class TrcI2cDevice
                                 portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
                                 if (debugEnabled)
                                 {
-                                    dbgTrace.traceInfo(funcName, "%s: Port command timed out.", state.toString());
+                                    globalTracer.traceInfo(funcName, "%s: Port command timed out.", state);
                                 }
                             }
                         }
@@ -534,7 +504,7 @@ public abstract class TrcI2cDevice
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "%s: Port command timed out.", state.toString());
+                            globalTracer.traceInfo(funcName, "%s: Port command timed out.", state);
                         }
                     }
                     break;
@@ -545,8 +515,8 @@ public abstract class TrcI2cDevice
                     //
                     if (debugEnabled)
                     {
-                        dbgTrace.traceInfo(funcName, "%s: Command completed (timeout=%s).",
-                                           state.toString(), Boolean.toString(currRequest.expired));
+                        globalTracer.traceInfo(
+                            funcName, "%s: Command completed (timeout=%s).", state, currRequest.expired);
                     }
 
                     if (currRequest.handler != null)
@@ -579,16 +549,11 @@ public abstract class TrcI2cDevice
                     //
                     if (debugEnabled)
                     {
-                        dbgTrace.traceInfo(funcName, "%s", state.toString());
+                        globalTracer.traceInfo(funcName, "%s", state);
                     }
                     setTaskEnabled(false);
                     break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //i2cDeviceTask
 

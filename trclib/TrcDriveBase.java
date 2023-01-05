@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import androidx.annotation.NonNull;
+
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -137,6 +139,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
          *
          * @return a copy of this odometry.
          */
+        @NonNull
+        @Override
         public Odometry clone()
         {
             return new Odometry(position.clone(), velocity.clone());
@@ -434,8 +438,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             // We already reset position odometry when enabling motor odometry, so don't do it twice.
             // But we do need to reset heading odometry.
             resetOdometry(false, true, resetHardware);
-//            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.STANDALONE_TASK, TrcTaskMgr.INPUT_THREAD_INTERVAL);
-            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
         }
         else
         {
@@ -2028,8 +2031,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "odometryTask";
 
@@ -2122,8 +2127,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "stopTask";
 

@@ -1356,8 +1356,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void pidMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void pidMotorTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "pidMotorTask";
 
@@ -1444,8 +1447,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void stopMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void stopMotorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         stop(true);
     }   //stopMotorTask

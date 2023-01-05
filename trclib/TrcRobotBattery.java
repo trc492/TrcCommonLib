@@ -28,14 +28,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcRobotBattery
 {
-    protected static final String moduleName = "TrcRobotBattery";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     /**
      * This method returns the robot battery voltage.
      *
@@ -80,18 +72,11 @@ public abstract class TrcRobotBattery
     public TrcRobotBattery(
             boolean voltageSupported, boolean currentSupported, boolean powerSupported)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.voltageSupported = voltageSupported;
         this.currentSupported = currentSupported;
         this.powerSupported = powerSupported;
 
-        robotBatteryTaskObj = TrcTaskMgr.createTask(moduleName + ".robotBatteryTask", this::robotBatteryTask);
+        robotBatteryTaskObj = TrcTaskMgr.createTask("robotBatteryTask", this::robotBatteryTask);
     }   //TrcRobotBattery
 
     /**
@@ -102,13 +87,6 @@ public abstract class TrcRobotBattery
      */
     public synchronized void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             if (voltageSupported)
@@ -154,11 +132,6 @@ public abstract class TrcRobotBattery
         else
         {
             robotBatteryTaskObj.unregisterTask();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setEnabled
 
@@ -274,17 +247,14 @@ public abstract class TrcRobotBattery
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void robotBatteryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void robotBatteryTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "robotBatteryTask";
         double currTime = TrcTimer.getCurrentTime();
         double voltage = 0.0, current = 0.0, power;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
 
         if (voltageSupported)
         {
@@ -331,11 +301,6 @@ public abstract class TrcRobotBattery
         }
 
         lastTimestamp = currTime;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //robotBatteryTask
 
 }   //class TrcRobotBattery

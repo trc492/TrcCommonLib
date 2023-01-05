@@ -57,9 +57,11 @@ public abstract class TrcAutoTask<T>
      * @param state specifies the current state of the task.
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
     protected abstract void runTaskState(
-        Object params, T state, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode);
+        Object params, T state, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop);
 
     private final String instanceName;
     private final String owner;
@@ -188,14 +190,16 @@ public abstract class TrcAutoTask<T>
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void autoTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void autoTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         T state = sm.checkReadyAndGetState();
 
         if (state != null)
         {
-            runTaskState(taskParams, state, taskType, runMode);
+            runTaskState(taskParams, state, taskType, runMode, slowPeriodicLoop);
 
             if (msgTracer != null)
             {

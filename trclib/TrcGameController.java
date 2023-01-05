@@ -30,13 +30,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcGameController
 {
-    protected static final String moduleName = "TrcGameController";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     /**
      * This interface, if provided, will allow this class to do a notification callback when there are button
@@ -81,13 +76,6 @@ public abstract class TrcGameController
     public TrcGameController(
         final String instanceName, final double deadbandThreshold, final ButtonHandler buttonHandler)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.deadbandThreshold = deadbandThreshold;
         this.buttonHandler = buttonHandler;
@@ -96,7 +84,7 @@ public abstract class TrcGameController
         {
             TrcTaskMgr.TaskObject buttonEventTaskObj = TrcTaskMgr.createTask(
                 instanceName + ".buttonEventTask", this::buttonEventTask);
-            buttonEventTaskObj.registerTask(TrcTaskMgr.TaskType.SLOW_PREPERIODIC_TASK);
+            buttonEventTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
         }
     }   //TrcGameController
 
@@ -139,15 +127,7 @@ public abstract class TrcGameController
      */
     public void setExponent(int exponent)
     {
-        final String funcName = "setExponent";
-
         this.exponent = exponent;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "exponent=%d", exponent);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setExponent
 
     /**
@@ -160,22 +140,8 @@ public abstract class TrcGameController
      */
     protected double adjustAnalogControl(double value, boolean doExp)
     {
-        final String funcName = "adjustAnalogControl";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                    "value=%f,exp=%s", value, Boolean.toString(doExp));
-        }
-
         value = (Math.abs(value) >= deadbandThreshold)? value: 0.0;
         value = expValue(value, doExp);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", value);
-        }
-
         return value;
     }   //adjustAnalogControl
 
@@ -187,22 +153,8 @@ public abstract class TrcGameController
      */
     protected double adjustAnalogControl(double value, double cubicCoefficient)
     {
-        final String funcName = "adjustAnalogControl";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                    "value=%f,cubicCoeff=%f", value, cubicCoefficient);
-        }
-
         value = (Math.abs(value) >= deadbandThreshold)? value: 0.0;
         value = cubicCoefficient*Math.pow(value, 3) + (1 - cubicCoefficient)*value;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", value);
-        }
-
         return value;
     }   //adjustAnalogControl
 
@@ -216,16 +168,7 @@ public abstract class TrcGameController
      */
     public double getDirectionRadians(double xValue, double yValue)
     {
-        final String funcName = "getDirectionRadians";
-        double value = Math.atan2(yValue, xValue);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,"x=%f,y=%f", xValue, yValue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", value);
-        }
-
-        return value;
+        return Math.atan2(yValue, xValue);
     }   //getDirectionRadians
 
     /**
@@ -238,16 +181,7 @@ public abstract class TrcGameController
      */
     public double getDirectionDegrees(double xValue, double yValue)
     {
-        final String funcName = "getDirectionDegrees";
-        double value = Math.toDegrees(getDirectionRadians(xValue, yValue));
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,"x=%f,y=%f", xValue, yValue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", value);
-        }
-
-        return value;
+        return Math.toDegrees(getDirectionRadians(xValue, yValue));
     }   //getDirectionDegrees
 
     /**
@@ -260,16 +194,7 @@ public abstract class TrcGameController
      */
     public double getMagnitude(double x, double y)
     {
-        final String funcName = "getMagnitude";
-        double value = TrcUtil.magnitude(x, y);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "x=%f,y=%f", x, y);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", value);
-        }
-
-        return value;
+        return TrcUtil.magnitude(x, y);
     }   //getMagnitude
 
     /**
@@ -281,14 +206,7 @@ public abstract class TrcGameController
      */
     private double expValue(double value, boolean doExp)
     {
-        final String funcName = "expValue";
         double output;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                    "value=%f,exp=%s", Boolean.toString(doExp));
-        }
 
         if (doExp)
         {
@@ -301,11 +219,6 @@ public abstract class TrcGameController
             output = value;
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", output);
-        }
-
         return output;
     }   //expValue
 
@@ -315,58 +228,54 @@ public abstract class TrcGameController
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the current robot run mode.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void buttonEventTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void buttonEventTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "buttonEventTask";
 
-        if (debugEnabled)
+        if (slowPeriodicLoop)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
+            // Button events are human input. They are slow so don't need to run in a fast loop.
+            int currButtons = getButtons();
+            int changedButtons = prevButtons^currButtons;
+            int buttonMask;
 
-        int currButtons = getButtons();
-        int changedButtons = prevButtons^currButtons;
-        int buttonMask;
-
-        while (changedButtons != 0)
-        {
-            //
-            // buttonMask contains the least significant set bit.
-            //
-            buttonMask = changedButtons & ~(changedButtons^-changedButtons);
-            if ((currButtons & buttonMask) != 0)
+            while (changedButtons != 0)
             {
                 //
-                // Button is pressed.
+                // buttonMask contains the least significant set bit.
                 //
-                if (debugEnabled)
+                buttonMask = changedButtons & ~(changedButtons^-changedButtons);
+                if ((currButtons & buttonMask) != 0)
                 {
-                    dbgTrace.traceInfo(funcName, "Button %x pressed", buttonMask);
+                    //
+                    // Button is pressed.
+                    //
+                    if (debugEnabled)
+                    {
+                        globalTracer.traceInfo(funcName, "Button %x pressed", buttonMask);
+                    }
+                    buttonHandler.buttonEvent(this, buttonMask, true);
                 }
-                buttonHandler.buttonEvent(this, buttonMask, true);
-            }
-            else
-            {
-                //
-                // Button is released.
-                //
-                if (debugEnabled)
+                else
                 {
-                    dbgTrace.traceInfo(funcName, "Button %x released", buttonMask);
+                    //
+                    // Button is released.
+                    //
+                    if (debugEnabled)
+                    {
+                        globalTracer.traceInfo(funcName, "Button %x released", buttonMask);
+                    }
+                    buttonHandler.buttonEvent(this, buttonMask, false);
                 }
-                buttonHandler.buttonEvent(this, buttonMask, false);
+                //
+                // Clear the least significant set bit.
+                //
+                changedButtons &= ~buttonMask;
             }
-            //
-            // Clear the least significant set bit.
-            //
-            changedButtons &= ~buttonMask;
-        }
-        prevButtons = currButtons;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
+            prevButtons = currButtons;
         }
     }   //buttonEventTask
 

@@ -32,13 +32,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcVisionTask<I, O>
 {
-    private static final String moduleName = "TrcVisionTask";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     private final String instanceName;
     private final TrcVisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
@@ -63,11 +56,6 @@ public class TrcVisionTask<I, O>
     public TrcVisionTask(
         String instanceName, TrcVisionProcessor<I, O> visionProcessor, I[] imageBuffers)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.visionProcessor = visionProcessor;
         this.imageBuffers = imageBuffers;
@@ -103,13 +91,6 @@ public class TrcVisionTask<I, O>
      */
     public synchronized void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
-        }
-
         if (enabled && !taskEnabled)
         {
             detectedObjects = null;
@@ -124,11 +105,6 @@ public class TrcVisionTask<I, O>
             detectedObjects = null;
         }
         taskEnabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setTaskEnabled
 
     /**
@@ -138,14 +114,6 @@ public class TrcVisionTask<I, O>
      */
     public synchronized boolean isTaskEnabled()
     {
-        final String funcName = "isTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", taskEnabled);
-        }
-
         return taskEnabled;
     }   //isTaskEnabled
 
@@ -156,14 +124,6 @@ public class TrcVisionTask<I, O>
      */
     public synchronized void setVideoOutEnabled(boolean enabled)
     {
-        final String funcName = "setVideoOutEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         videoOutEnabled = enabled;
     }   //setVideoOutEnabled
 
@@ -174,14 +134,6 @@ public class TrcVisionTask<I, O>
      */
     public synchronized void setProcessingInterval(long interval)
     {
-        final String funcName = "setProcessingInterval";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "interval=%dms", interval);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         visionTaskObj.setTaskInterval(interval);
     }   //setProcessingInterval
 
@@ -192,16 +144,7 @@ public class TrcVisionTask<I, O>
      */
     public synchronized long getProcessingInterval()
     {
-        final String funcName = "getProcessingInterval";
-        long interval = visionTaskObj.getTaskInterval();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%d", interval);
-        }
-
-        return interval;
+        return visionTaskObj.getTaskInterval();
     }   //getProcessingInterval
 
     /**
@@ -223,15 +166,13 @@ public class TrcVisionTask<I, O>
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the current robot run mode.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void visionTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void visionTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "visionTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
 
         if (visionProcessor.getFrame(imageBuffers[imageIndex]))
         {
@@ -260,11 +201,6 @@ public class TrcVisionTask<I, O>
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.
             //
             imageIndex = (imageIndex + 1) % imageBuffers.length;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //visionTask
 

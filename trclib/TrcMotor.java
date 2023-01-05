@@ -39,14 +39,8 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsystem
 {
     private static final String moduleName = "TrcMotor";
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-    private boolean resetForbidden = false;
-
-    public void forbidReset(boolean enabled)
-    {
-        resetForbidden = enabled;
-    }
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     public enum TriggerMode
     {
@@ -552,11 +546,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             resetMotorPosition();
         }
 
-        if (resetForbidden)
-        {
-            globalTracer.traceInfo(funcName, "%s: motor position is %.3f", getMotorPosition());
-            throw new RuntimeException("Somebody illegally reset the encoder position.");
-        }
         // Call platform-dependent subclass to read current position as the zero position.
         // Note: the above resetMotorPosition call may have timed out and not resetting the hardware. We will still
         // do soft reset as a safety measure.
@@ -1067,8 +1056,10 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private static void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private static void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = moduleName + ".odometryTask";
 
@@ -1143,8 +1134,10 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         clearOdometryMotorsList(false);
     }   //cleanupTask
@@ -1219,8 +1212,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void velocityCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void velocityCtrlTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "velocityCtrlTask";
 

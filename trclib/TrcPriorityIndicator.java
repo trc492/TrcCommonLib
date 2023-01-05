@@ -38,8 +38,8 @@ import java.util.HashMap;
  */
 public abstract class TrcPriorityIndicator<T>
 {
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     /**
      * This method gets the current set pattern.
@@ -437,8 +437,10 @@ public abstract class TrcPriorityIndicator<T>
      *
      * @param taskType specifies the task type (not used).
      * @param runMode specifies the robot run mode (not used).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void indicatorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void indicatorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         double currTime = TrcTimer.getCurrentTime();
 

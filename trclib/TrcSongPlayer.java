@@ -30,13 +30,8 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcSongPlayer
 {
-    private static final String moduleName = "TrcSongPlayer";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
     private final TrcTone tone;
@@ -55,13 +50,6 @@ public class TrcSongPlayer
      */
     public TrcSongPlayer(final String instanceName, final TrcTone tone)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.tone = tone;
         playerTaskObj = TrcTaskMgr.createTask(instanceName + ".playerTask", this::playerTask);
@@ -88,11 +76,6 @@ public class TrcSongPlayer
     {
         final String funcName = "setTaskEnabled";
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             playerTaskObj.registerTask(TaskType.OUTPUT_TASK);   //TODO: should use OUTPUT_TASK
@@ -103,11 +86,6 @@ public class TrcSongPlayer
             playerTaskObj.unregisterTask();
             stopTaskObj.unregisterTask();
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTaskEnabled
 
     /**
@@ -115,20 +93,8 @@ public class TrcSongPlayer
      */
     public synchronized void stop()
     {
-        final String funcName = "stop";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         tone.stop();
         setTaskEnabled(false);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //stop
 
     /**
@@ -152,21 +118,9 @@ public class TrcSongPlayer
      */
     public synchronized void rewind()
     {
-        final String funcName = "rewind";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (song != null)
         {
             song.rewind();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //rewind
 
@@ -187,10 +141,10 @@ public class TrcSongPlayer
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s",
-                                song.toString(), barDuration, Boolean.toString(repeat), Boolean.toString(pause),
-                                event == null? "null": event);
+            globalTracer.traceInfo(
+                funcName, "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s",
+                song.toString(), barDuration, Boolean.toString(repeat), Boolean.toString(pause),
+                event == null? "null": event);
         }
 
         this.song = song;
@@ -198,11 +152,6 @@ public class TrcSongPlayer
         this.repeat = repeat;
         this.event = repeat? null: event;
         setTaskEnabled(!pause);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //playSongWorker
 
     /**
@@ -275,8 +224,7 @@ public class TrcSongPlayer
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "note=%s,barDur=%.3f,vol=%.1f", note, barDuration, volume);
+            globalTracer.traceInfo(funcName, "note=%s,barDur=%.3f,vol=%.1f", note, barDuration, volume);
         }
 
         int dotIndex = note.indexOf('.');
@@ -290,11 +238,6 @@ public class TrcSongPlayer
         else
         {
             throw new IllegalArgumentException("Missing note duration <" + note + ">.");
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //playNote
 
@@ -312,13 +255,7 @@ public class TrcSongPlayer
      */
     private double parseFrequency(String note)
     {
-        final String funcName = "parseFrequency";
         double freq;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "note=%s", note);
-        }
 
         if (note.charAt(0) >= 'A' && note.charAt(0) <= 'G')
         {
@@ -390,11 +327,6 @@ public class TrcSongPlayer
             throw new IllegalArgumentException("Invalid note <" + note + ">.");
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", freq);
-        }
-
         return freq;
     }   //parseFrequency
 
@@ -411,14 +343,8 @@ public class TrcSongPlayer
      */
     private double parseDuration(String note, double barDuration)
     {
-        final String funcName = "parseDuration";
         double noteLen = 0.0;
         int dotIndex;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "note=%s", note);
-        }
 
         while ((dotIndex = note.indexOf('.')) != -1)
         {
@@ -445,11 +371,6 @@ public class TrcSongPlayer
             throw new IllegalArgumentException("Invalid duration <" + note + ">.");
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", noteLen);
-        }
-
         return noteLen;
     }   //parseDuration
 
@@ -461,14 +382,8 @@ public class TrcSongPlayer
      */
     private double parseDynamicsVolume(String notation)
     {
-        final String funcName = "parseDynamicsVolume";
         final String[] dynamics = {"ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"};
         double vol = -1.0;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "notation=%s", notation);
-        }
 
         for (int i = 0; i < dynamics.length; i++)
         {
@@ -477,11 +392,6 @@ public class TrcSongPlayer
                 vol = (i + 3)*0.1;
                 break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", vol);
         }
 
         return vol;
@@ -495,13 +405,7 @@ public class TrcSongPlayer
      */
     private boolean parseDynamics(String notation)
     {
-        final String funcName = "parseDynamics";
         boolean isDynamics = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "notation=%s", notation);
-        }
 
         if (notation.charAt(0) == '<')
         {
@@ -524,11 +428,6 @@ public class TrcSongPlayer
                 song.setCurrentVolume(vol);
                 isDynamics = true;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%s", Boolean.toString(isDynamics));
         }
 
         return isDynamics;
@@ -557,16 +456,12 @@ public class TrcSongPlayer
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void playerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void playerTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "playerTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         //
         // Move on to the next note only if the current note has finished playing.
         //
@@ -614,11 +509,6 @@ public class TrcSongPlayer
                 }
             }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //playerTask
 
     /**
@@ -626,22 +516,12 @@ public class TrcSongPlayer
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "stopTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         stop();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //stopTask
 
 }   //class TrcSongPlayer

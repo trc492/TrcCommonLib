@@ -276,7 +276,7 @@ public class TrcHolonomicPurePursuitDriveV2
         velPidCtrl.reset();
 
         referencePose = driveBase.getFieldPosition();
-        driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+        driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
     }   //start
 
     /**
@@ -404,8 +404,11 @@ public class TrcHolonomicPurePursuitDriveV2
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void driveTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         TrcPose2D pose = driveBase.getPositionRelativeTo(referencePose, false);
         TrcWaypoint followingPoint = getFollowingPoint(pose);

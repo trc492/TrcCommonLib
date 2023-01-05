@@ -30,13 +30,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcDataIntegrator<D>
 {
-    private static final String moduleName = "TrcDataIntegrator";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
     private final TrcSensor<D> sensor;
@@ -58,13 +53,6 @@ public class TrcDataIntegrator<D>
     public TrcDataIntegrator(
         final String instanceName, final TrcSensor<D> sensor, final D dataType, final boolean doubleIntegration)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         if (sensor == null)
         {
             throw new NullPointerException("sensor cannot be null.");
@@ -124,26 +112,14 @@ public class TrcDataIntegrator<D>
      */
     public synchronized void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             reset();
-            integratorTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            integratorTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
         }
         else
         {
             integratorTaskObj.unregisterTask();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setEnabled
 
@@ -154,14 +130,6 @@ public class TrcDataIntegrator<D>
      */
     public synchronized void reset(int index)
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         prevTimes[index] = TrcTimer.getCurrentTime();
         integratedData[index].value = 0.0;
         if (doubleIntegratedData != null)
@@ -175,14 +143,6 @@ public class TrcDataIntegrator<D>
      */
     public synchronized void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         for (int i = 0; i < integratedData.length; i++)
         {
             reset(i);
@@ -203,9 +163,7 @@ public class TrcDataIntegrator<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                    "=(timestamp=%.3f,value=%f", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -225,9 +183,7 @@ public class TrcDataIntegrator<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -247,10 +203,7 @@ public class TrcDataIntegrator<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(
-                    funcName, TrcDbgTrace.TraceLevel.API,
-                    "=(timestamp=%.3f,value=%f", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -261,16 +214,12 @@ public class TrcDataIntegrator<D>
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void integratorTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void integratorTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "integratorTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         boolean allZeroAxis = true;
         double[] deltaTime = new double[inputData.length];
         for (int i = 0; i < inputData.length; i++)
@@ -310,11 +259,6 @@ public class TrcDataIntegrator<D>
                             doubleIntegratedData[i].value + integratedData[i].value*deltaTime[i];
                 }
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //integratorTask
 

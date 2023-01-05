@@ -30,13 +30,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcMaxbotixSonarArray
 {
-    private static final String moduleName = "TrcMaxbotixSonarArray";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private static final double RANGING_START_PULSE_WIDTH = 0.02;   //in seconds
     private static final double RANGING_PERIOD = 0.05;              //in seconds
@@ -71,13 +66,6 @@ public class TrcMaxbotixSonarArray
         final String instanceName, final TrcAnalogInput[] sensors, final TrcDigitalOutput rx,
         final boolean loopConfig)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.sensors = sensors;
         this.rx = rx;
@@ -130,14 +118,6 @@ public class TrcMaxbotixSonarArray
      */
     public synchronized boolean isRanging()
     {
-        final String funcName = "isRanging";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%b", rangingStarted);
-        }
-
         return rangingStarted;
     }   //isRanging
 
@@ -149,25 +129,12 @@ public class TrcMaxbotixSonarArray
      */
     public synchronized void startRanging(boolean autoRepeat)
     {
-        final String funcName = "startRanging";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "autoRepeat=%s", Boolean.toString(autoRepeat));
-        }
-
         if (!loopConfig)
         {
             this.autoRepeat = autoRepeat;
         }
         setTaskEnabled(true);
         rangingStarted = true;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //startRanging
 
     /**
@@ -185,14 +152,6 @@ public class TrcMaxbotixSonarArray
      */
     public synchronized void stopRanging()
     {
-        final String funcName = "stopRanging";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // In loop config mode, ranging will never stop once started.
         //
@@ -225,13 +184,6 @@ public class TrcMaxbotixSonarArray
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             rangingTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
@@ -242,11 +194,6 @@ public class TrcMaxbotixSonarArray
             sm.stop();
             rangingTaskObj.unregisterTask();
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTaskEnabled
 
     /**
@@ -254,15 +201,13 @@ public class TrcMaxbotixSonarArray
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void rangingTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void rangingTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "rangingTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
 
         if (sm.isReady())
         {
@@ -270,7 +215,7 @@ public class TrcMaxbotixSonarArray
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "State: %s", state);
+                globalTracer.traceInfo(funcName, "State: %s", state);
             }
 
             switch (state)
@@ -294,11 +239,6 @@ public class TrcMaxbotixSonarArray
                     setTaskEnabled(false);
                     break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //rangingTask
 

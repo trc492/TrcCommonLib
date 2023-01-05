@@ -34,14 +34,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class TrcTaskMgr
 {
     private static final String moduleName = "TrcTaskMgr";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final TrcDbgTrace dbgTrace = TrcDbgTrace.getGlobalTracer();
 
-    public static final long FAST_LOOP_INTERVAL_MS = 20;        // in msec (50 Hz)
-    public static final long SLOW_LOOP_INTERVAL_MS = 50;        // in msec (20 Hz)
-    public static final long INPUT_THREAD_INTERVAL_MS = 20;     // in msec
-    public static final long OUTPUT_THREAD_INTERVAL_MS = 20;    // in msec
-    public static final long TASKTIME_THRESHOLD_MS = FAST_LOOP_INTERVAL_MS;
+    public static final long PERIODIC_INTERVAL_MS = 20;         // in msec (50 Hz)
+    public static final long INPUT_INTERVAL_MS = 20;            // in msec
+    public static final long OUTPUT_INTERVAL_MS = 20;           // in msec
+    public static final long TASKTIME_THRESHOLD_MS = PERIODIC_INTERVAL_MS;
 
     /**
      * These are the task type TrcTaskMgr supports:
@@ -49,57 +48,43 @@ public class TrcTaskMgr
     public enum TaskType
     {
         /**
-         * START_TASK is called one time before a competition mode is about to start on the main robot thread.
+         * START_TASK is called on the main robot thread one time before a competition mode is about to start.
          */
         START_TASK(0),
 
         /**
-         * STOP_TASK is called one time before a competition mode is about to end on the main robot thread.
+         * STOP_TASK is called on the main robot thread one time before a competition mode is about to end.
          */
         STOP_TASK(1),
 
         /**
-         * FAST_PREPERIODIC_TASK is called periodically at a fast rate about 50Hz before runPeriodic() on the main
-         * robot thread.
+         * PRE_PERIODIC_TASK is called periodically on the main robot thread at PERIODIC_INTERVAL before runPeriodic().
          */
-        FAST_PREPERIODIC_TASK(2),
+        PRE_PERIODIC_TASK(2),
 
         /**
-         * FAST_POSTPERIODIC_TASK is called periodically at a fast rate about 50Hz after runPeriodic() on the main
-         * robot thread.
+         * POST_PERIODIC_TASK is called periodically on the main robot thread at PERIODIC_INTERVAL after runPeriodic().
          */
-        FAST_POSTPERIODIC_TASK(3),
+        POST_PERIODIC_TASK(3),
 
         /**
-         * SLOW_PREPERIODIC_TASK is called periodically at a slow rate about 20Hz before runPeriodic() on the main
-         * robot thread.
+         * INPUT_TASK is called periodically on the input thread at INPUT_INTERVAL. Typically, it runs code that
+         * deals with sensor hardware that may impact the performance of the main robot thread (e.g. I2C sesnors).
          */
-        SLOW_PREPERIODIC_TASK(4),
+        INPUT_TASK(4),
 
         /**
-         * SLOW_POSTPERIODIC_TASK is called periodically at a slow rate about 20Hz after runPeriodic() on the main
-         * robot thread.
+         * OUTPUT_TASK is called periodically on the output thread at OUTPUT_INTERVAL . Typically, it runs code that
+         * deals with actuator hardware that may impact the performance of the main robot thread (e.g. CAN motors).
          */
-        SLOW_POSTPERIODIC_TASK(5),
-
-        /**
-         * INPUT_TASK is called periodically at a rate about 20Hz on its own thread. Typically, it runs code that
-         * reads sensor input.
-         */
-        INPUT_TASK(6),
-
-        /**
-         * OUTPUT_TASK is called periodically at a rate about 100Hz on its own thread. Typically, it runs code that
-         * updates the state of actuators.
-         */
-        OUTPUT_TASK(7),
+        OUTPUT_TASK(5),
 
         /**
          * STANDALONE_TASK is called periodically at the specified interval on its own thread. Typically, code that
          * may block for a long time requires its own thread so that it doesn't degrade the performance of the other
          * threads.
          */
-        STANDALONE_TASK(8);
+        STANDALONE_TASK(6);
 
         public final int value;
 
@@ -132,24 +117,13 @@ public class TrcTaskMgr
          *  the time, you don't need to register StopTask because the system will cut power to all the motors after a
          *  competition mode has ended.
          *
-         * FastPrePeriodicTask:
-         *  This contains code that runs periodically at a fast rate on the main robot thread before fastPeriodic().
-         *  Typically, you will put code that deals with any high resolution input or sensor readings here that
-         *  fastPeriodic() may depend on.
+         * PrePeriodicTask:
+         *  This contains code that runs periodically on the main robot thread at PERIODIC_INTERVAL before periodic().
+         *  Typically, you will put code that deals with any input sensor readings here that Periodic() may depend on.
          *
-         * FastPostPeriodicTask:
-         *  This contains code that runs periodically at a fast rate on the main robot thread after fastPeriodic().
+         * PostPeriodicTask:
+         *  This contains code that runs periodically on the main robot thread at PERIODIC_INTERVAL after periodic().
          *  Typically, you will put code that deals with actions that requires high frequency processing.
-         *
-         * SlowPrePeriodicTask:
-         *  This contains code that runs periodically at a slow rate on the main robot thread before slowPeriodic().
-         *  Typically, you will put code that deals with slower input or sensor readings here that slowPeriodic may
-         *  depend on.
-         *
-         * SlowPostPeriodicTask:
-         *  This contains code that runs periodically at a slow rate on the main robot thread after slowPeriodic().
-         *  Typically, you will put code that deals with slower action here that may depend on the result produced
-         *  by slowPeriodic().
          *
          * InputTask:
          *  This contains code that runs periodically on the input thread. Typically, you will put code that deals
@@ -166,8 +140,10 @@ public class TrcTaskMgr
          *
          * @param taskType specifies the type of task being run. This may be useful for handling multiple task types.
          * @param runMode specifies the competition mode (e.g. Autonomous, TeleOp, Test).
+         * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+         *        false otherwise.
          */
-        void runTask(TaskType taskType, TrcRobot.RunMode runMode);
+        void runTask(TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop);
 
     }   //interface Task
 
@@ -429,7 +405,7 @@ public class TrcTaskMgr
         private void standaloneTask(Object context)
         {
             recordStartTime(TaskType.STANDALONE_TASK);
-            task.runTask(TaskType.STANDALONE_TASK, TrcRobot.getRunMode());
+            task.runTask(TaskType.STANDALONE_TASK, TrcRobot.getRunMode(), false);
             recordElapsedTime(TaskType.STANDALONE_TASK);
         }   //standaloneTask
 
@@ -465,15 +441,15 @@ public class TrcTaskMgr
 
             if (debugEnabled)
             {
-                dbgTrace.traceVerbose(
+                globalTracer.traceVerbose(
                     funcName, "Task %s.%s: start=%.6f, elapsed=%.6f",
                     taskName, taskType, startTime/1000000000.0, elapsedTime/1000000000.0);
                 long timeThreshold = getTaskInterval()*1000000; //convert to nanoseconds.
                 if (timeThreshold == 0) timeThreshold = TASKTIME_THRESHOLD_MS * 1000000L;
-                if (elapsedTime > timeThreshold)
+                if (timeThreshold > 0 && elapsedTime > timeThreshold)
                 {
-                    dbgTrace.traceWarn(funcName, "%s.%s takes too long (%.3f)",
-                            taskName, taskType, elapsedTime/1000000000.0);
+                    globalTracer.traceWarn(
+                        funcName, "%s.%s takes too long (%.3f)", taskName, taskType, elapsedTime/1000000000.0);
                 }
             }
         }   //recordElapsedTime
@@ -518,7 +494,7 @@ public class TrcTaskMgr
         if (inputThread == null)
         {
             inputThread = startThread(
-                moduleName + ".inputThread", TrcTaskMgr::inputTask, INPUT_THREAD_INTERVAL_MS, Thread.MAX_PRIORITY);
+                moduleName + ".inputThread", TrcTaskMgr::inputTask, INPUT_INTERVAL_MS, Thread.MAX_PRIORITY);
         }
     }   //startInputThread
 
@@ -530,7 +506,7 @@ public class TrcTaskMgr
         if (outputThread == null)
         {
             outputThread = startThread(
-                moduleName + ".outputThread", TrcTaskMgr::outputTask, OUTPUT_THREAD_INTERVAL_MS, Thread.MAX_PRIORITY);
+                moduleName + ".outputThread", TrcTaskMgr::outputTask, OUTPUT_INTERVAL_MS, Thread.MAX_PRIORITY);
         }
     }   //startOutputThread
 
@@ -566,17 +542,12 @@ public class TrcTaskMgr
         final String funcName = "createTask";
         TaskObject taskObj;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "taskName=%s", taskName);
-        }
-
         taskObj = new TaskObject(taskName, task);
         taskList.add(taskObj);
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", taskObj);
+            globalTracer.traceInfo(funcName, "taskName=%s, taskObj=%s", taskName, taskObj);
         }
 
         return taskObj;
@@ -631,8 +602,10 @@ public class TrcTaskMgr
      *
      * @param type specifies the task type to be executed.
      * @param mode specifies the robot run mode.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    public static void executeTaskType(TaskType type, TrcRobot.RunMode mode)
+    public static void executeTaskType(TaskType type, TrcRobot.RunMode mode, boolean slowPeriodicLoop)
     {
         for (TaskObject taskObj: taskList)
         {
@@ -640,7 +613,7 @@ public class TrcTaskMgr
             {
                 Task task = taskObj.getTask();
                 taskObj.recordStartTime(type);
-                task.runTask(type, mode);
+                task.runTask(type, mode, slowPeriodicLoop);
                 taskObj.recordElapsedTime(type);
             }
         }
@@ -653,7 +626,7 @@ public class TrcTaskMgr
      */
     private static void inputTask(Object context)
     {
-        executeTaskType(TaskType.INPUT_TASK, TrcRobot.getRunMode());
+        executeTaskType(TaskType.INPUT_TASK, TrcRobot.getRunMode(), false);
     }   //inputTask
 
     /**
@@ -663,7 +636,7 @@ public class TrcTaskMgr
      */
     private static void outputTask(Object context)
     {
-        executeTaskType(TaskType.OUTPUT_TASK, TrcRobot.getRunMode());
+        executeTaskType(TaskType.OUTPUT_TASK, TrcRobot.getRunMode(), false);
     }   //outputTask
 
     /**

@@ -162,7 +162,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
             {
                 triggerState.sensorValue = getSensorValue();
                 triggerState.sensorZone = getValueZone(triggerState.sensorValue);
-                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
             {
@@ -320,8 +320,10 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "triggerTask";
         double currValue = getSensorValue();

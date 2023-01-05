@@ -51,12 +51,8 @@ import org.apache.commons.math3.linear.RealVector;
 public class TrcPurePursuitDrive
 {
     private static final String moduleName = "TrcPurePursuitDrive";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
     private static final boolean verbosePidInfo = false;
     private static final boolean invertedTarget = false;
 
@@ -150,13 +146,6 @@ public class TrcPurePursuitDrive
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
         TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
 
         if (xPosPidCoeff == null || driveBase.supportsHolonomicDrive())
@@ -298,15 +287,6 @@ public class TrcPurePursuitDrive
      */
     public synchronized void setBeep(TrcTone beepDevice, double beepFrequency, double beepDuration)
     {
-        final String funcName = "setBeep";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "beep=%s,freq=%.0f,duration=%.3f", beepDevice.toString(), beepFrequency, beepDuration);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.beepDevice = beepDevice;
         this.beepFrequency = beepFrequency;
         this.beepDuration = beepDuration;
@@ -334,16 +314,6 @@ public class TrcPurePursuitDrive
     public synchronized void setStallDetectionEnabled(
         double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
     {
-        final String funcName = "setStallDetectionEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "detectionDelay=%.3f,timeout=%.3f,velThreshold=%.3f",
-                stallDetectionDelay, stallTimeout, stallVelThreshold);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.stallDetectionDelay = stallDetectionDelay;
         this.stallTimeout = stallTimeout;
         driveBase.setStallVelocityThreshold(stallVelThreshold);
@@ -655,7 +625,7 @@ public class TrcPurePursuitDrive
             }
 
             resetError = true;
-            driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+            driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
 
             if (msgTracer != null)
             {
@@ -1012,8 +982,11 @@ public class TrcPurePursuitDrive
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void driveTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = moduleName + ".driveTask";
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
@@ -1056,10 +1029,10 @@ public class TrcPurePursuitDrive
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo(
+            globalTracer.traceInfo(
                 funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
                 pathIndex, TrcTimer.getModeElapsedTime(), robotPose, targetPoint.pose, relativeTargetPose);
-            dbgTrace.traceInfo(
+            globalTracer.traceInfo(
                 funcName,
                 "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
                 "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",

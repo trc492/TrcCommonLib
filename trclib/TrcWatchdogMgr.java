@@ -328,8 +328,10 @@ public class TrcWatchdogMgr
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the current robot run mode.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void watchdogTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void watchdogTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         synchronized (watchdogList)
         {

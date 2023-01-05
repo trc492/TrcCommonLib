@@ -130,7 +130,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
             if (enabled)
             {
                 triggerState.sensorState = sensor.isActive();
-                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+                triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
             {
@@ -185,8 +185,10 @@ public class TrcDigitalInputTrigger implements TrcTrigger
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "triggerTask";
         boolean currState = getSensorState();

@@ -130,7 +130,7 @@ public class TrcGridDrive
 
         if (!taskActive && enabled)
         {
-            gridDriveTaskObj.registerTask(TrcTaskMgr.TaskType.SLOW_POSTPERIODIC_TASK);
+            gridDriveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
             if (msgTracer != null)
             {
                 msgTracer.traceInfo(funcName, "Enabling task.");
@@ -354,8 +354,10 @@ public class TrcGridDrive
      *
      * @param taskType specifies the type of task being run. This may be useful for handling multiple task types.
      * @param runMode specifies the current competition mode (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void gridDriveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void gridDriveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         if (!purePursuitDrive.isActive())
         {

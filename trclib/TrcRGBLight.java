@@ -32,13 +32,8 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public abstract class TrcRGBLight
 {
-    protected static final String moduleName = "TrcRGBLight";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     /**
      * This method returns the state of the RED light.
@@ -173,18 +168,11 @@ public abstract class TrcRGBLight
      */
     public TrcRGBLight(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         rgbLightTaskObj = TrcTaskMgr.createTask(instanceName + ".rgbLightTask", this::rgbLightTask);
-        sm = new TrcStateMachine<>(moduleName);
-        timer = new TrcTimer(moduleName);
-        timerEvent = new TrcEvent(moduleName + ".timer");
+        sm = new TrcStateMachine<>(instanceName);
+        timer = new TrcTimer(instanceName);
+        timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcRGBLight
 
     /**
@@ -205,25 +193,13 @@ public abstract class TrcRGBLight
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
-            rgbLightTaskObj.registerTask(TaskType.OUTPUT_TASK);
+            rgbLightTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
         }
         else
         {
             rgbLightTaskObj.unregisterTask();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
     }   //setTaskEnabled
 
@@ -243,8 +219,7 @@ public abstract class TrcRGBLight
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=0xx", colorValue);
+            globalTracer.traceInfo(funcName, "color=0x%x", colorValue);
         }
 
         return colorValue;
@@ -264,8 +239,7 @@ public abstract class TrcRGBLight
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", color.toString());
+            globalTracer.traceInfo(funcName, "color=%s", color);
         }
 
         return color;
@@ -283,8 +257,7 @@ public abstract class TrcRGBLight
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "color=0x%x", colorValue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "color=0x%x", colorValue);
         }
 
         setRed((colorValue & COLOR_RED) != 0);
@@ -304,8 +277,7 @@ public abstract class TrcRGBLight
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "color=%s", color.toString());
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "color=%s", color);
         }
 
         if (sm.isEnabled())
@@ -330,11 +302,7 @@ public abstract class TrcRGBLight
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                    funcName, TrcDbgTrace.TraceLevel.API,
-                    "color=%s,onPeriod=%f,offPeriod=%f",
-                    color.toString(), onPeriod, offPeriod);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "color=%s,onPeriod=%f,offPeriod=%f", color, onPeriod, offPeriod);
         }
 
         setColor(RGBColor.RGB_BLACK);
@@ -376,16 +344,12 @@ public abstract class TrcRGBLight
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void rgbLightTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void rgbLightTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "rgbLightTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         if (sm.isReady())
         {
             State state = sm.getState();
@@ -427,11 +391,6 @@ public abstract class TrcRGBLight
                     setTaskEnabled(false);
                     break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //rgbLightTask
 

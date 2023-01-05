@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Arrays;
-
 /**
  * This class converts cardinal data to cartesian data for sensors such as gyro or compass. It can handle sensors
  * that have one or more axes. Some value sensors such as the Modern Robotics gyro returns cardinal heading values
@@ -40,13 +38,8 @@ import java.util.Arrays;
  */
 public class TrcCardinalConverter<D>
 {
-    private static final String moduleName = "TrcCardinalConverter";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
     private final TrcSensor<D> sensor;
@@ -66,16 +59,8 @@ public class TrcCardinalConverter<D>
      * @param sensor specifies the sensor object that needs data unwrapping.
      * @param dataType specifies the data type to be unwrapped.
      */
-    @SuppressWarnings("unchecked")
     public TrcCardinalConverter(final String instanceName, final TrcSensor<D> sensor, final D dataType)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         if (sensor == null)
         {
             throw new NullPointerException("sensor cannot be null.");
@@ -119,14 +104,6 @@ public class TrcCardinalConverter<D>
      */
     public synchronized boolean isEnabled()
     {
-        final String funcName = "isEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(enabled));
-        }
-
         return enabled;
     }   //isEnabled
 
@@ -138,17 +115,10 @@ public class TrcCardinalConverter<D>
      */
     public synchronized void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%b", enabled);
-        }
-
         if (!this.enabled && enabled)
         {
             reset();
-            converterTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
+            converterTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
         }
         else if (this.enabled && !enabled)
         {
@@ -156,11 +126,6 @@ public class TrcCardinalConverter<D>
             converterTaskObj.unregisterTask();
         }
         this.enabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setEnabled
 
     /**
@@ -170,14 +135,6 @@ public class TrcCardinalConverter<D>
      */
     public synchronized void reset(int index)
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         prevData[index] = sensor.getProcessedData(index, dataType);
         numCrossovers[index] = 0;
     }   //reset
@@ -187,14 +144,6 @@ public class TrcCardinalConverter<D>
      */
     public synchronized void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         for (int i = 0; i < numAxes; i++)
         {
             reset(i);
@@ -214,8 +163,7 @@ public class TrcCardinalConverter<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "low=%f,high=%f", rangeLow, rangeHigh);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "low=%f, high=%f", rangeLow, rangeHigh);
         }
 
         if (rangeLow > rangeHigh)
@@ -247,9 +195,7 @@ public class TrcCardinalConverter<D>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -260,16 +206,12 @@ public class TrcCardinalConverter<D>
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void converterTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void converterTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "converterTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         for (int i = 0; i < numAxes; i++)
         {
             TrcSensor.SensorData<Double> data = sensor.getProcessedData(i, dataType);
@@ -289,12 +231,6 @@ public class TrcCardinalConverter<D>
                 }
                 prevData[i] = data;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK,
-                "! (numCrossovers=%s)", Arrays.toString(numCrossovers));
         }
     }   //converterTask
 

@@ -58,8 +58,9 @@ public class TrcHolonomicPurePursuitDrive
          * This method is called when Pure Pursuit crosses a waypoint or the path is completed.
          *
          * @param index specifies the index of the waypoint in the path, -1 if the path is completed or canceled.
+         * @param waypoint specifies the current target waypoint.
          */
-        void waypointEvent(int index);
+        void waypointEvent(int index, TrcWaypoint waypoint);
     }   //interface WaypointEventHandler
 
     public enum InterpolationType
@@ -96,7 +97,7 @@ public class TrcHolonomicPurePursuitDrive
     private TrcEvent onFinishedEvent;
     private double timedOutTime;
     private final TrcWarpSpace warpSpace;
-    private TrcPurePursuitDrive.WaypointEventHandler waypointEventHandler = null;
+    private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean maintainHeading = false;
     private double startHeading;
@@ -242,7 +243,7 @@ public class TrcHolonomicPurePursuitDrive
      *
      * @param handler specifies the waypoint event handler, can be null to clear the event handler.
      */
-    public synchronized void setWaypointEventHandler(TrcPurePursuitDrive.WaypointEventHandler handler)
+    public synchronized void setWaypointEventHandler(WaypointEventHandler handler)
     {
         this.waypointEventHandler = handler;
     }   //setWaypointEventHandler
@@ -407,7 +408,7 @@ public class TrcHolonomicPurePursuitDrive
         turnPidCtrl.setTarget(startHeading); // Maintain heading to start
 
         referencePose = driveBase.getFieldPosition();
-        driveTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
+        driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
     }   //start
 
     /**
@@ -656,8 +657,11 @@ public class TrcHolonomicPurePursuitDrive
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void driveTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         TrcPose2D pose = driveBase.getPositionRelativeTo(referencePose, false);
         double robotX = pose.x;

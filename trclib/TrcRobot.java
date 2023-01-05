@@ -65,10 +65,10 @@ public class TrcRobot
     public interface RobotMode
     {
         /**
-         * This method is called when the competition mode is about to start. In FTC, this is called when the "Play"
-         * button on the Driver Station phone is pressed. Typically, you put code that will prepare the robot for
-         * start of competition here such as resetting the encoders/sensors and enabling some sensors to start
-         * sampling.
+         * This method is called on the main robot thread when the competition mode is about to start. In FTC, this
+         * is called when the "Play" button on the Driver Station is pressed. Typically, you put code that will
+         * prepare the robot for start of competition here such as resetting the encoders/sensors and enabling some
+         * sensors to start sampling.
          *
          * @param prevMode specifies the previous RunMode it is coming from.
          * @param nextMode specifies the next RunMode it is going into.
@@ -76,8 +76,8 @@ public class TrcRobot
         void startMode(RunMode prevMode, RunMode nextMode);
 
         /**
-         * This method is called when competition mode is about to end. Typically, you put code that will do clean
-         * up here such as disabling the sampling of some sensors.
+         * This method is called on the main robot thread when competition mode is about to end. Typically, you put
+         * code that will do clean up here such as disabling the sampling of some sensors.
          *
          * @param prevMode specifies the previous RunMode it is coming from.
          * @param nextMode specifies the next RunMode it is going into.
@@ -85,22 +85,16 @@ public class TrcRobot
         void stopMode(RunMode prevMode, RunMode nextMode);
 
         /**
-         * This method is called periodically at a fast rate. Typically, you put code that requires servicing at a
-         * high frequency here. To make the robot as responsive and as accurate as possible especially in autonomous
-         * mode, you will typically put that code here.
-         * 
+         * This method is called on the main robot thread periodically at PERIODIC_INTERVAL. Typically, you put the
+         * competition code here that processes sensor/gamepad inputs and controls the movement of the robot. Code
+         * that doesn't require high frequency processing should observe the slowPeriodicLoop parameter and only
+         * runs when it is true (e.g. TeleOp control and robot status updates).
+         *
          * @param elapsedTime specifies the elapsed time since the mode started.
+         * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+         *        false otherwise.
          */
-        void fastPeriodic(double elapsedTime);
-
-        /**
-         * This method is called periodically at a slow rate. Typically, you put code that doesn't require frequent
-         * update here. For example, TeleOp joystick code or status display code can be put here since human responses
-         * are considered slow.
-         * 
-         * @param elapsedTime specifies the elapsed time since the mode started.
-         */
-        void slowPeriodic(double elapsedTime);
+        void periodic(double elapsedTime, boolean slowPeriodicLoop);
 
     }   //interface RobotMode
 

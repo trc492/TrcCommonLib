@@ -30,6 +30,9 @@ import java.util.Arrays;
  */
 public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressableLED.Pattern>
 {
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
+
     /**
      * This class contains information about an LED pattern. An LED pattern contains a pattern type, an array of colors
      * and a time interval between color changes for running patterns.

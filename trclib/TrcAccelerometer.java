@@ -33,6 +33,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataType>
 {
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
     //
     // Accelerometer data types.
     //
@@ -181,14 +183,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // Enable/disable integrator.
         //
@@ -239,14 +233,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setXInverted(boolean inverted)
     {
-        final String funcName = "setXInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(xIndex, inverted);
     }   //setXInverted
 
@@ -258,14 +244,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setYInverted(boolean inverted)
     {
-        final String funcName = "setYInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(yIndex, inverted);
     }   //setYInverted
 
@@ -277,14 +255,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setZInverted(boolean inverted)
     {
-        final String funcName = "setZInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(zIndex, inverted);
     }   //setZInverted
 
@@ -295,14 +265,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setXScale(double scale)
     {
-        final String funcName = "setXScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(xIndex, scale, 0.0);
     }   //setXScale
 
@@ -313,14 +275,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setYScale(double scale)
     {
-        final String funcName = "setYScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(yIndex, scale, 0.0);
     }   //setYScale
 
@@ -331,14 +285,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setZScale(double scale)
     {
-        final String funcName = "setZScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(zIndex, scale, 0.0);
     }   //setZScale
 
@@ -354,9 +300,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -374,9 +318,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -394,9 +336,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -424,9 +364,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -454,9 +392,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -484,9 +420,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -514,9 +448,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -544,9 +476,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -574,9 +504,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;
@@ -597,12 +525,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
         {
             dataIntegrator.reset(xIndex);
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //resetXIntegrator
 
     /**
@@ -616,12 +538,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
         {
             dataIntegrator.reset(yIndex);
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //resetYIntegrator
 
     /**
@@ -634,12 +550,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
         if (dataIntegrator != null)
         {
             dataIntegrator.reset(zIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetZIntegrator
 
@@ -677,11 +587,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "index=%d", index);
-            dbgTrace.traceExit(
-                    funcName, TrcDbgTrace.TraceLevel.CALLBK,
-                    "=(timestamp=%.3f,value=%f",
-                    data != null? data.timestamp: 0.0, data != null? data.value: 0.0);
+            globalTracer.traceInfo(funcName, "[%d] type=%s, data=%s", index, dataType, data);
         }
 
         return data;

@@ -31,6 +31,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcAnalogSensor extends TrcAnalogInput
 {
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
     /**
      * This interface is used by this class to get the analog data from the provider.
      */
@@ -74,9 +76,7 @@ public class TrcAnalogSensor extends TrcAnalogInput
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d,type=%s", index, dataType);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=(%.3f,%s)",
-                data != null? data.timestamp: 0.0, data == null? "null": "" + data.value);
+            globalTracer.traceInfo(funcName, "[%d] type=%s, data=%s", index, dataType, data);
         }
 
         return data ;

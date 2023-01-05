@@ -32,6 +32,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 {
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
     //
     // AnalogInput data type.
     //
@@ -137,14 +139,6 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // Enable/disable integrator.
         //
@@ -195,14 +189,6 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public void setInverted(boolean inverted)
     {
-        final String funcName = "setInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(0, inverted);
     }   //setInverted
 
@@ -214,14 +200,6 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public void setScale(double scale, double offset)
     {
-        final String funcName = "setScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f,offset=%f", scale, offset);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         super.setScale(0, scale, offset);
     }   //setScale
 
@@ -248,9 +226,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
         }
 
         return data;
@@ -269,9 +245,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                    "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
         }
 
         return data;
@@ -299,9 +273,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
         }
 
         return data;
@@ -329,9 +301,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
+            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
         }
 
         return data;
@@ -348,17 +318,9 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public void resetIntegrator(int index)
     {
-        final String funcName = "resetIntegrator";
-
         if (dataIntegrator != null)
         {
             dataIntegrator.reset(index);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetIntegrator
 

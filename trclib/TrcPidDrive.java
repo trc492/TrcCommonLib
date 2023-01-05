@@ -35,15 +35,9 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcPidDrive
 {
-    private static final String moduleName = "TrcPidDrive";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private static final boolean verbosePidInfo = false;
-    private TrcDbgTrace dbgTrace = null;
-
 //    /**
 //     * This interface provides a stuck wheel notification handler. It is useful for detecting drive base motor
 //     * malfunctions. A stuck wheel could happen if the motor is malfunctioning, the motor power wire is unplugged,
@@ -130,13 +124,6 @@ public class TrcPidDrive
         String instanceName, TrcDriveBase driveBase,
         TrcPidController xPidCtrl, TrcPidController yPidCtrl, TrcPidController turnPidCtrl)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.driveBase = driveBase;
         this.xPidCtrl = xPidCtrl;
@@ -189,14 +176,6 @@ public class TrcPidDrive
      */
     public synchronized void setNoOscillation(boolean noOscillation)
     {
-        final String funcName = "setNoOscillation";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "noOsc=%s", Boolean.toString(noOscillation));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.noOscillation = noOscillation;
     }   //setNoOscillation
 
@@ -328,15 +307,6 @@ public class TrcPidDrive
      */
     public TrcPidController getXPidCtrl()
     {
-        final String funcName = "getXPidCtrl";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s",
-                    xPidCtrl != null? xPidCtrl.toString(): "null");
-        }
-
         return xPidCtrl;
     }   //getXPidCtrl
 
@@ -347,15 +317,6 @@ public class TrcPidDrive
      */
     public TrcPidController getYPidCtrl()
     {
-        final String funcName = "getYPidCtrl";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s",
-                    yPidCtrl != null? yPidCtrl.toString(): "null");
-        }
-
         return yPidCtrl;
     }   //getYPidCtrl
 
@@ -366,15 +327,6 @@ public class TrcPidDrive
      */
     public TrcPidController getTurnPidCtrl()
     {
-        final String funcName = "getTurnPidCtrl";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s",
-                    turnPidCtrl != null? turnPidCtrl.toString(): "null");
-        }
-
         return turnPidCtrl;
     }   //getTurnPidCtrl
 
@@ -386,15 +338,6 @@ public class TrcPidDrive
 //     */
 //    public synchronized void setStuckWheelHandler(StuckWheelHandler stuckWheelHandler, double stuckTimeout)
 //    {
-//        final String funcName = "setStuckWheelHandler";
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-//                    "stuckWheelHandler=%s,timeout=%f", stuckWheelHandler, stuckTimeout);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-//        }
-//
 //        this.stuckWheelHandler = stuckWheelHandler;
 //        this.stuckTimeout = stuckTimeout;
 //    }   //setStuckWheelHandler
@@ -406,14 +349,6 @@ public class TrcPidDrive
      */
     public synchronized void setTurnMode(TurnMode turnMode)
     {
-        final String funcName = "setTurnMode";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "turnMode=%s", turnMode);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.turnMode = turnMode;
     }   //setTurnMode
 
@@ -424,14 +359,6 @@ public class TrcPidDrive
      */
     public synchronized TurnMode getTurnMode()
     {
-        final String funcName = "getTurnMode";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", turnMode);
-        }
-
         return turnMode;
     }   //getTurnMode
 
@@ -445,15 +372,6 @@ public class TrcPidDrive
      */
     public synchronized void setBeep(TrcTone beepDevice, double beepFrequency, double beepDuration)
     {
-        final String funcName = "setBeep";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                    "beep=%s,freq=%.0f,duration=%.3f", beepDevice.toString(), beepFrequency, beepDuration);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.beepDevice = beepDevice;
         this.beepFrequency = beepFrequency;
         this.beepDuration = beepDuration;
@@ -481,16 +399,6 @@ public class TrcPidDrive
     public synchronized void setStallDetectionEnabled(
         double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
     {
-        final String funcName = "setStallDetectionEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "detectionDelay=%.3f,timeout=%.3f,velThreshold=%.3f",
-                stallDetectionDelay, stallTimeout, stallVelThreshold);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.stallDetectionDelay = stallDetectionDelay;
         this.stallTimeout = stallTimeout;
         driveBase.setStallVelocityThreshold(stallVelThreshold);
@@ -532,9 +440,8 @@ public class TrcPidDrive
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.FUNC,
-                "x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
+            globalTracer.traceInfo(
+                funcName, "x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
                 xTarget, yTarget, turnTarget, holdTarget, event.toString(), timeout);
         }
 
@@ -584,11 +491,6 @@ public class TrcPidDrive
         this.turnOnly = xError == 0.0 && yError == 0.0 && turnError != 0.0;
 
         setTaskEnabled(true);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTarget
 
     /**
@@ -703,9 +605,9 @@ public class TrcPidDrive
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(
-                        funcName, "owner=%s,xDelta=%.1f,yDelta=%.1f,turnDelta=%.1f,CurrPose:%s",
-                        owner, xDelta, yDelta, turnDelta, absTargetPose);
+                globalTracer.traceInfo(
+                    funcName, "owner=%s,xDelta=%.1f,yDelta=%.1f,turnDelta=%.1f,CurrPose:%s",
+                    owner, xDelta, yDelta, turnDelta, absTargetPose);
             }
 
             if (absTargetModeEnabled)
@@ -767,8 +669,9 @@ public class TrcPidDrive
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                        xTarget, yTarget, turnTarget, newTargetPose);
+                globalTracer.traceInfo(
+                    funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
+                    xTarget, yTarget, turnTarget, newTargetPose);
             }
             // The new target pose will become the updated absolute target pose.
             absTargetPose = newTargetPose;
@@ -977,11 +880,12 @@ public class TrcPidDrive
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(
-                        funcName, "owner=%s,absX=%.1f,absY=%.1f,absHeading=%.1f,CurrPose:%s,absTargetPose=%s",
-                        owner, absX, absY, absHeading, currRobotPose, absTargetPose);
-                dbgTrace.traceInfo(funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                        relativePose.x, relativePose.y, turnTarget, newTargetPose);
+                globalTracer.traceInfo(
+                    funcName, "owner=%s,absX=%.1f,absY=%.1f,absHeading=%.1f,CurrPose:%s,absTargetPose=%s",
+                    owner, absX, absY, absHeading, currRobotPose, absTargetPose);
+                globalTracer.traceInfo(
+                    funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
+                    relativePose.x, relativePose.y, turnTarget, newTargetPose);
             }
 
             if (noOscillation)
@@ -1266,14 +1170,6 @@ public class TrcPidDrive
      */
     public synchronized void driveMaintainHeading(double xPower, double yPower, double headingTarget)
     {
-        final String funcName = "driveMaintainHeading";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "xPower=%f,yPower=%f,angle=%f", xPower, yPower, headingTarget);
-        }
-
         if (xPidCtrl != null)
         {
             manualX = xPower;
@@ -1285,11 +1181,6 @@ public class TrcPidDrive
             maintainHeading = true;
             setTaskEnabled(true);
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //driveMaintainHeading
 
     /**
@@ -1299,14 +1190,6 @@ public class TrcPidDrive
      */
     public boolean isActive()
     {
-        final String funcName = "isActive";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", active);
-        }
-
         return active;
     }   //isActive
 
@@ -1319,7 +1202,7 @@ public class TrcPidDrive
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(funcName, "Canceling PID drive.");
         }
 
         if (active && driveBase.validateOwnership(owner))
@@ -1343,11 +1226,6 @@ public class TrcPidDrive
                 notifyEvent = null;
             }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //cancel
 
     /**
@@ -1357,14 +1235,6 @@ public class TrcPidDrive
      */
     public boolean isCanceled()
     {
-        final String funcName = "isCanceled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(canceled));
-        }
-
         return canceled;
     }   //isCanceled
 
@@ -1377,7 +1247,7 @@ public class TrcPidDrive
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC);
+            globalTracer.traceInfo(funcName, "Stopping PID.");
         }
 
         setTaskEnabled(false);
@@ -1409,11 +1279,6 @@ public class TrcPidDrive
         turnOnly = false;
         maintainHeading = false;
         canceled = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //stopPid
 
     /**
@@ -1423,16 +1288,9 @@ public class TrcPidDrive
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
-            driveTaskObj.registerTask(TaskType.OUTPUT_TASK);
+            driveTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
             stopTaskObj.registerTask(TaskType.STOP_TASK);
         }
         else
@@ -1441,11 +1299,6 @@ public class TrcPidDrive
             stopTaskObj.unregisterTask();
         }
         active = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTaskEnabled
 
     /**
@@ -1453,16 +1306,13 @@ public class TrcPidDrive
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void driveTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void driveTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "driveTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         double xPower = turnOnly || xPidCtrl == null? 0.0: xPidCtrl.getOutput();
         double yPower = turnOnly || yPidCtrl == null? 0.0: yPidCtrl.getOutput();
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
@@ -1596,11 +1446,6 @@ public class TrcPidDrive
                 if (turnPidCtrl != null) turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
             }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //driveTask
 
     /**
@@ -1608,22 +1453,12 @@ public class TrcPidDrive
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is about to end (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "stopTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         stopPid();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //stopTask
 
 }   //class TrcPidDrive

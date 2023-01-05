@@ -913,8 +913,11 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private synchronized void servoTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private synchronized void servoTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "servoTask";
 
@@ -1010,8 +1013,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      *
      * @param taskType specifies the type of task being run.
      * @param runMode specifies the competition mode that is running. (e.g. Autonomous, TeleOp, Test).
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode)
+    private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "stopTask";
 
