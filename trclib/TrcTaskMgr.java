@@ -677,6 +677,8 @@ public class TrcTaskMgr
      */
     public static void printAllRegisteredTasks(TrcDbgTrace tracer)
     {
+        final String funcName = "printAllRegisteredTasks";
+
         for (TaskObject taskObj : taskList)
         {
             StringBuilder msg = new StringBuilder(taskObj.toString() + ":");
@@ -687,7 +689,7 @@ public class TrcTaskMgr
                 msg.append(type);
             }
 
-            tracer.traceInfo("RegisteredTask", "%s", msg);
+            tracer.traceInfo(funcName, "%s: %s", taskObj, msg);
         }
     }   //printAllRegisteredTask
 

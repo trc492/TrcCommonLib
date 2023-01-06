@@ -519,8 +519,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void resetXIntegrator()
     {
-        final String funcName = "resetXIntegrator";
-
         if (dataIntegrator != null)
         {
             dataIntegrator.reset(xIndex);
@@ -532,8 +530,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void resetYIntegrator()
     {
-        final String funcName = "resetYIntegrator";
-
         if (dataIntegrator != null)
         {
             dataIntegrator.reset(yIndex);
@@ -545,8 +541,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void resetZIntegrator()
     {
-        final String funcName = "resetZIntegrator";
-
         if (dataIntegrator != null)
         {
             dataIntegrator.reset(zIndex);

@@ -74,8 +74,6 @@ public class TrcSongPlayer
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
         if (enabled)
         {
             playerTaskObj.registerTask(TaskType.OUTPUT_TASK);   //TODO: should use OUTPUT_TASK

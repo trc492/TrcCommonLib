@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import androidx.annotation.NonNull;
-
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -139,7 +137,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
          *
          * @return a copy of this odometry.
          */
-        @NonNull
         @Override
         public Odometry clone()
         {
