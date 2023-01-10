@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * This class implements a platform independent vision task. When enabled, it grabs a frame from the video source,
  * calls the provided vision processor to process the frame and overlays rectangles on the detected objects in the
@@ -36,12 +38,12 @@ public class TrcVisionTask<I, O>
     private final TrcVisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
     private final TrcTaskMgr.TaskObject visionTaskObj;
-    private boolean taskEnabled = false;
+    private AtomicReference<O[]> detectedObjects = new AtomicReference<>();
+    private volatile boolean taskEnabled = false;
+    private volatile boolean videoOutEnabled = false;
     private int imageIndex = 0;
-    private volatile O[] detectedObjects = null;
-    private boolean videoOutEnabled = false;
 
-    private TrcDbgTrace tracer = null;
+    private volatile TrcDbgTrace tracer = null;
     private double totalTime = 0.0;
     private long totalFrames = 0;
     private double taskStartTime = 0.0;
@@ -78,7 +80,7 @@ public class TrcVisionTask<I, O>
      *
      * @param tracer specifies a tracer to enable performance report, null to disable.
      */
-    public void setPerfReportEnabled(TrcDbgTrace tracer)
+    public synchronized void setPerfReportEnabled(TrcDbgTrace tracer)
     {
         this.tracer = tracer;
     }   //setPerfReportEnabled
@@ -93,7 +95,6 @@ public class TrcVisionTask<I, O>
     {
         if (enabled && !taskEnabled)
         {
-            detectedObjects = null;
             totalTime = 0.0;
             totalFrames = 0;
             taskStartTime = TrcTimer.getCurrentTime();
@@ -102,8 +103,8 @@ public class TrcVisionTask<I, O>
         else if (!enabled && taskEnabled)
         {
             visionTaskObj.unregisterTask();
-            detectedObjects = null;
         }
+        detectedObjects.set(null);
         taskEnabled = enabled;
     }   //setTaskEnabled
 
@@ -112,7 +113,7 @@ public class TrcVisionTask<I, O>
      *
      * @return true if the vision task is enabled, false otherwise.
      */
-    public synchronized boolean isTaskEnabled()
+    public boolean isTaskEnabled()
     {
         return taskEnabled;
     }   //isTaskEnabled
@@ -153,12 +154,9 @@ public class TrcVisionTask<I, O>
      *
      * @return the last detected objects.
      */
-    public synchronized O[] getDetectedObjects()
+    public O[] getDetectedObjects()
     {
-        O[] objects = detectedObjects;
-        detectedObjects = null;
-
-        return objects;
+        return detectedObjects.getAndSet(null);
     }   //getDetectedObjects
 
     /**
@@ -169,7 +167,7 @@ public class TrcVisionTask<I, O>
      * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
      *        false otherwise.
      */
-    private synchronized void visionTask(
+    private void visionTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "visionTask";
@@ -181,11 +179,12 @@ public class TrcVisionTask<I, O>
             // Capture an image and subject it for object detection. The object detector produces an array of
             // rectangles representing objects detected.
             //
-            detectedObjects = visionProcessor.processFrame(imageBuffers[imageIndex]);
+            O[] objects = visionProcessor.processFrame(imageBuffers[imageIndex]);
 
             if (videoOutEnabled)
             {
-                visionProcessor.annotateFrame(imageBuffers[imageIndex], detectedObjects);
+                visionProcessor.annotateFrame(imageBuffers[imageIndex], objects);
+                visionProcessor.putFrame(imageBuffers[imageIndex]);
             }
 
             double elapsedTime = TrcTimer.getCurrentTime() - startTime;
@@ -197,6 +196,7 @@ public class TrcVisionTask<I, O>
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
                     totalTime/totalFrames, totalFrames/(TrcTimer.getCurrentTime() - taskStartTime));
             }
+            detectedObjects.set(objects);
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.
             //
