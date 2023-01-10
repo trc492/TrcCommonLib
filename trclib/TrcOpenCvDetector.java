@@ -141,11 +141,11 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     }   //toString
 
     /**
-     * This method pauses/resumes pipeline processing.
+     * This method enables/disables pipeline processing.
      *
      * @param enabled specifies true to start pipeline processing, false to stop.
      */
-    public void setEnabled(boolean enabled)
+    private void setEnabled(boolean enabled)
     {
         synchronized (pipelineLock)
         {
@@ -165,16 +165,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
             }
         }
     }   //setEnabled
-
-    /**
-     * This method returns the state of EocvVision.
-     *
-     * @return true if the EocvVision is enabled, false otherwise.
-     */
-    public boolean isEnabled()
-    {
-        return visionTask.isTaskEnabled();
-    }   //isEnabled
 
     /**
      * This method sets the vision task processing interval.
@@ -197,7 +187,8 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     }   //getProcessingInterval
 
     /**
-     * This method enables/disables image annotation of the detected object rects.
+     * This method enables/disables image to be displayed on the output stream and optionally added annotation of
+     * the detected object rects on the output stream.
      *
      * @param step specifies the intermediate step frame to be displayed (0 is the original image,
      *        -1 to disable the image display).
@@ -210,9 +201,9 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     }   //setVideoOutEnabled
 
     /**
-     * This method sets the OpenCV pipeline to be used for the detection.
+     * This method sets the OpenCV pipeline to be used for the detection and enables it.
      *
-     * @param pipeline specifies the pipeline to be used for detection.
+     * @param pipeline specifies the pipeline to be used for detection, can be null to disable vision.
      */
     public void setPipeline(TrcOpenCvPipeline<DetectedObject<?>> pipeline)
     {
@@ -221,13 +212,13 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
             if (pipeline != openCvPipeline)
             {
                 // Pipeline has changed.
-                // Enable vision task if setting a new pipeline, disable if setting null pipeline.
+                // Enable vision if setting a new pipeline, disable if setting null pipeline.
                 openCvPipeline = pipeline;
                 setEnabled(pipeline != null);
             }
         }
     }   //setPipeline
- 
+
     /**
      * This method returns the current pipeline.
      *
@@ -237,7 +228,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     {
         return openCvPipeline;
     }   //getPipeline
- 
+
     /**
      * This method returns an array of detected targets from Grip vision.
      *
@@ -292,6 +283,10 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         return detectedTargets;
     }   //getDetectedTargetsInfo
 
+    //
+    // Implements TrcVisionProcessor interface.
+    //
+
     /**
      * This method is called to detect objects in the acquired image frame.
      *
@@ -319,7 +314,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
             Rect rect = object.getRect();
             Imgproc.rectangle(image, rect, ANNOTATE_COLOR, ANNOTATE_RECT_THICKNESS);
         }
-    }   //putAnnotatedFrame
+    }   //annotatedFrame
 
     /**
      * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
