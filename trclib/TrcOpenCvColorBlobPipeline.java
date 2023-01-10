@@ -28,7 +28,6 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
-//import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
@@ -40,7 +39,7 @@ import java.util.Locale;
 /**
  * This class implements a generic OpenCV color blob detection pipeline.
  */
-public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvColorBlobPipeline.DetectedObject>
+public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDetector.DetectedObject<?>>
 {
     /**
      * This class encapsulates info of the detected object. It extends TrcOpenCvDetector.DetectedObject that requires
@@ -164,6 +163,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
     private final TrcDbgTrace tracer;
 
     private final Mat colorThresholdOutput = new Mat();
+    private final Mat[] intermediateMats;
     private ArrayList<MatOfPoint> detectedContours = null;
 
     /**
@@ -191,6 +191,9 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
         this.tracer = tracer;
+        intermediateMats = new Mat[2];
+        intermediateMats[0] = null;
+        intermediateMats[1] = colorThresholdOutput;
     }   //TrcOpenCvColorBlobPipeline
 
     /**
@@ -220,6 +223,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
         ArrayList<MatOfPoint> filterContoursOutput = new ArrayList<>();
         double startTime = TrcTimer.getCurrentTime();
 
+        intermediateMats[0] = input;
         filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
         findContours(colorThresholdOutput, false, contoursOutput);
         if (filterContourParams != null)
@@ -243,16 +247,6 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
 //        // This line is for tuning Homography.
 //        Imgproc.line(input, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
     }   //process
-
-    /**
-     * This method returns the image after color threshold filtering.
-     *
-     * @return color threshold filtering output.
-     */
-    public Mat getColorThresholdOutput()
-    {
-        return colorThresholdOutput;
-    }   //getColorThresholdOutput
 
     /**
      * This method returns the array of detected objects.
@@ -282,6 +276,27 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvCo
 
         return objects;
     }   //getDetectedObjects
+
+    /**
+     * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
+     * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
+     * purposes.
+     *
+     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @return processed frame of the specified step.
+     */
+    @Override
+    public Mat getIntermediateOutput(int step)
+    {
+        Mat mat = null;
+
+        if (step < intermediateMats.length)
+        {
+            mat = intermediateMats[step];
+        }
+
+        return mat;
+    }   //getIntermediateOutput
 
     /**
      * This method process the image by filtering with the specified color ranges.

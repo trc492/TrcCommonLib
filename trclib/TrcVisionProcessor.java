@@ -43,8 +43,18 @@ public interface TrcVisionProcessor<I, O> extends TrcVideoSource<I>
      * This method is called to overlay rectangles of the detected objects on an image.
      *
      * @param image specifies the frame to be rendered to the video output.
-     * @param detectedObjects specifies the detected objects.`
+     * @param detectedObjects specifies the detected objects.
      */
     void annotateFrame(I image, O[] detectedObjects);
+
+    /**
+     * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
+     * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
+     * purposes.
+     *
+     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @return processed frame of the specified step.
+     */
+    I getIntermediateOutput(int step);
 
 }   //interface TrcVisionProcessor

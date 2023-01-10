@@ -40,7 +40,8 @@ public class TrcVisionTask<I, O>
     private final TrcTaskMgr.TaskObject visionTaskObj;
     private AtomicReference<O[]> detectedObjects = new AtomicReference<>();
     private volatile boolean taskEnabled = false;
-    private volatile boolean videoOutEnabled = false;
+    private volatile int intermediateStep = -1;
+    private volatile boolean annotate = false;
     private int imageIndex = 0;
 
     private volatile TrcDbgTrace tracer = null;
@@ -119,13 +120,17 @@ public class TrcVisionTask<I, O>
     }   //isTaskEnabled
 
     /**
-     * This method enables/disables image annotation of the detected object rects.
+     * This method enables/disables the display of the processed image.
      *
-     * @param enabled specifies true to enable video out, false to disable.
+     * @param intermediateStep specifies the intermediate step frame to be displayed (0 is the original image,
+     *        -1 to disable the image display).
+     * @param annotate specifies true to annotate the image with the detected object rectangles, false otherwise.
+     *        This parameter is ignored if intermediateStep is -1.
      */
-    public synchronized void setVideoOutEnabled(boolean enabled)
+    public synchronized void setVideoOutEnabled(int intermediateStep, boolean annotate)
     {
-        videoOutEnabled = enabled;
+        this.intermediateStep = intermediateStep;
+        this.annotate = annotate;
     }   //setVideoOutEnabled
 
     /**
@@ -181,10 +186,14 @@ public class TrcVisionTask<I, O>
             //
             O[] objects = visionProcessor.processFrame(imageBuffers[imageIndex]);
 
-            if (videoOutEnabled)
+            if (intermediateStep >= 0)
             {
-                visionProcessor.annotateFrame(imageBuffers[imageIndex], objects);
-                visionProcessor.putFrame(imageBuffers[imageIndex]);
+                I outputImage = visionProcessor.getIntermediateOutput(intermediateStep);
+                if (annotate)
+                {
+                    visionProcessor.annotateFrame(outputImage, objects);
+                }
+                visionProcessor.putFrame(outputImage);
             }
 
             double elapsedTime = TrcTimer.getCurrentTime() - startTime;

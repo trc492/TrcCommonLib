@@ -104,4 +104,14 @@ public interface TrcOpenCvPipeline<O>
      */
     O[] getDetectedObjects();
 
+    /**
+     * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
+     * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
+     * purposes.
+     *
+     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @return processed frame of the specified step.
+     */
+    Mat getIntermediateOutput(int step);
+
 }   //interface TrcOpenCvPipeline

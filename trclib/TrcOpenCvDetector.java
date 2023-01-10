@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import org.opencv.core.Mat;
-import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
@@ -77,11 +76,16 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         boolean validateTarget(DetectedObject<?> object);
     }   //interface FilterTarget
 
+    private static final Scalar ANNOTATE_COLOR = new Scalar(0,255,0,255);
+    private static final int ANNOTATE_RECT_THICKNESS = 3;
+
     private final String instanceName;
     private final int imageWidth, imageHeight;
     private final TrcDbgTrace tracer;
     private final TrcHomographyMapper homographyMapper;
     private final TrcVisionTask<Mat, DetectedObject<?>> visionTask;
+    private volatile TrcOpenCvPipeline<DetectedObject<?>> openCvPipeline = null;
+    private Object pipelineLock = new Object();
 
     /**
      * Constructor: Create an instance of the object.
@@ -122,6 +126,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         }
 
         visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers);
+        visionTask.setPerfReportEnabled(tracer);
     }   //TrcOpenCvDetector
 
     /**
@@ -136,38 +141,103 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     }   //toString
 
     /**
-     * This method returns the state of the vision task.
+     * This method pauses/resumes pipeline processing.
      *
-     * @return true if the vision task is enabled, false if disabled.
+     * @param enabled specifies true to start pipeline processing, false to stop.
      */
-    public boolean isTaskEnabled()
+    public void setEnabled(boolean enabled)
     {
-        return visionTask != null && visionTask.isTaskEnabled();
-    }   //isTaskEnabled
+        synchronized (pipelineLock)
+        {
+            boolean taskEnabled = visionTask.isTaskEnabled();
+
+            if (enabled && !taskEnabled)
+            {
+                if (openCvPipeline != null)
+                {
+                    openCvPipeline.reset();
+                    visionTask.setTaskEnabled(true);
+                }
+            }
+            else if (!enabled && taskEnabled)
+            {
+                visionTask.setTaskEnabled(false);
+            }
+        }
+    }   //setEnabled
 
     /**
-     * This method enables/disables the vision processing task.
+     * This method returns the state of EocvVision.
      *
-     * @param enabled specifies true to enable vision task, false to disable.
+     * @return true if the EocvVision is enabled, false otherwise.
      */
-    public void setTaskEnabled(boolean enabled)
+    public boolean isEnabled()
     {
-        if (visionTask != null)
-        {
-            visionTask.setTaskEnabled(enabled);
-        }
-    }   //setTaskEnabled
+        return visionTask.isTaskEnabled();
+    }   //isEnabled
+
+    /**
+     * This method sets the vision task processing interval.
+     *
+     * @param interval specifies the processing interval in msec. If 0, process as fast as the CPU can run.
+     */
+    public void setProcessingInterval(long interval)
+    {
+        visionTask.setProcessingInterval(interval);
+    }   //setProcessingInterval
+
+    /**
+     * This method returns the vision task processing interval.
+     *
+     * @return vision task processing interval in msec.
+     */
+    public long getProcessingInterval()
+    {
+        return visionTask.getProcessingInterval();
+    }   //getProcessingInterval
 
     /**
      * This method enables/disables image annotation of the detected object rects.
      *
-     * @param enabled specifies true to enable video out, false to disable.
+     * @param step specifies the intermediate step frame to be displayed (0 is the original image,
+     *        -1 to disable the image display).
+     * @param annotate specifies true to annotate the image with the detected object rectangles, false otherwise.
+     *        This parameter is ignored if intermediateStep is -1.
      */
-    public void setVideoOutEnabled(boolean enabled)
+    public void setVideoOutEnabled(int step, boolean annotate)
     {
-        visionTask.setVideoOutEnabled(enabled);
+        visionTask.setVideoOutEnabled(step, annotate);
     }   //setVideoOutEnabled
 
+    /**
+     * This method sets the OpenCV pipeline to be used for the detection.
+     *
+     * @param pipeline specifies the pipeline to be used for detection.
+     */
+    public void setPipeline(TrcOpenCvPipeline<DetectedObject<?>> pipeline)
+    {
+        synchronized (pipelineLock)
+        {
+            if (pipeline != openCvPipeline)
+            {
+                // Pipeline has changed.
+                // Enable vision task if setting a new pipeline, disable if setting null pipeline.
+                openCvPipeline = pipeline;
+                setEnabled(pipeline != null);
+            }
+        }
+    }   //setPipeline
+ 
+    /**
+     * This method returns the current pipeline.
+     *
+     * @return current pipeline, null if no set pipeline.
+     */
+    public TrcOpenCvPipeline<DetectedObject<?>> getPipeline()
+    {
+        return openCvPipeline;
+    }   //getPipeline
+ 
     /**
      * This method returns an array of detected targets from Grip vision.
      *
@@ -178,76 +248,91 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      * @return array of detected target info.
      */
     @SuppressWarnings("unchecked")
-    public synchronized TrcVisionTargetInfo<DetectedObject<?>>[] getDetectedTargetsInfo(
+    public TrcVisionTargetInfo<DetectedObject<?>>[] getDetectedTargetsInfo(
         FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject<?>>> comparator,
         double objHeightOffset, double cameraHeight)
     {
-        final String funcName = "getDetectedTargetsInfo";
-        TrcVisionTargetInfo<DetectedObject<?>>[] targets = null;
-        DetectedObject<?>[] detectedObjs = visionTask.getDetectedObjects();
+        final String funcName = instanceName + ".getDetectedTargetsInfo";
+        TrcVisionTargetInfo<DetectedObject<?>>[] detectedTargets = null;
+        DetectedObject<?>[] objects = visionTask.getDetectedObjects();
 
-        if (detectedObjs != null)
+        if (objects != null)
         {
             ArrayList<TrcVisionTargetInfo<DetectedObject<?>>> targetList = new ArrayList<>();
 
-            for (DetectedObject<?> detectedObj : detectedObjs)
+            for (DetectedObject<?> obj : objects)
             {
-                if (filter == null || filter.validateTarget(detectedObj))
+                if (filter == null || filter.validateTarget(obj))
                 {
                     TrcVisionTargetInfo<DetectedObject<?>> targetInfo =
                         new TrcVisionTargetInfo<>(
-                            detectedObj, imageWidth, imageHeight, homographyMapper, objHeightOffset, cameraHeight);
+                            obj, imageWidth, imageHeight, homographyMapper, objHeightOffset, cameraHeight);
                     targetList.add(targetInfo);
                 }
             }
 
             if (targetList.size() > 0)
             {
-                targets = targetList.toArray(new TrcVisionTargetInfo[0]);
-                if (comparator != null && targets.length > 1)
+                detectedTargets = targetList.toArray(new TrcVisionTargetInfo[0]);
+                if (comparator != null && detectedTargets.length > 1)
                 {
-                    Arrays.sort(targets, comparator);
+                    Arrays.sort(detectedTargets, comparator);
                 }
             }
 
-            if (targets != null && tracer != null)
+            if (detectedTargets != null && tracer != null)
             {
-                for (int i = 0; i < targets.length; i++)
+                for (int i = 0; i < detectedTargets.length; i++)
                 {
-                    tracer.traceInfo(funcName, "[%d] Target=%s", i, targets[i]);
+                    tracer.traceInfo(funcName, "[%d] Target=%s", i, detectedTargets[i]);
                 }
             }
         }
 
-        return targets;
+        return detectedTargets;
     }   //getDetectedTargetsInfo
+
+    /**
+     * This method is called to detect objects in the acquired image frame.
+     *
+     * @param image specifies the image to be processed.
+     * @return detected objects, null if none detected.
+     */
+    @Override
+    public TrcOpenCvDetector.DetectedObject<?>[] processFrame(Mat image)
+    {
+        openCvPipeline.process(image);
+        return openCvPipeline.getDetectedObjects();
+    }   //processFrame
 
     /**
      * This method is called to overlay rectangles of the detected objects on an image.
      *
      * @param image specifies the frame to be rendered to the video output.
      * @param detectedObjects specifies the detected objects.
-     * @param color specifies the color of the rectangle outline.
-     * @param thickness specifies the thickness of the rectangle outline.
      */
-    public static void drawRectangles(Mat image, DetectedObject<?>[] detectedObjects, Scalar color, int thickness)
+    @Override
+    public void annotateFrame(Mat image, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects)
     {
-        //
-        // Overlay a rectangle on each detected object.
-        //
-        if (detectedObjects != null)
+        for (TrcOpenCvDetector.DetectedObject<?> object : detectedObjects)
         {
-            for (DetectedObject<?> detectedObject : detectedObjects)
-            {
-                Rect rect = detectedObject.getRect();
-                //
-                // Draw a rectangle around the detected object.
-                //
-                Imgproc.rectangle(
-                    image, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height),
-                    color, thickness);
-            }
+            Rect rect = object.getRect();
+            Imgproc.rectangle(image, rect, ANNOTATE_COLOR, ANNOTATE_RECT_THICKNESS);
         }
-    }   //drawRectangles
+    }   //putAnnotatedFrame
+
+    /**
+     * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
+     * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
+     * purposes.
+     *
+     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @return processed frame of the specified step.
+     */
+    @Override
+    public Mat getIntermediateOutput(int step)
+    {
+        return openCvPipeline.getIntermediateOutput(step);
+    }   //getIntermediateOutput
 
 }   //class TrcOpenCvDetector
