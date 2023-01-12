@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,6 +52,7 @@ public class TrcThresholdTrigger implements TrcTrigger
 
     }   //interface ValueSource
 
+    private static final int DEF_CACHE_SIZE = 10;
     /**
      * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
      * synchronized).
@@ -65,7 +65,7 @@ public class TrcThresholdTrigger implements TrcTrigger
         volatile boolean triggerActive = false;
         volatile double startTime = 0.0;
         volatile boolean triggerEnabled = false;
-        final ArrayList<Double> recordedData = new ArrayList<>();
+        TrcDataBuffer cachedData = null;
 
         @Override
         public String toString()
@@ -74,7 +74,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                 Locale.US,
                 "(lowerThreshold=%.3f,upperThreshold=%.3f,settling=%.3f,active=%s,startTime=%.3f,enabled=%s,data=%s)",
                 lowerThreshold, upperThreshold, settlingPeriod, triggerActive, startTime, triggerEnabled,
-                Arrays.toString(recordedData.toArray()));
+                cachedData != null? Arrays.toString(cachedData.getBufferedData()): "null");
         }   //toString
 
     }   //class TriggerState
@@ -153,7 +153,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                 }
 
                 triggerState.startTime = TrcTimer.getCurrentTime();
-                triggerState.recordedData.clear();
+                triggerState.cachedData.clear();
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else if (!enabled && triggerState.triggerEnabled)
@@ -212,16 +212,17 @@ public class TrcThresholdTrigger implements TrcTrigger
      * @param upperThreshold specifies the upper threshold value for the trigger.
      * @param settlingPeriod specifies the period in seconds the sensor value must stay within threshold range for it
      *                       to trigger.
+     * @param maxCachedSize specifies the max number of of cached values.
      */
-    public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod)
+    public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod, int maxCachedSize)
     {
         final String funcName = "setTrigger";
 
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "%s.%s: lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f",
-                moduleName, instanceName, lowerThreshold, upperThreshold, settlingPeriod);
+                funcName, "%s.%s: lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f, maxCachedSize=%d",
+                moduleName, instanceName, lowerThreshold, upperThreshold, settlingPeriod, maxCachedSize);
         }
 
         synchronized (triggerState)
@@ -229,7 +230,22 @@ public class TrcThresholdTrigger implements TrcTrigger
             triggerState.lowerThreshold = lowerThreshold;
             triggerState.upperThreshold = upperThreshold;
             triggerState.settlingPeriod = settlingPeriod;
+            triggerState.cachedData = new TrcDataBuffer(moduleName, maxCachedSize);
         }
+    }   //setTrigger
+
+    /**
+     * This method sets the lower/upper threshold values within which the sensor reading must stay for at least the
+     * settling period for it to trigger the notification.
+     *
+     * @param lowerThreshold specifies the lower threshold value for the trigger.
+     * @param upperThreshold specifies the upper threshold value for the trigger.
+     * @param settlingPeriod specifies the period in seconds the sensor value must stay within threshold range for it
+     *                       to trigger.
+     */
+    public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod)
+    {
+        setTrigger(lowerThreshold, upperThreshold, settlingPeriod, DEF_CACHE_SIZE);
     }   //setTrigger
 
     /**
@@ -243,17 +259,74 @@ public class TrcThresholdTrigger implements TrcTrigger
 
         synchronized (triggerState)
         {
-            int arraySize = triggerState.recordedData.size();
-
-            if (arraySize > 0)
+            if (triggerState.cachedData != null)
             {
-                data = new Double[arraySize];
-                triggerState.recordedData.toArray(data);
+                data = triggerState.cachedData.getBufferedData();
             }
         }
 
         return data;
     }   //getTriggerSettlingData
+
+    /**
+     * This method returns the minimum sensor value recorded in the cache. Cache only records values within thresholds.
+     *
+     * @return minimum value in the cache, null if cache was empty.
+     */
+    public Double getMinimumValue()
+    {
+        Double minValue = null;
+
+        synchronized (triggerState)
+        {
+            if (triggerState.cachedData != null)
+            {
+                minValue = triggerState.cachedData.getMinimumValue();
+            }
+        }
+
+        return minValue;
+    }   //getMinimumValue
+
+    /**
+     * This method returns the maximum sensor value recorded in the cache. Cache only records values within thresholds.
+     *
+     * @return maximum value in the cache, null if cache was empty.
+     */
+    public Double getMaximumValue()
+    {
+        Double maxValue = null;
+
+        synchronized (triggerState)
+        {
+            if (triggerState.cachedData != null)
+            {
+                maxValue = triggerState.cachedData.getMaximumValue();
+            }
+        }
+
+        return maxValue;
+    }   //getMaximumValue
+
+    /**
+     * This method calculates the average sensor value recorded in the cache.
+     *
+     * @return average value calculated.
+     */
+    public Double getAverageValue()
+    {
+        Double avgValue = null;
+
+        synchronized (triggerState)
+        {
+            if (triggerState.cachedData != null)
+            {
+                avgValue = triggerState.cachedData.getAverageValue();
+            }
+        }
+
+        return avgValue;
+    }   //getAverageValue
 
     /**
      * This method is called periodically to check if the sensor value is within the lower and upper threshold range.
@@ -283,7 +356,7 @@ public class TrcThresholdTrigger implements TrcTrigger
                     triggered = true;
                 }
                 triggerState.startTime = currTime;
-                triggerState.recordedData.clear();
+                triggerState.cachedData.clear();
             }
             else if (currTime >= triggerState.startTime + triggerState.settlingPeriod)
             {
@@ -292,14 +365,14 @@ public class TrcThresholdTrigger implements TrcTrigger
                 {
                     // Only fires a trigger event when the threshold range is first entered and stayed for settling
                     // period (i.e. edge event).
-                    triggerState.recordedData.add(currValue);
+                    triggerState.cachedData.addValue(currValue);
                     triggerState.triggerActive = true;
                     triggered = true;
                 }
             }
             else
             {
-                triggerState.recordedData.add(currValue);
+                triggerState.cachedData.addValue(currValue);
             }
             active = triggerState.triggerActive;
         }
