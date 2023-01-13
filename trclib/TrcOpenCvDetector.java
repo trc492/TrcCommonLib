@@ -252,6 +252,12 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         return openCvPipeline.process(input);
     }   //processFrame
 
+    /**
+     * This method returns the selected intermediate output Mat.
+     *
+     * @return selected output mat.
+     */
+    @Override
     public Mat getSelectedOutput()
     {
         return openCvPipeline.getSelectedOutput();
