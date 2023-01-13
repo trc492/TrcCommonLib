@@ -35,6 +35,7 @@ import org.opencv.imgproc.Imgproc;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class implements a generic OpenCV color blob detection pipeline.
@@ -154,17 +155,21 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
 
     }   //class FilterContourParams
 
-    private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0);
+    private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0, 255);
+    private static final Scalar ANNOTATE_RECT_WHITE = new Scalar(255, 255, 255, 255);
+    private static final int ANNOTATE_RECT_THICKNESS = 3;
 
     private final String instanceName;
     private final int colorConversion;
     private final double[] colorThresholds;
     private final FilterContourParams filterContourParams;
     private final TrcDbgTrace tracer;
-
     private final Mat colorThresholdOutput = new Mat();
     private final Mat[] intermediateMats;
-    private ArrayList<MatOfPoint> detectedContours = null;
+
+    private final AtomicReference<DetectedObject[]> detectedObjectsUpdate = new AtomicReference<>();
+    private int intermediateStep = 0;
+    private boolean annotate = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -212,13 +217,25 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     //
 
     /**
+     * This method is called to reset the state of the pipeline if any.
+     */
+    @Override
+    public void reset()
+    {
+        performanceMetrics.reset();
+        intermediateStep = 0;
+    }   //reset
+
+    /**
      * This method is called to process the input image through the pipeline.
      *
      * @param input specifies the input image to be processed.
+     * @return array of detected objects.
      */
     @Override
-    public void process(Mat input)
+    public DetectedObject[] process(Mat input)
     {
+        DetectedObject[] detectedObjects = null;
         ArrayList<MatOfPoint> contoursOutput = new ArrayList<>();
         ArrayList<MatOfPoint> filterContoursOutput = new ArrayList<>();
         double startTime = TrcTimer.getCurrentTime();
@@ -231,21 +248,31 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
             contoursOutput = filterContoursOutput;
         }
-
         performanceMetrics.logProcessingTime(startTime);
         performanceMetrics.printMetrics(tracer);
 
-        synchronized (this)
+        if (contoursOutput.size() > 0)
         {
-            detectedContours = contoursOutput;
+            detectedObjects = new DetectedObject[contoursOutput.size()];
+            for (int i = 0; i < detectedObjects.length; i++)
+            {
+                detectedObjects[i] = new DetectedObject(contoursOutput.get(i));
+            }
+
+            // Annotate only if video output is enabled.
+            if (annotate && intermediateStep > 0)
+            {
+                Mat output = getIntermediateOutput(intermediateStep - 1);
+                Scalar color = intermediateStep == 1? ANNOTATE_RECT_COLOR: ANNOTATE_RECT_WHITE;
+                annotateFrame(output, detectedObjects, color, ANNOTATE_RECT_THICKNESS);
+//                // This line is for tuning Homography.
+//                Imgproc.line(output, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
+            }
+
+            detectedObjectsUpdate.set(detectedObjects);
         }
 
-        for (MatOfPoint contour : contoursOutput)
-        {
-            Imgproc.rectangle(input, Imgproc.boundingRect(contour), ANNOTATE_RECT_COLOR, 3);
-        }
-//        // This line is for tuning Homography.
-//        Imgproc.line(input, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
+        return detectedObjects;
     }   //process
 
     /**
@@ -256,33 +283,47 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     @Override
     public DetectedObject[] getDetectedObjects()
     {
-        DetectedObject[] objects = null;
-        ArrayList<MatOfPoint> contours;
-
-        synchronized (this)
-        {
-            contours = detectedContours;
-            detectedContours = null;
-        }
-
-        if (contours != null)
-        {
-            objects = new DetectedObject[contours.size()];
-            for (int i = 0; i < objects.length; i++)
-            {
-                objects[i] = new DetectedObject(contours.get(i));
-            }
-        }
-
-        return objects;
+        return detectedObjectsUpdate.getAndSet(null);
     }   //getDetectedObjects
+
+    /**
+     * This method sets the intermediate mat of the pipeline as the video output mat and optionally annotate the
+     * detected rectangle on it.
+     *
+     * @param intermediateStep specifies the intermediate mat used as video output (1 is the original mat, 0 to
+     *        disable video output if supported).
+     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
+     *        This parameter is ignored if intermediateStep is 0.
+     */
+    @Override
+    public void setVideoOutput(int intermediateStep, boolean annotate)
+    {
+        if (intermediateStep >= 0 && intermediateStep <= intermediateMats.length)
+        {
+            this.intermediateStep = intermediateStep;
+            this.annotate = annotate;
+        }
+    }   //setVideoOutput
+
+    /**
+     * This method cycles to the next intermediate mat of the pipeline as the video output mat.
+     *
+     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
+     *        This parameter is ignored if intermediateStep is 0.
+     */
+    @Override
+    public void setNextVideoOutput(boolean annotate)
+    {
+        intermediateStep = (intermediateStep + 1) % (intermediateMats.length + 1);
+        this.annotate = annotate;
+    }   //setNextVideoOutput
 
     /**
      * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
      * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
      * purposes.
      *
-     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @param step specifies the intermediate step (step 1 is the original input frame).
      * @return processed frame of the specified step.
      */
     @Override
@@ -290,13 +331,24 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         Mat mat = null;
 
-        if (step < intermediateMats.length)
+        if (step > 0 && step <= intermediateMats.length)
         {
-            mat = intermediateMats[step];
+            mat = intermediateMats[step - 1];
         }
 
         return mat;
     }   //getIntermediateOutput
+
+    /**
+     * This method returns the selected intermediate output Mat.
+     *
+     * @return selected output mat.
+     */
+    @Override
+    public Mat getSelectedOutput()
+    {
+        return getIntermediateOutput(intermediateStep);
+    }   //getSelectedOutput
 
     /**
      * This method process the image by filtering with the specified color ranges.

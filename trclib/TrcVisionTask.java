@@ -38,10 +38,8 @@ public class TrcVisionTask<I, O>
     private final TrcVisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
     private final TrcTaskMgr.TaskObject visionTaskObj;
-    private AtomicReference<O[]> detectedObjects = new AtomicReference<>();
+    private final AtomicReference<O[]> detectedObjects = new AtomicReference<>();
     private volatile boolean taskEnabled = false;
-    private volatile int intermediateStep = -1;
-    private volatile boolean annotate = false;
     private int imageIndex = 0;
 
     private volatile TrcDbgTrace tracer = null;
@@ -120,20 +118,6 @@ public class TrcVisionTask<I, O>
     }   //isTaskEnabled
 
     /**
-     * This method enables/disables the display of the processed image.
-     *
-     * @param intermediateStep specifies the intermediate step frame to be displayed (0 is the original image,
-     *        -1 to disable the image display).
-     * @param annotate specifies true to annotate the image with the detected object rectangles, false otherwise.
-     *        This parameter is ignored if intermediateStep is -1.
-     */
-    public synchronized void setVideoOutEnabled(int intermediateStep, boolean annotate)
-    {
-        this.intermediateStep = intermediateStep;
-        this.annotate = annotate;
-    }   //setVideoOutEnabled
-
-    /**
      * This method sets the vision task processing interval.
      *
      * @param interval specifies the processing interval in msec. If 0, process as fast as the CPU can run.
@@ -186,16 +170,6 @@ public class TrcVisionTask<I, O>
             //
             O[] objects = visionProcessor.processFrame(imageBuffers[imageIndex]);
 
-            if (intermediateStep >= 0)
-            {
-                I outputImage = visionProcessor.getIntermediateOutput(intermediateStep);
-                if (annotate)
-                {
-                    visionProcessor.annotateFrame(outputImage, objects);
-                }
-                visionProcessor.putFrame(outputImage);
-            }
-
             double elapsedTime = TrcTimer.getCurrentTime() - startTime;
             totalTime += elapsedTime;
             totalFrames++;
@@ -205,6 +179,13 @@ public class TrcVisionTask<I, O>
                     funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
                     totalTime/totalFrames, totalFrames/(TrcTimer.getCurrentTime() - taskStartTime));
             }
+
+            I output = visionProcessor.getSelectedOutput();
+            if (output != null)
+            {
+                visionProcessor.putFrame(output);
+            }
+
             detectedObjects.set(objects);
             //
             // Switch to the next buffer so that we won't clobber the info while the client is accessing it.

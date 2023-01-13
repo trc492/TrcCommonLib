@@ -23,6 +23,8 @@
 package TrcCommonLib.trclib;
 
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 /**
  * This interface implements the standard methods for an OpenCV pipeline. It also provides default methods to log
@@ -85,17 +87,15 @@ public interface TrcOpenCvPipeline<O>
     /**
      * This method is called to reset the state of the pipeline if any.
      */
-    default void reset()
-    {
-        performanceMetrics.reset();
-    }   //reset
+    void reset();
 
     /**
      * This method is called to process the input image through the pipeline.
      *
      * @param input specifies the input image to be processed.
+     * @return array of detected objects.
      */
-    void process(Mat input);
+    O[] process(Mat input);
 
     /**
      * This method returns the array of detected objects.
@@ -105,13 +105,56 @@ public interface TrcOpenCvPipeline<O>
     O[] getDetectedObjects();
 
     /**
+     * This method sets the intermediate mat of the pipeline as the video output mat and optionally annotate the
+     * detected rectangle on it.
+     *
+     * @param intermediateStep specifies the intermediate mat used as video output (1 is the original mat, 0 to
+     *        disable video output if supported).
+     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
+     *        This parameter is ignored if intermediateStep is 0.
+     */
+    void setVideoOutput(int intermediateStep, boolean annotate);
+
+    /**
+     * This method cycles to the next intermediate mat of the pipeline as the video output mat.
+     *
+     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
+     *        This parameter is ignored if intermediateStep is 0.
+     */
+    void setNextVideoOutput(boolean annotate);
+
+    /**
      * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
      * steps. It may be useful to see an intermediate frame for a step in the pipeline for tuning or debugging
      * purposes.
      *
-     * @param step specifies the intermediate step (step 0 is the original input frame).
+     * @param step specifies the intermediate step (step 1 is the original input frame).
      * @return processed frame of the specified step.
      */
     Mat getIntermediateOutput(int step);
+
+    /**
+     * This method returns the selected intermediate output Mat.
+     *
+     * @return selected output mat.
+     */
+    Mat getSelectedOutput();
+
+    /**
+     * This method is called to overlay rectangles of the detected objects on an image.
+     *
+     * @param image specifies the frame to be rendered to the video output.
+     * @param detectedObjects specifies the detected objects.
+     * @param color specifies the color of the annotated rectangle.
+     * @param thickness specifies the thickness of the annotated rectangle.
+     */
+    default void annotateFrame(
+        Mat image, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects, Scalar color, int thickness)
+    {
+        for (TrcOpenCvDetector.DetectedObject<?> object : detectedObjects)
+        {
+            Imgproc.rectangle(image, object.getRect(), color, thickness);
+        }
+    }   //annotatedFrame
 
 }   //interface TrcOpenCvPipeline
