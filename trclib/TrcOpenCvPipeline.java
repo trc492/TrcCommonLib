@@ -27,63 +27,12 @@ import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 /**
- * This interface implements the standard methods for an OpenCV pipeline. It also provides default methods to log
- * pipeline performance metrics.
+ * This interface implements the standard methods for an OpenCV pipeline.
  *
  * @param <O> specifies the detected object type the pipeline will produce.
  */
 public interface TrcOpenCvPipeline<O>
 {
-    /**
-     * This class encapsulates the pipeline performance metrics.
-     */
-    class PerformanceMetrics
-    {
-        double startTime = 0.0;
-        double totalProcessedTime = 0.0;
-        long totalProcessedFrames = 0;
-
-        /**
-         * This method resets the pipeline performance metrics. It is typically called before enabling the pipeline.
-         */
-        public void reset()
-        {
-            startTime = TrcTimer.getCurrentTime();
-            totalProcessedTime = 0.0;
-            totalProcessedFrames = 0;
-        }   //reset
-
-        /**
-         * This method is called to log the processing time of the pipeline.
-         *
-         * @param startTime specifies the timestamp when the processing starts.
-         */
-        public void logProcessingTime(double startTime)
-        {
-            totalProcessedTime += TrcTimer.getCurrentTime() - startTime;
-            totalProcessedFrames++;
-        }   //logProcessingTime
-
-        /**
-         * This method prints the pipeline performance metrics using the given tracer.
-         */
-        public void printMetrics(TrcDbgTrace tracer)
-        {
-            final String funcName = "printMetrics";
-
-            if (tracer != null)
-            {
-                tracer.traceInfo(
-                    funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
-                    totalProcessedTime/totalProcessedFrames,
-                    totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
-            }
-        }   //printMetrics
-
-    }   //class PerformanceMetrics
-
-    PerformanceMetrics performanceMetrics = new PerformanceMetrics();
-
     /**
      * This method is called to reset the state of the pipeline if any.
      */

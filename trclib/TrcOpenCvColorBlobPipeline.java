@@ -167,6 +167,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private final Mat colorThresholdOutput = new Mat();
     private final Mat[] intermediateMats;
 
+    private final TrcVisionPerformanceMetrics performanceMetrics = new TrcVisionPerformanceMetrics();
     private final AtomicReference<DetectedObject[]> detectedObjectsUpdate = new AtomicReference<>();
     private int intermediateStep = 0;
     private boolean annotate = false;
