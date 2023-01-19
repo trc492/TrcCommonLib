@@ -119,7 +119,7 @@ public class TrcTimer
             state.expired.set(false);
             state.canceled.set(false);
             // Notification callback requires an event. If the caller did not provide one, create one ourselves.
-            state.notifyEvent = event != null? event: new TrcEvent(moduleName + ".callbackEvent");
+            state.notifyEvent = event != null? event: new TrcEvent(instanceName + ".callbackEvent");
             if (callback != null)
             {
                 state.notifyEvent.setCallback(callback, callbackContext);
