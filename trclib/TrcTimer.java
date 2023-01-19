@@ -68,7 +68,7 @@ public class TrcTimer
      *
      * @param instanceName specifies the name to identify this instance of the timer.
      */
-    public TrcTimer(final String instanceName)
+    public TrcTimer(String instanceName)
     {
         this.instanceName = instanceName;
     }   //TrcTimer
