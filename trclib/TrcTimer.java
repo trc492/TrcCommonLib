@@ -112,7 +112,7 @@ public class TrcTimer
         {
             //
             // In case the timer is still active, cancel it first.
-            // Since we are re-arming an active timer, don't notify the event about the cancel.
+            // If we are re-arming an active timer, don't notify the event about the cancel.
             //
             cancel(false);
             state.expiredTimeInMsec.set(TrcTimer.getCurrentTimeMillis() + (long)(time*1000));
