@@ -37,7 +37,9 @@ public class TrcUtil
 {
     public static final double MM_PER_INCH = 25.4;
     public static final double METERS_PER_INCH = MM_PER_INCH / 1000.0;
+    public static final double INCHES_PER_MM = 1.0 / MM_PER_INCH;
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
+    public static final double INCHES_PER_METER = 1000.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
 
     /**
