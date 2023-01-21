@@ -180,7 +180,7 @@ public class TrcWatchdogMgr
         public String toString()
         {
             return String.format(
-                Locale.US, "[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s, paused=%s",
+                Locale.US, "{[%.3f] %s: threshold=%.3f, expiredTime=%.3f, expired=%s, paused=%s}",
                 TrcTimer.getCurrentTime(), name, heartBeatThreshold, heartBeatExpiredTime, expired, paused);
         }   //toString
 
