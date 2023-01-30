@@ -181,11 +181,11 @@ public class TrcTimer
     private void cancel(boolean doNotify)
     {
         final String funcName = "cancel";
+        TrcEvent event;
 
-        if (isActive())
+        synchronized (state)
         {
-            TrcEvent event;
-            synchronized (state)
+            if (isActive())
             {
                 state.expiredTimeInMsec.set(0);
                 state.expired.set(false);
@@ -193,12 +193,18 @@ public class TrcTimer
                 event = state.notifyEvent;
                 state.notifyEvent = null;
             }
-            removeTimer(this);
-            if (doNotify)
+            else
             {
-                // If there is a notification callback, it will be done automatically by the event.
-                event.cancel();
+                // Canceling a non-active timer is a no-op.
+                event = null;
             }
+        }
+        removeTimer(this);
+
+        if (doNotify && event != null)
+        {
+            // If there is a notification callback, it will be done automatically by the event.
+            event.cancel();
         }
 
         if (debugEnabled)
@@ -268,8 +274,8 @@ public class TrcTimer
     private void setExpired()
     {
         final String funcName = "setExpired";
-
         TrcEvent event;
+
         synchronized (state)
         {
             if (!state.canceled.get())
@@ -305,9 +311,9 @@ public class TrcTimer
     private static final TrcHighPrecisionTime modeStartTime = new TrcHighPrecisionTime("ModeStartTime");
     private static final ArrayList<TrcTimer> timerList = new ArrayList<>();
     private static Thread timerThread = null;
-    private static boolean shuttingDown = false;
-    private static TrcTimer nextTimerToExpire = null;
-    private static TrcTimer preemptingTimer = null;
+    private static volatile boolean shuttingDown = false;
+    private static volatile TrcTimer nextTimerToExpire = null;
+    private static volatile TrcTimer preemptingTimer = null;
 
     /**
      * This method is called at the start of a competition mode to set the mode start timestamp so that
@@ -590,9 +596,17 @@ public class TrcTimer
                             }
                             // There is no timer in progress, get one from the timer queue.
                             nextTimerToExpire = timerList.remove(0);
+                            if (nextTimerToExpire.isCanceled())
+                            {
+                                // This timer has been canceled, skip it.
+                                nextTimerToExpire = null;
+                            }
                         }
                         else
                         {
+                            // There should be a timer in the queue. If not, somebody has canceled it and taken it
+                            // out of the queue before we get to it. It's really not a problem but let's log a
+                            // warning and move on.
                             globalTracer.traceWarn(funcName, "Expecting a timer from the queue but there is none.");
                         }
                     }
@@ -633,12 +647,13 @@ public class TrcTimer
             {
                 // There are three reasons we get interrupted:
                 //  1. Somebody just added a preempting timer.
-                //  2. Somebody just canceled a non-expiring timer.
+                //  2. Somebody just canceled and removed the current active timer.
                 //  3. Somebody is shutting down the timer thread.
                 synchronized (timerList)
                 {
                     if (preemptingTimer != null)
                     {
+                        // Somebody just added a preempting timer.
                         if (nextTimerToExpire != null)
                         {
                             // Somebody just added a timer that will expire sooner than the one we are sleeping on.
@@ -660,6 +675,7 @@ public class TrcTimer
                     }
                     else if (nextTimerToExpire != null && nextTimerToExpire.isCanceled())
                     {
+                        // Somebody just canceled and removed the current active timer.
                         if (debugEnabled)
                         {
                             globalTracer.traceInfo(
@@ -670,9 +686,7 @@ public class TrcTimer
                     }
                     else if (shuttingDown)
                     {
-                        //
-                        // Somebody is trying to terminate the timer thread. Let's quit.
-                        //
+                        // Somebody is shutting down the timer thread.
                         if (debugEnabled)
                         {
                             globalTracer.traceInfo(funcName, "Terminating %s thread.", moduleName);
