@@ -25,6 +25,8 @@ package TrcCommonLib.trclib;
 import java.util.Arrays;
 import java.util.Locale;
 
+import TrcCommonLib.trclib.TrcPidController.PowerCompensation;
+
 /**
  * This class implements a platform independent PID controlled actuator extending TrcPidMotor. It consists of a motor,
  * an encoder to keep track of its position, a lower limit switch to detect the zero position and a PID controller
@@ -207,7 +209,7 @@ public class TrcPidActuator extends TrcPidMotor
          * @param powerCompensation specifies the motor power compensation method.
          * @return this parameter object.
          */
-        public Parameters setPowerCompensation(TrcPidMotor.PowerCompensation powerCompensation)
+        public Parameters setPowerCompensation(PowerCompensation powerCompensation)
         {
             this.powerCompensation = powerCompensation;
             return this;

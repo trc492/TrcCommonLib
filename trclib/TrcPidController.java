@@ -32,15 +32,32 @@ import java.util.Stack;
  */
 public class TrcPidController
 {
-    protected static final String moduleName = "TrcPidController";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     public static final double DEF_SETTLING_TIME = 0.2;
+
+    /**
+     * Some actuators are non-linear. The load may vary depending on the position. For example, raising an arm
+     * against gravity will have the maximum load when the arm is horizontal and zero load when vertical. This
+     * caused problem when applying PID control on this kind of actuator because PID controller is only good at
+     * controlling linear actuators. To make PID controller works for non-linear actuators, we need to add power
+     * compensation that counteracts the non-linear component of the load so that PID only deals with the resulting
+     * linear load. However, a generic PID controller doesn't understand the actuator and has no way to come up
+     * with the compensation. Therefore, it is up to the user of the TrcPIDMotor to provide this interface for
+     * computing the output compensation.
+     */
+    public interface PowerCompensation
+    {
+        /**
+         * This method is called to compute the power compensation to counteract the varying non-linear load.
+         *
+         * @param currPower specifies the current motor power.
+         * @return compensation value of the actuator.
+         */
+        double getCompensation(double currPower);
+
+    }   //interface PowerCompensation
 
     /**
      * This class encapsulates all the PID coefficients into a single object and makes it more efficient to pass them
@@ -149,6 +166,7 @@ public class TrcPidController
         public final double settlingTime;
         public double steadyStateError;
         public double stallErrRateThreshold;
+        public PowerCompensation powerCompensation;
 
         /**
          * Constructor: Create an instance of the object.
@@ -158,15 +176,18 @@ public class TrcPidController
          * @param settlingTime specifies the minimum on target settling time.
          * @param steadyStateError specifies the acceptable steady state error.
          * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
+         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
+         *        provided.
          */
         public PidParameters(
             PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-            double stallErrRateThreshold)
+            double stallErrRateThreshold, PowerCompensation powerCompensation)
         {
             this.pidCoeff = pidCoeff;
             this.settlingTime = Math.abs(settlingTime);
             this.stallErrRateThreshold = stallErrRateThreshold;
             setErrorTolerances(tolerance, steadyStateError);
+            this.powerCompensation = powerCompensation;
         }   //PidParameters
 
         /**
@@ -175,13 +196,26 @@ public class TrcPidController
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
+         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
+         *        provided.
+         */
+        public PidParameters(
+            PidCoefficients pidCoeff, double tolerance, double settlingTime, PowerCompensation powerCompensation)
+        {
+            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, powerCompensation);
+        }   //PidParameters
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param pidCoeff specifies the PID coefficients for the PID controller.
+         * @param tolerance specifies the tolerance.
+         * @param settlingTime specifies the minimum on target settling time.
+         *        provided.
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime)
         {
-            this.pidCoeff = pidCoeff;
-            this.settlingTime = Math.abs(settlingTime);
-            this.stallErrRateThreshold = 0.0;
-            setErrorTolerances(tolerance, tolerance);
+            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, null);
         }   //PidParameters
 
         /**
@@ -192,7 +226,7 @@ public class TrcPidController
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance)
         {
-            this(pidCoeff, tolerance, DEF_SETTLING_TIME);
+            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, null);
         }   //PidParameters
 
         /**
@@ -207,13 +241,15 @@ public class TrcPidController
          * @param settlingTime specifies the minimum on target settling time.
          * @param steadyStateError specifies the acceptable steady state error.
          * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
+         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
+         *        provided.
          */
         public PidParameters(
             double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
-            double steadyStateError, double stallErrRateThreshold)
+            double steadyStateError, double stallErrRateThreshold, PowerCompensation powerCompensation)
         {
             this(new PidCoefficients(kP, kI, kD, kF, iZone),
-                 tolerance, settlingTime, steadyStateError, stallErrRateThreshold);
+                 tolerance, settlingTime, steadyStateError, stallErrRateThreshold, powerCompensation);
         }   //PidParameters
 
         /**
@@ -230,7 +266,7 @@ public class TrcPidController
         public PidParameters(
             double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime)
         {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime);
+            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime, null);
         }   //PidParameters
 
         /**
@@ -361,6 +397,7 @@ public class TrcPidController
         double iTerm = 0.0;
         double dTerm = 0.0;
         double fTerm = 0.0;
+        double powerComp = 0.0;
         double output = 0.0;
 
         /**
@@ -381,6 +418,7 @@ public class TrcPidController
             iTerm = 0.0;
             dTerm = 0.0;
             fTerm = 0.0;
+            powerComp = 0.0;
             output = 0.0;
         }   //reset
 
@@ -415,16 +453,33 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidParameters pidParams, PidInput pidInput)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                TrcDbgTrace.getGlobalTracer() :
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.pidParams = pidParams;
         this.pidInput = pidInput;
+    }   //TrcPidController
+
+    /**
+     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
+     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
+     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
+     * set the PidInput outside of the super() call.
+     *
+     * @param instanceName specifies the instance name.
+     * @param pidCoeff specifies the PID constants.
+     * @param tolerance specifies the target tolerance.
+     * @param settlingTime specifies the minimum on target settling time.
+     * @param steadyStateError specifies the acceptable steady state error.
+     * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
+     * @param pidInput specifies the input provider.
+     */
+    public TrcPidController(
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
+        double stallErrRateThreshold, PowerCompensation powerCompensation, PidInput pidInput)
+    {
+        this(instanceName,
+             new PidParameters(
+             pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, powerCompensation), pidInput);
     }   //TrcPidController
 
     /**
@@ -446,7 +501,28 @@ public class TrcPidController
         double stallErrRateThreshold, PidInput pidInput)
     {
         this(instanceName,
-             new PidParameters(pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold), pidInput);
+             new PidParameters(pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, null),
+             pidInput);
+    }   //TrcPidController
+
+    /**
+     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
+     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
+     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
+     * set the PidInput outside of the super() call.
+     *
+     * @param instanceName specifies the instance name.
+     * @param pidCoeff specifies the PID constants.
+     * @param tolerance specifies the target tolerance.
+     * @param settlingTime specifies the minimum on target settling time.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
+     * @param pidInput specifies the input provider.
+     */
+    public TrcPidController(
+        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime,
+        PowerCompensation powerCompensation, PidInput pidInput)
+    {
+        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, powerCompensation), pidInput);
     }   //TrcPidController
 
     /**
@@ -464,7 +540,26 @@ public class TrcPidController
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, null), pidInput);
+    }   //TrcPidController
+
+    /**
+     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
+     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
+     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
+     * set the PidInput outside of the super() call.
+     *
+     * @param instanceName specifies the instance name.
+     * @param pidCoeff specifies the PID constants.
+     * @param tolerance specifies the target tolerance.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
+     * @param pidInput specifies the input provider.
+     */
+    public TrcPidController(
+        String instanceName, PidCoefficients pidCoeff, double tolerance, PowerCompensation powerCompensation,
+        PidInput pidInput)
+    {
+        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, powerCompensation), pidInput);
     }   //TrcPidController
 
     /**
@@ -480,7 +575,7 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, null), pidInput);
     }   //TrcPidController
 
     /**
@@ -524,14 +619,6 @@ public class TrcPidController
      */
     public void setInverted(boolean inverted)
     {
-        final String funcName = "setInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             this.inverted = inverted;
@@ -549,14 +636,6 @@ public class TrcPidController
      */
     public void setAbsoluteSetPoint(boolean absolute)
     {
-        final String funcName = "setAbsoluteSetPoint";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "absolute=%s", Boolean.toString(absolute));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             this.absSetPoint = absolute;
@@ -570,14 +649,6 @@ public class TrcPidController
      */
     public boolean hasAbsoluteSetPoint()
     {
-        final String funcName = "hasAbsoluteSetPoint";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%b", absSetPoint);
-        }
-
         return absSetPoint;
     }   //hasAbsoluteSetPoint
 
@@ -591,14 +662,6 @@ public class TrcPidController
      */
     public void setNoOscillation(boolean noOscillation)
     {
-        final String funcName = "setNoOscillation";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "noOsc=%s", Boolean.toString(noOscillation));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             this.noOscillation = noOscillation;
@@ -612,14 +675,6 @@ public class TrcPidController
      */
     public PidCoefficients getPidCoefficients()
     {
-        final String funcName = "getPidCoefficients";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", pidParams.pidCoeff);
-        }
-
         return pidParams.pidCoeff;
     }   //getPidCoefficients
 
@@ -630,14 +685,6 @@ public class TrcPidController
      */
     public void setPidCoefficients(PidCoefficients pidCoeff)
     {
-        final String funcName = "setPidCoefficients";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "pidCoeff=%s", pidCoeff);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             this.pidParams.pidCoeff = pidCoeff;
@@ -726,14 +773,6 @@ public class TrcPidController
      */
     public void setTargetRange(double minTarget, double maxTarget)
     {
-        final String funcName = "setTargetRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "min=%f,max=%f", minTarget, maxTarget);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             this.minTarget = minTarget;
@@ -751,14 +790,6 @@ public class TrcPidController
      */
     public void setOutputRange(double minOutput, double maxOutput)
     {
-        final String funcName = "setOutputRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "min=%f,max=%f", minOutput, maxOutput);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (maxOutput <= minOutput)
         {
             throw new IllegalArgumentException("maxOutput must be greater than minOutput");
@@ -800,14 +831,6 @@ public class TrcPidController
      */
     public double getOutputLimit()
     {
-        final String funcName = "getOutputLimit";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", outputLimit);
-        }
-
         return outputLimit;
     }   //getOutputLimit
 
@@ -824,24 +847,13 @@ public class TrcPidController
      */
     public double saveAndSetOutputLimit(double limit)
     {
-        final String funcName = "saveAndSetOutputLimit";
         double prevLimit;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "limit=%f", limit);
-        }
 
         synchronized (pidCtrlState)
         {
             prevLimit = outputLimit;
             outputLimitStack.push(outputLimit);
             setOutputLimit(limit);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", prevLimit);
         }
 
         return prevLimit;
@@ -855,13 +867,7 @@ public class TrcPidController
      */
     public double restoreOutputLimit()
     {
-        final String funcName = "restoreOutputLimit";
         double limit;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
 
         synchronized (pidCtrlState)
         {
@@ -880,11 +886,6 @@ public class TrcPidController
             }
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", limit);
-        }
-
         return limit;
     }   //restoreOutputLimit
 
@@ -895,14 +896,6 @@ public class TrcPidController
      */
     public double getTarget()
     {
-        final String funcName = "getTarget";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.setPoint);
-        }
-
         return pidCtrlState.setPoint;
     }   //getTarget
 
@@ -916,14 +909,6 @@ public class TrcPidController
      */
     public void setTarget(double target, TrcWarpSpace warpSpace, boolean resetError)
     {
-        final String funcName = "setTarget";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "target=%f,warpSpace=%s,resetError=%s",
-                target, warpSpace, resetError);
-        }
         //
         // Read from input device without holding a lock on this object, since this could
         // be a long-running call.
@@ -991,11 +976,6 @@ public class TrcPidController
                 pidCtrlState.currTime = pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
             }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setTarget
 
     /**
@@ -1038,14 +1018,6 @@ public class TrcPidController
      */
     public double getError()
     {
-        final String funcName = "getError";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.currError);
-        }
-
         return pidCtrlState.currError;
     }   //getError
 
@@ -1054,14 +1026,6 @@ public class TrcPidController
      */
     public void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         synchronized (pidCtrlState)
         {
             pidCtrlState.reset();
@@ -1079,11 +1043,6 @@ public class TrcPidController
     {
         final String funcName = "isOnTarget";
         boolean onTarget = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
 
         synchronized (pidCtrlState)
         {
@@ -1115,7 +1074,7 @@ public class TrcPidController
 
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(
+                    globalTracer.traceInfo(
                         funcName,
                         "err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
                         pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance,
@@ -1126,7 +1085,7 @@ public class TrcPidController
             {
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(
+                    globalTracer.traceInfo(
                         funcName, "currTime=%.3f, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
                         "steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
                         currTime, pidCtrlState.settlingStartTime, pidCtrlState.currError, pidCtrlState.errorRate,
@@ -1134,11 +1093,6 @@ public class TrcPidController
                 }
 
                 onTarget = true;
-            }
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(onTarget));
             }
         }
 
@@ -1163,7 +1117,6 @@ public class TrcPidController
      */
     public double getOutput()
     {
-        final String funcName = "getOutput";
         //
         // Read from input device without holding a lock on this object, since this could
         // be a long-running call.
@@ -1172,11 +1125,6 @@ public class TrcPidController
 
         synchronized (pidCtrlState)
         {
-            if (debugEnabled)
-            {
-                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            }
-
             double prevTime = pidCtrlState.currTime;
             pidCtrlState.currTime = TrcTimer.getCurrentTime();
             pidCtrlState.deltaTime = pidCtrlState.currTime - prevTime;
@@ -1231,16 +1179,16 @@ public class TrcPidController
                 output = pidCtrlState.output + change;
             }
 
+            if (pidParams.powerCompensation != null)
+            {
+                pidCtrlState.powerComp = pidParams.powerCompensation.getCompensation(output);
+                output = TrcUtil.clipRange(output + pidCtrlState.powerComp, minOutput, maxOutput);
+            }
             pidCtrlState.output = output;
 
             if (debugTracer != null)
             {
                 printPidInfo(debugTracer, verboseTrace);
-            }
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pidCtrlState.output);
             }
 
             return pidCtrlState.output;
@@ -1280,7 +1228,7 @@ public class TrcPidController
 
         if (tracer == null)
         {
-            tracer = dbgTrace;
+            tracer = globalTracer;
         }
         //
         // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device. In the
@@ -1297,25 +1245,25 @@ public class TrcPidController
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f" +
+                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, PowerComp=%6.3f" +
                             ", Volt=%.1f(%.1f)",
                             TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput,
                             pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            TrcTimer.getModeElapsedTime(pidCtrlState.currTime),
-                            battery.getVoltage(), battery.getLowestVoltage());
+                            pidCtrlState.powerComp, battery.getVoltage(), battery.getLowestVoltage());
                     }
                     else
                     {
                         tracer.traceInfo(
                             funcName,
                             "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
+                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, powerComp=%6.3f",
                             TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
                             pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
                             pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
+                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
+                            pidCtrlState.powerComp);
                     }
                 }
                 else

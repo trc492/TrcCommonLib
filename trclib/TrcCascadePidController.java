@@ -33,6 +33,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcCascadePidController extends TrcPidController
 {
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
     public TrcPidController secondaryCtrl;
 
     /**
@@ -91,14 +93,6 @@ public class TrcCascadePidController extends TrcPidController
     @Override
     public synchronized void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         secondaryCtrl.reset();
         super.reset();
     }   //reset
@@ -113,19 +107,14 @@ public class TrcCascadePidController extends TrcPidController
     {
         final String funcName = "getOutput";
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         double primaryOutput = super.getOutput();
         secondaryCtrl.setTarget(primaryOutput);
         double secondaryOutput = secondaryCtrl.getOutput();
 
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(primary:%f,secondary:%f", primaryOutput, secondaryOutput);
+            globalTracer.traceInfo(
+                funcName, "primary:%f,secondary:%f", primaryOutput, secondaryOutput);
         }
 
         return secondaryOutput;

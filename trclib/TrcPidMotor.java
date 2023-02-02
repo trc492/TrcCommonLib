@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import TrcCommonLib.trclib.TrcPidController.PowerCompensation;
+
 /**
  * This class implements a platform independent PID controlled motor. A PID controlled motor may consist of one or
  * two physical motors, a position sensor, typically an encoder (or could be a potentiometer). Optionally, it supports
@@ -38,28 +40,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private TrcDbgTrace msgTracer = null;
     private TrcRobotBattery battery = null;
     private boolean tracePidInfo = false;
-
-    /**
-     * Some actuators are non-linear. The load may vary depending on the position. For example, raising an arm
-     * against gravity will have the maximum load when the arm is horizontal and zero load when vertical. This
-     * caused problem when applying PID control on this kind of actuator because PID controller is only good at
-     * controlling linear actuators. To make PID controller works for non-linear actuators, we need to add power
-     * compensation that counteracts the non-linear component of the load so that PID only deals with the resulting
-     * linear load. However, a generic PID controller doesn't understand the actuator and has no way to come up
-     * with the compensation. Therefore, it is up to the user of the TrcPIDMotor to provide this interface for
-     * computing the output compensation.
-     */
-    public interface PowerCompensation
-    {
-        /**
-         * This method is called to compute the power compensation to counteract the varying non-linear load.
-         *
-         * @param currPower specifies the current motor power.
-         * @return compensation value of the actuator.
-         */
-        double getCompensation(double currPower);
-
-    }   //interface PowerCompensation
 
     private static final double MIN_MOTOR_POWER = -1.0;
     private static final double MAX_MOTOR_POWER = 1.0;
