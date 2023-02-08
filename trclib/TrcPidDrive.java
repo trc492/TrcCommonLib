@@ -116,19 +116,20 @@ public class TrcPidDrive
      *
      * @param instanceName specifies the instance name.
      * @param driveBase specifies the drive base object.
-     * @param xPidCtrl specifies the PID controller for the X direction.
-     * @param yPidCtrl specifies the PID controller for the Y direction.
-     * @param turnPidCtrl specifies the PID controller for turn.
+     * @param xPidParams specifies the parameters of the X PID controller.
+     * @param yPidParams specifies the parameters of the Y PID controller.
+     * @param turnPidParams specifies the parameters of the turn PID controller.
      */
     public TrcPidDrive(
-        String instanceName, TrcDriveBase driveBase,
-        TrcPidController xPidCtrl, TrcPidController yPidCtrl, TrcPidController turnPidCtrl)
+        String instanceName, TrcDriveBase driveBase, TrcPidController.PidParameters xPidParams,
+        TrcPidController.PidParameters yPidParams, TrcPidController.PidParameters turnPidParams)
     {
         this.instanceName = instanceName;
         this.driveBase = driveBase;
-        this.xPidCtrl = xPidCtrl;
-        this.yPidCtrl = yPidCtrl;
-        this.turnPidCtrl = turnPidCtrl;
+        this.xPidCtrl = xPidParams != null?
+            new TrcPidController(instanceName + ".xPidCtrl", xPidParams, driveBase::getXPosition): null;
+        this.yPidCtrl = new TrcPidController(instanceName + ".yPidCtrl", yPidParams, driveBase::getYPosition);
+        this.turnPidCtrl = new TrcPidController(instanceName + "turnPidCtrl", turnPidParams, driveBase::getHeading);
         resetAbsoluteTargetPose();
         driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
         stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);
