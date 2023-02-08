@@ -1319,7 +1319,7 @@ public class TrcPidDrive
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
 
         double currTime = TrcTimer.getCurrentTime();
-        boolean expired = TrcTimer.getCurrentTime() >= expiredTime;
+        boolean expired = currTime >= expiredTime;
         boolean stalled =
             stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();
@@ -1372,18 +1372,20 @@ public class TrcPidDrive
                     driveBase.setFieldPosition(pose);
                     savedPoseForTurnOnly = null;
                 }
-
-                if (notifyEvent != null)
-                {
-                    notifyEvent.signal();
-                    notifyEvent = null;
-                }
             }
             // If we come here, both onTarget and holdTarget are true.
             // We will stop the drive base but not stopping PID.
             else
             {
                 driveBase.stop(owner);
+            }
+            // If we are stalled, timed out or on target, we will signal the event regardless whether we are holding
+            // target or not. This means that if we are holding target, the caller is responsible for canceling PID
+            // eventually.
+            if (notifyEvent != null)
+            {
+                notifyEvent.signal();
+                notifyEvent = null;
             }
         }
         // If we come here, we are not on target yet, keep driving.
