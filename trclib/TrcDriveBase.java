@@ -1113,34 +1113,31 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param xTippingPidParams specifies the anti-tipping PID controller parameters for the X direction, null for
      *        non-holonomic drive base.
-     * @param xPidInput specifies the PidInput interface for the X direction, null for non-holonomic drive base.
      * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
-     * @param yPidInput specifies the PidInput interface for the Y direction.
      */
     public void enableAntiTipping(
-        TrcPidController.PidParameters xTippingPidParams, TrcPidController.PidInput xPidInput,
-        TrcPidController.PidParameters yTippingPidParams, TrcPidController.PidInput yPidInput)
+        TrcPidController.PidParameters xTippingPidParams, TrcPidController.PidParameters yTippingPidParams)
     {
-        if (yTippingPidParams == null || yPidInput == null)
+        if (yTippingPidParams == null || yTippingPidParams.pidInput == null)
         {
             throw new IllegalArgumentException("yTippingPidParams and yPidInput must not be null.");
         }
 
         if (xTippingPidParams != null)
         {
-            if (xPidInput == null)
+            if (xTippingPidParams.pidInput == null)
             {
                 throw new IllegalArgumentException("xPidInput must not be null.");
             }
 
-            xTippingPidCtrl = new TrcPidController("xAntiTippingPidCtrl", xTippingPidParams, xPidInput);
+            xTippingPidCtrl = new TrcPidController("xAntiTippingPidCtrl", xTippingPidParams);
             xTippingPidCtrl.setAbsoluteSetPoint(true);
-            xTippingPidCtrl.setTarget(xPidInput.get());
+            xTippingPidCtrl.setTarget(xTippingPidParams.pidInput.get());
         }
 
-        yTippingPidCtrl = new TrcPidController("yAntiTippingPidCtrl", yTippingPidParams, yPidInput);
+        yTippingPidCtrl = new TrcPidController("yAntiTippingPidCtrl", yTippingPidParams);
         yTippingPidCtrl.setAbsoluteSetPoint(true);
-        yTippingPidCtrl.setTarget(yPidInput.get());
+        yTippingPidCtrl.setTarget(yTippingPidParams.pidInput.get());
 
         antiTippingEnabled = true;
     }   //enableAntiTipping
@@ -1149,12 +1146,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * This method enables anti-tipping drive.
      *
      * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
-     * @param yPidInput specifies the PidInput interface for the Y direction.
      */
     public void enableAntiTipping(
         TrcPidController.PidParameters yTippingPidParams, TrcPidController.PidInput yPidInput)
     {
-        enableAntiTipping(null, null, yTippingPidParams, yPidInput);
+        enableAntiTipping(null, yTippingPidParams);
     }   //enableAntiTipping
 
     /**

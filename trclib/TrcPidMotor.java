@@ -123,7 +123,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.motor1 = motor1;
         this.motor2 = motor2;
         this.syncGain = syncGain;
-        this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams, this::getPosition);
+        pidParams.setPidInput(this::getPosition);
+        this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams);
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.defCalPower = defCalPower;
         this.powerCompensation = powerCompensation;

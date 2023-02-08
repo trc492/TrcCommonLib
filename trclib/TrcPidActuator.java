@@ -129,7 +129,8 @@ public class TrcPidActuator extends TrcPidMotor
          */
         public Parameters setPidParams(double kP, double kI, double kD, double tolerance)
         {
-            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance);
+            // TrcPidMotor is providing the PidInput method.
+            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance, null);
             return this;
         }   //setPidParams
 

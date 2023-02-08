@@ -127,9 +127,9 @@ public class TrcPidDrive
         this.instanceName = instanceName;
         this.driveBase = driveBase;
         this.xPidCtrl = xPidParams != null?
-            new TrcPidController(instanceName + ".xPidCtrl", xPidParams, driveBase::getXPosition): null;
-        this.yPidCtrl = new TrcPidController(instanceName + ".yPidCtrl", yPidParams, driveBase::getYPosition);
-        this.turnPidCtrl = new TrcPidController(instanceName + "turnPidCtrl", turnPidParams, driveBase::getHeading);
+            new TrcPidController(instanceName + ".xPidCtrl", xPidParams): null;
+        this.yPidCtrl = new TrcPidController(instanceName + ".yPidCtrl", yPidParams);
+        this.turnPidCtrl = new TrcPidController(instanceName + "turnPidCtrl", turnPidParams);
         resetAbsoluteTargetPose();
         driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
         stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);

@@ -166,6 +166,7 @@ public class TrcPidController
         public final double settlingTime;
         public double steadyStateError;
         public double stallErrRateThreshold;
+        public PidInput pidInput;
         public PowerCompensation powerCompensation;
 
         /**
@@ -176,17 +177,19 @@ public class TrcPidController
          * @param settlingTime specifies the minimum on target settling time.
          * @param steadyStateError specifies the acceptable steady state error.
          * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
+         * @param pidInput specifies the method to call to get PID sensor input.
          * @param powerCompensation specifies the method to call to get power compensation, can be null if not
          *        provided.
          */
         public PidParameters(
             PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-            double stallErrRateThreshold, PowerCompensation powerCompensation)
+            double stallErrRateThreshold, PidInput pidInput, PowerCompensation powerCompensation)
         {
             this.pidCoeff = pidCoeff;
             this.settlingTime = Math.abs(settlingTime);
             this.stallErrRateThreshold = stallErrRateThreshold;
             setErrorTolerances(tolerance, steadyStateError);
+            this.pidInput = pidInput;
             this.powerCompensation = powerCompensation;
         }   //PidParameters
 
@@ -196,13 +199,15 @@ public class TrcPidController
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
+         * @param pidInput specifies the method to call to get PID sensor input.
          * @param powerCompensation specifies the method to call to get power compensation, can be null if not
          *        provided.
          */
         public PidParameters(
-            PidCoefficients pidCoeff, double tolerance, double settlingTime, PowerCompensation powerCompensation)
+            PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput,
+            PowerCompensation powerCompensation)
         {
-            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, powerCompensation);
+            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, pidInput, powerCompensation);
         }   //PidParameters
 
         /**
@@ -212,10 +217,11 @@ public class TrcPidController
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
          *        provided.
+         * @param pidInput specifies the method to call to get PID sensor input.
          */
-        public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime)
+        public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
         {
-            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, null);
+            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
@@ -223,10 +229,26 @@ public class TrcPidController
          *
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
+         * @param pidInput specifies the method to call to get PID sensor input.
+         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
+         *        provided.
          */
-        public PidParameters(PidCoefficients pidCoeff, double tolerance)
+        public PidParameters(
+            PidCoefficients pidCoeff, double tolerance, PidInput pidInput, PowerCompensation powerCompensation)
         {
-            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, null);
+            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, powerCompensation);
+        }   //PidParameters
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param pidCoeff specifies the PID coefficients for the PID controller.
+         * @param tolerance specifies the tolerance.
+         * @param pidInput specifies the method to call to get PID sensor input.
+         */
+        public PidParameters(PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
+        {
+            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
@@ -241,15 +263,17 @@ public class TrcPidController
          * @param settlingTime specifies the minimum on target settling time.
          * @param steadyStateError specifies the acceptable steady state error.
          * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
+         * @param pidInput specifies the method to call to get PID sensor input.
          * @param powerCompensation specifies the method to call to get power compensation, can be null if not
          *        provided.
          */
         public PidParameters(
             double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
-            double steadyStateError, double stallErrRateThreshold, PowerCompensation powerCompensation)
+            double steadyStateError, double stallErrRateThreshold, PidInput pidInput,
+            PowerCompensation powerCompensation)
         {
             this(new PidCoefficients(kP, kI, kD, kF, iZone),
-                 tolerance, settlingTime, steadyStateError, stallErrRateThreshold, powerCompensation);
+                 tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput, powerCompensation);
         }   //PidParameters
 
         /**
@@ -262,11 +286,13 @@ public class TrcPidController
          * @param iZone specifies the integral zone.
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
+         * @param pidInput specifies the method to call to get PID sensor input.
          */
         public PidParameters(
-            double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime)
+            double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
+            PidInput pidInput)
         {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime, null);
+            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime, pidInput, null);
         }   //PidParameters
 
         /**
@@ -278,10 +304,12 @@ public class TrcPidController
          * @param kF specifies the Feed forward constant.
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
+         * @param pidInput specifies the method to call to get PID sensor input.
          */
-        public PidParameters(double kP, double kI, double kD, double kF, double tolerance, double settlingTime)
+        public PidParameters(
+            double kP, double kI, double kD, double kF, double tolerance, double settlingTime, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime);
+            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime, pidInput);
         }   //PidParameters
 
         /**
@@ -292,10 +320,11 @@ public class TrcPidController
          * @param kD specifies the Differential constant.
          * @param kF specifies the Feed forward constant.
          * @param tolerance specifies the tolerance.
+         * @param pidInput specifies the method to call to get PID sensor input.
          */
-        public PidParameters(double kP, double kI, double kD, double kF, double tolerance)
+        public PidParameters(double kP, double kI, double kD, double kF, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME);
+            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
 
         /**
@@ -305,11 +334,22 @@ public class TrcPidController
          * @param kI specifies the Integral constant.
          * @param kD specifies the Differential constant.
          * @param tolerance specifies the tolerance.
+         * @param pidInput specifies the method to call to get PID sensor input.
          */
-        public PidParameters(double kP, double kI, double kD, double tolerance)
+        public PidParameters(double kP, double kI, double kD, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME);
+            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
+
+        /**
+         * This method sets the method to call to get PID sensor input.
+         *
+         * @param pidInput specifies the method to call to get PID sensor input.
+         */
+        public void setPidInput(PidInput pidInput)
+        {
+            this.pidInput = pidInput;
+        }   //setPidInput
 
         /**
          * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
@@ -427,7 +467,6 @@ public class TrcPidController
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
     private final String instanceName;
     private final PidParameters pidParams;
-    private final PidInput pidInput;
 
     private boolean inverted = false;
     private boolean absSetPoint = false;
@@ -449,13 +488,11 @@ public class TrcPidController
      *
      * @param instanceName specifies the instance name.
      * @param pidParams specifies the PID parameters.
-     * @param pidInput specifies the method to call to get input value.
      */
-    public TrcPidController(String instanceName, PidParameters pidParams, PidInput pidInput)
+    public TrcPidController(String instanceName, PidParameters pidParams)
     {
         this.instanceName = instanceName;
         this.pidParams = pidParams;
-        this.pidInput = pidInput;
     }   //TrcPidController
 
     /**
@@ -470,16 +507,16 @@ public class TrcPidController
      * @param settlingTime specifies the minimum on target settling time.
      * @param steadyStateError specifies the acceptable steady state error.
      * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      * @param pidInput specifies the input provider.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      */
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-        double stallErrRateThreshold, PowerCompensation powerCompensation, PidInput pidInput)
+        double stallErrRateThreshold, PidInput pidInput, PowerCompensation powerCompensation)
     {
         this(instanceName,
              new PidParameters(
-             pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, powerCompensation), pidInput);
+             pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput, powerCompensation));
     }   //TrcPidController
 
     /**
@@ -501,8 +538,8 @@ public class TrcPidController
         double stallErrRateThreshold, PidInput pidInput)
     {
         this(instanceName,
-             new PidParameters(pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, null),
-             pidInput);
+             new PidParameters(pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput,
+            null));
     }   //TrcPidController
 
     /**
@@ -515,14 +552,14 @@ public class TrcPidController
      * @param pidCoeff specifies the PID constants.
      * @param tolerance specifies the target tolerance.
      * @param settlingTime specifies the minimum on target settling time.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      * @param pidInput specifies the input provider.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      */
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime,
-        PowerCompensation powerCompensation, PidInput pidInput)
+        PidInput pidInput, PowerCompensation powerCompensation)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, powerCompensation), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, pidInput, powerCompensation));
     }   //TrcPidController
 
     /**
@@ -540,7 +577,7 @@ public class TrcPidController
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, null), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, pidInput, null));
     }   //TrcPidController
 
     /**
@@ -552,14 +589,14 @@ public class TrcPidController
      * @param instanceName specifies the instance name.
      * @param pidCoeff specifies the PID constants.
      * @param tolerance specifies the target tolerance.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      * @param pidInput specifies the input provider.
+     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
      */
     public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, PowerCompensation powerCompensation,
-        PidInput pidInput)
+        String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput,
+        PowerCompensation powerCompensation)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, powerCompensation), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput, powerCompensation));
     }   //TrcPidController
 
     /**
@@ -575,7 +612,7 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, null), pidInput);
+        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput, null));
     }   //TrcPidController
 
     /**
@@ -606,7 +643,7 @@ public class TrcPidController
      */
     public PidInput getPidInput()
     {
-        return pidInput;
+        return pidParams.pidInput;
     }   //getPidInput
 
     /**
@@ -915,7 +952,7 @@ public class TrcPidController
         // Note: if we are changing target, don't need to waste time to get current input because we are not
         // updating error states anyway.
         //
-        final double input = resetError? pidInput.get(): 0.0;
+        final double input = resetError? pidParams.pidInput.get(): 0.0;
 
         synchronized (pidCtrlState)
         {
@@ -1106,7 +1143,7 @@ public class TrcPidController
      */
     public double getCurrentInput()
     {
-        return pidInput.get();
+        return pidParams.pidInput.get();
     }   //getCurrentInput
 
     /**
@@ -1121,7 +1158,7 @@ public class TrcPidController
         // Read from input device without holding a lock on this object, since this could
         // be a long-running call.
         //
-        final double currInput = pidInput.get();
+        final double currInput = pidParams.pidInput.get();
 
         synchronized (pidCtrlState)
         {
