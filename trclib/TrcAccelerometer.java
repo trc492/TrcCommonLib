@@ -265,7 +265,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setXScale(double scale)
     {
-        setScale(xIndex, scale, 0.0);
+        setScale(xIndex, scale);
     }   //setXScale
 
     /**
@@ -275,7 +275,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setYScale(double scale)
     {
-        setScale(yIndex, scale, 0.0);
+        setScale(yIndex, scale);
     }   //setYScale
 
     /**
@@ -285,7 +285,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public void setZScale(double scale)
     {
-        setScale(zIndex, scale, 0.0);
+        setScale(zIndex, scale);
     }   //setZScale
 
     /**

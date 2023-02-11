@@ -198,10 +198,10 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param scale specifies the scale factor.
      * @param offset specifies the offset to be subtracted from the scaled data.
      */
-    public void setScale(double scale, double offset)
+    public void setScaleAndOffset(double scale, double offset)
     {
-        super.setScale(0, scale, offset);
-    }   //setScale
+        super.setScaleAndOffset(0, scale, offset);
+    }   //setScaleAndOffset
 
     /**
      * This method sets the scale factor on the sensor data.
@@ -210,7 +210,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public void setScale(double scale)
     {
-        setScale(scale, 0.0);
+        super.setScale(0, scale);
     }   //setScale
 
     /**

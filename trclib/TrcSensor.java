@@ -209,16 +209,27 @@ public abstract class TrcSensor<D>
     }   //setInverted
 
     /**
-     * This method sets the scale factor for the data of the specified axis.
+     * This method sets the scale factor and offset for the data of the specified axis.
      *
      * @param index specifies the axis index.
      * @param scale specifies the scale factor for the axis.
      * @param offset specifies the offset to be subtracted from the scaled data.
      */
-    public void setScale(int index, double scale, double offset)
+    public void setScaleAndOffset(int index, double scale, double offset)
     {
         scales[index] = scale;
         offsets[index] = offset;
+    }   //setScaleAndOffset
+
+    /**
+     * This method sets the scale factor for the data of the specified axis.
+     *
+     * @param index specifies the axis index.
+     * @param scale specifies the scale factor for the axis.
+     */
+    public void setScale(int index, double scale)
+    {
+        scales[index] = scale;
     }   //setScale
 
     /**
@@ -294,9 +305,13 @@ public abstract class TrcSensor<D>
                 if (debugEnabled) globalTracer.traceInfo(funcName, "calibrated=%.3f", value);
             }
 
-            value *= signs[index]*scales[index] + offsets[index];
-            if (debugEnabled) globalTracer.traceInfo(
-                funcName, "scaled=%.3f (scale=%f,offset=%f)", value, scales[index], offsets[index]);
+            value = signs[index] * (value - offsets[index]) * scales[index];
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "scaled=%.3f (sign=%.0f,scale=%f,offset=%f)",
+                    value, signs[index], scales[index], offsets[index]);
+            }
             data.value = value;
         }
 
