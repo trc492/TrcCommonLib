@@ -1165,23 +1165,41 @@ public class TrcPidDrive
     /**
      * This method allows a mecanum drive base to drive and maintain a fixed angle.
      *
+     * @param owner specifies the ID string of the caller requesting exclusive access.
+     * @param xPower specifies the X drive power.
+     * @param yPower specifies the Y drive power.
+     * @param headingTarget specifies the angle to maintain.
+     */
+    public synchronized void driveMaintainHeading(String owner, double xPower, double yPower, double headingTarget)
+    {
+        if (driveBase.validateOwnership(owner))
+        {
+            this.owner = owner;
+
+            if (xPidCtrl != null)
+            {
+                manualX = xPower;
+                manualY = yPower;
+                if (turnPidCtrl != null)
+                {
+                    turnPidCtrl.setTarget(headingTarget);
+                }
+                maintainHeading = true;
+                setTaskEnabled(true);
+            }
+        }
+    }   //driveMaintainHeading
+
+    /**
+     * This method allows a mecanum drive base to drive and maintain a fixed angle.
+     *
      * @param xPower specifies the X drive power.
      * @param yPower specifies the Y drive power.
      * @param headingTarget specifies the angle to maintain.
      */
     public synchronized void driveMaintainHeading(double xPower, double yPower, double headingTarget)
     {
-        if (xPidCtrl != null)
-        {
-            manualX = xPower;
-            manualY = yPower;
-            if (turnPidCtrl != null)
-            {
-                turnPidCtrl.setTarget(headingTarget);
-            }
-            maintainHeading = true;
-            setTaskEnabled(true);
-        }
+        driveMaintainHeading(null, xPower, yPower, headingTarget);
     }   //driveMaintainHeading
 
     /**
@@ -1196,8 +1214,10 @@ public class TrcPidDrive
 
     /**
      * This method cancels an active PID drive operation and stops all motors.
+     *
+     * @param owner specifies the ID string of the caller requesting exclusive access.
      */
-    public synchronized void cancel()
+    public synchronized void cancel(String owner)
     {
         final String funcName = "cancel";
 
@@ -1208,7 +1228,7 @@ public class TrcPidDrive
 
         if (active && driveBase.validateOwnership(owner))
         {
-            stopPid();
+            stopPid(owner);
             if (savedPoseForTurnOnly != null)
             {
                 //
@@ -1230,6 +1250,14 @@ public class TrcPidDrive
     }   //cancel
 
     /**
+     * This method cancels an active PID drive operation and stops all motors.
+     */
+    public void cancel()
+    {
+        cancel(null);
+    }   //cancel
+
+    /**
      * This method checks if a PID drive operation was canceled.
      *
      * @return true if PID drive is active, false otherwise.
@@ -1241,8 +1269,10 @@ public class TrcPidDrive
 
     /**
      * This method stops the PID drive operation and reset the states.
+     *
+     * @param owner specifies the ID string of the caller requesting exclusive access.
      */
-    private synchronized void stopPid()
+    private synchronized void stopPid(String owner)
     {
         final String funcName = "stopPid";
 
@@ -1280,6 +1310,7 @@ public class TrcPidDrive
         turnOnly = false;
         maintainHeading = false;
         canceled = false;
+        owner = null;
     }   //stopPid
 
     /**
@@ -1359,7 +1390,7 @@ public class TrcPidDrive
         {
             if (expired || stalled || !holdTarget)
             {
-                stopPid();
+                stopPid(owner);
 
                 if (savedPoseForTurnOnly != null)
                 {
@@ -1461,7 +1492,7 @@ public class TrcPidDrive
      */
     private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        stopPid();
+        stopPid(owner);
     }   //stopTask
 
 }   //class TrcPidDrive

@@ -903,8 +903,10 @@ public class TrcPurePursuitDrive
     /**
      * If the controller is currently active, cancel the path following operation. Otherwise, do nothing.
      * If there is an event to signal, mark it as cancelled.
+     *
+     * @param owner specifies the ID string of the caller requesting exclusive access.
      */
-    public synchronized void cancel()
+    public synchronized void cancel(String owner)
     {
         if (isActive() && driveBase.validateOwnership(owner))
         {
@@ -924,6 +926,15 @@ public class TrcPurePursuitDrive
                 waypointEventHandler = null;
             }
         }
+    }   //cancel
+
+    /**
+     * If the controller is currently active, cancel the path following operation. Otherwise, do nothing.
+     * If there is an event to signal, mark it as cancelled.
+     */
+    public void cancel()
+    {
+        cancel(null);
     }   //cancel
 
     /**
