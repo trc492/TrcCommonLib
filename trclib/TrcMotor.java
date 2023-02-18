@@ -299,6 +299,25 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         return true;
     }   //isConnected
 
+    /**
+     * This method enables voltage compensation so that it will maintain the motor output regardless of battery
+     * voltage.
+     *
+     * @param batteryNominalVoltage specifies the nominal voltage of the battery.
+     */
+    public void enableVoltageCompensation(double batteryNominalVoltage)
+    {
+        throw new UnsupportedOperationException("Motor controller does not support voltage compensation.");
+    }   //enableVoltageCompensation
+
+    /**
+     * This method disables voltage compensation.
+     */
+    public void disableVoltageCompensation()
+    {
+        throw new UnsupportedOperationException("Motor controller does not support voltage compensation.");
+    }   //disableVoltageCompensation
+
     //
     // TrcMotor APIs.
     //
