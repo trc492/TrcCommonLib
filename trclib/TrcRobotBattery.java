@@ -22,12 +22,16 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+
 /**
  * This class monitors the robot battery level and provides methods to get the current battery voltage as well as
  * the lowest voltage it has ever seen during the monitoring session.
  */
 public abstract class TrcRobotBattery
 {
+    private static final String moduleName = "TrcRobotBattery";
+
     /**
      * This method returns the robot battery voltage.
      *
@@ -78,6 +82,15 @@ public abstract class TrcRobotBattery
 
         robotBatteryTaskObj = TrcTaskMgr.createTask("robotBatteryTask", this::robotBatteryTask);
     }   //TrcRobotBattery
+
+    /**
+     * This method returns the state of the Arm in a string.
+     */
+    @Override
+    public String toString()
+    {
+        return String.format(Locale.US, "%s: Volt=%.2f/%.2f", moduleName, getVoltage(), getLowestVoltage());
+    }   //toString
 
     /**
      * This method enables/disables the battery monitoring task. When the task is enabled, it also clears the
