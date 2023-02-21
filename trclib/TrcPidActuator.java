@@ -48,8 +48,8 @@ public class TrcPidActuator extends TrcPidMotor
      */
     public static class Parameters
     {
-        public double minPos = 0.0, maxPos = 1.0;
         public double scale = 1.0, offset = 0.0;
+        public double minPos = 0.0, maxPos = 1.0;
         public TrcPidController.PidParameters pidParams;
         public boolean resetPosOnLowerLimit = false;
         public double calPower = -0.25;
@@ -57,9 +57,9 @@ public class TrcPidActuator extends TrcPidMotor
         public double stallTolerance = 0.0;
         public double stallTimeout = 0.0;
         public double resetTimeout = 0.0;
+        public PowerCompensation powerCompensation = null;
         public double presetTolerance = 2.0;
         public double[] posPresets = null;
-        public PowerCompensation powerCompensation = null;
 
         /**
          * This method returns the string format of the PID actuator parameters.
@@ -71,25 +71,11 @@ public class TrcPidActuator extends TrcPidMotor
         {
             return String .format(
                 Locale.US,
-                "rangePos=(%.1f, %.1f), scale=%.1f, offset=%.1f, pidParams=%s, calPower=%.1f, stallMinPower=%.1f, " +
+                "scale=%.1f, offset=%.1f, rangePos=(%.1f, %.1f), pidParams=%s, calPower=%.1f, stallMinPower=%.1f, " +
                 "stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, presetTolerance=%.2f, posPresets=%s",
-                minPos, maxPos, scale, offset, pidParams, calPower, stallMinPower, stallTolerance, stallTimeout,
+                scale, offset, minPos, maxPos, pidParams, calPower, stallMinPower, stallTolerance, stallTimeout,
                 resetTimeout, presetTolerance, Arrays.toString(posPresets));
         }   //toString
-
-        /**
-         * This method sets the position range limits of the motor actuator.
-         *
-         * @param minPos specifies the minimum position of the actuator in scaled unit.
-         * @param maxPos specifies the maximum position of the actuator in scaled unit.
-         * @return this parameter object.
-         */
-        public Parameters setPosRange(double minPos, double maxPos)
-        {
-            this.minPos = minPos;
-            this.maxPos = maxPos;
-            return this;
-        }   //setPosRange
 
         /**
          * This method sets the scale and offset of the motor actuator. It allows the actuator to report real world
@@ -105,6 +91,20 @@ public class TrcPidActuator extends TrcPidMotor
             this.offset = offset;
             return this;
         }   //setScaleOffset
+
+        /**
+         * This method sets the position range limits of the motor actuator.
+         *
+         * @param minPos specifies the minimum position of the actuator in scaled unit.
+         * @param maxPos specifies the maximum position of the actuator in scaled unit.
+         * @return this parameter object.
+         */
+        public Parameters setPosRange(double minPos, double maxPos)
+        {
+            this.minPos = minPos;
+            this.maxPos = maxPos;
+            return this;
+        }   //setPosRange
 
         /**
          * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
@@ -124,14 +124,30 @@ public class TrcPidActuator extends TrcPidMotor
          * @param kP specifies the Proportional constant.
          * @param kI specifies the Integral constant.
          * @param kD specifies the Differential constant.
+         * @param kF specifies the Feed Forward constant.
+         * @param iZone specifies the integral zone.
+         * @param tolerance specifies the tolerance.
+         * @return this parameter object.
+         */
+        public Parameters setPidParams(double kP, double kI, double kD, double kF, double iZone, double tolerance)
+        {
+            // TrcPidMotor is providing the PidInput method.
+            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, kF, iZone, tolerance, null);
+            return this;
+        }   //setPidParams
+
+        /**
+         * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
+         *
+         * @param kP specifies the Proportional constant.
+         * @param kI specifies the Integral constant.
+         * @param kD specifies the Differential constant.
          * @param tolerance specifies the tolerance.
          * @return this parameter object.
          */
         public Parameters setPidParams(double kP, double kI, double kD, double tolerance)
         {
-            // TrcPidMotor is providing the PidInput method.
-            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance, null);
-            return this;
+            return setPidParams(kP, kI, kD, 0.0, 0.0, tolerance);
         }   //setPidParams
 
         /**
@@ -179,31 +195,6 @@ public class TrcPidActuator extends TrcPidMotor
         }   //setStallProtectionParams
 
         /**
-         * This method sets the preset tolerance. Preset tolerance specifies the tolerance distance to be within
-         * the preset slot.
-         *
-         * @param tolerance specifies the preset tolerance.
-         * @return this parameter object.
-         */
-        public Parameters setPresetTolerance(double tolerance)
-        {
-            this.presetTolerance = tolerance;
-            return this;
-        }   //setPresetTolerance
-
-        /**
-         * This method sets an array of preset positions for the motor actuator.
-         *
-         * @param posPresets specifies an array of preset positions in scaled unit.
-         * @return this parameter object.
-         */
-        public Parameters setPosPresets(double... posPresets)
-        {
-            this.posPresets = posPresets;
-            return this;
-        }   //setPosPresets
-
-        /**
          * This method sets the power compensation callback method. When specified, the power compensation method will
          * be called periodically to calculate the motor power to compensation for gravity.
          *
@@ -215,6 +206,20 @@ public class TrcPidActuator extends TrcPidMotor
             this.powerCompensation = powerCompensation;
             return this;
         }   //setPowerCompensation
+
+        /**
+         * This method sets an array of preset positions for the motor actuator.
+         *
+         * @param tolerance specifies the preset tolerance.
+         * @param posPresets specifies an array of preset positions in scaled unit.
+         * @return this parameter object.
+         */
+        public Parameters setPosPresets(double tolerance, double... posPresets)
+        {
+            this.presetTolerance = tolerance;
+            this.posPresets = posPresets;
+            return this;
+        }   //setPosPresets
 
     }   //class Parameters
 
