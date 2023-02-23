@@ -382,6 +382,12 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     rotation += getGyroAssistPower(rotation);
                 }
 
+                if (isAntiTippingEnabled())
+                {
+                    x += getAntiTippingPower(true);
+                    y += getAntiTippingPower(false);
+                }
+
                 double a = x - (rotation * wheelBaseLength / wheelBaseDiagonal);
                 double b = x + (rotation * wheelBaseLength / wheelBaseDiagonal);
                 double c = y - (rotation * wheelBaseWidth / wheelBaseDiagonal);

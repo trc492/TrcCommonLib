@@ -1148,7 +1148,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
      */
     public void enableAntiTipping(
-        TrcPidController.PidParameters yTippingPidParams, TrcPidController.PidInput yPidInput)
+        TrcPidController.PidParameters yTippingPidParams)
     {
         enableAntiTipping(null, yTippingPidParams);
     }   //enableAntiTipping
