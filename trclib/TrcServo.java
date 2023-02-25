@@ -326,7 +326,9 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private void performSetPosition(Object context)
     {
         ActionParams actionParams = (ActionParams) context;
-        double logicalPos = toLogicalPosition(TrcUtil.clipRange(actionParams.pos, physicalMin, physicalMax));
+        // TODO: Need to fix this because position could be negative and clipRange would alter that.
+        // double logicalPos = toLogicalPosition(TrcUtil.clipRange(actionParams.pos, physicalMin, physicalMax));
+        double logicalPos = toLogicalPosition(actionParams.pos);
         setLogicalPosition(logicalPos);
 
         for (TrcServo servo : followers)
@@ -821,7 +823,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     {
         final String funcName = "toLogicalPosition";
         physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
-        double logicalPosition = TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
+        // TODO: Need fix this because physicalPosition can be negative.
+        // double logicalPosition = TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
 
         if (debugEnabled)
         {
