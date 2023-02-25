@@ -822,9 +822,9 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     public double toLogicalPosition(double physicalPosition)
     {
         final String funcName = "toLogicalPosition";
-        physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
         // TODO: Need fix this because physicalPosition can be negative.
-        // double logicalPosition = TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
+        // physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
+        double logicalPosition = TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
 
         if (debugEnabled)
         {
