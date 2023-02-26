@@ -167,7 +167,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.sensorTrigger = sensorTrigger;
         if (motor != null)
         {
-            motor.setInverted(params.motorInverted);
+            motor.setMotorInverted(params.motorInverted);
         }
         else
         {

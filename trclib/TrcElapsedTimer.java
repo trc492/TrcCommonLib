@@ -49,7 +49,7 @@ public class TrcElapsedTimer
      * @param instanceName specifies the name to identify this instance of the timer.
      * @param averageWindow specifies the time window in seconds for averaging elapsed time.
      */
-    public TrcElapsedTimer(final String instanceName, double averageWindow)
+    public TrcElapsedTimer(String instanceName, double averageWindow)
     {
         this.instanceName = instanceName;
         this.averageWindow = (long)(averageWindow * 1000000000);

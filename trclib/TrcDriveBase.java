@@ -1238,7 +1238,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        motors[index].setInverted(inverted);
+        motors[index].setMotorInverted(inverted);
     }   //setInvertedMotor
 
     /**

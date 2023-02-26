@@ -36,7 +36,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  * If the motor controller hardware support these features, the platform dependent class should override these methods
  * to provide the support in hardware.
  */
-public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsystem
+public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor, TrcExclusiveSubsystem
 {
     private static final String moduleName = "TrcMotor";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
@@ -49,98 +49,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         OnBoth
     }   //enum TriggerMode
 
-    /**
-     * This method enables/disables motor brake mode. In motor brake mode, set power to 0 would stop the motor very
-     * abruptly by shorting the motor wires together using the generated back EMF to stop the motor. When not enabled,
-     * (i.e. float/coast mode), the motor wires are just disconnected from the motor controller so the motor will
-     * stop gradually.
-     *
-     * @param enabled specifies true to enable brake mode, false otherwise.
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract void setBrakeModeEnabled(boolean enabled);
-
-    /**
-     * This method sets the raw motor power. It is called by the Velocity Control task. If the subclass is
-     * implementing its own native velocity control, it does not really need to do anything for this method.
-     * But for completeness, it can just set the raw motor power in the motor controller.
-     * Note: Do not call this method to set motor power, call set() instead. This method is intended to be called
-     * internally by TrcMotor only.
-     *
-     * @param value specifies the percentage power (range -1.0 to 1.0) to be set.
-     */
-    public abstract void setMotorPower(double value);
-
-    /**
-     * This method stops the motor regardless of what control mode the motor is on.
-     */
-    public abstract void stopMotor();
-
-    /**
-     * This method gets the last set power.
-     *
-     * @return the last setMotorPower value.
-     */
-    public abstract double getMotorPower();
-
-    /**
-     * This method returns the motor current.
-     *
-     * @return motor current.
-     */
-    public abstract double getMotorCurrent();
-
-    /**
-     * This method resets the motor position sensor, typically an encoder.
-     * Note: Do not call this method to reset motor position, call resetPosition() instead. This method is intended
-     * to be called internally by TrcMotor only.
-     *
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract void resetMotorPosition();
-
-    /**
-     * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
-     * or a potentiometer.
-     * Note: Do not call this method to get motor position, call getPosition() instead. This method is intended
-     * to be called internally by TrcMotor only.
-     *
-     * @return current motor position in raw sensor units.
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract double getMotorPosition();
-
-    /**
-     * This method returns the motor velocity from the platform dependent motor hardware. If the hardware does
-     * not support velocity info, it should throw an UnsupportedOperationException.
-     * Note: Do not call this method to get motor velocity, call getVelocity() instead. This method is intended
-     * to be called internally by TrcMotor only.
-     *
-     * @return current motor velocity in raw sensor units per sec.
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract double getMotorVelocity();
-
-    /**
-     * This method returns the state of the reverse limit switch.
-     * Note: Do not call this method to get limit switch state, call isLowerLimitSwitchActive() or
-     * isUpperLimitSwitchActive() instead. This method is intended to be called internally by TrcMotor only.
-     *
-     * @return true if reverse limit switch is active, false otherwise.
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract boolean isRevLimitSwitchActive();
-
-    /**
-     * This method returns the state of the forward limit switch.
-     * Note: Do not call this method to get limit switch state, call isLowerLimitSwitchActive() or
-     * isUpperLimitSwitchActive() instead. This method is intended to be called internally by TrcMotor only.
-     *
-     * @return true if forward limit switch is active, false otherwise.
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public abstract boolean isFwdLimitSwitchActive();
-
     private enum MotorState
     {
         done,
@@ -152,11 +60,12 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     // Global objects.
     //
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
+
     private static TrcElapsedTimer motorGetPosElapsedTimer;
     private static TrcElapsedTimer motorSetElapsedTimer;
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
-    private final String instanceName;
+    protected final String instanceName;
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
     private MotorState motorState = MotorState.done;
@@ -165,6 +74,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     private TrcEvent notifyEvent;
     private static TrcTaskMgr.TaskObject odometryTaskObj;
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
+    private boolean velocityControlEnabled = false;
 
     private TrcDigitalInputTrigger digitalTrigger;
     private TriggerMode triggerMode;
@@ -173,8 +83,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
     private boolean calibrating = false;
 
-    private double motorDirSign = 1.0;
-    private double posSensorSign = 1.0;
     private double zeroPosition = 0.0;
     private boolean limitSwitchesSwapped = false;
     private boolean softLowerLimitEnabled = false;
@@ -225,111 +133,18 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         return instanceName;
     }   //toString
 
-    //
-    // Platform-dependent subclasses should override these methods if they can be supported in hardware.
-    //
-
     /**
-     * This method inverts the motor direction.
-     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
-     *
-     * @param inverted specifies true to invert motor direction, false otherwise.
-     */
-    public void setInverted(boolean inverted)
-    {
-        motorDirSign = inverted? -1.0: 1.0;
-    }   //setInverted
-
-    /**
-     * This method returns the state of the motor controller direction.
-     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
-     *
-     * @return true if the motor direction is inverted, false otherwise.
-     */
-    public boolean isInverted()
-    {
-        return motorDirSign == -1.0;
-    }   //isInverted
-
-    /**
-     * This method sets this motor to follow another motor. If the subclass is not capable of following another motor,
-     * this method throws an UnsupportedOperationException.
-     *
-     * @throws UnsupportedOperationException if hardware does not support it.
-     */
-    public void followMotor(TrcMotor motor)
-    {
-        throw new UnsupportedOperationException("followMotor is not supported!");
-    }   //followMotor
-
-    /**
-     * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
-     * encoder may be mounted somewhere in the power train that it rotates opposite to the motor rotation. This will
-     * cause the encoder reading to go down when the motor is receiving positive power. This method can correct this
-     * situation.
-     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
-     *
-     * @param inverted specifies true to invert position sensor direction, false otherwise.
-     */
-    public void setPositionSensorInverted(boolean inverted)
-    {
-        posSensorSign = inverted? -1.0: 1.0;
-    }   //setPositionSensorInverted
-
-    /**
-     * This method returns the state of the position sensor direction.
-     * Note: Should be overriden by platform-dependent subclasses if this is supported in hardware.
-     *
-     * @return true if the motor direction is inverted, false otherwise.
-     */
-    public boolean isPositionSensorInverted()
-    {
-        return posSensorSign == -1.0;
-    }   //isPositionSensorInverted
-
-    /**
-     * This method checks if the motor controller is connected to the robot. Note that this does NOT guarantee the
-     * connection status of the motor to the motor controller. If detecting the motor presence is impossible (i.e. the
-     * motor controller is connected via PWM) this method will always return true.
-     *
-     * @return True if the motor is connected or if it's impossible to know, false otherwise.
-     */
-    public boolean isConnected()
-    {
-        return true;
-    }   //isConnected
-
-    /**
-     * This method enables voltage compensation so that it will maintain the motor output regardless of battery
-     * voltage.
-     *
-     * @param batteryNominalVoltage specifies the nominal voltage of the battery.
-     */
-    public void enableVoltageCompensation(double batteryNominalVoltage)
-    {
-        throw new UnsupportedOperationException("Motor controller does not support voltage compensation.");
-    }   //enableVoltageCompensation
-
-    /**
-     * This method disables voltage compensation.
-     */
-    public void disableVoltageCompensation()
-    {
-        throw new UnsupportedOperationException("Motor controller does not support voltage compensation.");
-    }   //disableVoltageCompensation
-
-    //
-    // TrcMotor APIs.
-    //
-
-    /**
-     * This method adds the given motor to the list that will follow this motor.
+     * This method adds the given motor to the list that will follow this motor. It should only be called by the
+     * given motor to add it to the follower list of the motor it wants to follow.
      *
      * @param motor specifies the motor that will follow this motor.
      */
     public void addFollowingMotor(TrcMotor motor)
     {
-        followingMotorsList.add(motor);
+        if (!followingMotorsList.contains(motor))
+        {
+            followingMotorsList.add(motor);
+        }
     }   //addFollowingMotor
 
     /**
@@ -348,6 +163,16 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         if (velocityPidCtrl != null)
         {
             velocityPidCtrl.setTarget(value);
+        }
+        else if (velocityControlEnabled)
+        {
+            // Normalize motor velocity to percentage max velocity in the range of -1.0 to 1.0.
+            value = TrcUtil.clipRange(value/maxMotorVelocity);
+            setMotorVelocity(value);
+            for (TrcMotor motor: followingMotorsList)
+            {
+                motor.setMotorVelocity(value);
+            }
         }
         else
         {
@@ -387,6 +212,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
         if (validateOwnership(owner))
         {
+            // Apply soft position limits if any.
             if ((softLowerLimitEnabled || softUpperLimitEnabled) && value != 0.0)
             {
                 double currPos = getPosition();
@@ -405,7 +231,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
             if (delay > 0.0)
             {
                 // The motor may be spinning, let's stop it.
-                setMotorValue(0.0);
+                stopMotor();
                 motorState = MotorState.doDelay;
                 this.duration = duration;
                 this.notifyEvent = event;
@@ -497,16 +323,6 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     }   //set
 
     /**
-     * This method returns the motor current.
-     *
-     * @return motor current.
-     */
-    public double getCurrent()
-    {
-        return getMotorCurrent();
-    }   //getCurrent
-
-    /**
      * This method is called when the motor power set timer has expired. It will turn the motor off.
      *
      * @param context specifies the timer object (not used).
@@ -581,8 +397,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     }   //resetPosition
 
     /**
-     * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
-     * or a potentiometer.
+     * This method returns the motor position by reading the position sensor.
      *
      * @return current motor position in sensor units.
      */
@@ -601,7 +416,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         }
         else
         {
-            currPos = (getMotorPosition() - zeroPosition)*posSensorSign;
+            currPos = getMotorPosition() - zeroPosition;
         }
 
         if (debugEnabled)
@@ -613,11 +428,10 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     }   //getPosition
 
     /**
-     * This method returns the velocity of the motor rotation. It keeps track of the rotation velocity by using a
-     * periodic task to monitor the position sensor value. If the motor controller has hardware monitoring velocity,
-     * it can override this method and access the hardware instead. However, accessing hardware may impact
-     * performance because it may involve initiating USB/CAN/I2C bus cycles. Therefore, it may be beneficial to
-     * just let the the periodic task calculate the velocity here.
+     * This method returns the velocity of the motor rotation. Velocity could either be obtained by calling the motor
+     * hardware if it supports it or using a periodic task to monitor the position sensor value. However, accessing
+     * hardware may impact performance because it may involve initiating USB/CAN/I2C bus cycles. Therefore, it may be
+     * beneficial to just let the the odometry task calculate the velocity here.
      *
      * @return motor velocity in sensor units per second.
      */
@@ -636,7 +450,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         }
         else
         {
-            velocity = getMotorVelocity()*posSensorSign;
+            velocity = getMotorVelocity();
         }
 
         if (debugEnabled)
@@ -897,7 +711,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         //
         if (digitalTrigger != null && digitalTrigger.isEnabled())
         {
-            set(-Math.abs(calibratePower));
+            set(calibratePower);
             calibrating = true;
         }
     }   //zeroCalibrate
@@ -1093,9 +907,11 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
                     motor.odometry.currTimestamp = TrcTimer.getCurrentTime();
 
                     if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordStartTime();
-                    motor.odometry.currPos = (motor.getMotorPosition() - motor.zeroPosition)*motor.posSensorSign;
+                    motor.odometry.currPos = motor.getMotorPosition() - motor.zeroPosition;
                     if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordEndTime();
-
+                    //
+                    // Detect spurious encoder reading.
+                    //
                     double low = Math.abs(motor.odometry.prevPos);
                     double high = Math.abs(motor.odometry.currPos);
 
@@ -1127,7 +943,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
 
                     try
                     {
-                        motor.odometry.velocity = motor.getMotorVelocity()*motor.posSensorSign;
+                        motor.odometry.velocity = motor.getMotorVelocity();
                     }
                     catch (UnsupportedOperationException e)
                     {
@@ -1168,37 +984,35 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
     /**
      * This method sets the motor controller to velocity mode with the specified maximum velocity.
      *
-     * @param maxVelocity     specifies the maximum velocity the motor can run, in sensor units per second.
-     * @param pidCoefficients specifies the PID coefficients to use to compute a desired torque value for the motor.
-     *                        E.g. these coefficients go from velocity error percent to desired stall torque percent.
-     * @throws IllegalArgumentException if pidCoefficients is null.
+     * @param maxVelocity specifies the maximum velocity the motor can run, in sensor units per second.
+     * @param pidCoeff specifies the PID coefficients for software PID control, can be null if using motor built-in
+     *        close loop control in which case the PID coefficients of the motor must be set prior to enabling
+     *        velocity mode.
      */
-    public synchronized void enableVelocityMode(double maxVelocity, TrcPidController.PidCoefficients pidCoefficients)
+    public synchronized void enableVelocityMode(double maxVelocity, TrcPidController.PidCoefficients pidCoeff)
     {
         final String funcName = "enableVelocityMode";
 
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "%s.%s: maxVel=%f,pidCoef=%s", moduleName, instanceName, maxVelocity, pidCoefficients);
-        }
-
-        if (pidCoefficients == null)
-        {
-            throw new IllegalArgumentException("PidCoefficient must not be null.");
-        }
-
-        if (!odometryEnabled)
-        {
-            throw new RuntimeException("Motor odometry must be enabled to use velocity mode.");
+                funcName, "%s.%s: maxVel=%f,pidCoef=%s", moduleName, instanceName, maxVelocity, pidCoeff);
         }
 
         this.maxMotorVelocity = maxVelocity;
-        velocityPidCtrl = new TrcPidController(
-            instanceName + ".velocityCtrl", pidCoefficients, 1.0, this::getNormalizedVelocity);
-        velocityPidCtrl.setAbsoluteSetPoint(true);
-
-        velocityCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
+        velocityControlEnabled = true;
+        if (pidCoeff != null)
+        {
+            // Using software PID control requires odometry to calculate velocity
+            if (!odometryEnabled)
+            {
+                throw new RuntimeException("Motor odometry must be enabled to use velocity mode.");
+            }
+            velocityPidCtrl = new TrcPidController(
+                instanceName + ".velocityPidCtrl", pidCoeff, 1.0, this::getNormalizedVelocity);
+            velocityPidCtrl.setAbsoluteSetPoint(true);
+            velocityCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
+        }
     }   //enableVelocityMode
 
     /**
@@ -1210,6 +1024,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         {
             velocityCtrlTaskObj.unregisterTask();
             velocityPidCtrl = null;
+            velocityControlEnabled = false;
         }
     }   //disableVelocityMode
 
@@ -1221,7 +1036,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
      */
     private double getNormalizedVelocity()
     {
-        return maxMotorVelocity != 0.0 ? getVelocity() / maxMotorVelocity : 0.0;
+        return maxMotorVelocity != 0.0? getVelocity() / maxMotorVelocity: 0.0;
     }   //getNormalizedVelocity
 
     /**
@@ -1274,7 +1089,7 @@ public abstract class TrcMotor implements TrcOdometrySensor, TrcExclusiveSubsyst
         //
         // Leverage motor curve information to linearize torque output across varying RPM
         // as best we can. We know that max torque is available at 0 RPM and zero torque is
-        // available at max RPM - use that relationship to proportionately boost voltage output
+        // available at max RPM. Use that relationship to proportionately boost voltage output
         // as motor speed increases.
         //
         final double currSpeedSensorUnitPerSec = Math.abs(getVelocity());
