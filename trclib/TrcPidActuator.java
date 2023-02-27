@@ -607,29 +607,68 @@ public class TrcPidActuator extends TrcPidMotor
     }   //nextPresetIndexDown
 
     /**
-     * This method sets the actuator to the next preset position up from the current position.
+     * This method sets the actuator to the next preset position up or down from the current position.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        is required.
+     * @param presetUp specifies true to move to next preset up, false to move to next preset down.
      */
-    public void presetPositionUp()
+    private void setNextPresetPosition(String owner, boolean presetUp)
     {
-        int index = nextPresetIndexUp();
-
-        if (index != -1)
+        TrcEvent event = null;
+        // Caller specifies an owner and the owner does not have ownership yet, go ahead and acquire the ownership.
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
         {
-            setPresetPosition(index);
+            // Since we acquired the ownership, we will release the ownership when the operation is completed.
+            event = new TrcEvent(instanceName + ".setPosComplete");
+            event.setCallback(this::setPosCompletion, owner);
         }
+
+        if (owner == null || hasOwnership(owner))
+        {
+            int index = presetUp? nextPresetIndexUp(): nextPresetIndexDown();
+
+            if (index != -1)
+            {
+                setPresetPosition(owner, 0.0, index, true, 1.0, event, 0.0);
+            }
+        }
+    }   //setNextPresetPosition
+
+    /**
+     * This method sets the actuator to the next preset position up from the current position.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        is required.
+     */
+    public void presetPositionUp(String owner)
+    {
+        setNextPresetPosition(owner, true);
     }   //presetPositionUp
 
     /**
      * This method sets the actuator to the next preset position down from the current position.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        is required.
      */
-    public void presetPositionDown()
+    public void presetPositionDown(String owner)
     {
-        int index = nextPresetIndexDown();
-
-        if (index != -1)
-        {
-            setPresetPosition(index);
-        }
+        setNextPresetPosition(owner, false);
     }   //presetPositionDown
+
+    /**
+     * This method is called after the set position operation is completed so that it will release the exclusive
+     * ownership.
+     *
+     * @param context specifies the owner ID to release its exclusive ownership.
+     */
+    private void setPosCompletion(Object context)
+    {
+        releaseExclusiveAccess((String) context);
+    }   //setPosCompletion
 
 }   //class TrcPidActuator

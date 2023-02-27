@@ -48,7 +48,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private static final double DEF_BEEP_HIGH_FREQUECY = 880.0;     //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;            //in seconds
 
-    private final String instanceName;
+    protected final String instanceName;
     private final TrcMotor motor1;
     private final TrcMotor motor2;
     private final double syncGain;
@@ -991,6 +991,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             // only set a new target if the target has changed. (i.e. either the motor changes direction, starting
             // or stopping).
             //
+            double currPos = getPosition();
+            // double scaledTargetDistance = Math.abs((maxPos - minPos)*power);
+            // double currTarget = power < 0.0? TrcUtil.clipRange(currPos - scaledTargetDistance, minPos, maxPos):
+            //                     power > 0.0? TrcUtil.clipRange(currPos + scaledTargetDistance, minPos, maxPos):
+            //                                  minPos - 1.0;
             double currTarget = power < 0.0? minPos: power > 0.0? maxPos: minPos - 1.0;
             power = Math.abs(power);
             if (currTarget != prevTarget)
@@ -1006,7 +1011,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                         //
                         // Hold target at current position.
                         //
-                        setTarget(getPosition(), true, 1.0, null, 0.0);
+                        setTarget(currPos, true, 1.0, null, 0.0);
                     }
                     else
                     {
