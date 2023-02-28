@@ -244,4 +244,14 @@ public interface TrcMotorController
      */
     void setCloseLoopOutputLimits(double revLimit, double fwdLimit);
 
+   /**
+     * This method sets the current limit of the motor.
+     *
+     * @param currentLimit specifies the current limit (holding current) in amperes when feature is activated.
+     * @param triggerThresholdCurrent specifies threshold current in amperes to be exceeded before limiting occurs.
+     *        If this value is less than currentLimit, then currentLimit is used as the threshold.
+     * @param triggerThresholdTime specifies how long current must exceed threshold (seconds) before limiting occurs.
+     */
+    void setCurrentLimit(double currentLimit, double triggerThresholdCurrent, double triggerThresholdTime);
+
 }   //interface TrcMotorController
