@@ -29,6 +29,13 @@ package TrcCommonLib.trclib;
 public interface TrcMotorController
 {
     /**
+     * This method is used to check if the motor controller supports close loop control internally.
+     *
+     * @return true if motor controller supports close loop control, false otherwise.
+     */
+    boolean supportCloseLoopControl();
+
+    /**
      * This method resets the motor controller configurations to factory default so that everything is at known state.
      */
     void resetFactoryDefault();
@@ -227,5 +234,14 @@ public interface TrcMotorController
      * @return motor current in amperes.
      */
     double getMotorCurrent();
+
+    /**
+     * This method sets the close loop percentage output limits. By default the limits are set to the max at -1 to 1.
+     * By setting a non-default limits, it effectively limits the output power of the close loop control.
+     *
+     * @param revLimit specifies the percentage output limit of the reverse direction.
+     * @param fwdLimit specifies the percentage output limit of the forward direction.
+     */
+    void setCloseLoopOutputLimits(double revLimit, double fwdLimit);
 
 }   //interface TrcMotorController
