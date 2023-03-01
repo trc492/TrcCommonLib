@@ -258,7 +258,7 @@ public class TrcPidConveyor extends TrcPidMotor
             {
                 event.clear();
             }
-            setTarget(units*params.objectDistance, false, 1.0, event);
+            setPosition(units*params.objectDistance, false, 1.0, event);
         }
     }   //move
 

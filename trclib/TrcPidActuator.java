@@ -243,8 +243,7 @@ public class TrcPidActuator extends TrcPidMotor
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
         TrcDigitalInput upperLimitSwitch, Parameters params)
     {
-        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch, params.calPower,
-              params.powerCompensation);
+        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch, params.calPower);
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;
         this.params = params;
@@ -254,7 +253,7 @@ public class TrcPidActuator extends TrcPidMotor
             motor1.resetPositionOnDigitalInput(lowerLimitSwitch);
         }
 
-        setPositionScale(params.scale, params.offset);
+        setPositionScaleAndOffset(params.scale, params.offset);
 
         if (params.stallMinPower != 0.0)
         {
@@ -430,7 +429,7 @@ public class TrcPidActuator extends TrcPidMotor
         {
             if (validateOwnership(owner))
             {
-                setTarget(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
+                setPosition(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
             }
         }
     }   //setPresetPosition

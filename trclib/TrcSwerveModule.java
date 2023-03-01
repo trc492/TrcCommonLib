@@ -255,7 +255,7 @@ public class TrcSwerveModule
 
         if (steerMotor != null)
         {
-            steerMotor.setTarget(newAngle, hold);
+            steerMotor.setPosition(newAngle, hold);
         }
         else if (steerServo != null)
         {
