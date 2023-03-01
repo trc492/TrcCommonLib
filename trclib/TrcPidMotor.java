@@ -100,12 +100,15 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
      * @param pidParams specifies the PID parameters for the PID controller.
+     * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
+     *        PID control.
      * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
-        TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower)
+        TrcPidController.PidParameters pidParams, boolean useMotorCloseLoopControl, TrcDigitalInput lowerLimitSwitch,
+        double defCalPower)
     {
         if (motor1 == null && motor2 == null)
         {
@@ -125,12 +128,29 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.defCalPower = defCalPower;
 
-        pidParams.setPidInput(this::getPosition);
-        this.pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams);
+        if (useMotorCloseLoopControl)
+        {
+            // Caller does not provide PID params, we will use the motor built-in close loop control.
+            pidCtrl = null;
+            if (motor1.supportCloseLoopControl())
+            {
+                motor1.setPidCoefficients(pidParams.pidCoeff);
+            }
+            else
+            {
+                throw new IllegalArgumentException("Must provide PID Params if motor does not support close loop control.");
+            }
+        }
+        else
+        {
+            pidParams.setPidInput(this::getPosition);
+            pidCtrl = new TrcPidController(instanceName + ".pidCtrl", pidParams);
+        }
+
         timer = new TrcTimer(instanceName);
         pidMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".pidMotorTask", this::pidMotorTask);
         stopMotorTaskObj = TrcTaskMgr.createTask(instanceName + ".stopMotorTask", this::stopMotorTask);
-    }   //TrcPidMotor
+}   //TrcPidMotor
 
     /**
      * Constructor: Creates an instance of the object.
@@ -146,7 +166,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
         TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor1, motor2, 0.0, pidParams, lowerLimitSwitch, defCalPower);
+        this(instanceName, motor1, motor2, 0.0, pidParams, false, lowerLimitSwitch, defCalPower);
     }   //TrcPidMotor
 
     /**
@@ -155,14 +175,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
      * @param pidParams specifies the PID parameters for the PID controller.
+     * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
+     *        PID control.
      * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
         String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams,
-        TrcDigitalInput lowerLimitSwitch, double defCalPower)
+        boolean useMotorCloseLoopControl, TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor, null, 0.0, pidParams, lowerLimitSwitch, defCalPower);
+        this(instanceName, motor, null, 0.0, pidParams, useMotorCloseLoopControl, lowerLimitSwitch, defCalPower);
     }   //TrcPidMotor
 
     /**
@@ -291,7 +313,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     }   //getMotor
 
     /**
-     * This method returns the PID controller.
+     * This method returns the software PID controller. It returns null if using motor close loop control.
      *
      * @return PID controller.
      */
@@ -322,7 +344,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
 
         // Canceling previous PID operation if any.
         setTaskEnabled(false);
-        pidCtrl.reset();
+        if (pidCtrl != null)
+        {
+            pidCtrl.reset();
+        }
 
         if (stopMotor)
         {
@@ -456,7 +481,20 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 moduleName, instanceName, params.currTarget, params.holdTarget, params.outputLimit, params.notifyEvent,
                 params.timeout);
         }
-        pidCtrl.setTarget(params.currTarget);
+
+        if (pidCtrl != null)
+        {
+            // Use our software PID control.
+            // pidMotorTask calls performSetPower which will take care of the output limits.
+            pidCtrl.setTarget(params.currTarget);
+        }
+        else
+        {
+            // Use motor built-in close loop control.
+            motor1.setCloseLoopOutputLimits(-params.outputLimit, params.outputLimit);
+            motor1.setMotorPosition((params.currTarget - positionOffset)/positionScale);
+        }
+
         setTaskEnabled(true);
     }   //performSetPosition
 
@@ -591,7 +629,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setTarget(double pos, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
+    public void setPosition(double pos, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
         setPosition(null, 0.0, pos, holdTarget, powerLimit, event, timeout);
     }   //setPosition
@@ -695,6 +733,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             stop(false);
         }
 
+        taskParams.stalled = isMotorStalled(params.power);
         if (!resetStall(params.power))
         {
             // Motor was not stalled. Do the normal processing.
@@ -703,7 +742,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 params.power += pidParams.powerCompensation.getCompensation(params.power);
             }
             params.power = TrcUtil.clipRange(params.power, params.rangeLow, params.rangeHigh);
-            taskParams.stalled = isMotorStalled(params.power);
             setMotorPower(params.power);
             taskParams.currPower = params.power;
             if (params.duration > 0.0)
@@ -874,7 +912,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     if (holdTarget)
                     {
                         // Hold target at current position.
-                        setTarget(currPos, true, 1.0, null, 0.0);
+                        setPosition(currPos, true, 1.0, null, 0.0);
                     }
                     else
                     {
@@ -885,7 +923,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 else
                 {
                     // We changed direction, change the target.
-                    setTarget(currTarget, holdTarget, power, null, 0.0);
+                    setPosition(currTarget, holdTarget, power, null, 0.0);
                 }
                 taskParams.prevTarget = currTarget;
             }
@@ -1318,7 +1356,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             }
             else
             {
-                boolean onTarget = pidCtrl.isOnTarget();
+                // Perform our software PID control on the motor.
+                boolean onTarget = pidCtrl != null?
+                    pidCtrl.isOnTarget(): Math.abs(taskParams.currTarget - getPosition()) <= pidParams.tolerance;
                 boolean expired = taskParams.timeout != 0.0 && TrcTimer.getCurrentTime() >= taskParams.timeout;
                 boolean doStop = taskParams.stalled || !taskParams.holdTarget && (onTarget || expired);
 
@@ -1326,9 +1366,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 {
                     stop(true);
                 }
-                else
+                else if (pidCtrl != null)
                 {
-                    // We are still in business. Call PID controller to calculate the motor power and set it.
+                    // Doing software PID control here. If we are using motor close loop control, there is no action.
+                    // We just monitor the control progress.
                     performSetPower(new SetPowerParams(
                         pidCtrl.getOutput(), -taskParams.outputLimit, taskParams.outputLimit, 0.0, null, false));
                     if (msgTracer != null && tracePidInfo)

@@ -51,6 +51,7 @@ public class TrcPidActuator extends TrcPidMotor
         public double scale = 1.0, offset = 0.0;
         public double minPos = 0.0, maxPos = 1.0;
         public TrcPidController.PidParameters pidParams;
+        public boolean useMotorCloseLoopControl;
         public boolean resetPosOnLowerLimit = false;
         public double calPower = -0.25;
         public double stallMinPower = 0.0;
@@ -71,10 +72,11 @@ public class TrcPidActuator extends TrcPidMotor
         {
             return String .format(
                 Locale.US,
-                "scale=%.1f, offset=%.1f, rangePos=(%.1f, %.1f), pidParams=%s, calPower=%.1f, stallMinPower=%.1f, " +
-                "stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, presetTolerance=%.2f, posPresets=%s",
-                scale, offset, minPos, maxPos, pidParams, calPower, stallMinPower, stallTolerance, stallTimeout,
-                resetTimeout, presetTolerance, Arrays.toString(posPresets));
+                "scale=%.1f, offset=%.1f, rangePos=(%.1f, %.1f), pidParams=%s, useMotorPid=%s, calPower=%.1f, " +
+                "stallMinPower=%.1f, stallTolerance=%.1f, stallTimeout=%.1f, resetTimeout=%.1f, " +
+                "presetTolerance=%.2f, posPresets=%s",
+                scale, offset, minPos, maxPos, pidParams, useMotorCloseLoopControl, calPower, stallMinPower,
+                stallTolerance, stallTimeout, resetTimeout, presetTolerance, Arrays.toString(posPresets));
         }   //toString
 
         /**
@@ -243,7 +245,8 @@ public class TrcPidActuator extends TrcPidMotor
         String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, TrcDigitalInput lowerLimitSwitch,
         TrcDigitalInput upperLimitSwitch, Parameters params)
     {
-        super(instanceName, motor1, motor2, syncGain, params.pidParams, lowerLimitSwitch, params.calPower);
+        super(instanceName, motor1, motor2, syncGain, params.pidParams, params.useMotorCloseLoopControl,
+              lowerLimitSwitch, params.calPower);
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;
         this.params = params;
@@ -260,7 +263,11 @@ public class TrcPidActuator extends TrcPidMotor
             setStallProtection(params.stallMinPower, params.stallTolerance, params.stallTimeout, params.resetTimeout);
         }
 
-        super.getPidController().setAbsoluteSetPoint(true);
+        TrcPidController pidCtrl = getPidController();
+        if (pidCtrl != null)
+        {
+            pidCtrl.setAbsoluteSetPoint(true);
+        }
     }   //TrcPidActuator
 
     /**

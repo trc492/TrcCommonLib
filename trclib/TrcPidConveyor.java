@@ -22,6 +22,7 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -39,20 +40,36 @@ public class TrcPidConveyor extends TrcPidMotor
     public static class Parameters
     {
         public TrcPidController.PidParameters pidParams;
+        public boolean useMotorCloseLoopControl;
         public double scale = 1.0;
         public double objectDistance = 0.0;
         public double movePower = 1.0;
         public int maxCapacity = 1;
 
         /**
+         * This method returns the string format of the PID conveyor parameters.
+         *
+         * @return string format of the parameters.
+         */
+        @Override
+        public String toString()
+        {
+            return String .format(
+                Locale.US, "pidParams=%s, useMotorPid=%s, scale=%.3f, objDist=%.1f, movePower=%.1f, maxCap=%d",
+                pidParams, useMotorCloseLoopControl, scale, objectDistance, movePower, maxCapacity);
+        }   //toString
+
+        /**
          * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
          *
          * @param pidParams specifies the PID parameters.
+         * @param useMotorCloseLoopControl specifies true to use motor close loop control, false to use software PID.
          * @return this parameter object.
          */
-        public Parameters setPidParams(TrcPidController.PidParameters pidParams)
+        public Parameters setPidParams(TrcPidController.PidParameters pidParams, boolean useMotorCloseLoopControl)
         {
             this.pidParams = pidParams;
+            this.useMotorCloseLoopControl = useMotorCloseLoopControl;
             return this;
         }   //setPidParams
 
@@ -63,12 +80,15 @@ public class TrcPidConveyor extends TrcPidMotor
          * @param kI specifies the Integral constant.
          * @param kD specifies the Differential constant.
          * @param tolerance specifies the tolerance.
+         * @param useMotorCloseLoopControl specifies true to use motor close loop control, false to use software PID.
          * @return this parameter object.
          */
-        public Parameters setPidParams(double kP, double kI, double kD, double tolerance)
+        public Parameters setPidParams(
+            double kP, double kI, double kD, double tolerance, boolean useMotorCloseLoopControl)
         {
             // TrcPidMotor is providing the PidInput method.
             this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance, null);
+            this.useMotorCloseLoopControl = useMotorCloseLoopControl;
             return this;
         }   //setPidParams
 
@@ -145,7 +165,7 @@ public class TrcPidConveyor extends TrcPidMotor
         String instanceName, TrcMotor motor, TrcDigitalInput entranceSensor, TrcDigitalInput exitSensor,
         Parameters params)
     {
-        super(instanceName, motor, params.pidParams, null, 0.0);
+        super(instanceName, motor, params.pidParams, params.useMotorCloseLoopControl, null, 0.0);
         this.entranceSensor = entranceSensor;
         this.exitSensor = exitSensor;
         this.params = params;
