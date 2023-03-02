@@ -46,6 +46,9 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private static final double DEF_BEEP_HIGH_FREQUECY = 880.0;     //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;            //in seconds
 
+    /**
+     * This class encapsulate all the parameters for a PID motor operation.
+     */
     private class TaskParams
     {
         // Zero calibration.
@@ -70,6 +73,24 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         double timeout = 0.0;
         double currPower = 0.0;
     }   //class TaskParams
+
+    /**
+     * This class encapsulates all the parameters required to acquire and release exclusive ownership for the
+     * operation.
+     */
+    private class OwnershipParams
+    {
+        String owner;
+        TrcEvent completionEvent;
+        TrcEvent releaseOwnershipEvent;
+
+        OwnershipParams(String owner, TrcEvent completionEvent, TrcEvent releaseOwnershipEvent)
+        {
+            this.owner = owner;
+            this.completionEvent = completionEvent;
+            this.releaseOwnershipEvent = releaseOwnershipEvent;
+        }   //OwnershipParams
+    }   // class OwnershipParams
 
     protected final String instanceName;
     private final TrcMotor motor1;
@@ -197,6 +218,32 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method is called to release the exclusive ownership of the subsystem when a certain operation has
+     * completed.
+     *
+     * @param context specifies the releaseOwnership parameters.
+     */
+    private void releaseOwnership(Object context)
+    {
+        OwnershipParams ownershipParams = (OwnershipParams) context;
+
+        releaseExclusiveAccess(ownershipParams.owner);
+        if (ownershipParams.completionEvent != null)
+        {
+            if (ownershipParams.releaseOwnershipEvent.isSignaled())
+            {
+                // setPosition was completed successfully, indicate so in the completion event.
+                ownershipParams.completionEvent.signal();
+            }
+            else
+            {
+                // setPosition was canceled, indicate so in the completion event.
+                ownershipParams.completionEvent.cancel();
+            }
+        }
+    }   //releaseOwnership
 
     /**
      * This method sets the message tracer for logging trace messages.
@@ -514,21 +561,39 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * because it needs to keep monitoring the position and maintaining it. In this case, it will just notify the event
      * and continue on. The caller is responsible for stopping the PID operation by calling cancel() when done with
      * holding position.
+     * If this method specifies an owner and the subsystem was not owned by it, it will acquire exclusive ownership
+     * on its behalf and release ownership after the operation is completed.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param pos specifies the PID target.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
-     * @param event specifies an event object to signal when done, can be null if not provided.
+     * @param completionEvent specifies an event object to signal when done, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public void setPosition(
-        String owner, double delay, double pos, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
+        String owner, double delay, double pos, boolean holdTarget, double powerLimit, TrcEvent completionEvent,
+        double timeout)
     {
         final String funcName = "setPosition";
+
+        // If a notification event is provided, clear it.
+        if (completionEvent != null)
+        {
+            completionEvent.clear();
+        }
+
+        // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        {
+            TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
+            OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
+            releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
+            completionEvent = releaseOwnershipEvent;
+        }
 
         if (validateOwnership(owner))
         {
@@ -540,16 +605,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                     stop(false);
                 }
 
-                // If a notification event is provided, clear it.
-                if (event != null)
-                {
-                    event.clear();
-                }
-
                 taskParams.currTarget = pos;
                 taskParams.holdTarget = holdTarget;
                 taskParams.outputLimit = Math.abs(powerLimit);
-                taskParams.notifyEvent = event;
+                taskParams.notifyEvent = completionEvent;
                 taskParams.timeout = Math.abs(timeout);
                 //
                 // Set the PID motor task enabled.
@@ -977,14 +1036,31 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * one limit switch, it may be necessary to use a positive calibration power to move it towards the
      * limit switch instead of using negative calibration power and turning the long way around that may
      * cause wires to entangle.
+     * If this method specifies an owner and the subsystem was not owned by it, it will acquire exclusive ownership
+     * on its behalf and release ownership after the operation is completed.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the motor.
      * @param calPower specifies the motor power to use for the zero calibration overriding the default calibration
      *                 power specified in the constructor.
-     * @param event specifies an event to signal when zero calibration is done, can be null if not provided.
+     * @param completionEvent specifies an event to signal when zero calibration is done, can be null if not provided.
      */
-    public void zeroCalibrate(String owner, double calPower, TrcEvent event)
+    public void zeroCalibrate(String owner, double calPower, TrcEvent completionEvent)
     {
+        // If a notification event is provided, clear it.
+        if (completionEvent != null)
+        {
+            completionEvent.clear();
+        }
+
+        // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        {
+            TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
+            OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
+            releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
+            completionEvent = releaseOwnershipEvent;
+        }
+
         if (validateOwnership(owner))
         {
             synchronized (taskParams)
@@ -996,7 +1072,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // In a multiple-motor scenario, motor 1 always has a lower limit switch. If there is a motor 2, motor 2
                 // has a lower limit switch only if it is independent of motor 1 and needs synchronizing with motor 1.
                 taskParams.calPower = calPower;
-                taskParams.notifyEvent = event;
+                taskParams.notifyEvent = completionEvent;
                 taskParams.calibrating = true;
                 taskParams.motor1ZeroCalDone = false;
                 taskParams.motor2ZeroCalDone = motor2 == null || syncGain == 0.0;

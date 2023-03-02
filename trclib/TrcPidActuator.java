@@ -87,12 +87,12 @@ public class TrcPidActuator extends TrcPidMotor
          * @param offset specifies the offset value to add to the scaled real world unit.
          * @return this parameter object.
          */
-        public Parameters setScaleOffset(double scale, double offset)
+        public Parameters setScaleAndOffset(double scale, double offset)
         {
             this.scale = scale;
             this.offset = offset;
             return this;
-        }   //setScaleOffset
+        }   //setScaleAndOffset
 
         /**
          * This method sets the position range limits of the motor actuator.
@@ -418,7 +418,7 @@ public class TrcPidActuator extends TrcPidMotor
     /**
      * This method sets the actuator to the specified preset position.
      *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param presetIndex specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
@@ -434,10 +434,7 @@ public class TrcPidActuator extends TrcPidMotor
     {
         if (validatePresetIndex(presetIndex))
         {
-            if (validateOwnership(owner))
-            {
-                setPosition(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
-            }
+            setPosition(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
         }
     }   //setPresetPosition
 
@@ -622,23 +619,11 @@ public class TrcPidActuator extends TrcPidMotor
      */
     private void setNextPresetPosition(String owner, boolean presetUp)
     {
-        TrcEvent event = null;
-        // Caller specifies an owner and the owner does not have ownership yet, go ahead and acquire the ownership.
-        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
-        {
-            // Since we acquired the ownership, we will release the ownership when the operation is completed.
-            event = new TrcEvent(instanceName + ".setPosComplete");
-            event.setCallback(this::setPosCompletion, owner);
-        }
+        int index = presetUp? nextPresetIndexUp(): nextPresetIndexDown();
 
-        if (owner == null || hasOwnership(owner))
+        if (index != -1)
         {
-            int index = presetUp? nextPresetIndexUp(): nextPresetIndexDown();
-
-            if (index != -1)
-            {
-                setPresetPosition(owner, 0.0, index, true, 1.0, event, 0.0);
-            }
+            setPresetPosition(owner, 0.0, index, true, 1.0, null, 0.0);
         }
     }   //setNextPresetPosition
 
@@ -665,16 +650,5 @@ public class TrcPidActuator extends TrcPidMotor
     {
         setNextPresetPosition(owner, false);
     }   //presetPositionDown
-
-    /**
-     * This method is called after the set position operation is completed so that it will release the exclusive
-     * ownership.
-     *
-     * @param context specifies the owner ID to release its exclusive ownership.
-     */
-    private void setPosCompletion(Object context)
-    {
-        releaseExclusiveAccess((String) context);
-    }   //setPosCompletion
 
 }   //class TrcPidActuator
