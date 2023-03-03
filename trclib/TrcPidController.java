@@ -375,6 +375,11 @@ public class TrcPidController
                 throw new IllegalArgumentException("steadyStateError must not be smaller than tolerance.");
             }
 
+            if (tolerance >= pidCoeff.iZone)
+            {
+                throw new IllegalArgumentException("iZone must be greater than tolerance.");
+            }
+
             this.tolerance = tolerance;
             this.steadyStateError = steadyStateError;
         }   //setErrorTolerances
@@ -1170,11 +1175,13 @@ public class TrcPidController
             pidCtrlState.currError = inverted? currInput - pidCtrlState.setPoint: pidCtrlState.setPoint - currInput;
             pidCtrlState.errorRate =
                 pidCtrlState.deltaTime > 0.0? (pidCtrlState.currError - prevError)/pidCtrlState.deltaTime: 0.0;
+            double absErr = Math.abs(pidCtrlState.currError);
 
             pidCtrlState.input = currInput;
-
+            // Only allow integration if error is within iZone but greater than tolerance.
             if (pidParams.pidCoeff.kI != 0.0 &&
-                (pidParams.pidCoeff.iZone == 0.0 || Math.abs(pidCtrlState.currError) <= pidParams.pidCoeff.iZone))
+                (pidParams.pidCoeff.iZone == 0.0 ||
+                 absErr <= pidParams.pidCoeff.iZone && absErr > pidParams.tolerance))
             {
                 //
                 // Make sure the total error doesn't get wound up too much exceeding maxOutput.
