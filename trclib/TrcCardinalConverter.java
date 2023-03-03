@@ -185,8 +185,7 @@ public class TrcCardinalConverter<D>
     public synchronized TrcSensor.SensorData<Double> getCartesianData(int index)
     {
         final String funcName = "getCartesianData";
-        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-            prevData[index].timestamp, prevData[index].value);
+        TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
 
         if (enabled)
         {
