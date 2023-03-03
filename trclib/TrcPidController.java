@@ -375,7 +375,7 @@ public class TrcPidController
                 throw new IllegalArgumentException("steadyStateError must not be smaller than tolerance.");
             }
 
-            if (tolerance >= pidCoeff.iZone)
+            if (pidCoeff.iZone > 0.0 && tolerance >= pidCoeff.iZone)
             {
                 throw new IllegalArgumentException("iZone must be greater than tolerance.");
             }
