@@ -616,14 +616,15 @@ public class TrcPidActuator extends TrcPidMotor
      *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
      *        is required.
      * @param presetUp specifies true to move to next preset up, false to move to next preset down.
+     * @param powerLimit specifies the maximum power limit.
      */
-    private void setNextPresetPosition(String owner, boolean presetUp)
+    private void setNextPresetPosition(String owner, boolean presetUp, double powerLimit)
     {
         int index = presetUp? nextPresetIndexUp(): nextPresetIndexDown();
 
         if (index != -1)
         {
-            setPresetPosition(owner, 0.0, index, true, 1.0, null, 0.0);
+            setPresetPosition(owner, 0.0, index, true, powerLimit, null, 0.0);
         }
     }   //setNextPresetPosition
 
@@ -633,10 +634,11 @@ public class TrcPidActuator extends TrcPidMotor
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
      *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
      *        is required.
+     * @param powerLimit specifies the maximum power limit.
      */
-    public void presetPositionUp(String owner)
+    public void presetPositionUp(String owner, double powerLimit)
     {
-        setNextPresetPosition(owner, true);
+        setNextPresetPosition(owner, true, powerLimit);
     }   //presetPositionUp
 
     /**
@@ -645,10 +647,11 @@ public class TrcPidActuator extends TrcPidMotor
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
      *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
      *        is required.
+     * @param powerLimit specifies the maximum power limit.
      */
-    public void presetPositionDown(String owner)
+    public void presetPositionDown(String owner, double powerLimit)
     {
-        setNextPresetPosition(owner, false);
+        setNextPresetPosition(owner, false, powerLimit);
     }   //presetPositionDown
 
 }   //class TrcPidActuator
