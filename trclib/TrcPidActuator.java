@@ -434,7 +434,7 @@ public class TrcPidActuator extends TrcPidMotor
     {
         if (validatePresetIndex(presetIndex))
         {
-            setPosition(delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
+            setPosition(owner, delay, params.posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
         }
     }   //setPresetPosition
 
