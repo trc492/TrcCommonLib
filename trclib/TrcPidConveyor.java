@@ -146,8 +146,8 @@ public class TrcPidConveyor extends TrcPidMotor
     private final TrcDigitalInput entranceSensor;
     private final TrcDigitalInput exitSensor;
     private final Parameters params;
-    private final TrcDigitalInputTrigger entranceTrigger;
-    private final TrcDigitalInputTrigger exitTrigger;
+    private final TrcTriggerDigitalInput entranceTrigger;
+    private final TrcTriggerDigitalInput exitTrigger;
     private TrcEvent entranceEvent;
     private TrcEvent exitEvent;
     private int numObjects = 0;
@@ -174,7 +174,7 @@ public class TrcPidConveyor extends TrcPidMotor
 
         if (entranceSensor != null)
         {
-            entranceTrigger = new TrcDigitalInputTrigger(
+            entranceTrigger = new TrcTriggerDigitalInput(
                 instanceName + ".entranceTrigger", entranceSensor, this::onEntranceEvent);
             entranceTrigger.setEnabled(true);
         }
@@ -185,7 +185,7 @@ public class TrcPidConveyor extends TrcPidMotor
 
         if (exitSensor != null)
         {
-            exitTrigger = new TrcDigitalInputTrigger(
+            exitTrigger = new TrcTriggerDigitalInput(
                 instanceName + ".exitTrigger", entranceSensor, this::onExitEvent);
             exitTrigger.setEnabled(true);
         }

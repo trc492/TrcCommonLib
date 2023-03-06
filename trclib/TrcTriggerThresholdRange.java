@@ -27,30 +27,16 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * This class implements a ThresholdTrigger. It monitors the value source against the lower and upper threshold
- * values. If the value stays within the lower and upper thresholds for at least the given settling period, the
- * the trigger state is set to active and the trigger callback is called. If the value exits the threshold range,
- * the trigger state is set to inactive and the trigger callback is also called.
+ * This class implements a Threshold Range Trigger. It monitors the value source against the lower and upper
+ * threshold values. If the value stays within the lower and upper thresholds for at least the given settling
+ * period, the the trigger state is set to active and the trigger callback is called. If the value exits the
+ * threshold range, the trigger state is set to inactive and the trigger callback is also called.
  */
-public class TrcThresholdTrigger implements TrcTrigger
+public class TrcTriggerThresholdRange implements TrcTrigger
 {
-    private static final String moduleName = "TrcThresholdTrigger";
+    private static final String moduleName = "TrcTriggerThresholdRange";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-
-    /**
-     * This interface implements the method to read the sensor value.
-     */
-    public interface ValueSource
-    {
-        /**
-         * This method reads the sensor value.
-         *
-         * @return sensor value.
-         */
-        double getValue();
-
-    }   //interface ValueSource
 
     private static final int DEF_CACHE_SIZE = 10;
     /**
@@ -80,8 +66,7 @@ public class TrcThresholdTrigger implements TrcTrigger
     }   //class TriggerState
 
     private final String instanceName;
-    private final ValueSource valueSource;
-    private final TrcEvent.Callback triggerCallback;
+    private final TrcValueSource<Double> valueSource;
     private final TriggerState triggerState;
     private final TrcEvent callbackEvent;
     private final AtomicBoolean callbackContext;
@@ -94,7 +79,7 @@ public class TrcThresholdTrigger implements TrcTrigger
      * @param valueSource specifies the interface that implements the value source.
      * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcThresholdTrigger(String instanceName, ValueSource valueSource, TrcEvent.Callback triggerCallback)
+    public TrcTriggerThresholdRange(String instanceName, TrcValueSource<Double> valueSource, TrcEvent.Callback triggerCallback)
     {
         if (valueSource == null || triggerCallback == null)
         {
@@ -103,12 +88,12 @@ public class TrcThresholdTrigger implements TrcTrigger
 
         this.instanceName = instanceName;
         this.valueSource = valueSource;
-        this.triggerCallback = triggerCallback;
         triggerState = new TriggerState();
         callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new AtomicBoolean();
+        callbackEvent.setCallback(triggerCallback, callbackContext);
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
-    }   //TrcThresholdTrigger
+    }   //TrcTriggerThresholdRange
 
     /**
      * This method returns the instance name and its state.
@@ -129,7 +114,7 @@ public class TrcThresholdTrigger implements TrcTrigger
     }   //toString
 
     //
-    // Implements TrcSensorTrigger abstract methods.
+    // Implements TrcTrigger interface.
     //
 
     /**
@@ -340,7 +325,7 @@ public class TrcThresholdTrigger implements TrcTrigger
     {
         final String funcName = "triggerTask";
         double currTime = TrcTimer.getCurrentTime();
-        double currValue = valueSource.getValue();
+        double currValue = getSensorValue();
         boolean triggered = false;
         boolean active;
 
@@ -386,9 +371,8 @@ public class TrcThresholdTrigger implements TrcTrigger
             }
 
             callbackContext.set(active);
-            callbackEvent.setCallback(triggerCallback, callbackContext);
             callbackEvent.signal();
         }
     }   //triggerTask
 
-}   //class TrcThresholdTrigger
+}   //class TrcTriggerThresholdRange

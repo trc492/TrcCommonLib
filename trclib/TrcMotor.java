@@ -76,10 +76,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
     private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
     private boolean velocityControlEnabled = false;
 
-    private TrcDigitalInputTrigger digitalTrigger;
+    private TrcTriggerDigitalInput digitalTrigger;
     private TriggerMode triggerMode;
-    private TrcEvent.Callback triggerCallback;
     private TrcEvent triggerCallbackEvent;
+    private AtomicBoolean triggerCallbackContext;
 
     private boolean calibrating = false;
 
@@ -608,13 +608,14 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
                 moduleName, instanceName, digitalInput, triggerMode, triggerCallback != null);
         }
 
-        digitalTrigger = new TrcDigitalInputTrigger(instanceName + ".digitalTrigger", digitalInput, this::triggerEvent);
+        digitalTrigger = new TrcTriggerDigitalInput(instanceName + ".digitalTrigger", digitalInput, this::triggerCallback);
         this.triggerMode = triggerMode;
-        this.triggerCallback = triggerCallback;
 
         if (triggerCallback != null)
         {
             triggerCallbackEvent = new TrcEvent(instanceName + ".callbackEvent");
+            triggerCallbackContext = new AtomicBoolean();
+            triggerCallbackEvent.setCallback(triggerCallback, triggerCallbackContext);
         }
         digitalTrigger.setEnabled(true);
     }   //resetPositionOnDigitalInput
@@ -661,9 +662,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      *
      * @param context specifies true if the digital device state is active, false otherwise.
      */
-    private void triggerEvent(Object context)
+    private void triggerCallback(Object context)
     {
-        final String funcName = "triggerEvent";
+        final String funcName = "triggerCallback";
         boolean active = ((AtomicBoolean) context).get();
 
         if (debugEnabled)
@@ -693,10 +694,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
 
         if (triggerCallbackEvent != null)
         {
-            triggerCallbackEvent.setCallback(triggerCallback, active);
+            triggerCallbackContext.set(active);
             triggerCallbackEvent.signal();
         }
-    }   //triggerEvent
+    }   //triggerCallback
 
     /**
      * This method performs a zero calibration on the motor by slowly turning in reverse. When the lower limit switch

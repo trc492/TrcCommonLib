@@ -29,9 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * This class implements a trigger for a digital input device. A digital input trigger consists of a digital input
  * device. It monitors the device state and notifies the callback handler if the state changes.
  */
-public class TrcDigitalInputTrigger implements TrcTrigger
+public class TrcTriggerDigitalInput implements TrcTrigger
 {
-    private static final String moduleName = "TrcDigitInputTrigger";
+    private static final String moduleName = "TrcTriggerDigitInput";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
@@ -74,7 +74,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
      * @param sensor specifies the digital input device.
      * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcDigitalInputTrigger(
+    public TrcTriggerDigitalInput(
         String instanceName, TrcDigitalInput sensor, TrcEvent.Callback triggerCallback)
     {
         if (sensor == null || triggerCallback == null)
@@ -91,7 +91,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
         callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new AtomicBoolean();
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
-    }   //TrcDigitalInputTrigger
+    }   //TrcTriggerDigitalInput
 
     /**
      * This method returns the instance name and its state.
@@ -112,7 +112,7 @@ public class TrcDigitalInputTrigger implements TrcTrigger
     }   //toString
 
     //
-    // Implements TrcSensorTrigger abstract methods.
+    // Implements TrcTrigger interface.
     //
 
     /**
@@ -219,4 +219,4 @@ public class TrcDigitalInputTrigger implements TrcTrigger
         }
     }   //triggerTask
 
-}   //class TrcDigitalInputTrigger
+}   //class TrcTriggerDigitalInput

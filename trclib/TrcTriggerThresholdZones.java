@@ -26,13 +26,13 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * This class implements an AnalogSensorTrigger. It monitors the value of the analog sensor against an array of
- * threshold values. If the sensor reading crosses any of the thresholds in the array, it notifies the callback
- * handler so that an action could be performed.
+ * This class implements a Threshold Zones Trigger. It monitors the value source against an array of threshold
+ * values. If the sensor reading crosses any of the thresholds in the array, it notifies the callback handler
+ * so that an action could be performed.
  */
-public class TrcAnalogSensorTrigger<D> implements TrcTrigger
+public class TrcTriggerThresholdZones implements TrcTrigger
 {
-    private static final String moduleName = "TrcAnalogSensorTrigger";
+    private static final String moduleName = "TrcTriggerThresholdZones";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
@@ -72,11 +72,8 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
     }   //class CallbackContext
 
     private final String instanceName;
-    private final TrcSensor<D> sensor;
-    private final int index;
-    private final D dataType;
+    private final TrcValueSource<Double> valueSource;
     private double[] thresholds;
-    private final TrcEvent.Callback triggerCallback;
     private final TriggerState triggerState;
     private final TrcEvent callbackEvent;
     private final CallbackContext callbackContext;
@@ -86,27 +83,23 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param sensor specifies the sensor that is used to detect the trigger.
-     * @param index specifies the data index of the sensor to read the sensor value.
-     * @param dataType specifies the data type of the sensor to read the sensor value.
+     * @param valueSource specifies the interface that implements the value source.
      * @param dataPoints specifies an array of trigger points or an array of thresholds if dataIsTrigger is true.
      * @param dataIsTrigger specifies true if dataPoints specifies an array of trigger points, false if it is an
      *                      array of thresholds. Trigger points will be converted to threshold points.
      * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcAnalogSensorTrigger(
-        String instanceName, TrcSensor<D> sensor, int index, D dataType, double[] dataPoints, boolean dataIsTrigger,
+    public TrcTriggerThresholdZones(
+        String instanceName, TrcValueSource<Double> valueSource, double[] dataPoints, boolean dataIsTrigger,
         TrcEvent.Callback triggerCallback)
     {
-        if (sensor == null || triggerCallback == null)
+        if (valueSource == null || triggerCallback == null)
         {
-            throw new IllegalArgumentException("Sensor/TriggerCallback cannot be null.");
+            throw new IllegalArgumentException("ValueSource/TriggerCallback cannot be null.");
         }
 
         this.instanceName = instanceName;
-        this.sensor = sensor;
-        this.index = index;
-        this.dataType = dataType;
+        this.valueSource = valueSource;
         if (dataIsTrigger)
         {
             setTriggerPoints(dataPoints);
@@ -115,14 +108,14 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
         {
             setThresholds(dataPoints);
         }
-        this.triggerCallback = triggerCallback;
 
         double value = getSensorValue();
         triggerState = new TriggerState(value, getValueZone(value), false);
         callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new CallbackContext();
+        callbackEvent.setCallback(triggerCallback, callbackContext);
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
-    }   //TrcAnalogSensorTrigger
+    }   //TrcTriggerThresholdZones
 
     /**
      * This method returns the instance name and its state.
@@ -143,7 +136,7 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
     }   //toString
 
     //
-    // Implements TrcSensorTrigger abstract methods.
+    // Implements TrcTrigger interface.
     //
 
     /**
@@ -190,15 +183,14 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
     }   //isEnabled
 
     /**
-     * This method reads the current analog sensor value. It may return null if it failed to read the sensor.
+     * This method reads the current sensor value. It may return null if it failed to read the sensor.
      *
      * @return current sensor value, null if it failed to read the sensor.
      */
     @Override
     public double getSensorValue()
     {
-        TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
-        return data != null && data.value != null? data.value: 0.0;
+        return valueSource.getValue();
     }   //getSensorValue
 
     /**
@@ -360,9 +352,8 @@ public class TrcAnalogSensorTrigger<D> implements TrcTrigger
                 callbackContext.prevZone = prevZone;
                 callbackContext.currZone = currZone;
             }
-            callbackEvent.setCallback(triggerCallback, callbackContext);
             callbackEvent.signal();
         }
     }   //triggerTask
 
-}   //class TrcAnalogSensorTrigger
+}   //class TrcTriggerThresholdZones
