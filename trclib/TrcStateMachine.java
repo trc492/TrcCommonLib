@@ -370,19 +370,19 @@ public class TrcStateMachine<T>
      * has expired even though the required event(s) have not been signaled.
      *
      * @param nextState specifies the next state when the state machine becomes ready.
-     * @param timeout specifies a timeout value. A zero value means there is no timeout.
      * @param waitForAllEvents specifies true if all events must be signaled for the state machine to go ready.
      *                         If false, any signaled event will cause the state machine to go ready.
+     * @param timeout specifies a timeout value. A zero value means there is no timeout.
      */
-    public void waitForEvents(T nextState, double timeout, boolean waitForAllEvents)
+    public void waitForEvents(T nextState, boolean waitForAllEvents, double timeout)
     {
         final String funcName = "waitForEvents";
 
         if (debugEnabled)
         {
             dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "nextState=%s,timeout=%f,waitForAll=%s",
-                                nextState.toString(), timeout, Boolean.toString(waitForAllEvents));
+                                "nextState=%s,waitForAll=%s,timeout=%f",
+                                nextState.toString(), waitForAllEvents, timeout);
         }
 
         this.nextState = nextState;
@@ -403,6 +403,21 @@ public class TrcStateMachine<T>
 
     /**
      * This method puts the state machine into not ready mode and starts monitoring the events in the list. If
+     * waitForAllEvents is false and any event on the list is signaled or waitForAllEvents is true and all events
+     * are signaled, the state machine will be put back to ready mode and it will automatically advance to the
+     * given next state.
+     *
+     * @param nextState specifies the next state when the state machine becomes ready.
+     * @param waitForAllEvents specifies true if all events must be signaled for the state machine to go ready.
+     *                         If false, any signaled event will cause the state machine to go ready.
+     */
+    public void waitForEvents(T nextState, boolean waitForAllEvents)
+    {
+        waitForEvents(nextState, waitForAllEvents, 0.0);
+    }   //waitForEvents
+
+    /**
+     * This method puts the state machine into not ready mode and starts monitoring the events in the list. If
      * any event on the list is signaled, the state machine will be put back to ready mode and it will automatically
      * advance to the given next state. If timeout is non-zero, the state machine will be put back to ready mode
      * after timeout has expired even though the required event(s) have not been signaled.
@@ -412,7 +427,7 @@ public class TrcStateMachine<T>
      */
     public void waitForEvents(T nextState, double timeout)
     {
-        waitForEvents(nextState, timeout, false);
+        waitForEvents(nextState, false, timeout);
     }   //waitForEvents
 
     /**
@@ -424,7 +439,7 @@ public class TrcStateMachine<T>
      */
     public void waitForEvents(T nextState)
     {
-        waitForEvents(nextState, 0.0, false);
+        waitForEvents(nextState, false, 0.0);
     }   //waitForEvents
 
     /**
@@ -450,7 +465,7 @@ public class TrcStateMachine<T>
 
         eventList.clear();
         addEvent(event);
-        waitForEvents(nextState, timeout, false);
+        waitForEvents(nextState, false, timeout);
 
         if (debugEnabled)
         {
