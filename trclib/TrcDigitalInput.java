@@ -32,14 +32,15 @@ public abstract class TrcDigitalInput
     protected static final boolean debugEnabled = false;
 
     /**
-     * This method is provided by the platform dependent digital input device to check the state of the device.
+     * This method is provided by the platform dependent digital input device to check the state of the input.
      *
      * @return true if the digital input is active, false otherwise.
      */
-    public abstract boolean isActive();
+    public abstract boolean getInputState();
 
     protected static TrcElapsedTimer getInputElapsedTimer = null;
     protected String instanceName;
+    private boolean inverted = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -59,8 +60,39 @@ public abstract class TrcDigitalInput
     @Override
     public String toString()
     {
-        return instanceName;
+        return instanceName + ": active=" + isActive();
     }   //toString
+
+    /**
+     * This method inverts the digital input state. It is useful for changing a limit switch from Normal Open to
+     * Normal Close, for example.
+     *
+     * @param inverted specifies true to invert the digital input, false otherwise.
+     */
+    public void setInverted(boolean inverted)
+    {
+        this.inverted = inverted;
+    }   //setInverted
+
+    /**
+     * This method checks if the device state is inverted.
+     *
+     * @return true if inverted, false otherwise.
+     */
+    public boolean isInverted()
+    {
+        return inverted;
+    }   //isInverted
+
+    /**
+     * This method returns the state of the input device.
+     *
+     * @return true if active, false otherwise.
+     */
+    public boolean isActive()
+    {
+        return inverted ^ getInputState();
+    }   //isActive
 
     /**
      * This method enables/disables the elapsed timers for performance monitoring.
