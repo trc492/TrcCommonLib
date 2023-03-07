@@ -75,16 +75,6 @@ public abstract class TrcDigitalInput
     }   //setInverted
 
     /**
-     * This method checks if the device state is inverted.
-     *
-     * @return true if inverted, false otherwise.
-     */
-    public boolean isInverted()
-    {
-        return inverted;
-    }   //isInverted
-
-    /**
      * This method returns the state of the input device.
      *
      * @return true if active, false otherwise.
