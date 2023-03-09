@@ -73,6 +73,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
     private final String instanceName;
     private final TrcValueSource<Double> valueSource;
+    private final TrcEvent.Callback triggerCallback;
     private double[] thresholds;
     private final TriggerState triggerState;
     private final TrcEvent callbackEvent;
@@ -100,6 +101,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
         this.instanceName = instanceName;
         this.valueSource = valueSource;
+        this.triggerCallback = triggerCallback;
         if (dataIsTrigger)
         {
             setTriggerPoints(dataPoints);
@@ -113,7 +115,6 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         triggerState = new TriggerState(value, getValueZone(value), false);
         callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new CallbackContext();
-        callbackEvent.setCallback(triggerCallback, callbackContext);
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
     }   //TrcTriggerThresholdZones
 
@@ -153,12 +154,14 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         {
             if (enabled)
             {
+                callbackEvent.setCallback(triggerCallback, callbackContext);
                 triggerState.sensorValue = getSensorValue();
                 triggerState.sensorZone = getValueZone(triggerState.sensorValue);
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
             {
+                callbackEvent.cancel();
                 triggerTaskObj.unregisterTask();
             }
             triggerState.triggerEnabled = enabled;
