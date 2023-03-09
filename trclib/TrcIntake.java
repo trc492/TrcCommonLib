@@ -139,6 +139,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     private final TrcServo servo;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
+    private final TrcEvent.Callback triggerCallback;
     private final TrcTimer timer;
     private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
@@ -150,10 +151,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param motor specifies the motor object.
      * @param servo specifies the continuous servo object.
      * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object.
+     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
+     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
      */
     private TrcIntake(
-        String instanceName, TrcMotor motor, TrcServo servo, Parameters params, TrcTrigger sensorTrigger)
+        String instanceName, TrcMotor motor, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
+        TrcEvent.Callback triggerCallback)
     {
         if (servo != null && !servo.isContinuous())
         {
@@ -165,6 +168,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.servo = servo;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
+        this.triggerCallback = triggerCallback;
         if (motor != null)
         {
             motor.setMotorInverted(params.motorInverted);
@@ -183,12 +187,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
      * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object.
+     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
+     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
      */
     public TrcIntake(
-        String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger)
+        String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
+        TrcEvent.Callback triggerCallback)
     {
-        this(instanceName, motor, null, params, sensorTrigger);
+        this(instanceName, motor, null, params, sensorTrigger, triggerCallback);
     }   //TrcIntake
 
     /**
@@ -197,12 +203,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param instanceName specifies the hardware name.
      * @param servo specifies the continuous servo object.
      * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object.
+     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
+     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
      */
     public TrcIntake(
-        String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger)
+        String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
+        TrcEvent.Callback triggerCallback)
     {
-        this(instanceName, null, servo, params, sensorTrigger);
+        this(instanceName, null, servo, params, sensorTrigger, triggerCallback);
     }   //TrcIntake
 
     /**
@@ -214,7 +222,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public TrcIntake(String instanceName, TrcMotor motor, Parameters params)
     {
-        this(instanceName, motor, null, params, null);
+        this(instanceName, motor, null, params, null, null);
     }   //TrcIntake
 
     /**
@@ -226,7 +234,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public TrcIntake(String instanceName, TrcServo servo, Parameters params)
     {
-        this(instanceName, null, servo, params, null);
+        this(instanceName, null, servo, params, null, null);
     }   //TrcIntake
 
     /**
@@ -362,7 +370,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 servo.setPower(actionParams.power);
             }
-            sensorTrigger.setEnabled(true);
+            sensorTrigger.enableTrigger(triggerCallback);
 
             if (actionParams.timeout > 0.0)
             {
@@ -408,7 +416,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 servo.setPower(0.0);
             }
             timer.cancel();
-            sensorTrigger.setEnabled(false);
+            sensorTrigger.disableTrigger();
 
             if (actionParams.event != null)
             {

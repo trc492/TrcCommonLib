@@ -197,6 +197,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     private final TrcServo servo;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
+    private final TrcEvent.Callback triggerCallback;
     private final TrcTimer timer;
     private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
@@ -209,15 +210,18 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      * @param servo1 specifies the first servo object.
      * @param servo2 specifies the second servo object, can be null if none.
      * @param params specifies the parameters to set up the servo grabber.
-     * @param sensorTrigger specifies the sensor trigger object.
+     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
+     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
      */
     public TrcServoGrabber(
-        String instanceName, TrcServo servo1, TrcServo servo2, Parameters params, TrcTrigger sensorTrigger)
+        String instanceName, TrcServo servo1, TrcServo servo2, Parameters params, TrcTrigger sensorTrigger,
+        TrcEvent.Callback triggerCallback)
     {
         this.instanceName = instanceName;
         this.servo = servo1;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
+        this.triggerCallback = triggerCallback;
         servo1.setInverted(params.servo1Inverted);
 
         if (servo2 != null)
@@ -241,11 +245,26 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      * @param instanceName specifies the instance name.
      * @param servo specifies the first servo object.
      * @param params specifies the parameters to set up the servo grabber.
-     * @param sensorTrigger specifies the sensor trigger object.
+     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
+     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
      */
-    public TrcServoGrabber(String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger)
+    public TrcServoGrabber(
+        String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
+        TrcEvent.Callback triggerCallback)
     {
-        this(instanceName, servo, null, params, sensorTrigger);
+        this(instanceName, servo, null, params, sensorTrigger, triggerCallback);
+    }   //TrcServoGrabber
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param servo specifies the first servo object.
+     * @param params specifies the parameters to set up the servo grabber.
+     */
+    public TrcServoGrabber(String instanceName, TrcServo servo, Parameters params)
+    {
+        this(instanceName, servo, null, params, null, null);
     }   //TrcServoGrabber
 
     /**
@@ -419,7 +438,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             grabbingObject = true;
         }
         // Arm the sensor trigger as long as AutoAssist is enabled.
-        sensorTrigger.setEnabled(true);
+        sensorTrigger.enableTrigger(triggerCallback);
         if (!grabbingObject && actionParams.timeout > 0.0)
         {
             timerEvent.setCallback(this::cancelAutoAssist, actionParams);
@@ -498,7 +517,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             }
 
             timer.cancel();
-            sensorTrigger.setEnabled(false);
+            sensorTrigger.disableTrigger();
             actionParams = null;
         }
     }   //cancelAutoAssist

@@ -27,8 +27,8 @@ import java.util.Locale;
 
 /**
  * This class implements a Threshold Zones Trigger. It monitors the value source against an array of threshold
- * values. If the sensor reading crosses any of the thresholds in the array, it notifies the callback handler
- * so that an action could be performed.
+ * values. If the sensor reading crosses any of the thresholds in the array, it signals an event or notifies the
+ * callback handler so that an action could be performed.
  */
 public class TrcTriggerThresholdZones implements TrcTrigger
 {
@@ -73,12 +73,13 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
     private final String instanceName;
     private final TrcValueSource<Double> valueSource;
-    private final TrcEvent.Callback triggerCallback;
-    private double[] thresholds;
     private final TriggerState triggerState;
-    private final TrcEvent callbackEvent;
     private final CallbackContext callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
+    private double[] thresholds;
+    private TrcEvent triggerEvent = null;
+    private TrcEvent.Callback triggerCallback = null;
+    private Thread callbackThread = null;
 
     /**
      * Constructor: Create an instance of the object.
@@ -88,20 +89,17 @@ public class TrcTriggerThresholdZones implements TrcTrigger
      * @param dataPoints specifies an array of trigger points or an array of thresholds if dataIsTrigger is true.
      * @param dataIsTrigger specifies true if dataPoints specifies an array of trigger points, false if it is an
      *                      array of thresholds. Trigger points will be converted to threshold points.
-     * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
     public TrcTriggerThresholdZones(
-        String instanceName, TrcValueSource<Double> valueSource, double[] dataPoints, boolean dataIsTrigger,
-        TrcEvent.Callback triggerCallback)
+        String instanceName, TrcValueSource<Double> valueSource, double[] dataPoints, boolean dataIsTrigger)
     {
-        if (valueSource == null || triggerCallback == null)
+        if (valueSource == null)
         {
-            throw new IllegalArgumentException("ValueSource/TriggerCallback cannot be null.");
+            throw new IllegalArgumentException("ValueSource cannot be null.");
         }
 
         this.instanceName = instanceName;
         this.valueSource = valueSource;
-        this.triggerCallback = triggerCallback;
         if (dataIsTrigger)
         {
             setTriggerPoints(dataPoints);
@@ -113,7 +111,6 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
         double value = getSensorValue();
         triggerState = new TriggerState(value, getValueZone(value), false);
-        callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new CallbackContext();
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
     }   //TrcTriggerThresholdZones
@@ -141,12 +138,12 @@ public class TrcTriggerThresholdZones implements TrcTrigger
     //
 
     /**
-     * This method enables/disables the task that monitors the sensor value.
+     * This method arms/disarms the trigger. It enables/disables the task that monitors the sensor value.
      *
      * @param enabled specifies true to enable, false to disable.
+     * @param event specifies the event to signal when the trigger state changed, ignored if enabled is false.
      */
-    @Override
-    public void setEnabled(boolean enabled)
+    private void setEnabled(boolean enabled, TrcEvent event)
     {
         final String funcName = "setEnabled";
 
@@ -154,15 +151,17 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         {
             if (enabled)
             {
-                callbackEvent.setCallback(triggerCallback, callbackContext);
+                event.clear();
+                triggerEvent = event;
                 triggerState.sensorValue = getSensorValue();
                 triggerState.sensorZone = getValueZone(triggerState.sensorValue);
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
             {
-                callbackEvent.cancel();
                 triggerTaskObj.unregisterTask();
+                triggerEvent. cancel();
+                triggerEvent = null;
             }
             triggerState.triggerEnabled = enabled;
 
@@ -173,6 +172,43 @@ public class TrcTriggerThresholdZones implements TrcTrigger
             }
         }
     }   //setEnabled
+
+    /**
+     * This method arms the trigger. It enables the task that monitors the sensor value.
+     *
+     * @param event specifies the event to signal when the trigger state changed.
+     */
+    @Override
+    public void enableTrigger(TrcEvent event)
+    {
+        triggerCallback = null;
+        callbackThread = null;
+        setEnabled(true, event);
+    }   //enableTrigger
+
+    /**
+     * This method arms the trigger. It enables the task that monitors the sensor value.
+     *
+     * @param callback specifies the callback handler to notify when the trigger state changed.
+     */
+    @Override
+    public void enableTrigger(TrcEvent.Callback callback)
+    {
+        triggerCallback = callback;
+        callbackThread = Thread.currentThread();
+        setEnabled(true, new TrcEvent(instanceName + ".triggerEvent"));
+    }   //enableTrigger
+
+    /**
+     * This method disarms the trigger. It disables the task that monitors the sensor value.
+     */
+    @Override
+    public void disableTrigger()
+    {
+        triggerCallback = null;
+        callbackThread = null;
+        setEnabled(false, null);
+    }   //disableTrigger
 
     /**
      * This method checks if the trigger task is enabled.
@@ -349,13 +385,17 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                     moduleName, instanceName, prevZone, currZone, currValue);
             }
 
-            synchronized (callbackContext)
+            if (triggerCallback != null)
             {
-                callbackContext.sensorValue = currValue;
-                callbackContext.prevZone = prevZone;
-                callbackContext.currZone = currZone;
+                synchronized (callbackContext)
+                {
+                    callbackContext.sensorValue = currValue;
+                    callbackContext.prevZone = prevZone;
+                    callbackContext.currZone = currZone;
+                }
+                triggerEvent.setCallback(callbackThread, triggerCallback, callbackContext);
             }
-            callbackEvent.signal();
+            triggerEvent.signal();
         }
     }   //triggerTask
 

@@ -60,35 +60,30 @@ public class TrcTriggerDigitalInput implements TrcTrigger
 
     private final String instanceName;
     private final TrcDigitalInput sensor;
-    private final TrcEvent.Callback triggerCallback;
-    private final Thread callbackThread;
     private final TriggerState triggerState;
-    private final TrcEvent callbackEvent;
     private final AtomicBoolean callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
+    private TrcEvent triggerEvent = null;
+    private TrcEvent.Callback triggerCallback = null;
+    private Thread callbackThread = null;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
      * @param sensor specifies the digital input device.
-     * @param triggerCallback specifies the callback handler to notify when the trigger state changed.
      */
-    public TrcTriggerDigitalInput(
-        String instanceName, TrcDigitalInput sensor, TrcEvent.Callback triggerCallback)
+    public TrcTriggerDigitalInput(String instanceName, TrcDigitalInput sensor)
     {
-        if (sensor == null || triggerCallback == null)
+        if (sensor == null)
         {
-            throw new IllegalArgumentException("Sensor/TriggerCallback cannot be null.");
+            throw new IllegalArgumentException("Sensor cannot be null.");
         }
 
         this.instanceName = instanceName;
         this.sensor = sensor;
-        this.triggerCallback = triggerCallback;
-        callbackThread = Thread.currentThread();
 
         triggerState = new TriggerState(sensor.isActive(), false);
-        callbackEvent = new TrcEvent(instanceName + ".callbackEvent");
         callbackContext = new AtomicBoolean();
         triggerTaskObj = TrcTaskMgr.createTask(instanceName + ".triggerTask", this::triggerTask);
     }   //TrcTriggerDigitalInput
@@ -116,12 +111,12 @@ public class TrcTriggerDigitalInput implements TrcTrigger
     //
 
     /**
-     * This method enables/disables the task that monitors the sensor value.
+     * This method arms/disarms the trigger. It enables/disables the task that monitors the sensor value.
      *
      * @param enabled specifies true to enable, false to disable.
+     * @param event specifies the event to signal when the trigger state changed, ignored if enabled is false.
      */
-    @Override
-    public void setEnabled(boolean enabled)
+    private void setEnabled(boolean enabled, TrcEvent event)
     {
         final String funcName = "setEnabled";
 
@@ -129,12 +124,16 @@ public class TrcTriggerDigitalInput implements TrcTrigger
         {
             if (enabled)
             {
+                event.clear();
+                triggerEvent = event;
                 triggerState.sensorState = sensor.isActive();
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
             {
                 triggerTaskObj.unregisterTask();
+                triggerEvent.cancel();
+                triggerEvent = null;
             }
             triggerState.triggerEnabled = enabled;
 
@@ -145,6 +144,43 @@ public class TrcTriggerDigitalInput implements TrcTrigger
             }
         }
     }   //setEnabled
+
+    /**
+     * This method arms the trigger. It enables the task that monitors the sensor value.
+     *
+     * @param event specifies the event to signal when the trigger state changed.
+     */
+    @Override
+    public void enableTrigger(TrcEvent event)
+    {
+        triggerCallback = null;
+        callbackThread = null;
+        setEnabled(true, event);
+    }   //enableTrigger
+
+    /**
+     * This method arms the trigger. It enables the task that monitors the sensor value.
+     *
+     * @param callback specifies the callback handler to notify when the trigger state changed.
+     */
+    @Override
+    public void enableTrigger(TrcEvent.Callback callback)
+    {
+        triggerCallback = callback;
+        callbackThread = Thread.currentThread();
+        setEnabled(true, new TrcEvent(instanceName + ".triggerEvent"));
+    }   //enableTrigger
+
+    /**
+     * This method disarms the trigger. It disables the task that monitors the sensor value.
+     */
+    @Override
+    public void disableTrigger()
+    {
+        triggerCallback = null;
+        callbackThread = null;
+        setEnabled(false, null);
+    }   //disableTrigger
 
     /**
      * This method checks if the trigger task is enabled.
@@ -213,9 +249,12 @@ public class TrcTriggerDigitalInput implements TrcTrigger
                     funcName, "%s.%s: changes state %s->%s", moduleName, instanceName, prevState, currState);
             }
 
-            callbackContext.set(currState);
-            callbackEvent.setCallback(callbackThread, triggerCallback, callbackContext);
-            callbackEvent.signal();
+            if (triggerCallback != null)
+            {
+                callbackContext.set(currState);
+                triggerEvent.setCallback(callbackThread, triggerCallback, callbackContext);
+            }
+            triggerEvent.signal();
         }
     }   //triggerTask
 

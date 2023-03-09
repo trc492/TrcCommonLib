@@ -32,11 +32,23 @@ package TrcCommonLib.trclib;
 public interface TrcTrigger
 {
     /**
-     * This method enables/disables the trigger task that monitors the sensor value.
+     * This method arms the trigger. It enables the task that monitors the sensor value.
      *
-     * @param enabled specifies true to enable, false to disable.
+     * @param event specifies the event to signal when the trigger state changed.
      */
-    void setEnabled(boolean enabled);
+    void enableTrigger(TrcEvent event);
+
+    /**
+     * This method arms the trigger. It enables the task that monitors the sensor value.
+     *
+     * @param callback specifies the callback handler to notify when the trigger state changed.
+     */
+    void enableTrigger(TrcEvent.Callback callback);
+
+    /**
+     * This method disarms the trigger. It disables the task that monitors the sensor value.
+     */
+    void disableTrigger();
 
     /**
      * This method checks if the trigger task is enabled.
