@@ -353,6 +353,7 @@ public class TrcStateMachine<T>
         //
         if (!eventList.contains(event))
         {
+            event.clear();
             eventList.add(event);
         }
 
