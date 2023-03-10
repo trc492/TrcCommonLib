@@ -44,19 +44,23 @@ public class TrcTriggerThresholdZones implements TrcTrigger
     {
         volatile double sensorValue;
         volatile int sensorZone;
+        volatile int prevZone;
         volatile boolean triggerEnabled;
 
         TriggerState(double sensorValue, int sensorZone, boolean triggerEnabled)
         {
             this.sensorValue = sensorValue;
             this.sensorZone = sensorZone;
+            this.prevZone = sensorZone;
             this.triggerEnabled = triggerEnabled;
         }   //TriggerState
 
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "(value=%.3f,Zone=%d,Enabled=%s)", sensorValue, sensorZone, triggerEnabled);
+            return String.format(
+                Locale.US, "(value=%.3f,Zone=%d,prevZone=%d,Enabled=%s)",
+                sensorValue, sensorZone, prevZone, triggerEnabled);
         }   //toString
 
     }   //class TriggerState
@@ -155,6 +159,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                 triggerEvent = event;
                 triggerState.sensorValue = getSensorValue();
                 triggerState.sensorZone = getValueZone(triggerState.sensorValue);
+                triggerState.prevZone = triggerState.sensorZone;
                 triggerTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
             }
             else
@@ -252,6 +257,16 @@ public class TrcTriggerThresholdZones implements TrcTrigger
     {
         return triggerState.sensorZone;
     }   //getCurrentZone
+
+    /**
+     * This method returns the previous zone it was in.
+     *
+     * @return previous zone index.
+     */
+    public int getPreviousZone()
+    {
+        return triggerState.prevZone;
+    }   //getPreviousZone
 
     /**
      * This method determines the sensor zone with the given sensor value.
@@ -371,6 +386,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                 //
                 prevZone = triggerState.sensorZone;
                 triggerState.sensorZone = currZone;
+                triggerState.prevZone = prevZone;
                 triggered = true;
             }
             triggerState.sensorValue = currValue;
