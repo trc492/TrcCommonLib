@@ -314,7 +314,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
      *
      * @param triggerPoints specifies the array of trigger points.
      */
-    private void setTriggerPoints(double[] triggerPoints)
+    public void setTriggerPoints(double[] triggerPoints)
     {
         final String funcName = "setTriggerPoints";
 
@@ -342,7 +342,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
      *
      * @param thresholds specifies the array of thresholds.
      */
-    private void setThresholds(double[] thresholds)
+    public void setThresholds(double[] thresholds)
     {
         final String funcName = "setThresholds";
 
