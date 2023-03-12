@@ -437,8 +437,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 timer.cancel();
                 // Stop the physical motor(s).
                 stop(true);
-                taskParams.notifyEvent.cancel();
-                taskParams.notifyEvent = null;
+                if (taskParams.notifyEvent != null)
+                {
+                    taskParams.notifyEvent.cancel();
+                    taskParams.notifyEvent = null;
+                }
             }
         }
     }   //cancel
