@@ -177,9 +177,15 @@ public class TrcTriggerDigitalInput implements TrcTrigger
     @Override
     public void disableTrigger()
     {
-        triggerCallback = null;
-        callbackThread = null;
-        setEnabled(false, null);
+        synchronized (triggerState)
+        {
+            if (triggerState.triggerEnabled)
+            {
+                triggerCallback = null;
+                callbackThread = null;
+                setEnabled(false, null);
+            }
+        }
     }   //disableTrigger
 
     /**
