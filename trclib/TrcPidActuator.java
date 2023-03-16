@@ -306,6 +306,18 @@ public class TrcPidActuator extends TrcPidMotor
     }   //TrcPidActuator
 
     /**
+     * This method sets the position range limits of the motor actuator.
+     *
+     * @param minPos specifies the minimum position of the actuator in scaled unit.
+     * @param maxPos specifies the maximum position of the actuator in scaled unit.
+     * @return this parameter object.
+     */
+    public void setPositionRange(double minPos, double maxPos)
+    {
+        params.setPosRange(minPos, maxPos);
+    }   //setPositionRange
+
+    /**
      * This method enables/disables lower limit switch to trigger a position reset.
      *
      * @param enabled specifies true to enable lower limit switch to trigger a position reset, false to disable.
