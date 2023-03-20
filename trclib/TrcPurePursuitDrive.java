@@ -1066,24 +1066,29 @@ public class TrcPurePursuitDrive
             {
                 beepDevice.playTone(beepFrequency, beepDuration);
             }
-
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "%s: Stalled=%s, Timedout=%s", instanceName, stalled, timedOut);
-            }
         }
 
         if (stalled || timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
-            TrcDbgTrace.globalTraceInfo(
-                funcName, "Done[index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
-                pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(
+                    funcName, "Done [index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
+                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
+                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+           }
 
             stop();
 
             if (onFinishedEvent != null)
             {
-                TrcDbgTrace.globalTraceInfo(funcName, "Signal finished event.");
+                if (msgTracer != null)
+                {
+                    msgTracer.traceInfo(funcName, "Signal completion event %s.", onFinishedEvent);
+                }
                 onFinishedEvent.signal();
                 onFinishedEvent = null;
             }
