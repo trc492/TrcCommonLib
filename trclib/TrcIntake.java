@@ -139,10 +139,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
     private final TrcServo servo;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
-    private final TrcEvent.Callback triggerCallback;
+    private final TrcEvent.Callback eventCallback;
     private final TrcTimer timer;
     private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
+    private String currOwner = null;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -152,11 +153,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param servo specifies the continuous servo object.
      * @param params specifies the parameters object.
      * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
+     * @param eventCallback specifies the notification callback when a trigger event occurred,
+     *        null if no sensorTrigger.
      */
     private TrcIntake(
         String instanceName, TrcMotor motor, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback triggerCallback)
+        TrcEvent.Callback eventCallback)
     {
         if (servo != null && !servo.isContinuous())
         {
@@ -168,7 +170,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.servo = servo;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
-        this.triggerCallback = triggerCallback;
+        this.eventCallback = eventCallback;
         if (motor != null)
         {
             motor.setMotorInverted(params.motorInverted);
@@ -188,13 +190,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param motor specifies the motor object.
      * @param params specifies the parameters object.
      * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
+     * @param eventCallback specifies the notification callback when a trigger event occurred,
+     *        null if no sensorTrigger.
      */
     public TrcIntake(
         String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback triggerCallback)
+        TrcEvent.Callback eventCallback)
     {
-        this(instanceName, motor, null, params, sensorTrigger, triggerCallback);
+        this(instanceName, motor, null, params, sensorTrigger, eventCallback);
     }   //TrcIntake
 
     /**
@@ -204,13 +207,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param servo specifies the continuous servo object.
      * @param params specifies the parameters object.
      * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param triggerCallback specifies the callback handler when the sensor is triggered, null if no sensorTrigger.
+     * @param eventCallback specifies the notification callback when a trigger event occurred,
+     *        null if no sensorTrigger.
      */
     public TrcIntake(
         String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback triggerCallback)
+        TrcEvent.Callback eventCallback)
     {
-        this(instanceName, null, servo, params, sensorTrigger, triggerCallback);
+        this(instanceName, null, servo, params, sensorTrigger, eventCallback);
     }   //TrcIntake
 
     /**
@@ -265,18 +269,18 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
+     * @param duration specifies the duration in seconds to have power set.
      * @param event specifies the event to signal when time has expired.
      */
-    public void setPower(String owner, double delay, double power, double time, TrcEvent event)
+    public void setPower(String owner, double delay, double power, double duration, TrcEvent event)
     {
         if (motor != null)
         {
-            motor.set(owner, delay, power, time, event);
+            motor.set(owner, delay, power, duration, event);
         }
         else
         {
-            servo.setPower(owner, delay, power, time, event);
+            servo.setPower(owner, delay, power, duration, event);
         }
     }   //setPower
 
@@ -286,12 +290,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param delay specifies the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
+     * @param duration specifies the duration in seconds to have power set.
      * @param event specifies the event to signal when time has expired.
      */
-    public void setPower(double delay, double power, double time, TrcEvent event)
+    public void setPower(double delay, double power, double duration, TrcEvent event)
     {
-        setPower(null, delay, power, time, event);
+        setPower(null, delay, power, duration, event);
     }   //setPower
 
     /**
@@ -299,12 +303,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * set time expires.
      *
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
+     * @param duration specifies the duration in seconds to have power set.
      * @param event specifies the event to signal when time has expired.
      */
-    public void setPower(double power, double time, TrcEvent event)
+    public void setPower(double power, double duration, TrcEvent event)
     {
-        setPower(null, 0.0, power, time, event);
+        setPower(null, 0.0, power, duration, event);
     }   //setPower
 
     /**
@@ -313,11 +317,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param delay specifies the delay in seconds to wait before setting the power of the motor.
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
+     * @param duration specifies the duration in seconds to have power set.
      */
-    public void setPower(double delay, double power, double time)
+    public void setPower(double delay, double power, double duration)
     {
-        setPower(null, delay, power, time, null);
+        setPower(null, delay, power, duration, null);
     }   //setPower
 
     /**
@@ -325,11 +329,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * set time expires.
      *
      * @param power specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param time specifies the time period in seconds to have power set.
+     * @param duration specifies the duration in seconds to have power set.
      */
-    public void setPower(double power, double time)
+    public void setPower(double power, double duration)
     {
-        setPower(null, 0.0, power, time, null);
+        setPower(null, 0.0, power, duration, null);
     }   //setPower
 
     /**
@@ -342,6 +346,59 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         setPower(null, 0.0, power, 0.0, null);
     }   //setPower
+
+    /**
+     * This method is called to finish the auto-assist operation and clean up. It can be called either at the end of
+     * the timeout or when object is detected to finish the auto-assist operation and signal the caller for
+     * completion. It can also be called if the caller explicitly cancel the auto-assist operation in which case
+     * the event will be set to canceled.
+     *
+     * @param canceled specifies true if the operation is canceled, false otherwsie.
+     */
+    private void finishAutoAssist(boolean canceled)
+    {
+        final String funcName = "finishAutoAssist";
+
+        if (isAutoAssistActive())
+        {
+            if (params.msgTracer != null)
+            {
+                params.msgTracer.traceInfo(funcName, "AutoAssistTimedOut=%s", timerEvent.isSignaled());
+            }
+
+            if (motor != null)
+            {
+                motor.set(0.0);
+            }
+            else
+            {
+                servo.setPower(0.0);
+            }
+            timer.cancel();
+            sensorTrigger.disableTrigger();
+
+            if (actionParams.event != null)
+            {
+                if (canceled)
+                {
+                    actionParams.event.cancel();
+                }
+                else
+                {
+                    actionParams.event.signal();
+                }
+                actionParams.event = null;
+            }
+
+            actionParams = null;
+
+            if (currOwner != null)
+            {
+                releaseExclusiveAccess(currOwner);
+                currOwner = null;
+            }
+        }
+    }   //finishAutoAssist
 
     /**
      * This method performs the auto-assist action.
@@ -370,11 +427,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 servo.setPower(actionParams.power);
             }
-            sensorTrigger.enableTrigger(triggerCallback);
+            sensorTrigger.enableTrigger(this::triggerCallback);
 
             if (actionParams.timeout > 0.0)
             {
-                timerEvent.setCallback(this::finishAutoAssist, null);
+                timerEvent.setCallback(this::autoAssistTimedOut, null);
                 timer.set(actionParams.timeout, timerEvent);
             }
         }
@@ -386,47 +443,33 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", objCaptured);
             }
 
-            finishAutoAssist(null);
+            finishAutoAssist(false);
         }
     }   //performAutoAssist
 
     /**
-     * This method is called either at the end of the timeout or when object is detected to finish the auto-assist
-     * operation and signal the caller for completion.
+     * This method is called when the sensor trigger state has changed.
      *
-     * @param context specifies the action parameters (not used).
+     * @param context not used.
      */
-    public void finishAutoAssist(Object context)
+    private void triggerCallback(Object context)
     {
-        final String funcName = "finishAutoAssist";
-
-        if (isAutoAssistActive())
+        finishAutoAssist(false);
+        if (eventCallback != null)
         {
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(funcName, "AutoAssistTimedOut=%s", timerEvent.isSignaled());
-            }
-
-            if (motor != null)
-            {
-                motor.set(0.0);
-            }
-            else
-            {
-                servo.setPower(0.0);
-            }
-            timer.cancel();
-            sensorTrigger.disableTrigger();
-
-            if (actionParams.event != null)
-            {
-                actionParams.event.signal();
-                actionParams.event = null;
-            }
-
-            actionParams = null;
+            eventCallback.notify(context);
         }
-    }   //finishAutoAssist
+    }   //triggerCallback
+
+    /**
+     * This method is called when the auto-assist operation has timed out.
+     *
+     * @param context not used.
+     */
+    private void autoAssistTimedOut(Object context)
+    {
+        finishAutoAssist(true);
+    }   //autoAssistTimedOut
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
@@ -441,12 +484,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssist(
+    public void autoAssistIntake(
         String owner, double delay, double power, TrcEvent event, double timeout)
     {
         if (sensorTrigger == null || power == 0.0)
         {
-            throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist.");
+            throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist Intake.");
+        }
+        // Caller specified an owner but did not acquire ownership, acquire it on its behalf.
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        {
+            currOwner = owner;
         }
         //
         // This is an auto-assist operation, make sure the caller has ownership.
@@ -464,7 +512,22 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 performAutoAssist(actionParams);
             }
         }
-    }   //autoAssist
+    }   //autoAssistIntake
+
+    /**
+     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
+     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
+     * signaled or it will notify the caller's handler.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     */
+    public void autoAssistIntake(String owner, double delay, double power)
+    {
+        autoAssistIntake(owner, delay, power, null, 0.0);
+    }   //autoAssistIntake
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
@@ -478,10 +541,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssist(double delay, double power, TrcEvent event, double timeout)
+    public void autoAssistIntake(double delay, double power, TrcEvent event, double timeout)
     {
-        autoAssist(null, delay, power, event, timeout);
-    }   //autoAssist
+        autoAssistIntake(null, delay, power, event, timeout);
+    }   //autoAssistIntake
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
@@ -494,10 +557,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssist(double power, TrcEvent event, double timeout)
+    public void autoAssistIntake(double power, TrcEvent event, double timeout)
     {
-        autoAssist(null, 0.0, power, event, timeout);
-    }   //autoAssist
+        autoAssistIntake(null, 0.0, power, event, timeout);
+    }   //autoAssistIntake
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
@@ -508,10 +571,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
      */
-    public void autoAssist(double delay, double power)
+    public void autoAssistIntake(double delay, double power)
     {
-        autoAssist(null, delay, power, null, 0.0);
-    }   //autoAssist
+        autoAssistIntake(null, delay, power, null, 0.0);
+    }   //autoAssistIntake
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
@@ -521,10 +584,31 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
      */
-    public void autoAssist(double power)
+    public void autoAssistIntake(double power)
     {
-        autoAssist(null, 0.0, power, null, 0.0);
-    }   //autoAssist
+        autoAssistIntake(null, 0.0, power, null, 0.0);
+    }   //autoAssistIntake
+
+    /**
+     * This method cancels the auto-assist operation if one is active.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     */
+    public void autoAssistCancel(String owner)
+    {
+        if (isAutoAssistActive() && validateOwnership(owner))
+        {
+            finishAutoAssist(true);
+        }
+    }   //autoAssistCancel
+
+    /**
+     * This method cancels the auto-assist operation if one is active.
+     */
+    public void autoAssistCancel()
+    {
+        autoAssistCancel(null);
+    }   //autoAssistCancel
 
     /**
      * This method returns the sensor value read from the analog sensor.
