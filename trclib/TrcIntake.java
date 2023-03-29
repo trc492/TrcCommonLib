@@ -41,7 +41,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
     public static class Parameters
     {
         public TrcDbgTrace msgTracer = null;
-        public boolean motorInverted = false;
         public boolean triggerInverted = false;
         public Double analogThreshold = null;
 
@@ -54,8 +53,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return String.format(
-                Locale.US, "motorInverted=%s,triggerInverted=%s,analogThreshold=%s",
-                motorInverted, triggerInverted, analogThreshold);
+                Locale.US, "triggerInverted=%s,analogThreshold=%s", triggerInverted, analogThreshold);
         }   //toString
 
         /**
@@ -69,18 +67,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.msgTracer = tracer;
             return this;
         }   //setMsgTracer
-
-        /**
-         * This method sets the direction of the motor.
-         *
-         * @param inverted specifies true if motor is inverted, false otherwise.
-         * @return this parameter object.
-         */
-        public Parameters setMotorInverted(boolean inverted)
-        {
-            this.motorInverted = inverted;
-            return this;
-        }   //setMotorInverted
 
         /**
          * This method sets the trigger to be inverted. If it is an analog trigger, inverted means triggering when
@@ -171,14 +157,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.eventCallback = eventCallback;
-        if (motor != null)
-        {
-            motor.setMotorInverted(params.motorInverted);
-        }
-        else
-        {
-            servo.setInverted(params.motorInverted);
-        }
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcIntake
