@@ -46,7 +46,7 @@ public class TrcWatchdogMgr
 
     private static TrcWatchdogMgr instance;
     private static final ArrayList<Watchdog> watchdogList = new ArrayList<>();
-    private static final HashMap<String, Watchdog> watchdogMap = new HashMap<>();
+    private static final HashMap<Thread, Watchdog> watchdogMap = new HashMap<>();
 
     /**
      * This class encapsulates the state of the watchdog. A watchdog has an identifiable name, an associated thread,
@@ -65,13 +65,14 @@ public class TrcWatchdogMgr
          * Constructor: Creates an instance of the object.
          *
          * @param name specifies the name of the watchdog.
+         * @param thread specifies the thread the watchdog is monitoring.
          * @param heartBeatThreshold specifies the maximum heart beat interval in seconds.
          */
-        private Watchdog(String name, double heartBeatThreshold)
+        private Watchdog(String name, Thread thread, double heartBeatThreshold)
         {
             this.name = name;
             this.heartBeatThreshold = heartBeatThreshold;
-            this.thread = Thread.currentThread();
+            this.thread = thread;
             this.heartBeatExpiredTime = TrcTimer.getCurrentTime() + heartBeatThreshold;
             this.expired = false;
             this.paused = false;
@@ -262,11 +263,13 @@ public class TrcWatchdogMgr
 
         synchronized (watchdogList)
         {
-            if (!watchdogMap.containsKey(name))
+            Thread currThread = Thread.currentThread();
+
+            if (!watchdogMap.containsKey(currThread))
             {
-                watchdog = new Watchdog(name, heartBeatThreshold);
+                watchdog = new Watchdog(name, currThread, heartBeatThreshold);
                 watchdogList.add(watchdog);
-                watchdogMap.put(name, watchdog);
+                watchdogMap.put(currThread, watchdog);
             }
             else
             {
@@ -310,7 +313,7 @@ public class TrcWatchdogMgr
 
         synchronized (watchdogList)
         {
-            watchdogMap.remove(watchdog.name);
+            watchdogMap.remove(watchdog.thread);
             success = watchdogList.remove(watchdog);
         }
 
@@ -322,6 +325,23 @@ public class TrcWatchdogMgr
 
         return success;
     }   //unregisterWatchdog
+
+    /**
+     * This method returns the watchdog associated with the current thread.
+     *
+     * @return watchdog associated with the current thread.
+     */
+    public static Watchdog getWatchdog()
+    {
+        Watchdog watchdog;
+
+        synchronized (watchdogList)
+        {
+            watchdog = watchdogMap.get(Thread.currentThread());
+        }
+
+        return watchdog;
+    }   //getWatchdog
 
     /**
      * This method runs periodically to check for watchdog timeouts.
