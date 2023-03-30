@@ -101,13 +101,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private static class ActionParams
     {
-        double power;
+        double intakePower;
+        double retainPower;
         TrcEvent event;
         double timeout;
 
-        ActionParams(double power, TrcEvent event, double timeout)
+        ActionParams(double intakePower, double retainPower, TrcEvent event, double timeout)
         {
-            this.power = power;
+            this.intakePower = intakePower;
+            this.retainPower = retainPower;
             this.event = event;
             this.timeout = timeout;
         }   //ActionParams
@@ -115,7 +117,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "power=%.1f,event=%s,timeout=%.3f", power, event, timeout);
+            return String.format(
+                Locale.US, "intakePower=%.1f,retainPower=%.1f,event=%s,timeout=%.3f",
+                intakePower, retainPower, event, timeout);
         }   //toString
 
     }   //class ActionParams
@@ -344,13 +348,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 params.msgTracer.traceInfo(funcName, "AutoAssistTimedOut=%s", timerEvent.isSignaled());
             }
 
+            double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
             if (motor != null)
             {
-                motor.set(0.0);
+                motor.set(power);
             }
             else
             {
-                servo.setPower(0.0);
+                servo.setPower(power);
             }
             timer.cancel();
             sensorTrigger.disableTrigger();
@@ -389,7 +394,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
 
-        if (actionParams.power > 0.0 ^ objCaptured)
+        if (actionParams.intakePower > 0.0 ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or dumping object and we still have one.
             if (params.msgTracer != null)
@@ -399,11 +404,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
             if (motor != null)
             {
-                motor.set(actionParams.power);
+                motor.set(actionParams.intakePower);
             }
             else
             {
-                servo.setPower(actionParams.power);
+                servo.setPower(actionParams.intakePower);
             }
             sensorTrigger.enableTrigger(this::triggerCallback);
 
@@ -458,12 +463,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
     public void autoAssistIntake(
-        String owner, double delay, double power, TrcEvent event, double timeout)
+        String owner, double delay, double power, double retainPower, TrcEvent event, double timeout)
     {
         if (sensorTrigger == null || power == 0.0)
         {
@@ -479,7 +486,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         //
         if (validateOwnership(owner))
         {
-            actionParams = new ActionParams(power, event, timeout);
+            actionParams = new ActionParams(power, retainPower, event, timeout);
             if (delay > 0.0)
             {
                 timerEvent.setCallback(this::performAutoAssist, actionParams);
@@ -501,10 +508,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      */
-    public void autoAssistIntake(String owner, double delay, double power)
+    public void autoAssistIntake(String owner, double delay, double power, double retainPower)
     {
-        autoAssistIntake(owner, delay, power, null, 0.0);
+        autoAssistIntake(owner, delay, power, retainPower, null, 0.0);
     }   //autoAssistIntake
 
     /**
@@ -515,13 +524,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(double delay, double power, TrcEvent event, double timeout)
+    public void autoAssistIntake(double delay, double power, double retainPower, TrcEvent event, double timeout)
     {
-        autoAssistIntake(null, delay, power, event, timeout);
+        autoAssistIntake(null, delay, power, retainPower, event, timeout);
     }   //autoAssistIntake
 
     /**
@@ -531,13 +542,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(double power, TrcEvent event, double timeout)
+    public void autoAssistIntake(double power, double retainPower, TrcEvent event, double timeout)
     {
-        autoAssistIntake(null, 0.0, power, event, timeout);
+        autoAssistIntake(null, 0.0, power, retainPower, event, timeout);
     }   //autoAssistIntake
 
     /**
@@ -548,10 +561,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      */
-    public void autoAssistIntake(double delay, double power)
+    public void autoAssistIntake(double delay, double power, double retainPower)
     {
-        autoAssistIntake(null, delay, power, null, 0.0);
+        autoAssistIntake(null, delay, power, retainPower, null, 0.0);
     }   //autoAssistIntake
 
     /**
@@ -561,10 +576,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     *        object.
      */
-    public void autoAssistIntake(double power)
+    public void autoAssistIntake(double power, double retainPower)
     {
-        autoAssistIntake(null, 0.0, power, null, 0.0);
+        autoAssistIntake(null, 0.0, power, retainPower, null, 0.0);
     }   //autoAssistIntake
 
     /**
