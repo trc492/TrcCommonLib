@@ -231,7 +231,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
     @Override
     public String toString()
     {
-        return instanceName;
+        return String.format(
+            Locale.US, "%s: pwr=%.3f, current=%.3f, hasObject=%s, autoAssistActive=%s",
+            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, hasObject(), isAutoAssistActive());
     }   //toString
 
     /**
