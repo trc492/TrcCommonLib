@@ -232,8 +232,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
     public String toString()
     {
         return String.format(
-            Locale.US, "%s: pwr=%.3f, current=%.3f, hasObject=%s, autoAssistActive=%s",
-            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, hasObject(), isAutoAssistActive());
+            Locale.US, "%s: pwr=%.3f, current=%.3f, autoAssistActive=%s, hasObject=%s",
+            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, isAutoAssistActive(), hasObject());
     }   //toString
 
     /**
@@ -351,14 +351,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
             }
 
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
-            if (motor != null)
-            {
-                motor.set(power);
-            }
-            else
-            {
-                servo.setPower(power);
-            }
+            setPower(power);
             timer.cancel();
             sensorTrigger.disableTrigger();
 
@@ -593,9 +586,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void autoAssistCancel(String owner)
     {
-        if (isAutoAssistActive() && validateOwnership(owner))
+        if (validateOwnership(owner))
         {
-            finishAutoAssist(true);
+            if (isAutoAssistActive())
+            {
+                finishAutoAssist(true);
+            }
+            else if (getPower() != 0.0)
+            {
+                setPower(0.0);
+            }
         }
     }   //autoAssistCancel
 
