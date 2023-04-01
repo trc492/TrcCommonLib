@@ -357,7 +357,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
             }
 
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
-            setPower(actionParams.finishDelay, power);
+            setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
             sensorTrigger.disableTrigger();
 
