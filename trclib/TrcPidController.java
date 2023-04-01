@@ -352,6 +352,16 @@ public class TrcPidController
         }   //setPidInput
 
         /**
+         * This method sets the method to call to get power compensation.
+         *
+         * @param powerCompensation specifies the method to call to get power compensation.
+         */
+        public void setPowerCompensation(PowerCompensation powerCompensation)
+        {
+            this.powerCompensation = powerCompensation;
+        }   //setPowerCompensation
+
+        /**
          * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
          * tolerance and steady state error and the error rate is zero, PID control will consider this is a stall
          * condition (i.e. it won't make it to within tolerance but within acceptable steady state error). By default,

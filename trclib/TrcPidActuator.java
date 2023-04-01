@@ -267,6 +267,10 @@ public class TrcPidActuator extends TrcPidMotor
         if (pidCtrl != null)
         {
             pidCtrl.setAbsoluteSetPoint(true);
+            if (params.powerCompensation != null)
+            {
+                pidCtrl.getPidParameters().setPowerCompensation(params.powerCompensation);
+            }
         }
     }   //TrcPidActuator
 
