@@ -104,14 +104,18 @@ public class TrcIntake implements TrcExclusiveSubsystem
         boolean intake;
         double intakePower;
         double retainPower;
+        double finishDelay;
         TrcEvent event;
         double timeout;
 
-        ActionParams(boolean intake, double intakePower, double retainPower, TrcEvent event, double timeout)
+        ActionParams(
+            boolean intake, double intakePower, double retainPower, double finishDelay,
+            TrcEvent event, double timeout)
         {
             this.intake = intake;
             this.intakePower = intakePower;
             this.retainPower = retainPower;
+            this.finishDelay = finishDelay;
             this.event = event;
             this.timeout = timeout;
         }   //ActionParams
@@ -120,8 +124,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return String.format(
-                Locale.US, "intake=%s,intakePower=%.1f,retainPower=%.1f,event=%s,timeout=%.3f",
-                intake, intakePower, retainPower, event, timeout);
+                Locale.US, "intake=%s,intakePower=%.1f,retainPower=%.1f,finishDelay=%.3f,event=%s,timeout=%.3f",
+                intake, intakePower, retainPower, finishDelay, event, timeout);
         }   //toString
 
     }   //class ActionParams
@@ -353,7 +357,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
             }
 
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
-            setPower(power);
+            setPower(actionParams.finishDelay, power);
             timer.cancel();
             sensorTrigger.disableTrigger();
 
@@ -462,12 +466,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured, applicable only to intake
      *        object.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
     private void autoAssistOperation(
-        String owner, boolean intake, double delay, double power, double retainPower, TrcEvent event, double timeout)
+        String owner, boolean intake, double delay, double power, double retainPower, double finishDelay,
+        TrcEvent event, double timeout)
     {
         if (sensorTrigger == null || power == 0.0)
         {
@@ -483,7 +490,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         //
         if (validateOwnership(owner))
         {
-            actionParams = new ActionParams(intake, power, retainPower, event, timeout);
+            actionParams = new ActionParams(intake, power, retainPower, finishDelay, event, timeout);
             if (delay > 0.0)
             {
                 timerEvent.setCallback(this::performAutoAssist, actionParams);
@@ -505,14 +512,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
     public void autoAssistIntake(
-        String owner, double delay, double power, double retainPower, TrcEvent event, double timeout)
+        String owner, double delay, double power, double retainPower, double finishDelay,
+        TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, true, delay, power, retainPower, event, timeout);
+        autoAssistOperation(owner, true, delay, power, retainPower, finishDelay, event, timeout);
     }   //autoAssistIntake
 
     /**
@@ -524,14 +534,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
     public void autoAssistSpitout(
-        String owner, double delay, double power, TrcEvent event, double timeout)
+        String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, false, delay, power, 0.0, event, timeout);
+        autoAssistOperation(owner, false, delay, power, 0.0, finishDelay, event, timeout);
     }   //autoAssistSpitout
 
     /**
@@ -542,13 +554,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(double delay, double power, double retainPower, TrcEvent event, double timeout)
+    public void autoAssistIntake(
+        double delay, double power, double retainPower, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, true, delay, power, retainPower, event, timeout);
+        autoAssistOperation(null, true, delay, power, retainPower, finishDelay, event, timeout);
     }   //autoAssistIntake
 
     /**
@@ -559,13 +574,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistSpitout(double delay, double power, TrcEvent event, double timeout)
+    public void autoAssistSpitout(double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, false, delay, power, 0.0, event, timeout);
+        autoAssistOperation(null, false, delay, power, 0.0, finishDelay, event, timeout);
     }   //autoAssistSpitout
 
     /**
@@ -576,10 +593,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      */
-    public void autoAssistIntake(double delay, double power, double retainPower)
+    public void autoAssistIntake(double delay, double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, true, delay, power, retainPower, null, 0.0);
+        autoAssistOperation(null, true, delay, power, retainPower, finishDelay, null, 0.0);
     }   //autoAssistIntake
 
     /**
@@ -590,10 +609,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      */
-    public void autoAssistSpitout(double delay, double power)
+    public void autoAssistSpitout(double delay, double power, double finishDelay)
     {
-        autoAssistOperation(null, false, delay, power, 0.0, null, 0.0);
+        autoAssistOperation(null, false, delay, power, 0.0, finishDelay, null, 0.0);
     }   //autoAssistSpitout
 
     /**
@@ -603,10 +624,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      */
-    public void autoAssistIntake(double power, double retainPower)
+    public void autoAssistIntake(double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, true, 0.0, power, retainPower, null, 0.0);
+        autoAssistOperation(null, true, 0.0, power, retainPower, finishDelay, null, 0.0);
     }   //autoAssistIntake
 
     /**
@@ -616,10 +639,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
      */
-    public void autoAssistSpitout(double power)
+    public void autoAssistSpitout(double power, double finishDelay)
     {
-        autoAssistOperation(null, false, 0.0, power, 0.0, null, 0.0);
+        autoAssistOperation(null, false, 0.0, power, 0.0, finishDelay, null, 0.0);
     }   //autoAssistSpitout
 
     /**
