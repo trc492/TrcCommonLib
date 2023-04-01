@@ -101,13 +101,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private static class ActionParams
     {
+        boolean intake;
         double intakePower;
         double retainPower;
         TrcEvent event;
         double timeout;
 
-        ActionParams(double intakePower, double retainPower, TrcEvent event, double timeout)
+        ActionParams(boolean intake, double intakePower, double retainPower, TrcEvent event, double timeout)
         {
+            this.intake = intake;
             this.intakePower = intakePower;
             this.retainPower = retainPower;
             this.event = event;
@@ -118,8 +120,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return String.format(
-                Locale.US, "intakePower=%.1f,retainPower=%.1f,event=%s,timeout=%.3f",
-                intakePower, retainPower, event, timeout);
+                Locale.US, "intake=%s,intakePower=%.1f,retainPower=%.1f,event=%s,timeout=%.3f",
+                intake, intakePower, retainPower, event, timeout);
         }   //toString
 
     }   //class ActionParams
@@ -389,7 +391,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
 
-        if (actionParams.intakePower > 0.0 ^ objCaptured)
+        if (actionParams.intake ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or dumping object and we still have one.
             if (params.msgTracer != null)
@@ -452,20 +454,20 @@ public class TrcIntake implements TrcExclusiveSubsystem
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
      * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
+     * signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param intake specifies true for intake operation, false for spitout operation.
      * @param delay specifies the delay time in seconds before executing the action.
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured, applicable only to intake
      *        object.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(
-        String owner, double delay, double power, double retainPower, TrcEvent event, double timeout)
+    private void autoAssistOperation(
+        String owner, boolean intake, double delay, double power, double retainPower, TrcEvent event, double timeout)
     {
         if (sensorTrigger == null || power == 0.0)
         {
@@ -481,7 +483,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         //
         if (validateOwnership(owner))
         {
-            actionParams = new ActionParams(power, retainPower, event, timeout);
+            actionParams = new ActionParams(intake, power, retainPower, event, timeout);
             if (delay > 0.0)
             {
                 timerEvent.setCallback(this::performAutoAssist, actionParams);
@@ -492,92 +494,133 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 performAutoAssist(actionParams);
             }
         }
+    }   //autoAssistOperation
+
+    /**
+     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistIntake(
+        String owner, double delay, double power, double retainPower, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(owner, true, delay, power, retainPower, event, timeout);
     }   //autoAssistIntake
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
+     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
-     *        object.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(String owner, double delay, double power, double retainPower)
+    public void autoAssistSpitout(
+        String owner, double delay, double power, TrcEvent event, double timeout)
     {
-        autoAssistIntake(owner, delay, power, retainPower, null, 0.0);
-    }   //autoAssistIntake
+        autoAssistOperation(owner, false, delay, power, 0.0, event, timeout);
+    }   //autoAssistSpitout
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
+     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake at which time the given event will be
+     * signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
-     *        object.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
     public void autoAssistIntake(double delay, double power, double retainPower, TrcEvent event, double timeout)
     {
-        autoAssistIntake(null, delay, power, retainPower, event, timeout);
+        autoAssistOperation(null, true, delay, power, retainPower, event, timeout);
     }   //autoAssistIntake
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
-     *
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
-     *        object.
-     * @param event specifies the event to signal when object is detected in the intake.
-     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-     *                must call hasObject() to figure out if it has given up.
-     */
-    public void autoAssistIntake(double power, double retainPower, TrcEvent event, double timeout)
-    {
-        autoAssistIntake(null, 0.0, power, retainPower, event, timeout);
-    }   //autoAssistIntake
-
-    /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
+     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
-     *        object.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistSpitout(double delay, double power, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(null, false, delay, power, 0.0, event, timeout);
+    }   //autoAssistSpitout
+
+    /**
+     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
      */
     public void autoAssistIntake(double delay, double power, double retainPower)
     {
-        autoAssistIntake(null, delay, power, retainPower, null, 0.0);
+        autoAssistOperation(null, true, delay, power, retainPower, null, 0.0);
     }   //autoAssistIntake
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled or it will notify the caller's handler.
+     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
      *
+     * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
      *              power to dump.
-     * @param retainPower specifies the power to retain the object after it's captured, applicable only for capturing
-     *        object.
+     */
+    public void autoAssistSpitout(double delay, double power)
+    {
+        autoAssistOperation(null, false, delay, power, 0.0, null, 0.0);
+    }   //autoAssistSpitout
+
+    /**
+     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
      */
     public void autoAssistIntake(double power, double retainPower)
     {
-        autoAssistIntake(null, 0.0, power, retainPower, null, 0.0);
+        autoAssistOperation(null, true, 0.0, power, retainPower, null, 0.0);
     }   //autoAssistIntake
+
+    /**
+     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     */
+    public void autoAssistSpitout(double power)
+    {
+        autoAssistOperation(null, false, 0.0, power, 0.0, null, 0.0);
+    }   //autoAssistSpitout
 
     /**
      * This method cancels the auto-assist operation if one is active.
