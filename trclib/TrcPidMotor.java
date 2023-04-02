@@ -227,9 +227,15 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     private void releaseOwnership(Object context)
     {
+        final String funcName = "releaseOwnership";
         OwnershipParams ownershipParams = (OwnershipParams) context;
 
         releaseExclusiveAccess(ownershipParams.owner);
+        if (msgTracer != null)
+        {
+            msgTracer.traceInfo(funcName, "%s: Released ownership on behalf of the %s.", instanceName, ownershipParams.owner);
+        }
+
         if (ownershipParams.completionEvent != null)
         {
             if (ownershipParams.releaseOwnershipEvent.isSignaled())
@@ -592,6 +598,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
         if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
         {
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", instanceName, owner);
+            }
             TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
             OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
             releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
