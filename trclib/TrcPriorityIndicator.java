@@ -166,7 +166,7 @@ public abstract class TrcPriorityIndicator<T>
         {
             for (PatternState state: patternPriorities)
             {
-                msg.append(" ");
+                msg.append("\n\t");
                 msg.append(state);
             }
             tracer.traceInfo(funcName, msg.toString());
@@ -207,7 +207,11 @@ public abstract class TrcPriorityIndicator<T>
             {
                 patternPriorities[index].expiredTime = TrcTimer.getCurrentTime() + expiredTime;
             }
-            updateIndicator();
+            // updateIndicator();
+        }
+        else
+        {
+
         }
     }   //setPatternState
 
@@ -231,7 +235,7 @@ public abstract class TrcPriorityIndicator<T>
      *        Only applicable when enabled is true.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
-    public synchronized void setPatternState(String patternName, boolean enabled, double expiredTime)
+    public void setPatternState(String patternName, boolean enabled, double expiredTime)
     {
         setPatternState(namedPatternMap.get(patternName), enabled, expiredTime);
     }   //setPatternState
@@ -282,7 +286,7 @@ public abstract class TrcPriorityIndicator<T>
      * @return true if the pattern is ON, false if it is OFF.
      * @throws IllegalAccessError when patternName is not found in the map.
      */
-    public synchronized boolean getPatternState(String patternName)
+    public boolean getPatternState(String patternName)
     {
         return getPatternState(namedPatternMap.get(patternName));
     }   //getPatternState
@@ -395,7 +399,7 @@ public abstract class TrcPriorityIndicator<T>
      * highest priority pattern if enabled. If none of the patterns in the priority list is enabled, it will set
      * the indicator device to non-active state.
      */
-    private void updateIndicator()
+    private synchronized void updateIndicator()
     {
         final String funcName = "updateIndicator";
         T pattern = null;
