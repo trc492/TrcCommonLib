@@ -41,8 +41,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
     public static class Parameters
     {
         public TrcDbgTrace msgTracer = null;
-        public boolean triggerInverted = false;
         public Double analogThreshold = null;
+        public boolean analogTriggerInverted = false;
 
         /**
          * This method returns the string form of all the parameters.
@@ -53,7 +53,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return String.format(
-                Locale.US, "triggerInverted=%s,analogThreshold=%s", triggerInverted, analogThreshold);
+                Locale.US, "analogThreshold=%s,analogTriggerInverted=%s", analogThreshold, analogTriggerInverted);
         }   //toString
 
         /**
@@ -69,28 +69,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }   //setMsgTracer
 
         /**
-         * This method sets the trigger to be inverted. If it is an analog trigger, inverted means triggering when
-         * sensor value is lower than threshold. If it is a digital trigger, inverted means triggering on inactive
-         * state.
-         *
-         * @param inverted specifies true to invert the trigger, false otherwise.
-         * @return this parameter object.
-         */
-        public Parameters setTriggerInverted(boolean inverted)
-        {
-            this.triggerInverted = inverted;
-            return this;
-        }   //setTriggerInverted
-
-        /**
          * This method sets the anlog sensor threshold value.
          *
          * @param threshold specifies the sensor threshold value.
+         * @param triggerInverted specifies true if got object triggered below threshold, false if triggered above
+         *        threshold.
          * @return this parameter object.
          */
-        public Parameters setAnalogThreshold(double threshold)
+        public Parameters setAnalogThreshold(double threshold, boolean triggerInverted)
         {
             this.analogThreshold = threshold;
+            this.analogTriggerInverted = triggerInverted;
             return this;
         }   //setAnalogThreshold
 
@@ -710,15 +699,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
             if (params.analogThreshold != null)
             {
                 gotObject = getSensorValue() > params.analogThreshold;
+                if (params.analogTriggerInverted)
+                {
+                    gotObject = !gotObject;
+                }
             }
             else
             {
                 gotObject = getSensorState();
-            }
-
-            if (params.triggerInverted)
-            {
-                gotObject = !gotObject;
             }
         }
 
