@@ -302,14 +302,14 @@ public class TrcPidController
          * @param kI specifies the Integral constant.
          * @param kD specifies the Differential constant.
          * @param kF specifies the Feed forward constant.
+         * @param iZone specifies the integral zone.
          * @param tolerance specifies the tolerance.
-         * @param settlingTime specifies the minimum on target settling time.
          * @param pidInput specifies the method to call to get PID sensor input.
          */
         public PidParameters(
-            double kP, double kI, double kD, double kF, double tolerance, double settlingTime, PidInput pidInput)
+            double kP, double kI, double kD, double kF, double iZone, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
+            this(kP, kI, kD, kF, iZone, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
