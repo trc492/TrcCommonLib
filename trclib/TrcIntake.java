@@ -342,7 +342,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             if (params.msgTracer != null)
             {
-                params.msgTracer.traceInfo(funcName, "AutoAssistTimedOut=%s", timerEvent.isSignaled());
+                params.msgTracer.traceInfo(
+                    funcName, "[%.3f] canceled=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
+                    TrcTimer.getModeElapsedTime(), canceled, timerEvent.isSignaled(), hasObject(),
+                    actionParams.finishDelay);
             }
 
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
@@ -389,7 +392,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
             // Picking up object and we don't have one yet, or dumping object and we still have one.
             if (params.msgTracer != null)
             {
-                params.msgTracer.traceInfo(funcName, "AutoAssist: %s, hasObject=%s", actionParams, objCaptured);
+                params.msgTracer.traceInfo(
+                    funcName, "[%.3f] AutoAssist: %s, hasObject=%s",
+                    TrcTimer.getModeElapsedTime(), actionParams, objCaptured);
             }
 
             if (motor != null)
