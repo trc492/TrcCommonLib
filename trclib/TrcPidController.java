@@ -292,7 +292,7 @@ public class TrcPidController
             double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
             PidInput pidInput)
         {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime, pidInput, null);
+            this(kP, kI, kD, kF, iZone, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
@@ -309,7 +309,7 @@ public class TrcPidController
         public PidParameters(
             double kP, double kI, double kD, double kF, double tolerance, double settlingTime, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime, pidInput);
+            this(kP, kI, kD, kF, 0.0, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
@@ -324,7 +324,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
+            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
@@ -338,7 +338,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
+            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
         }   //PidParameters
 
         /**
