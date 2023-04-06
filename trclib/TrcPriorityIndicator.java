@@ -219,7 +219,7 @@ public abstract class TrcPriorityIndicator<T>
             {
                 patternPriorities[index].on = true;
                 patternPriorities[index].onDuration = onDuration;
-                patternPriorities[index].offDuration = offDuration;
+                patternPriorities[index].offDuration = onDuration > 0.0? offDuration: 0.0;
                 patternPriorities[index].expiredTime = onDuration > 0.0? TrcTimer.getCurrentTime() + onDuration: 0.0;
             }
             else
@@ -486,7 +486,7 @@ public abstract class TrcPriorityIndicator<T>
                     }
                 }
 
-                if (patternState.enabled && pattern == null)
+                if (pattern == null && patternState.enabled && patternState.on)
                 {
                     // Highest priority pattern that's enabled and not expired.
                     pattern = patternState.pattern;
