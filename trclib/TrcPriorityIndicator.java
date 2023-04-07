@@ -486,10 +486,10 @@ public abstract class TrcPriorityIndicator<T>
                     }
                 }
 
-                if (pattern == null && patternState.enabled && patternState.on)
+                if (pattern == null && patternState.enabled)
                 {
                     // Highest priority pattern that's enabled and not expired.
-                    pattern = patternState.pattern;
+                    pattern = patternState.on? patternState.pattern: null;
                 }
             }
         }
@@ -522,7 +522,7 @@ public abstract class TrcPriorityIndicator<T>
         if (currTime >= nextTaskRunTime)
         {
             // Runs every 100 msec.
-            nextTaskRunTime = currTime + 0.1;
+            nextTaskRunTime = currTime + 0.05;
             updateIndicator();
         }
     }   //indicatorTask
