@@ -446,9 +446,10 @@ public abstract class TrcPriorityIndicator<T>
     private synchronized void updateIndicator()
     {
         final String funcName = "updateIndicator";
+        double currTime = TrcTimer.getCurrentTime();
+        boolean gotPattern = false;
         T pattern = null;
 
-        double currTime = TrcTimer.getCurrentTime();
         for (PatternState patternState: patternPriorities)
         {
             // Going from highest priority and down to low.
@@ -486,9 +487,10 @@ public abstract class TrcPriorityIndicator<T>
                     }
                 }
 
-                if (pattern == null && patternState.enabled)
+                if (!gotPattern && patternState.enabled)
                 {
                     // Highest priority pattern that's enabled and not expired.
+                    gotPattern = true;
                     pattern = patternState.on? patternState.pattern: null;
                 }
             }
