@@ -226,7 +226,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //interface MotorPowerMapper
 
     private static final double DEF_SENSITIVITY = 0.5;
-    private static final double DEF_MAX_OUTPUT = 1.0;
+//    private static final double DEF_MAX_OUTPUT = 1.0;
 
     private final TrcMotor[] motors;
     private final TrcGyro gyro;
@@ -244,7 +244,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private TrcDriveBaseOdometry driveBaseOdometry = null;
     protected MotorPowerMapper motorPowerMapper = null;
     private double sensitivity = DEF_SENSITIVITY;
-    private double maxOutput = DEF_MAX_OUTPUT;
+//    private double maxOutput = DEF_MAX_OUTPUT;
     private double gyroMaxRotationRate = 0.0;
     private double gyroAssistGain = 1.0;
     private boolean gyroAssistEnabled = false;
@@ -991,43 +991,43 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         this.sensitivity = sensitivity;
     }   //setSensitivity
 
-    /**
-     * This method sets the maximum output value of the motor.
-     *
-     * @param maxOutput specifies the maximum output value.
-     */
-    public void setMaxOutput(double maxOutput)
-    {
-        final String funcName = "setMaxOutput";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "maxOutput=%f", maxOutput);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.maxOutput = Math.abs(maxOutput);
-    }   //setMaxOutput
-
-    /**
-     * This method clips the motor output to the range of -maxOutput to maxOutput.
-     *
-     * @param output specifies the motor output.
-     * @return clipped motor output.
-     */
-    protected double clipMotorOutput(double output)
-    {
-        final String funcName = "clipMotorOutput";
-        double motorOutput = TrcUtil.clipRange(output, -maxOutput, maxOutput);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "output=%f", output);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", motorOutput);
-        }
-
-        return motorOutput;
-    }   //clipMotorOutput
+//    /**
+//     * This method sets the maximum output value of the motor.
+//     *
+//     * @param maxOutput specifies the maximum output value.
+//     */
+//    public void setMaxOutput(double maxOutput)
+//    {
+//        final String funcName = "setMaxOutput";
+//
+//        if (debugEnabled)
+//        {
+//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "maxOutput=%f", maxOutput);
+//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+//        }
+//
+//        this.maxOutput = Math.abs(maxOutput);
+//    }   //setMaxOutput
+//
+//    /**
+//     * This method clips the motor output to the range of -maxOutput to maxOutput.
+//     *
+//     * @param output specifies the motor output.
+//     * @return clipped motor output.
+//     */
+//    protected double clipMotorOutput(double output)
+//    {
+//        final String funcName = "clipMotorOutput";
+//        double motorOutput = TrcUtil.clipRange(output, -maxOutput, maxOutput);
+//
+//        if (debugEnabled)
+//        {
+//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "output=%f", output);
+//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", motorOutput);
+//        }
+//
+//        return motorOutput;
+//    }   //clipMotorOutput
 
     /**
      * This method enables gyro assist drive.

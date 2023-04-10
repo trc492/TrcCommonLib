@@ -407,11 +407,11 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 double lbPower = TrcUtil.magnitude(a, d);
                 double rbPower = TrcUtil.magnitude(a, c);
 
-                double[] normalizedPowers = TrcUtil.normalize(lfPower, rfPower, lbPower, rbPower);
-                lfPower = this.clipMotorOutput(normalizedPowers[0]);
-                rfPower = this.clipMotorOutput(normalizedPowers[1]);
-                lbPower = this.clipMotorOutput(normalizedPowers[2]);
-                rbPower = this.clipMotorOutput(normalizedPowers[3]);
+//                double[] normalizedPowers = TrcUtil.normalize(lfPower, rfPower, lbPower, rbPower);
+//                lfPower = this.clipMotorOutput(normalizedPowers[0]);
+//                rfPower = this.clipMotorOutput(normalizedPowers[1]);
+//                lbPower = this.clipMotorOutput(normalizedPowers[2]);
+//                rbPower = this.clipMotorOutput(normalizedPowers[3]);
 
                 if (motorPowerMapper != null)
                 {
