@@ -23,9 +23,9 @@
 package TrcCommonLib.trclib;
 
 /**
- * This class implements a platform independent PID controlled motor. A PID controlled motor may consist of one or
- * two physical motors, a position sensor, typically an encoder (or could be a potentiometer). Optionally, it supports
- * a lower limit switch for zero calibration. In addition, it has stall protection support which will detect
+ * This class implements a platform independent PID controlled motor. A PID controlled motor consists of one or two
+ * motors or continuous servo, a position sensor, typically an encoder (or could be a potentiometer). Optionally, it
+ * supports a lower limit switch for zero calibration. In addition, it has stall protection support which will detect
  * motor stall condition and will cut power to the motor preventing it from burning out.
  */
 public class TrcPidMotor implements TrcExclusiveSubsystem
@@ -49,7 +49,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     /**
      * This class encapsulate all the parameters for a PID motor operation.
      */
-    private class TaskParams
+    private static class TaskParams
     {
         // Zero calibration.
         volatile boolean calibrating = false;
@@ -78,7 +78,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * This class encapsulates all the parameters required to acquire and release exclusive ownership for the
      * operation.
      */
-    private class OwnershipParams
+    private static class OwnershipParams
     {
         String owner;
         TrcEvent completionEvent;
@@ -96,6 +96,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private final TrcMotor motor1;
     private final TrcMotor motor2;
     private final double syncGain;
+    private final TrcServo servo;
     private final TrcPidController.PidParameters pidParams;
     private final TrcDigitalInput lowerLimitSwitch;
     private final double defCalPower;
@@ -111,7 +112,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     private double beepHighFrequency = DEF_BEEP_HIGH_FREQUECY;
     private double beepDuration = DEF_BEEP_DURATION;
 
-    private TaskParams taskParams = new TaskParams();
+    private final TaskParams taskParams = new TaskParams();
 
     /**
      * Constructor: Creates an instance of the object.
@@ -120,20 +121,20 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
      * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
-     * @param pidParams specifies the PID parameters for the PID controller.
      * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
      *        PID control.
+     * @param servo specifies a continuous servo object.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
-    public TrcPidMotor(
-        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain,
-        TrcPidController.PidParameters pidParams, boolean useMotorCloseLoopControl, TrcDigitalInput lowerLimitSwitch,
-        double defCalPower)
+    private TrcPidMotor(
+        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, boolean useMotorCloseLoopControl,
+        TrcServo servo, TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        if (motor1 == null && motor2 == null)
+        if (motor1 == null && servo == null)
         {
-            throw new IllegalArgumentException("Must have at least one motor.");
+            throw new IllegalArgumentException("Must provide motor1 or servo.");
         }
 
         if (pidParams == null)
@@ -144,18 +145,19 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         this.instanceName = instanceName;
         this.motor1 = motor1;
         this.motor2 = motor2;
-        this.syncGain = syncGain;
+        this.syncGain = motor2 != null? syncGain: 0.0;
+        this.servo = servo;
         this.pidParams = pidParams;
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.defCalPower = defCalPower;
 
-        if (useMotorCloseLoopControl)
+        if (motor1 != null && useMotorCloseLoopControl)
         {
             // Caller does not provide PID params, we will use the motor built-in close loop control.
             pidCtrl = null;
             if (motor1.supportCloseLoopControl())
             {
-                motor1.setPidCoefficients(pidParams.pidCoeff);
+                motor1.setPositionPidCoefficients(pidParams.pidCoeff);
             }
             else
             {
@@ -179,15 +181,39 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * @param instanceName specifies the instance name.
      * @param motor1 specifies motor1 object.
      * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
+     * @param syncGain specifies the gain constant for synchronizing motor1 and motor2.
+     * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
+     *        PID control.
      * @param pidParams specifies the PID parameters for the PID controller.
      * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor1, TrcMotor motor2, TrcPidController.PidParameters pidParams,
-        TrcDigitalInput lowerLimitSwitch, double defCalPower)
+        String instanceName, TrcMotor motor1, TrcMotor motor2, double syncGain, boolean useMotorCloseLoopControl,
+        TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor1, motor2, 0.0, pidParams, false, lowerLimitSwitch, defCalPower);
+        this(instanceName, motor1, motor2, syncGain, useMotorCloseLoopControl, null, pidParams, lowerLimitSwitch,
+             defCalPower);
+    }   //TrcPidMotor
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param motor1 specifies motor1 object.
+     * @param motor2 specifies motor2 object. If there is only one motor, this can be set to null.
+     * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
+     *        PID control.
+     * @param pidParams specifies the PID parameters for the PID controller.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
+     * @param defCalPower specifies the default motor power for the calibration.
+     */
+    public TrcPidMotor(
+        String instanceName, TrcMotor motor1, TrcMotor motor2, boolean useMotorCloseLoopControl,
+        TrcPidController.PidParameters pidParams, TrcDigitalInput lowerLimitSwitch, double defCalPower)
+    {
+        this(instanceName, motor1, motor2, 0.0, useMotorCloseLoopControl, null, pidParams, lowerLimitSwitch,
+             defCalPower);
     }   //TrcPidMotor
 
     /**
@@ -195,17 +221,60 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the instance name.
      * @param motor specifies motor object.
-     * @param pidParams specifies the PID parameters for the PID controller.
      * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
      *        PID control.
+     * @param pidParams specifies the PID parameters for the PID controller.
      * @param lowerLimitSwitch specifies lower limit switch object, null if none.
      * @param defCalPower specifies the default motor power for the calibration.
      */
     public TrcPidMotor(
-        String instanceName, TrcMotor motor, TrcPidController.PidParameters pidParams,
-        boolean useMotorCloseLoopControl, TrcDigitalInput lowerLimitSwitch, double defCalPower)
+        String instanceName, TrcMotor motor, boolean useMotorCloseLoopControl, TrcPidController.PidParameters pidParams,
+        TrcDigitalInput lowerLimitSwitch, double defCalPower)
     {
-        this(instanceName, motor, null, 0.0, pidParams, useMotorCloseLoopControl, lowerLimitSwitch, defCalPower);
+        this(instanceName, motor, null, 0.0, useMotorCloseLoopControl, null, pidParams, lowerLimitSwitch, defCalPower);
+    }   //TrcPidMotor
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param motor specifies motor object.
+     * @param useMotorCloseLoopControl specifies true to use motor built-in close loop control, false to use software
+     *        PID control.
+     * @param pidParams specifies the PID parameters for the PID controller.
+     */
+    public TrcPidMotor(
+        String instanceName, TrcMotor motor, boolean useMotorCloseLoopControl, TrcPidController.PidParameters pidParams)
+    {
+        this(instanceName, motor, null, 0.0, useMotorCloseLoopControl, null, pidParams, null, 0.0);
+    }   //TrcPidMotor
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param servo specifies a continuous servo object.
+     * @param pidParams specifies the PID parameters for the PID controller.
+     * @param lowerLimitSwitch specifies lower limit switch object, null if none.
+     * @param defCalPower specifies the default motor power for the calibration.
+     */
+    public TrcPidMotor(
+        String instanceName, TrcServo servo, TrcPidController.PidParameters pidParams,
+        TrcDigitalInput lowerLimitSwitch, double defCalPower)
+    {
+        this(instanceName, null, null, 0.0, false, servo, pidParams, lowerLimitSwitch, defCalPower);
+    }   //TrcPidMotor
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param servo specifies a continuous servo object.
+     * @param pidParams specifies the PID parameters for the PID controller.
+     */
+    public TrcPidMotor(String instanceName, TrcServo servo, TrcPidController.PidParameters pidParams)
+    {
+        this(instanceName, null, null, 0.0, false, servo, pidParams, null, 0.0);
     }   //TrcPidMotor
 
     /**
@@ -318,7 +387,6 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * stalled condition. A motor is considered stalled if:
      * - the power applied to the motor is above or equal to stallMinPower.
      * - the motor has not moved or has moved only within stallTolerance for at least stallTimeout.
-     *
      * Note: By definition, holding target position is stalling. If you decide to enable stall protection while
      *       holding target, please make sure to set a stallMinPower much greater the power necessary to hold
      *       position against gravity, for example.
@@ -364,6 +432,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     {
         return getMotor(true);
     }   //getMotor
+
+    /**
+     * This method returns the servo object.
+     *
+     * @return servo object.
+     */
+    public TrcServo getServo()
+    {
+        return servo;
+    }   //getServo
 
     /**
      * This method returns the software PID controller. It returns null if using motor close loop control.
@@ -469,8 +547,15 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public void setPositionScaleAndOffset(double positionScale, double positionOffset)
     {
-        this.positionScale = positionScale;
-        this.positionOffset = positionOffset;
+        if (servo != null)
+        {
+            servo.setPositionScaleAndOffset(positionScale, positionOffset);
+        }
+        else
+        {
+            this.positionScale = positionScale;
+            this.positionOffset = positionOffset;
+        }
     }   //setPositionScaleAndOffset
 
     /**
@@ -491,16 +576,25 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      */
     public double getPosition()
     {
-        int n = 1;
-        double pos = motor1.getPosition();
+        double pos;
 
-        if (motor2 != null && syncGain != 0.0)
+        if (servo != null)
         {
-            pos += motor2.getPosition();
-            n++;
+            pos = servo.getPosition();
         }
-        pos *= positionScale/n;
-        pos += positionOffset;
+        else
+        {
+            int n = 1;
+            pos = motor1.getPosition();
+
+            if (motor2 != null && syncGain != 0.0)
+            {
+                pos += motor2.getPosition();
+                n++;
+            }
+            pos *= positionScale/n;
+            pos += positionOffset;
+        }
 
         return pos;
     }   //getPosition
@@ -508,7 +602,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
     /**
      * This method returns the current PID target.
      *
-     * @return current motor power.
+     * @return current PID target.
      */
     public double getTarget()
     {
@@ -1199,10 +1293,11 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
      * acquired the taskParams lock. This method will update currPower and stalled in taskParams.
      *
      * @param motor specifies the motor being calibrated.
+     * @param servo specifies the servo being calibrated.
      * @param calPower specifies the zero calibration power applied to the motor.
      * @return true if calibration is done, false otherwise.
      */
-    private boolean zeroCalibratingMotor(TrcMotor motor, double calPower)
+    private boolean zeroCalibratingMotor(TrcMotor motor, TrcServo servo, double calPower)
     {
         final String funcName = "zeroCalibratingMotor";
         boolean done = lowerLimitSwitch != null && lowerLimitSwitch.isActive() || taskParams.stalled;
@@ -1222,14 +1317,29 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             }
             taskParams.currPower = 0.0;
             taskParams.stalled = false;
-            motor.set(0.0);
-            motor.resetPosition(false);
+            if (motor != null)
+            {
+                motor.set(0.0);
+                motor.resetPosition(false);
+            }
+            else if (servo != null)
+            {
+                servo.setPower(0.0);
+                servo.resetPosition();
+            }
         }
         else
         {
             taskParams.currPower = calPower;
             taskParams.stalled = isMotorStalled(calPower);
-            motor.set(calPower);
+            if (motor != null)
+            {
+                motor.set(calPower);
+            }
+            else if (servo != null)
+            {
+                servo.setPower(calPower);
+            }
         }
 
         return done;
@@ -1335,17 +1445,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         final String funcName = "setMotorPower";
 
         power = TrcUtil.clipRange(power, MIN_MOTOR_POWER, MAX_MOTOR_POWER);
-        if (power == 0.0 || syncGain == 0.0)
-        {
-            // If we are not sync'ing or stopping, just set the motor power. If we are stopping the motor, even if
-            // we are sync'ing, we should just stop. But we should still observe the limit switches.
-            motor1.set(power);
-            if (motor2 != null)
-            {
-                motor2.set(power);
-            }
-        }
-        else
+        if (power != 0.0 && syncGain > 0.0)
         {
             // We are sync'ing the two motors and the motor power is not zero.
             double pos1 = motor1.getPosition();
@@ -1377,6 +1477,24 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 globalTracer.traceInfo(
                     funcName, "%s.%s: power=%.2f,deltaPower=%.2f,pos1=%.0f,pos2=%.0f,power1=%.2f,power2=%.2f",
                     moduleName, instanceName, power, deltaPower, pos1, pos2, power1, power2);
+            }
+        }
+        else
+        {
+            if (servo != null)
+            {
+                // TODO: add limit switch support to TrcServo.
+                servo.setPower(power);
+            }
+            else
+            {
+                // If we are not sync'ing or stopping, just set the motor power. If we are stopping the motor, even if
+                // we are sync'ing, we should just stop. But we should still observe the limit switches.
+                motor1.set(power);
+                if (motor2 != null)
+                {
+                    motor2.set(power);
+                }
             }
         }
     }   //setMotorPower
@@ -1426,12 +1544,12 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 // We are in zero calibration mode.
                 if (!taskParams.motor1ZeroCalDone)
                 {
-                    taskParams.motor1ZeroCalDone = zeroCalibratingMotor(motor1, taskParams.calPower);
+                    taskParams.motor1ZeroCalDone = zeroCalibratingMotor(motor1, servo, taskParams.calPower);
                 }
 
                 if (!taskParams.motor2ZeroCalDone)
                 {
-                    taskParams.motor2ZeroCalDone = zeroCalibratingMotor(motor2, taskParams.calPower);
+                    taskParams.motor2ZeroCalDone = zeroCalibratingMotor(motor2, null, taskParams.calPower);
                 }
 
                 if (taskParams.motor1ZeroCalDone && taskParams.motor2ZeroCalDone)
@@ -1454,6 +1572,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 if (doStop)
                 {
                     stop(true);
+                    done = true;
                 }
                 else if (pidCtrl != null)
                 {

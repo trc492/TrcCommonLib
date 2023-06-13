@@ -28,19 +28,30 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 
 /**
- * This class implements a platform independent motor controller. Typically, this class is extended by a platform
- * dependent motor controller class. Not all motor controllers are created equal. Some have more features than the
- * others. This class attempts to emulate some of the features in software. If the platform dependent motor controller
- * supports some features in hardware it should override the corresponding methods and call the hardware directly.
- * For some features that there is no software emulation, this class will throw an UnsupportedOperationException.
- * If the motor controller hardware support these features, the platform dependent class should override these methods
- * to provide the support in hardware.
+ * This class implements a platform independent generic motor controller. Typically, this class is extended by a
+ * platform dependent motor controller class. Not all motor controllers are created equal. Some have more features
+ * than the others. This class attempts to emulate some of the features in software. If the platform dependent motor
+ * controller supports some features in hardware it should override the corresponding methods and call the hardware
+ * directly. For some features that there is no software emulation, this class will throw an
+ * UnsupportedOperationException. If the motor controller hardware support these features, the platform dependent
+ * class should override these methods to provide the support in hardware.
  */
 public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor, TrcExclusiveSubsystem
 {
     private static final String moduleName = "TrcMotor";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
+    private static final boolean verbosePidInfo = false;
+    private TrcDbgTrace msgTracer = null;
+    private TrcRobotBattery battery = null;
+    private boolean tracePidInfo = false;
+
+    public enum ControlMode
+    {
+        PowerMode,
+        PositionMode,
+        VelocityMode
+    }   //enum ControlMode
 
     public enum TriggerMode
     {
@@ -49,78 +60,78 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
         OnBoth
     }   //enum TriggerMode
 
-    private enum MotorState
-    {
-        done,
-        doDelay,
-        doDuration
-    }   //enum MotorState
-
     //
     // Global objects.
     //
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
-
-    private static TrcElapsedTimer motorGetPosElapsedTimer;
-    private static TrcElapsedTimer motorSetElapsedTimer;
+    private static TrcTaskMgr.TaskObject odometryTaskObj;
+    protected static TrcElapsedTimer motorGetPosElapsedTimer;
+    protected static TrcElapsedTimer motorSetPowerElapsedTimer;
+    protected static TrcElapsedTimer motorSetVelElapsedTimer;
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
 
-    protected final String instanceName;
+    private final String instanceName;
+    private final double maxMotorVelocity;
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
-    private MotorState motorState = MotorState.done;
-    private double motorValue;
-    private double duration;
-    private TrcEvent notifyEvent;
-    private static TrcTaskMgr.TaskObject odometryTaskObj;
-    private final TrcTaskMgr.TaskObject velocityCtrlTaskObj;
-    private boolean velocityControlEnabled = false;
-
-    private TrcTriggerDigitalInput digitalTrigger;
-    private TriggerMode triggerMode;
-    private TrcEvent.Callback triggerCallback;
-    private AtomicBoolean triggerCallbackContext;
-    private TrcEvent triggerCallbackEvent;
-
-    private boolean calibrating = false;
-
-    private double zeroPosition = 0.0;
+    private final TrcTaskMgr.TaskObject posCtrlTaskObj;
+    private final TrcTaskMgr.TaskObject velCtrlTaskObj;
     private boolean limitSwitchesSwapped = false;
     private boolean softLowerLimitEnabled = false;
     private boolean softUpperLimitEnabled = false;
     private double softLowerLimit = 0.0;
     private double softUpperLimit = 0.0;
-
+    private double zeroPosition = 0.0;
+    private TrcPidController posPidCtrl = null;
+    private TrcPidController velPidCtrl = null;
+    private TrcTriggerDigitalInput digitalTrigger;
+    private TriggerMode triggerMode;
+    private TrcEvent.Callback triggerCallback;
+    private AtomicBoolean triggerCallbackContext;
+    private TrcEvent triggerCallbackEvent;
     private boolean odometryEnabled = false;
+    private boolean calibrating = false;
+    private double motorValue;
+    private double duration;
+    private TrcEvent notifyEvent;
 
-    protected double maxMotorVelocity = 0.0;
-    private TrcPidController velocityPidCtrl = null;
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param maxVelocity specifies the maximum velocity the motor can run, in sensor units per second, can be zero
+     *        if not provided in which case velocity control mode is not available.
+     */
+    public TrcMotor(String instanceName, double maxVelocity)
+    {
+        this.instanceName = instanceName;
+        this.maxMotorVelocity = maxVelocity;
+        odometry = new TrcOdometrySensor.Odometry(this);
+        timer = new TrcTimer(instanceName);
+        posCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".posCtrlTask", this::posCtrlTask);
+        velCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".velCtrlTask", this::velCtrlTask);
+
+        if (odometryTaskObj == null)
+        {
+            // Odometry task is a singleton that manages odometry of all motors.
+            // This will be a STANDALONE_TASK so that it won't degrade the host task with long delay waiting for the
+            // hardware. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
+            // many threads.
+            odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
+            TrcTaskMgr.TaskObject odometryCleanupTaskObj = TrcTaskMgr.createTask(
+                instanceName + ".odometryCleanupTask", this::odometryCleanupTask);
+            odometryCleanupTaskObj.registerTask(TaskType.STOP_TASK);
+        }
+    }   //TrcMotor
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcMotor(final String instanceName)
+    public TrcMotor(String instanceName)
     {
-        this.instanceName = instanceName;
-        this.odometry = new TrcOdometrySensor.Odometry(this);
-        timer = new TrcTimer(instanceName);
-
-        if (odometryTaskObj == null)
-        {
-            //
-            // Odometry task is a singleton that manages odometry of all motors.
-            // This will be a STANDALONE_TASK so that it won't degrade the INPUT_TASK with long delay waiting for the
-            // hardware. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
-            // many threads.
-            //
-            odometryTaskObj = TrcTaskMgr.createTask(moduleName + ".odometryTask", TrcMotor::odometryTask);
-            TrcTaskMgr.TaskObject cleanupTaskObj = TrcTaskMgr.createTask(
-                instanceName + ".cleanupTask", this::cleanupTask);
-            cleanupTaskObj.registerTask(TaskType.STOP_TASK);
-        }
-        velocityCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".velCtrlTask", this::velocityCtrlTask);
+        this(instanceName, 0.0);
     }   //TrcMotor
 
     /**
@@ -135,231 +146,119 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
     }   //toString
 
     /**
-     * This method adds the given motor to the list that will follow this motor. It should only be called by the
-     * given motor to add it to the follower list of the motor it wants to follow.
+     * This method sets the message tracer for logging trace messages.
      *
-     * @param motor specifies the motor that will follow this motor.
+     * @param tracer specifies the tracer for logging messages.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
      */
-    public void addFollowingMotor(TrcMotor motor)
+    public void setMsgTracer(TrcDbgTrace tracer, boolean tracePidInfo, TrcRobotBattery battery)
     {
-        if (!followingMotorsList.contains(motor))
-        {
-            followingMotorsList.add(motor);
-        }
-    }   //addFollowingMotor
+        this.msgTracer = tracer;
+        this.tracePidInfo = tracePidInfo;
+        this.battery = battery;
+    }   //setMsgTracer
 
     /**
-     * This method calls the motor subclass to set the motor output value. The value can be power or velocity
-     * percentage depending on whether the motor controller is in power mode or velocity mode.
+     * This method sets the message tracer for logging trace messages.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param tracer specifies the tracer for logging messages.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
      */
-    private void setMotorValue(double value)
+    public void setMsgTracer(TrcDbgTrace tracer, boolean tracePidInfo)
     {
-        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordStartTime();
-        //
-        // If subclass supports velocity control, it would have overridden enableVelocityMode so that velocityPidCtrl
-        // won't be created. In that case, we will do software velocity control using software PID controller.
-        //
-        if (velocityPidCtrl != null)
-        {
-            velocityPidCtrl.setTarget(value);
-        }
-        else if (velocityControlEnabled)
-        {
-            // Normalize motor velocity to percentage max velocity in the range of -1.0 to 1.0.
-            value = TrcUtil.clipRange(value/maxMotorVelocity);
-            setMotorVelocity(value);
-            for (TrcMotor motor: followingMotorsList)
-            {
-                motor.setMotorVelocity(value);
-            }
-        }
-        else
-        {
-            setMotorPower(value);
-            for (TrcMotor motor: followingMotorsList)
-            {
-                motor.setMotorPower(value);
-            }
-        }
-
-        if (motorSetElapsedTimer != null) motorSetElapsedTimer.recordEndTime();
-    }   //setMotorValue
+        setMsgTracer(tracer, tracePidInfo, null);
+    }   //setMsgTracer
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode. Optionally, you can specify a delay before running
-     * the motor and a duration for which the motor will be turned off afterwards.
+     * This method sets the message tracer for logging trace messages.
      *
-     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
-     *              ownership aware.
-     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay.
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
-     *                 turning off.
-     * @param event specifies the event to signal when the motor operation is completed
+     * @param tracer specifies the tracer for logging messages.
      */
-    public void set(String owner, double delay, double value, double duration, TrcEvent event)
+    public void setMsgTracer(TrcDbgTrace tracer)
     {
-        final String funcName = "set";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: owner=%s,delay=%.3f,value=%f,duration=%.3f",
-                moduleName, instanceName, owner, delay, value, duration);
-        }
-
-        if (validateOwnership(owner))
-        {
-            // Apply soft position limits if any.
-            if ((softLowerLimitEnabled || softUpperLimitEnabled) && value != 0.0)
-            {
-                double currPos = getPosition();
-
-                if (softLowerLimitEnabled && value < 0.0 && currPos <= softLowerLimit ||
-                    softUpperLimitEnabled && value > 0.0 && currPos >= softUpperLimit)
-                {
-                    value = 0.0;
-                }
-            }
-
-            calibrating = false;
-            // Cancel the timer from the previous operation if there is one.
-            timer.cancel();
-            this.motorValue = value;
-            if (delay > 0.0)
-            {
-                // The motor may be spinning, let's stop it.
-                stopMotor();
-                motorState = MotorState.doDelay;
-                this.duration = duration;
-                this.notifyEvent = event;
-                timer.set(delay, this::motorEventHandler);
-            }
-            else
-            {
-                setMotorValue(value);
-                if (duration > 0.0)
-                {
-                    motorState = MotorState.doDuration;
-                    this.duration = duration;
-                    this.notifyEvent = event;
-                    timer.set(duration, this::motorEventHandler);
-                }
-                else
-                {
-                    motorState = MotorState.done;
-                }
-            }
-        }
-    }   //set
+        setMsgTracer(tracer, false, null);
+    }   //setMsgTracer
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method swaps the forward and reverse limit switches. By default, the lower limit switch is associated
+     * with the reverse limit switch and the upper limit switch is associated with the forward limit switch. This
+     * method will swap the association.
      *
-     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
-     *                 turning off.
-     * @param event specifies the event to signal when the motor operation is completed
+     * @param swapped specifies true to swap the limit switches, false otherwise.
      */
-    public void set(double delay, double value, double duration, TrcEvent event)
+    public void setLimitSwitchesSwapped(boolean swapped)
     {
-        set(null, delay, value, duration, event);
-    }   //set
+        limitSwitchesSwapped = swapped;
+    }   //setLimitSwitchesSwapped
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method returns the state of the lower limit switch.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
-     *                 turning off.
-     * @param event specifies the event to signal when the motor operation is completed
+     * @return true if lower limit switch is active, false otherwise.
      */
-    public void set(double value, double duration, TrcEvent event)
+    public boolean isLowerLimitSwitchActive()
     {
-        set(null, 0.0, value, duration, event);
-    }   //set
+        return limitSwitchesSwapped? isFwdLimitSwitchActive(): isRevLimitSwitchActive();
+    }   //isLowerLimitSwitchActive
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method returns the state of the upper limit switch.
      *
-     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
-     *                 turning off.
+     * @return true if upper limit switch is active, false otherwise.
      */
-    public void set(double delay, double value, double duration)
+    public boolean isUpperLimitSwitchActive()
     {
-        set(null, delay, value, duration, null);
-    }   //set
+        return limitSwitchesSwapped? isRevLimitSwitchActive(): isFwdLimitSwitchActive();
+    }   //isUpperLimitSwitchActive
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method enables/disables soft limit switches. This is intended to be called as part of motor
+     * initialization. Therefore, it is not designed to be ownership-aware.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
-     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
-     *                 turning off.
+     * @param lowerLimitEnabled specifies true to enable lower soft limit switch, false otherwise.
+     * @param upperLimitEnabled specifies true to enable upper soft limit switch, false otherwise.
      */
-    public void set(double value, double duration)
+    public void setSoftLimitEnabled(boolean lowerLimitEnabled, boolean upperLimitEnabled)
     {
-        set(null, 0.0, value, duration, null);
-    }   //set
+        softLowerLimitEnabled = lowerLimitEnabled;
+        softUpperLimitEnabled = upperLimitEnabled;
+    }   //setSoftLimitEnabled
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method sets the lower soft limit. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param lowerLimit specifies the position of the lower limit.
      */
-    public void set(double value)
+    public void setSoftLowerLimit(double lowerLimit)
     {
-        set(null, 0.0, value, 0.0, null);
-    }   //set
+        softLowerLimit = lowerLimit;
+    }   //setSoftLowerLimit
 
     /**
-     * This method is called when the motor power set timer has expired. It will turn the motor off.
+     * This method sets the upper soft limit. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
      *
-     * @param context specifies the timer object (not used).
+     * @param upperLimit specifies the position of the upper limit.
      */
-    private void motorEventHandler(Object context)
+    public void setSoftUpperLimit(double upperLimit)
     {
-        if (motorState == MotorState.doDelay)
-        {
-            // The delay timere has expired, so set the motor power now.
-            setMotorValue(motorValue);
-            if (duration > 0.0)
-            {
-                // We have set a duration, so set up a timer for it.
-                motorState = MotorState.doDuration;
-                timer.set(duration, this::motorEventHandler);
-            }
-            else
-            {
-                // We were setting the motor power indefinitely, so we are done.
-                motorState = MotorState.done;
-            }
-        }
-        else if (motorState == MotorState.doDuration)
-        {
-            // The duration timer has expired, turn everything off and clean up.
-            duration = 0.0;
-            setMotorValue(0.0);
-            motorState = MotorState.done;
-        }
+        softUpperLimit = upperLimit;
+    }   //setSoftUpperLimit
 
-        if (motorState == MotorState.done && notifyEvent != null)
-        {
-            notifyEvent.signal();
-            notifyEvent = null;
-        }
-    }   //motorEventHandler
+    /**
+     * This method sets the lower and upper soft limits. This is intended to be called as part of motor initialization.
+     * Therefore, it is not designed to be ownership-aware.
+     *
+     * @param lowerLimit specifies the position of the lower limit.
+     * @param upperLimit specifies the position of the upper limit.
+     */
+    public void setSoftLimits(double lowerLimit, double upperLimit)
+    {
+        setSoftLowerLimit(lowerLimit);
+        setSoftUpperLimit(upperLimit);
+    }   //setSoftLimits
 
     /**
      * This method resets the motor position sensor, typically an encoder. This method emulates a reset for a
@@ -369,19 +268,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      */
     public void resetPosition(boolean hardware)
     {
-        final String funcName = "resetPosition";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: hardware=%s", moduleName, instanceName, hardware);
-        }
-
         if (hardware)
         {
             // Call platform-dependent subclass to reset the position sensor hardware.
             resetMotorPosition();
         }
-
         // Call platform-dependent subclass to read current position as the zero position.
         // Note: the above resetMotorPosition call may have timed out and not resetting the hardware. We will still
         // do soft reset as a safety measure.
@@ -404,7 +295,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      */
     public double getPosition()
     {
-        final String funcName = "getPosition";
         double currPos;
 
         if (odometryEnabled)
@@ -412,17 +302,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
             synchronized (odometry)
             {
                 // Don't read from motor hardware directly, get it from odometry instead.
+                // Odometry already took care of zeroPosition adjustment.
                 currPos = odometry.currPos;
             }
         }
         else
         {
             currPos = getMotorPosition() - zeroPosition;
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: pos=%.0f", moduleName, instanceName, currPos);
         }
 
         return currPos;
@@ -438,155 +324,34 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      */
     public double getVelocity()
     {
-        final String funcName = "getVelocity";
-        final double velocity;
+        final double currVel;
 
         if (odometryEnabled)
         {
             synchronized (odometry)
             {
                 // Don't read from motor hardware directly, get it from odometry instead.
-                velocity = odometry.velocity;
+                currVel = odometry.velocity;
             }
         }
         else
         {
-            velocity = getMotorVelocity();
+            currVel = getMotorVelocity();
         }
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: vel=%.0f", moduleName, instanceName, velocity);
-        }
-
-        return velocity;
+        return currVel;
     }   //getVelocity
 
     /**
-     * This method swaps the forward and reverse limit switches. By default, the lower limit switch is associated
-     * with the reverse limit switch and the upper limit switch is associated with the forward limit switch. This
-     * method will swap the association.
+     * This method returns the motor velocity normalized to the range of -1.0 to 1.0, essentially a percentage of the
+     * maximum motor velocity.
      *
-     * @param swapped specifies true to swap the limit switches, false otherwise.
+     * @return normalized motor velocity.
      */
-    public void setLimitSwitchesSwapped(boolean swapped)
+    private double getNormalizedVelocity()
     {
-        final String funcName = "setLimitSwitchesSwapped";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: swapped=%s", moduleName, instanceName, swapped);
-        }
-
-        limitSwitchesSwapped = swapped;
-    }   //setLimitSwitchesSwapped
-
-    /**
-     * This method returns the state of the lower limit switch.
-     *
-     * @return true if lower limit switch is active, false otherwise.
-     */
-    public boolean isLowerLimitSwitchActive()
-    {
-        final String funcName = "isLowerLimitSwitchActive";
-        boolean isActive = limitSwitchesSwapped? isFwdLimitSwitchActive(): isRevLimitSwitchActive();
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: lowerLimitActive=%s", moduleName, instanceName, isActive);
-        }
-
-        return isActive;
-    }   //isLowerLimitSwitchActive
-
-    /**
-     * This method returns the state of the upper limit switch.
-     *
-     * @return true if upper limit switch is active, false otherwise.
-     */
-    public boolean isUpperLimitSwitchActive()
-    {
-        final String funcName = "isUpperLimitSwitchActive";
-        boolean isActive = limitSwitchesSwapped? isRevLimitSwitchActive(): isFwdLimitSwitchActive();
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: upperLimitActive=%s", moduleName, instanceName, isActive);
-        }
-
-        return isActive;
-    }   //isUpperLimitSwitchActive
-
-    /**
-     * This method enables/disables soft limit switches. This is intended to be called as part of motor
-     * initialization. Therefore, it is not designed to be ownership-aware.
-     *
-     * @param lowerLimitEnabled specifies true to enable lower soft limit switch, false otherwise.
-     * @param upperLimitEnabled specifies true to enable upper soft limit switch, false otherwise.
-     */
-    public void setSoftLimitEnabled(boolean lowerLimitEnabled, boolean upperLimitEnabled)
-    {
-        final String funcName = "setSoftLimitEnabled";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: lowerEnabled=%s,upperEnabled=%s",
-                moduleName, instanceName, lowerLimitEnabled, upperLimitEnabled);
-        }
-
-        softLowerLimitEnabled = lowerLimitEnabled;
-        softUpperLimitEnabled = upperLimitEnabled;
-    }   //setSoftLimitEnabled
-
-    /**
-     * This method sets the lower soft limit. This is intended to be called as part of motor initialization.
-     * Therefore, it is not designed to be ownership-aware.
-     *
-     * @param lowerLimit specifies the position of the lower limit.
-     */
-    public void setSoftLowerLimit(double lowerLimit)
-    {
-        final String funcName = "setSoftLowerLimit";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: lowerLimit=%.1f", moduleName, instanceName, lowerLimit);
-        }
-
-        softLowerLimit = lowerLimit;
-    }   //setSoftLowerLimit
-
-    /**
-     * This method sets the upper soft limit. This is intended to be called as part of motor initialization.
-     * Therefore, it is not designed to be ownership-aware.
-     *
-     * @param upperLimit specifies the position of the upper limit.
-     */
-    public void setSoftUpperLimit(double upperLimit)
-    {
-        final String funcName = "setSoftUpperLimit";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s.%s: upperLimit=%.1f", moduleName, instanceName, upperLimit);
-        }
-
-        softUpperLimit = upperLimit;
-    }   //setSoftUpperLimit
-
-    /**
-     * This method sets the lower and upper soft limits. This is intended to be called as part of motor initialization.
-     * Therefore, it is not designed to be ownership-aware.
-     *
-     * @param lowerLimit specifies the position of the lower limit.
-     * @param upperLimit specifies the position of the upper limit.
-     */
-    public void setSoftLimits(double lowerLimit, double upperLimit)
-    {
-        setSoftLowerLimit(lowerLimit);
-        setSoftUpperLimit(upperLimit);
-    }   //setSoftLimits
+        return maxMotorVelocity != 0.0? getVelocity() / maxMotorVelocity: 0.0;
+    }   //getNormalizedVelocity
 
     /**
      * This method creates a digital trigger on the given digital input sensor. It resets the position sensor
@@ -676,9 +441,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
 
         if (calibrating)
         {
-            //
             // set(0.0) will turn off calibration mode.
-            //
             set(0.0);
             calibrating = false;
         }
@@ -711,6 +474,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
     {
         //
         // Only do this if there is a digital trigger.
+        // TODO: How about calibrate using motor stall?
         //
         if (digitalTrigger != null && digitalTrigger.isEnabled())
         {
@@ -718,6 +482,456 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
             calibrating = true;
         }
     }   //zeroCalibrate
+
+    /**
+     * This method calls the motor subclass to set the motor output value. The value can be power or velocity
+     * percentage depending on whether the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power value (range -1 to 1) or velocity value in sensor unit (e.g.
+     *        encoder counts/sec).
+     */
+    private void setMotorValue(double value)
+    {
+        ControlMode controlMode = getControlMode();
+
+        if (controlMode == ControlMode.VelocityMode)
+        {
+            // Do our software velocity PID control.
+            setMotorVelocity(value);
+        }
+        else if (controlMode == ControlMode.PowerMode)
+        {
+            setMotorPower(value);
+        }
+        // If motor subclass supports followMotor natively, followingMotorsList will be empty.
+        // If not, this is software simulation of followMotor.
+        synchronized (followingMotorsList)
+        {
+            for (TrcMotor follower : followingMotorsList)
+            {
+                if (controlMode == ControlMode.VelocityMode)
+                {
+                    follower.setMotorVelocity(value);
+                }
+                else if (controlMode == ControlMode.PowerMode)
+                {
+                    follower.setMotorPower(value);
+                }
+            }
+        }
+    }   //setMotorValue
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode. Optionally, you can specify a delay before running
+     * the motor and a duration for which the motor will be turned off afterwards.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *        ownership aware.
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay.
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void set(String owner, double delay, double value, double duration, TrcEvent event)
+    {
+        final String funcName = "set";
+
+        if (debugEnabled)
+        {
+            globalTracer.traceInfo(
+                funcName, "%s.%s: owner=%s,delay=%.3f,value=%f,duration=%.3f",
+                moduleName, instanceName, owner, delay, value, duration);
+        }
+
+        if (validateOwnership(owner) && getControlMode() != ControlMode.PositionMode)
+        {
+            // Apply soft position limits if any.
+            if ((softLowerLimitEnabled || softUpperLimitEnabled) && value != 0.0)
+            {
+                double currPos = getPosition();
+
+                if (softLowerLimitEnabled && value < 0.0 && currPos <= softLowerLimit ||
+                    softUpperLimitEnabled && value > 0.0 && currPos >= softUpperLimit)
+                {
+                    value = 0.0;
+                }
+            }
+
+            calibrating = false;
+            // Cancel the timer from the previous operation if there is one.
+            timer.cancel();
+            this.motorValue = value;
+            this.duration = duration;
+            this.notifyEvent = event;
+            if (delay > 0.0)
+            {
+                // The motor may be spinning, let's stop it.
+                stopMotor();
+                timer.set(delay, this::delayExpiredCallback);
+            }
+            else
+            {
+                delayExpiredCallback(null);
+            }
+        }
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void set(double delay, double value, double duration, TrcEvent event)
+    {
+        set(null, delay, value, duration, event);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when the motor operation is completed
+     */
+    public void set(double value, double duration, TrcEvent event)
+    {
+        set(null, 0.0, value, duration, event);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param delay specifies the time in seconds to delay before setting the power, 0.0 if no delay
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     */
+    public void set(double delay, double value, double duration)
+    {
+        set(null, delay, value, duration, null);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     */
+    public void set(double value, double duration)
+    {
+        set(null, 0.0, value, duration, null);
+    }   //set
+
+    /**
+     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
+     * the motor controller is in power mode or velocity mode.
+     *
+     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     */
+    public void set(double value)
+    {
+        set(null, 0.0, value, 0.0, null);
+    }   //set
+
+    /**
+     * This method is called when set motor power delay timer has expired. It will set the specified motor power.
+     *
+     * @param context specifies the timer object (not used).
+     */
+    private void delayExpiredCallback(Object context)
+    {
+        // Delay timer has expired, set the motor power now.
+        setMotorValue(motorValue);
+        if (duration > 0.0)
+        {
+            // We have set a duration, set up a timer for it.
+            timer.set(duration, this::durationExpiredCallback);
+        }
+        else if (notifyEvent != null)
+        {
+            notifyEvent.signal();
+            notifyEvent = null;
+        }
+    }   //delayExpiredCallback
+
+    /**
+     * This method is called when set motor power duration timer has expired. It will turn the motor off.
+     *
+     * @param context specifies the timer object (not used).
+     */
+    private void durationExpiredCallback(Object context)
+    {
+        // The duration timer has expired, turn everything off and clean up.
+        duration = 0.0;
+        motorValue = 0.0;
+        setMotorValue(motorValue);
+        if (notifyEvent != null)
+        {
+            notifyEvent.signal();
+            notifyEvent = null;
+        }
+    }   //durationExpiredCallback
+
+    /**
+     * This method adds the given motor to the list that will follow this motor. It should only be called by the
+     * given motor to add it to the follower list of the motor it wants to follow.
+     *
+     * @param motor specifies the motor that will follow this motor.
+     */
+    private void addFollowingMotor(TrcMotor motor)
+    {
+        synchronized (followingMotorsList)
+        {
+            if (!followingMotorsList.contains(motor))
+            {
+                followingMotorsList.add(motor);
+            }
+        }
+    }   //addFollowingMotor
+
+    //
+    // Implements TrcMotorController interface, simulate in software if necessary.
+    //
+
+    /**
+     * This method sets this motor to follow another motor.
+     *
+     * @param motor specifies the motor to follow.
+     */
+    @Override
+    public void followMotor(TrcMotor motor)
+    {
+        motor.addFollowingMotor(this);
+    }   //followMotor
+
+    /**
+     * This method sets the PID coefficients for the software position PID controller.
+     *
+     * @param pidCoeff specifies the PID coefficients to set.
+     */
+    @Override
+    public void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff)
+    {
+        if (posPidCtrl != null)
+        {
+            // We are using software PID Control.
+            posPidCtrl.setPidCoefficients(pidCoeff);
+        }
+        else
+        {
+            throw new IllegalStateException("Position control mode is not enabled.");
+        }
+    }   //setPositionPidCoefficients
+
+    /**
+     * This method returns the PID coefficients of the motor's position PID controller.
+     *
+     * @return PID coefficients of the motor's position PID controller.
+     */
+    @Override
+    public TrcPidController.PidCoefficients getPositionPidCoefficients()
+    {
+        return posPidCtrl != null? posPidCtrl.getPidCoefficients(): null;
+    }   //getPositionPidCoefficients
+
+    /**
+     * This method sets the PID coefficients of the motor's velocity PID controller.
+     *
+     * @param pidCoeff specifies the PID coefficients to set.
+     */
+    public void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff)
+    {
+        if (velPidCtrl != null)
+        {
+            velPidCtrl.setPidCoefficients(pidCoeff);
+        }
+        else
+        {
+            throw new IllegalStateException("Velocity control mode is not enabled.");
+        }
+    }   //setVelocityPidCoefficients
+
+    /**
+     * This method returns the PID coefficients of the motor's velocity PID controller.
+     *
+     * @return PID coefficients of the motor's veloicty PID controller.
+     */
+    public TrcPidController.PidCoefficients getVelocityPidCoefficients()
+    {
+        return velPidCtrl != null? velPidCtrl.getPidCoefficients(): null;
+    }   //getVelocityPidCoefficients
+
+    /**
+     * This method sets the motor controller to position control mode.
+     *
+     * @param pidCoeff specifies the PID coefficients for position PID control.
+     * @param useSoftwarePid must specify true because if this is not overridden by super class, the motor does not
+     *        support native PID control.
+     */
+    @Override
+    public void enablePositionMode(TrcPidController.PidCoefficients pidCoeff, boolean useSoftwarePid)
+    {
+        if (!useSoftwarePid)
+        {
+            throw new UnsupportedOperationException("Motor does not support native PID control.");
+        }
+
+        if (pidCoeff == null)
+        {
+            throw new IllegalArgumentException("Must provide PID coefficients.");
+        }
+
+        ControlMode controlMode = getControlMode();
+
+        if (controlMode == ControlMode.VelocityMode)
+        {
+            this.disableVelocityMode();
+        }
+
+        if (controlMode == ControlMode.PositionMode)
+        {
+            // Already in Position Mode, just update the PID coefficients.
+            posPidCtrl.setPidCoefficients(pidCoeff);
+        }
+        else
+        {
+            posPidCtrl = new TrcPidController(instanceName + ".posPidCtrl", pidCoeff, 1.0, this::getPosition);
+            posCtrlTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
+        }
+    }   //enablePositionMode
+
+    /**
+     * This method disables position control mode returning it to power control mode.
+     */
+    @Override
+    public void disablePositionMode()
+    {
+        if (getControlMode() == ControlMode.PositionMode)
+        {
+            posCtrlTaskObj.unregisterTask();
+            posPidCtrl = null;
+        }
+    }   //disablePositionMode
+
+    /**
+     * This method sets the motor controller to velocity control mode.
+     *
+     * @param pidCoeff specifies the PID coefficients for velocity PID control.
+     * @param useSoftwarePid must specify true because if this is not overridden by super class, the motor does not
+     *        support native PID control.
+     */
+    @Override
+    public void enableVelocityMode(TrcPidController.PidCoefficients pidCoeff, boolean useSoftwarePid)
+    {
+        if (maxMotorVelocity == 0.0)
+        {
+            throw new UnsupportedOperationException(
+                "Software velocity mode not supported because maximum motor velocity is not provided.");
+        }
+
+        if (!useSoftwarePid)
+        {
+            throw new UnsupportedOperationException("Motor does not support native PID control.");
+        }
+
+        if (pidCoeff == null)
+        {
+            throw new IllegalArgumentException("Must provide PID coefficients.");
+        }
+
+        ControlMode controlMode = getControlMode();
+
+        if (controlMode == ControlMode.PositionMode)
+        {
+            this.disablePositionMode();
+        }
+
+        if (controlMode == ControlMode.VelocityMode)
+        {
+            // Already in velocity control mode, just update PID coefficients and maxVelocity.
+            velPidCtrl.setPidCoefficients(pidCoeff);
+        }
+        else
+        {
+            velPidCtrl = new TrcPidController(instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getNormalizedVelocity);
+            velCtrlTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
+        }
+    }   //enableVelocityMode
+
+    /**
+     * This method disables velocity control mode returning it to power control mode.
+     */
+    @Override
+    public void disableVelocityMode()
+    {
+        if (getControlMode() == ControlMode.VelocityMode)
+        {
+            velCtrlTaskObj.unregisterTask();
+            velPidCtrl = null;
+        }
+    }   //disableVelocityMode
+
+    /**
+     * This method returns the current control mode.
+     *
+     * @return current control mode.
+     */
+    @Override
+    public ControlMode getControlMode()
+    {
+        return posPidCtrl != null ? ControlMode.PositionMode :
+               velPidCtrl != null ? ControlMode.VelocityMode : ControlMode.PowerMode;
+    }   //getControlMode
+
+    /**
+     * This method commands the motor to go to the given position using software PID control.
+     *
+     * @param pos specifies the motor position in raw sensor units (encoder counts).
+     */
+    @Override
+    public void setMotorPosition(double pos)
+    {
+        // Allow this only if we are in close loop position control mode.
+        if (getControlMode() == ControlMode.PositionMode)
+        {
+            posPidCtrl.setTarget(pos);
+        }
+        else
+        {
+            throw new IllegalStateException("Motor is not in Position Mode.");
+        }
+    }   //setMotorPosition
+
+    /**
+     * This method commands the motor to run at the given velocity using software PID control.
+     *
+     * @param vel specifies the motor velocity in raw sensor units per second (encoder counts per second).
+     */
+    @Override
+    public void setMotorVelocity(double vel)
+    {
+        // Allow this only if we are in close loop velocity control mode.
+        if (getControlMode() == ControlMode.VelocityMode)
+        {
+            velPidCtrl.setTarget(vel);
+        }
+        else
+        {
+            throw new IllegalStateException("Motor is not in Velocity Mode.");
+        }
+    }   //setMotorVelocity
 
     //
     // Odometry.
@@ -728,7 +942,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      * by the task scheduler.
      *
      * @param removeOdometryTask specifies true to also remove the odometry task object, false to leave it alone.
-     *                           This is mainly for FTC, FRC should always set this to false.
+     *        This is mainly for FTC, FRC should always set this to false.
      */
     public static void clearOdometryMotorsList(boolean removeOdometryTask)
     {
@@ -847,14 +1061,14 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      * This method resets the odometry data and sensor.
      *
      * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
-     *                      require some time to complete and will block this method from returning until finish.
+     *        require some time to complete and will block this method from returning until finish.
      */
     @Override
     public void resetOdometry(boolean resetHardware)
     {
+        resetPosition(resetHardware);
         synchronized (odometry)
         {
-            resetPosition(resetHardware);
             odometry.prevTimestamp = odometry.currTimestamp = TrcTimer.getCurrentTime();
             odometry.prevPos = odometry.currPos = 0.0;
             odometry.velocity = 0.0;
@@ -908,10 +1122,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
                     motor.odometry.prevTimestamp = motor.odometry.currTimestamp;
                     motor.odometry.prevPos = motor.odometry.currPos;
                     motor.odometry.currTimestamp = TrcTimer.getCurrentTime();
-
-                    if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordStartTime();
                     motor.odometry.currPos = motor.getMotorPosition() - motor.zeroPosition;
-                    if (motorGetPosElapsedTimer != null) motorGetPosElapsedTimer.recordEndTime();
                     //
                     // Detect spurious encoder reading.
                     //
@@ -924,7 +1135,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
                         high = low;
                         low = temp;
                     }
-
                     // To be spurious, motor must jump 10000+ units, and change by 8+ orders of magnitude
                     // log10(high)-log10(low) gives change in order of magnitude
                     // use log rules, equal to log10(high/low) >= 8
@@ -950,9 +1160,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
                     }
                     catch (UnsupportedOperationException e)
                     {
-                        //
                         // It doesn't support velocity data so calculate it ourselves.
-                        //
                         double timeDelta = motor.odometry.currTimestamp - motor.odometry.prevTimestamp;
                         motor.odometry.velocity =
                             timeDelta == 0.0 ? 0.0 : (motor.odometry.currPos - motor.odometry.prevPos) / timeDelta;
@@ -975,150 +1183,127 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
      * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
      *        false otherwise.
      */
-    private void cleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
+    private void odometryCleanupTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         clearOdometryMotorsList(false);
-    }   //cleanupTask
+    }   //odometryCleanupTask
 
     //
-    // Velocity control mode.
+    // Close-loop control modes.
     //
 
     /**
-     * This method sets the motor controller to velocity mode with the specified maximum velocity.
-     *
-     * @param maxVelocity specifies the maximum velocity the motor can run, in sensor units per second.
-     * @param pidCoeff specifies the PID coefficients for software PID control, can be null if using motor built-in
-     *        close loop control in which case the PID coefficients of the motor must be set prior to enabling
-     *        velocity mode.
-     */
-    public synchronized void enableVelocityMode(double maxVelocity, TrcPidController.PidCoefficients pidCoeff)
-    {
-        final String funcName = "enableVelocityMode";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: maxVel=%f,pidCoef=%s", moduleName, instanceName, maxVelocity, pidCoeff);
-        }
-
-        this.maxMotorVelocity = maxVelocity;
-        velocityControlEnabled = true;
-        if (pidCoeff != null)
-        {
-            // Using software PID control requires odometry to calculate velocity
-            if (!odometryEnabled)
-            {
-                throw new RuntimeException("Motor odometry must be enabled to use velocity mode.");
-            }
-            velocityPidCtrl = new TrcPidController(
-                instanceName + ".velocityPidCtrl", pidCoeff, 1.0, this::getNormalizedVelocity);
-            velocityPidCtrl.setAbsoluteSetPoint(true);
-            velocityCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
-        }
-    }   //enableVelocityMode
-
-    /**
-     * This method disables velocity mode returning it to power mode.
-     */
-    public synchronized void disableVelocityMode()
-    {
-        if (velocityPidCtrl != null)
-        {
-            velocityCtrlTaskObj.unregisterTask();
-            velocityPidCtrl = null;
-            velocityControlEnabled = false;
-        }
-    }   //disableVelocityMode
-
-    /**
-     * This method returns the motor velocity normalized to the range of -1.0 to 1.0, essentially a percentage of the
-     * maximum motor velocity.
-     *
-     * @return normalized motor velocity.
-     */
-    private double getNormalizedVelocity()
-    {
-        return maxMotorVelocity != 0.0? getVelocity() / maxMotorVelocity: 0.0;
-    }   //getNormalizedVelocity
-
-    /**
-     * This method overrides the motorSpeedTask in TrcMotor which is called periodically to calculate he speed of
-     * the motor. In addition to calculate the motor speed, it also calculates and sets the motor power required
-     * to maintain the set speed if speed control mode is enabled.
+     * This method performs software position control and is called periodically to set the motor power required to
+     * approach the target position. When target position is reached, this method will try to maintain the position
+     * indefinitely until position control is turned off.
      *
      * @param taskType specifies the type of task being run.
      * @param runMode  specifies the competition mode that is running.
      * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
      *        false otherwise.
      */
-    private synchronized void velocityCtrlTask(
+    private synchronized void posCtrlTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "velocityCtrlTask";
-
-        if (velocityPidCtrl != null)
+        if (posPidCtrl != null)
         {
-            double desiredStallTorquePercentage = velocityPidCtrl.getOutput();
-            double motorPower = transformTorqueToMotorPower(desiredStallTorquePercentage);
+            double motorPower = posPidCtrl.getOutput();
 
             setMotorPower(motorPower);
-            for (TrcMotor motor: followingMotorsList)
+            synchronized (followingMotorsList)
             {
-                motor.setMotorPower(motorPower);
+                for (TrcMotor motor : followingMotorsList)
+                {
+                    motor.setMotorPower(motorPower);
+                }
             }
 
-            if (debugEnabled)
+            if (msgTracer != null && tracePidInfo)
             {
-                globalTracer.traceInfo(funcName,
-                    "%s: targetSpeed=%.2f, currSpeed=%.2f, desiredStallTorque=%.2f, motorPower=%.2f",
-                    moduleName, velocityPidCtrl.getTarget(), getVelocity(), desiredStallTorquePercentage, motorPower);
+                posPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
             }
         }
-    }   //velocityCtrlTask
+    }   //posCtrlTask
 
     /**
-     * Transforms the desired percentage of motor stall torque to the motor duty cycle (aka power)
-     * that would give us that amount of torque at the current motor speed.
+     * This method performs software velocity control and is called periodically to set the motor power required to
+     * approach the target velocity. When target velocity is reached, this method will try to maintain the velocity
+     * indefinitely until velocity control is turned off.
      *
-     * @param desiredStallTorquePercentage specifies the desired percentage of motor torque to receive in percent of
-     *                                     motor stall torque.
-     * @return power percentage to apply to the motor to generate the desired torque (to the best ability of the motor).
+     * @param taskType specifies the type of task being run.
+     * @param runMode  specifies the competition mode that is running.
+     * @param slowPeriodicLoop specifies true if it is running the slow periodic loop on the main robot thread,
+     *        false otherwise.
      */
-    private double transformTorqueToMotorPower(double desiredStallTorquePercentage)
+    private synchronized void velCtrlTask(
+        TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "transformTorqueToMotorPower";
-        double power;
-        //
-        // Leverage motor curve information to linearize torque output across varying RPM
-        // as best we can. We know that max torque is available at 0 RPM and zero torque is
-        // available at max RPM. Use that relationship to proportionately boost voltage output
-        // as motor speed increases.
-        //
-        final double currSpeedSensorUnitPerSec = Math.abs(getVelocity());
-        final double currNormalizedSpeed = currSpeedSensorUnitPerSec / maxMotorVelocity;
-
-        // Max torque percentage declines proportionally to motor speed.
-        final double percentMaxTorqueAvailable = 1 - currNormalizedSpeed;
-
-        if (percentMaxTorqueAvailable > 0)
+        if (velPidCtrl != null)
         {
-            power = desiredStallTorquePercentage / percentMaxTorqueAvailable;
-        }
-        else
-        {
-            // When we exceed max motor speed (and the correction factor is undefined), apply 100% voltage.
-            power = Math.signum(desiredStallTorquePercentage);
-        }
+            /*
+            // PID controller gives us the desired stall torque percentage.
+            double motorPower = transformTorqueToMotorPower(velPidCtrl.getOutput());
+             */
+            double motorPower = velPidCtrl.getOutput();
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: torque=%f,power=%f", moduleName, instanceName, desiredStallTorquePercentage, power);
-        }
+            setMotorPower(motorPower);
+            synchronized (followingMotorsList)
+            {
+                for (TrcMotor motor : followingMotorsList)
+                {
+                    motor.setMotorPower(motorPower);
+                }
+            }
 
-        return power;
-    }   //transformTorqueToMotorPower
+            if (msgTracer != null && tracePidInfo)
+            {
+                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+            }
+        }
+    }   //velCtrlTask
+
+//    /**
+//     * Transforms the desired percentage of motor stall torque to the motor duty cycle (aka power)
+//     * that would give us that amount of torque at the current motor speed.
+//     *
+//     * @param desiredStallTorquePercentage specifies the desired percentage of motor torque to receive in percent of
+//     *        motor stall torque.
+//     * @return power percentage to apply to the motor to generate the desired torque (to the best ability of the motor).
+//     */
+//    private double transformTorqueToMotorPower(double desiredStallTorquePercentage)
+//    {
+//        final String funcName = "transformTorqueToMotorPower";
+//        double power;
+//        //
+//        // Leverage motor curve information to linearize torque output across varying RPM
+//        // as best we can. We know that max torque is available at 0 RPM and zero torque is
+//        // available at max RPM. Use that relationship to proportionately boost voltage output
+//        // as motor speed increases.
+//        //
+//        final double currSpeedSensorUnitPerSec = Math.abs(getVelocity());
+//        final double currNormalizedSpeed = currSpeedSensorUnitPerSec / maxMotorVelocity;
+//
+//        // Max torque percentage declines proportionally to motor speed.
+//        final double percentMaxTorqueAvailable = 1 - currNormalizedSpeed;
+//
+//        if (percentMaxTorqueAvailable > 0)
+//        {
+//            power = desiredStallTorquePercentage / percentMaxTorqueAvailable;
+//        }
+//        else
+//        {
+//            // When we exceed max motor speed (and the correction factor is undefined), apply 100% voltage.
+//            power = Math.signum(desiredStallTorquePercentage);
+//        }
+//
+//        if (debugEnabled)
+//        {
+//            globalTracer.traceInfo(
+//                funcName, "%s.%s: torque=%f,power=%f", moduleName, instanceName, desiredStallTorquePercentage, power);
+//        }
+//
+//        return power;
+//    }   //transformTorqueToMotorPower
 
     //
     // Performance monitoring.
@@ -1138,15 +1323,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
                 motorGetPosElapsedTimer = new TrcElapsedTimer(moduleName + ".getPos", 2.0);
             }
 
-            if (motorSetElapsedTimer == null)
+            if (motorSetPowerElapsedTimer == null)
             {
-                motorSetElapsedTimer = new TrcElapsedTimer(moduleName + ".set", 2.0);
+                motorSetPowerElapsedTimer = new TrcElapsedTimer(moduleName + ".setPower", 2.0);
+            }
+
+            if (motorSetVelElapsedTimer == null)
+            {
+                motorSetVelElapsedTimer = new TrcElapsedTimer(moduleName + ".setVel", 2.0);
             }
         }
         else
         {
             motorGetPosElapsedTimer = null;
-            motorSetElapsedTimer = null;
+            motorSetPowerElapsedTimer = null;
+            motorSetVelElapsedTimer = null;
         }
     }   //setElapsedTimerEnabled
 
@@ -1162,9 +1353,14 @@ public abstract class TrcMotor implements TrcMotorController, TrcOdometrySensor,
             motorGetPosElapsedTimer.printElapsedTime(tracer);
         }
 
-        if (motorSetElapsedTimer != null)
+        if (motorSetPowerElapsedTimer != null)
         {
-            motorSetElapsedTimer.printElapsedTime(tracer);
+            motorSetPowerElapsedTimer.printElapsedTime(tracer);
+        }
+
+        if (motorSetVelElapsedTimer != null)
+        {
+            motorSetVelElapsedTimer.printElapsedTime(tracer);
         }
     }   //printElapsedTime
 

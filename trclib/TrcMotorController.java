@@ -29,16 +29,16 @@ package TrcCommonLib.trclib;
 public interface TrcMotorController
 {
     /**
-     * This method is used to check if the motor controller supports close loop control natively.
-     *
-     * @return true if motor controller supports close loop control, false otherwise.
-     */
-    boolean supportCloseLoopControl();
-
-    /**
      * This method resets the motor controller configurations to factory default so that everything is at known state.
      */
     void resetFactoryDefault();
+
+    /**
+     * This method returns the bus voltage of the motor controller.
+     *
+     * @return bus voltage of the motor controller.
+     */
+    double getBusVoltage();
 
     /**
      * This method checks if the motor controller is connected to the robot. Note that this does NOT guarantee the
@@ -50,18 +50,13 @@ public interface TrcMotorController
     boolean isConnected();
 
     /**
-     * This method sets this motor to follow another motor.
+     * This method is used to check if the motor controller supports close loop control natively. Motor subclass
+     * should override this to report true if it supports close loop control natively. TrcMotor default is set to
+     * false.
      *
-     * @param motor specifies the motor to follow.
+     * @return true if motor controller supports close loop control, false otherwise.
      */
-    void followMotor(TrcMotor motor);
-
-    /**
-     * This method returns the bus voltage of the motor controller.
-     *
-     * @return bus voltage of the motor controller.
-     */
-    double getBusVoltage();
+    boolean supportCloseLoopControl();
 
     /**
      * This method enables voltage compensation so that it will maintain the motor output regardless of battery
@@ -94,18 +89,61 @@ public interface TrcMotorController
     void setBrakeModeEnabled(boolean enabled);
 
     /**
-     * This method sets the PID coefficients of the motor's PID controller.
+     * This method inverts the spinning direction of the motor.
      *
-     * @param pidCoeff specifies the PID coefficients to set.
+     * @param inverted specifies true to invert motor direction, false otherwise.
      */
-    void setPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
+    void setMotorInverted(boolean inverted);
 
     /**
-     * This method returns the PID coefficients of the motor's PID controller.
+     * This method checks if the motor direction is inverted.
      *
-     * @return PID coefficients of the motor's PID controller.
+     * @return true if motor direction is inverted, false otherwise.
      */
-    TrcPidController.PidCoefficients getPidCoefficients();
+    boolean isMotorInverted();
+
+    /**
+     * This method stops the motor regardless of what control mode the motor is on.
+     */
+    void stopMotor();
+
+    /**
+     * This method sets the percentage motor power.
+     *
+     * @param power specifies the percentage power (range -1.0 to 1.0) to be set.
+     */
+    void setMotorPower(double power);
+
+    /**
+     * This method gets the current motor power.
+     *
+     * @return current motor power.
+     */
+    double getMotorPower();
+
+    /**
+     * This method commands the motor to spin at the given current value using close loop control.
+     *
+     * @param current specifies current in amperes.
+     */
+    void setMotorCurrent(double current);
+
+    /**
+     * This method returns the motor current.
+     *
+     * @return motor current in amperes.
+     */
+    double getMotorCurrent();
+
+    /**
+     * This method sets the current limit of the motor.
+     *
+     * @param currentLimit specifies the current limit (holding current) in amperes when feature is activated.
+     * @param triggerThresholdCurrent specifies threshold current in amperes to be exceeded before limiting occurs.
+     *        If this value is less than currentLimit, then currentLimit is used as the threshold.
+     * @param triggerThresholdTime specifies how long current must exceed threshold (seconds) before limiting occurs.
+     */
+    void setCurrentLimit(double currentLimit, double triggerThresholdCurrent, double triggerThresholdTime);
 
     /**
      * This method inverts the active state of the reverse limit switch, typically reflecting whether the switch is
@@ -138,39 +176,6 @@ public interface TrcMotorController
     boolean isFwdLimitSwitchActive();
 
     /**
-     * This method inverts the spinning direction of the motor.
-     *
-     * @param inverted specifies true to invert motor direction, false otherwise.
-     */
-    void setMotorInverted(boolean inverted);
-
-    /**
-     * This method checks if the motor direction is inverted.
-     *
-     * @return true if motor direction is inverted, false otherwise.
-     */
-    boolean isMotorInverted();
-
-    /**
-     * This method stops the motor regardless of what control mode the motor is on.
-     */
-    void stopMotor();
-
-    /**
-     * This method sets the motor power.
-     *
-     * @param value specifies the percentage power (range -1.0 to 1.0) to be set.
-     */
-    void setMotorPower(double value);
-
-    /**
-     * This method gets the current motor power.
-     *
-     * @return current motor power.
-     */
-    double getMotorPower();
-
-    /**
      * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
      * encoder may be mounted somewhere in the power train that it rotates opposite to the motor rotation. This will
      * cause the encoder reading to go down when the motor is receiving positive power. This method can correct this
@@ -188,13 +193,6 @@ public interface TrcMotorController
     boolean isPositionSensorInverted();
 
     /**
-     * This method commands the motor to go to the given position using close loop control.
-     *
-     * @param position specifies the motor position in raw sensor units.
-     */
-    void setMotorPosition(double position);
-
-    /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
      * or a potentiometer.
      *
@@ -208,32 +206,11 @@ public interface TrcMotorController
     void resetMotorPosition();
 
     /**
-     * This method commands the motor to spin at the given velocity using close loop control.
-     *
-     * @param velocity specifies the motor velocity in raw sensor units per second.
-     */
-    void setMotorVelocity(double velocity);
-
-    /**
      * This method returns the current motor velocity.
      *
      * @return current motor velocity in raw sensor units per sec.
      */
     double getMotorVelocity();
-
-    /**
-     * This method commands the motor to spin at the given current value using close loop control.
-     *
-     * @param current specifies current in amperes.
-     */
-    void setMotorCurrent(double current);
-
-     /**
-     * This method returns the motor current.
-     *
-     * @return motor current in amperes.
-     */
-    double getMotorCurrent();
 
     /**
      * This method sets the close loop percentage output limits. By default the limits are set to the max at -1 to 1.
@@ -244,14 +221,92 @@ public interface TrcMotorController
      */
     void setCloseLoopOutputLimits(double revLimit, double fwdLimit);
 
-   /**
-     * This method sets the current limit of the motor.
+    //
+    // The following methods are provided by TrcMotor to simulate some motor features. If the motor sub-class can
+    // support these features, it should override the these TrcMotor methods.
+    //
+
+    /**
+     * This method sets this motor to follow another motor. Motor subclass should override this if it supports this
+     * natively. TrcMotor by default supports software follower list.
      *
-     * @param currentLimit specifies the current limit (holding current) in amperes when feature is activated.
-     * @param triggerThresholdCurrent specifies threshold current in amperes to be exceeded before limiting occurs.
-     *        If this value is less than currentLimit, then currentLimit is used as the threshold.
-     * @param triggerThresholdTime specifies how long current must exceed threshold (seconds) before limiting occurs.
+     * @param motor specifies the motor to follow.
      */
-    void setCurrentLimit(double currentLimit, double triggerThresholdCurrent, double triggerThresholdTime);
+    void followMotor(TrcMotor motor);
+
+    /**
+     * This method sets the PID coefficients of the motor's Position PID controller.
+     *
+     * @param pidCoeff specifies the PID coefficients to set.
+     */
+    void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
+
+    /**
+     * This method returns the PID coefficients of the motor's Position PID controller.
+     *
+     * @return PID coefficients of the motor's position PID controller.
+     */
+    TrcPidController.PidCoefficients getPositionPidCoefficients();
+
+    /**
+     * This method sets the PID coefficients of the motor's velocity PID controller.
+     *
+     * @param pidCoeff specifies the PID coefficients to set.
+     */
+    void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
+
+    /**
+     * This method returns the PID coefficients of the motor's velocity PID controller.
+     *
+     * @return PID coefficients of the motor's veloicty PID controller.
+     */
+    TrcPidController.PidCoefficients getVelocityPidCoefficients();
+
+    /**
+     * This method sets the motor controller to position control mode.
+     *
+     * @param pidCoeff specifies the PID coefficients for position PID control.
+     * @param useSoftwarePid specifies true to use software PID control, false to use motor built-in PID.
+     */
+    void enablePositionMode(TrcPidController.PidCoefficients pidCoeff, boolean useSoftwarePid);
+
+    /**
+     * This method disables position control mode returning it to power control mode.
+     */
+    void disablePositionMode();
+
+    /**
+     * This method sets the motor controller to velocity control mode.
+     *
+     * @param pidCoeff specifies the PID coefficients for velocity PID control.
+     * @param useSoftwarePid specifies true to use software PID control, false to use motor built-in PID.
+     */
+    void enableVelocityMode(TrcPidController.PidCoefficients pidCoeff, boolean useSoftwarePid);
+
+    /**
+     * This method disables velocity control mode returning it to power control mode.
+     */
+    void disableVelocityMode();
+
+    /**
+     * This method returns the current control mode.
+     *
+     * @return current control mode.
+     */
+    TrcMotor.ControlMode getControlMode();
+
+    /**
+     * This method commands the motor to go to the given position using close loop control.
+     *
+     * @param pos specifies the motor position in raw sensor units.
+     */
+    void setMotorPosition(double pos);
+
+    /**
+     * This method commands the motor to spin at the given velocity using close loop control.
+     *
+     * @param vel specifies the motor velocity in raw sensor units per second.
+     */
+    void setMotorVelocity(double vel);
 
 }   //interface TrcMotorController

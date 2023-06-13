@@ -165,7 +165,7 @@ public class TrcPidConveyor extends TrcPidMotor
         String instanceName, TrcMotor motor, TrcDigitalInput entranceSensor, TrcDigitalInput exitSensor,
         Parameters params)
     {
-        super(instanceName, motor, params.pidParams, params.useMotorCloseLoopControl, null, 0.0);
+        super(instanceName, motor, params.useMotorCloseLoopControl, params.pidParams, null, 0.0);
         this.entranceSensor = entranceSensor;
         this.exitSensor = exitSensor;
         this.params = params;

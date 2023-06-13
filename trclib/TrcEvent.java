@@ -103,11 +103,13 @@ public class TrcEvent
 
     /**
      * This method cancels an event if it is not already signaled. An event is either signaled or canceled by the
-     * event source either of which will cause whoever is waiting for it to move on.
+     * event source either of which will cause whoever is waiting for it to move on. Note: if an event is canceled,
+     * no callback will be performed.
      */
     public void cancel()
     {
         eventState.compareAndSet(EventState.CLEARED, EventState.CANCELED);
+        setCallback(null, null);
     }   //cancel
 
     /**

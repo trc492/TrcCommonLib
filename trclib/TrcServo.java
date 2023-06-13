@@ -32,13 +32,8 @@ import java.util.Locale;
  */
 public abstract class TrcServo implements TrcExclusiveSubsystem
 {
-    protected static final String moduleName = "TrcServo";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private static final boolean debugEnabled = false;
 
     /**
      * This method inverts the servo motor direction.
@@ -53,6 +48,19 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      * @return true if the servo direction is inverted, false otherwise.
      */
     public abstract boolean isInverted();
+
+    /**
+     * This method resets the position sensor and therefore only applicable if the servo has one.
+     */
+    public abstract void resetPosition();
+
+    /**
+     * This method sets the position sensor scale and offset and therefore only applicable if the servo has one.
+     *
+     * @param scale specifies the position scale value.
+     * @param offset specifies the optional offset that adds to the final position value.
+     */
+    public abstract void setPositionScaleAndOffset(double scale, double offset);
 
     /**
      * This method sets the logical position of the servo motor.
@@ -117,11 +125,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private final ArrayList<TrcServo> followers = new ArrayList<>();
     private final String instanceName;
     private final boolean continuous;
-//    private final TrcDigitalInput lowerLimitSwitch;
-//    private final TrcDigitalInput upperLimitSwitch;
+    private final TrcDigitalInput lowerLimitSwitch;
+    private final TrcDigitalInput upperLimitSwitch;
     private final TrcTimer delayTimer;
     private final TrcTimer timer;
-    private final TrcEvent timerEvent;
     private final TrcTaskMgr.TaskObject servoTaskObj;
     private boolean taskEnabled = false;
 //    private boolean calibrating = false;
@@ -145,23 +152,24 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the instance name of the servo.
      * @param continuous specifies true if it is a continuous servo, false otherwise.
+     * @param lowerLimitSwitch specifies the lower limit switch object.
+     * @param upperLimitSwitch specifies the upper limit switch object.
      */
-    public TrcServo(String instanceName, boolean continuous)
+    public TrcServo(
+        String instanceName, boolean continuous, TrcDigitalInput lowerLimitSwitch, TrcDigitalInput upperLimitSwitch)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.continuous = continuous;
-//        this.lowerLimitSwitch = lowerLimitSwitch;
-//        this.upperLimitSwitch = upperLimitSwitch;
+        if (!continuous)
+        {
+            // Limit Switches are only applicable if the servo is continuous.
+            lowerLimitSwitch = null;
+            upperLimitSwitch = null;
+        }
+        this.lowerLimitSwitch = lowerLimitSwitch;
+        this.upperLimitSwitch = upperLimitSwitch;
         delayTimer = new TrcTimer(instanceName + ".delayTimer");
         timer = new TrcTimer(instanceName);
-        timerEvent = new TrcEvent(instanceName + ".timerEvent");
 
         servoTaskObj = TrcTaskMgr.createTask(instanceName + ".servoTask", this::servoTask);
         TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask).registerTask(TrcTaskMgr.TaskType.STOP_TASK);
@@ -171,10 +179,21 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      * Constructor: Creates an instance of the object.
      *
      * @param instanceName specifies the instance name of the servo.
+     * @param continuous specifies true if it is a continuous servo, false otherwise.
+     */
+    public TrcServo(String instanceName, boolean continuous)
+    {
+        this(instanceName, continuous, null, null);
+    }   //TrcServo
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the instance name of the servo.
      */
     public TrcServo(String instanceName)
     {
-        this(instanceName, false);
+        this(instanceName, false, null, null);
     }   //TrcServo
 
     /**
@@ -231,9 +250,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     {
         boolean success = false;
 
-        if (!followers.contains(followingServo))
+        synchronized (followers)
         {
-            success = followers.add(followingServo);
+            if (!followers.contains(followingServo))
+            {
+                success = followers.add(followingServo);
+            }
         }
 
         return success;
@@ -247,7 +269,14 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public boolean removeFollower(TrcServo followingServo)
     {
-        return followers.remove(followingServo);
+        boolean success;
+
+        synchronized (followers)
+        {
+            success = followers.remove(followingServo);
+        }
+
+        return success;
     }   //removeFollower
 
     /**
@@ -257,18 +286,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void cancel(String owner)
     {
-        final String funcName = "cancel";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (validateOwnership(owner))
         {
             delayTimer.cancel();
             timer.cancel();
-            timerEvent.setCallback(null, null);
 
             if (continuous)
             {
@@ -279,11 +300,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
             {
                 setTaskEnabled(false);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //cancel
 
@@ -331,9 +347,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         double logicalPos = toLogicalPosition(actionParams.pos);
         setLogicalPosition(logicalPos);
 
-        for (TrcServo servo : followers)
+        synchronized (followers)
         {
-            servo.setLogicalPosition(logicalPos);
+            for (TrcServo servo : followers)
+            {
+                servo.setLogicalPosition(logicalPos);
+            }
         }
 
         if (actionParams.timeout > 0.0 && actionParams.event != null)
@@ -373,8 +392,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
+            globalTracer.traceInfo(
+                funcName, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
                 owner, delay, position, event, timeout);
         }
 
@@ -384,18 +403,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::performSetPosition, actionParams);
-                delayTimer.set(delay, timerEvent);
+                delayTimer.set(delay, this::performSetPosition, actionParams);
             }
             else
             {
                 performSetPosition(actionParams);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setPosition
 
@@ -493,8 +506,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
+            globalTracer.traceInfo(
+                funcName, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
                 owner, delay, position, stepRate, event);
         }
 
@@ -504,18 +517,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::performSetPositionWithStepRate, actionParams);
-                delayTimer.set(delay, timerEvent);
+                delayTimer.set(delay, this::performSetPositionWithStepRate);
             }
             else
             {
                 performSetPositionWithStepRate(actionParams);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setPosition
 
@@ -571,9 +578,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
+            globalTracer.traceInfo(
+                funcName, "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
         }
 
         if (!continuous)
@@ -581,11 +587,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
             this.maxStepRate = maxStepRate;
             this.minPos = minPos;
             this.maxPos = maxPos;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setStepMode
 
@@ -618,27 +619,26 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         double power = TrcUtil.clipRange(actionParams.power);
         if (continuous)
         {
-//            if (lowerLimitSwitch != null && lowerLimitSwitch.isActive() && power < 0.0 ||
-//                upperLimitSwitch != null && upperLimitSwitch.isActive() && power > 0.0)
-//            {
-//                //
-//                // One of the limit switches is hit, so stop!
-//                //
-//                stopContinuous();
-//            }
-//            else
-//            {
-            power = TrcUtil.scaleRange(
-                power, -1.0, 1.0, SERVO_CONTINUOUS_REV_MAX, SERVO_CONTINUOUS_FWD_MAX);
-            setLogicalPosition(power);
-            if (actionParams.timeout > 0.0)
+            if (lowerLimitSwitch != null && lowerLimitSwitch.isActive() && power < 0.0 ||
+                upperLimitSwitch != null && upperLimitSwitch.isActive() && power > 0.0)
             {
-                // A timeout here is actually the duration to spin the continuous servo. Set a timer for the duration,
-                // after which we will turn off the servo.
-                timerEvent.setCallback(this::durationExpired, actionParams);
-                timer.set(actionParams.timeout, timerEvent);
+                //
+                // One of the limit switches is hit, so stop!
+                //
+                stopContinuous();
             }
-//            }
+            else
+            {
+                power = TrcUtil.scaleRange(
+                    power, -1.0, 1.0, SERVO_CONTINUOUS_REV_MAX, SERVO_CONTINUOUS_FWD_MAX);
+                setLogicalPosition(power);
+                if (actionParams.timeout > 0.0)
+                {
+                    // A timeout here is actually the duration to spin the continuous servo. Set a timer for the duration,
+                    // after which we will turn off the servo.
+                    timer.set(actionParams.timeout, this::durationExpired, actionParams);
+                }
+            }
         }
         else if (!isTaskEnabled())
         {
@@ -679,8 +679,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::performSetPower, actionParams);
-                delayTimer.set(delay, timerEvent);
+                delayTimer.set(delay, this::performSetPower, actionParams);
             }
             else
             {
@@ -746,14 +745,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public double getPower()
     {
-        final String funcName = "getPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", currPower);
-        }
-
         return currPower;
     }   //getPower
 
@@ -767,14 +758,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setPhysicalRange(double physicalMin, double physicalMax)
     {
-        final String funcName = "setPhysicalRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "phyMin=%f,phyMax=%f", physicalMin, physicalMax);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (physicalMin >= physicalMax)
         {
             throw new IllegalArgumentException("max must be greater than min.");
@@ -793,15 +776,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setLogicalRange(double logicalMin, double logicalMax)
     {
-        final String funcName = "setLogicalRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "logicalMin=%f,logicalMax=%f", logicalMin, logicalMax);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (logicalMin >= logicalMax)
         {
             throw new IllegalArgumentException("max must be greater than min.");
@@ -821,18 +795,9 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public double toLogicalPosition(double physicalPosition)
     {
-        final String funcName = "toLogicalPosition";
         // TODO: Need fix this because physicalPosition can be negative.
         // physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
-        double logicalPosition = TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "phyPos=%f", physicalPosition);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", logicalPosition);
-        }
-
-        return logicalPosition;
+        return TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
     }   //toLogicalPosition
 
     /**
@@ -846,18 +811,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public double toPhysicalPosition(double logicalPosition)
     {
-        final String funcName = "toPhysicalPosition";
-
         logicalPosition = TrcUtil.clipRange(logicalPosition, logicalMin, logicalMax);
-        double physicalPosition = TrcUtil.scaleRange(logicalPosition, logicalMin, logicalMax, physicalMin, physicalMax);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "logPos=%f", logicalPosition);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%f", physicalPosition);
-        }
-
-        return physicalPosition;
+        return TrcUtil.scaleRange(logicalPosition, logicalMin, logicalMax, physicalMin, physicalMax);
     }   //toPhysicalPosition
 
     /**
@@ -868,13 +823,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     private synchronized void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "enabled=%b", enabled);
-        }
-
         if (enabled)
         {
             servoTaskObj.registerTask(TrcTaskMgr.TaskType.OUTPUT_TASK);
@@ -885,11 +833,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 //            calibrating = false;
         }
         taskEnabled = enabled;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
     }   //setTaskEnabled
 
     /**
@@ -899,14 +842,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     private synchronized boolean isTaskEnabled()
     {
-        final String funcName = "isTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%s", taskEnabled);
-        }
-
         return taskEnabled;
     }   //isTaskEnabled
 
@@ -922,13 +857,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private synchronized void servoTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "servoTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         if (runMode != TrcRobot.RunMode.DISABLED_MODE)
         {
 //            if (calibrating)
@@ -1004,11 +932,6 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 //                servo2.setPosition(currPosition);
 //            }
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //servoTask
 
     /**
@@ -1021,21 +944,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "stopTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
         //
         // Note: stop() will set calibrating to false.
         //
         cancel();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //stopTask
 
 }   //class TrcServo
