@@ -120,7 +120,10 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
 
             for (int i = 0; i < motors.length; i++)
             {
-                msg.append(String.format(Locale.US, " [%d]=%6.2f", i, motors[i].getPosition()));
+                if (motors[i] != null)
+                {
+                    msg.append(String.format(Locale.US, " [%d]=%6.2f", i, motors[i].getPosition()));
+                }
             }
             dashboard.displayPrintf(1, "Motors Test: state=%s, index=%d", state, motorIndex);
             dashboard.displayPrintf(2, "%s", msg);
@@ -133,13 +136,16 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                     //
                     for (int i = 0; i < motors.length; i++)
                     {
-                        if (i == motorIndex)
+                        if (motors[i] != null)
                         {
-                            motors[i].setMotorPower(drivePower);
-                        }
-                        else
-                        {
-                            motors[i].setMotorPower(0.0);
+                            if (i == motorIndex)
+                            {
+                                motors[i].setMotorPower(drivePower);
+                            }
+                            else
+                            {
+                                motors[i].setMotorPower(0.0);
+                            }
                         }
                     }
                     motorIndex++;
