@@ -30,6 +30,27 @@ package TrcCommonLib.trclib;
 public interface TrcExclusiveSubsystem
 {
     /**
+     * This class encapsulates all the parameters required to acquire and release exclusive ownership for the
+     * operation.
+     */
+    static class OwnershipParams
+    {
+        String owner;
+        TrcEvent completionEvent;
+        TrcEvent releaseOwnershipEvent;
+        TrcDbgTrace msgTracer;
+
+        OwnershipParams(String owner, TrcEvent completionEvent, TrcEvent releaseOwnershipEvent, TrcDbgTrace msgTracer)
+        {
+            this.owner = owner;
+            this.completionEvent = completionEvent;
+            this.releaseOwnershipEvent = releaseOwnershipEvent;
+            this.msgTracer = msgTracer;
+        }   //OwnershipParams
+
+    }   // class OwnershipParams
+
+    /**
      * This method checks if the caller has exclusive ownership of the subsystem. For backward compatibility with
      * older code that's not aware of subsystem exclusive ownership, the owner parameter can be null. If the
      * subsystem has no owner currently and the caller is not aware of exclusive ownership, the caller is considered
@@ -84,5 +105,73 @@ public interface TrcExclusiveSubsystem
     {
         return TrcOwnershipMgr.getInstance().releaseOwnership(owner, this);
     }   //releaseExclusiveAccess
+
+    /**
+     * This method acquires exclusive access to the subsystem for the specified owner if the owner did not already
+     * have ownership. If successfully acquired exclusive access, it will return an event that the owner must signal
+     * when exclusive access is no longer needed. At that time, the exclusive access will be released for the owner.
+     *
+     * @param owner specifies the owner who wishes to acquire exclusive access, can be null if not requiring
+     *        exclusive access in which case this call is a no-op.
+     * @param completionEvent specifies the original event that will be signaled when the operation is completed.
+     *        This event will be signaled for the owner when the exclusive access is released.
+     * @return release ownership event that the caller must signal when exclusive access is no longer needed.
+     *         Typically, it replaces the original completion event of the operation so that when the operation
+     *         is completed, the caller will signal this event to release the exclusive access and it will then
+     *         signal the original completion event for the caller.
+     */
+    default TrcEvent acquireOwnership(String owner, TrcEvent completionEvent, TrcDbgTrace msgTracer)
+    {
+        final String funcName = "acquireOwnership";
+        TrcEvent releaseOwnershipEvent = null;
+
+        // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        {
+            if (msgTracer != null)
+            {
+                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", this, owner);
+            }
+            releaseOwnershipEvent = new TrcEvent(this + ".releaseOwnership");
+            OwnershipParams ownershipParams = new OwnershipParams(
+                owner, completionEvent, releaseOwnershipEvent, msgTracer);
+            releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
+        }
+
+        return releaseOwnershipEvent;
+    }   //acquireOwnership
+
+    /**
+     * This method is an event callback to release exclusive ownership after the operation is completed or canceled.
+     * It will also signal the original completion event for the owner.
+     *
+     * @param context specifies the releaseOwnership parameters.
+     */
+    default void releaseOwnership(Object context)
+    {
+        final String funcName = "releaseOwnership";
+        OwnershipParams ownershipParams = (OwnershipParams) context;
+
+        releaseExclusiveAccess(ownershipParams.owner);
+        if (ownershipParams.msgTracer != null)
+        {
+            ownershipParams.msgTracer.traceInfo(
+                funcName, "%s: Released ownership on behalf of the %s.", this, ownershipParams.owner);
+        }
+
+        if (ownershipParams.completionEvent != null)
+        {
+            if (ownershipParams.releaseOwnershipEvent.isSignaled())
+            {
+                // Operation was completed successfully, indicate so in the completion event.
+                ownershipParams.completionEvent.signal();
+            }
+            else
+            {
+                // Operation was canceled, indicate so in the completion event.
+                ownershipParams.completionEvent.cancel();
+            }
+        }
+    }   //releaseOwnership
 
 }   //interface TrcExclusiveSubsystem
