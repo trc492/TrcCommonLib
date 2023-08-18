@@ -230,7 +230,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         {
             // Set angles before speed so angle optimization takes effect
             modules[i].setSteerAngle(velocities[i][1]);
-            modules[i].driveMotor.set(velocities[i][0]);
+            modules[i].driveMotor.setVelocity(velocities[i][0]);
         }
     }   //setModuleVelocities
 
@@ -341,10 +341,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)
             {
-                lfModule.driveMotor.set(0.0);
-                rfModule.driveMotor.set(0.0);
-                lbModule.driveMotor.set(0.0);
-                rbModule.driveMotor.set(0.0);
+                lfModule.driveMotor.setPower(0.0);
+                rfModule.driveMotor.setPower(0.0);
+                lbModule.driveMotor.setPower(0.0);
+                rbModule.driveMotor.setPower(0.0);
 
                 lfModule.setSteerAngle(lfModule.getSteerAngle());
                 rfModule.setSteerAngle(rfModule.getSteerAngle());
@@ -426,10 +426,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 lbModule.setSteerAngle(lbAngle);
                 rbModule.setSteerAngle(rbAngle);
 
-                lfModule.set(lfPower);
-                rfModule.set(rfPower);
-                lbModule.set(lbPower);
-                rbModule.set(rbPower);
+                lfModule.setPower(lfPower);
+                rfModule.setPower(rfPower);
+                lbModule.setPower(lbPower);
+                rbModule.setPower(rbPower);
 
                 if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
                 {

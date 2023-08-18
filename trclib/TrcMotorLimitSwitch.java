@@ -73,11 +73,11 @@ public class TrcMotorLimitSwitch extends TrcDigitalInput
     {
         if (upperLimitSwitch)
         {
-            motor.setFwdLimitSwitchInverted(inverted);
+            motor.setUpperLimitSwitchInverted(inverted);
         }
         else
         {
-            motor.setRevLimitSwitchInverted(inverted);
+            motor.setLowerLimitSwitchInverted(inverted);
         }
     }   //setInverted
 

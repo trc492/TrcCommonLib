@@ -74,23 +74,23 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         double currPower = 0.0;
     }   //class TaskParams
 
-    /**
-     * This class encapsulates all the parameters required to acquire and release exclusive ownership for the
-     * operation.
-     */
-    private static class OwnershipParams
-    {
-        String owner;
-        TrcEvent completionEvent;
-        TrcEvent releaseOwnershipEvent;
+    // /**
+    //  * This class encapsulates all the parameters required to acquire and release exclusive ownership for the
+    //  * operation.
+    //  */
+    // private static class OwnershipParams
+    // {
+    //     String owner;
+    //     TrcEvent completionEvent;
+    //     TrcEvent releaseOwnershipEvent;
 
-        OwnershipParams(String owner, TrcEvent completionEvent, TrcEvent releaseOwnershipEvent)
-        {
-            this.owner = owner;
-            this.completionEvent = completionEvent;
-            this.releaseOwnershipEvent = releaseOwnershipEvent;
-        }   //OwnershipParams
-    }   // class OwnershipParams
+    //     OwnershipParams(String owner, TrcEvent completionEvent, TrcEvent releaseOwnershipEvent)
+    //     {
+    //         this.owner = owner;
+    //         this.completionEvent = completionEvent;
+    //         this.releaseOwnershipEvent = releaseOwnershipEvent;
+    //     }   //OwnershipParams
+    // }   // class OwnershipParams
 
     protected final String instanceName;
     private final TrcMotor motor1;
@@ -155,14 +155,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         {
             // Caller does not provide PID params, we will use the motor built-in close loop control.
             pidCtrl = null;
-            if (motor1.supportCloseLoopControl())
-            {
-                motor1.setPositionPidCoefficients(pidParams.pidCoeff);
-            }
-            else
-            {
-                throw new IllegalArgumentException("Must provide PID Params if motor does not support close loop control.");
-            }
+            motor1.setPositionPidCoefficients(pidParams.pidCoeff);
         }
         else
         {
@@ -288,37 +281,37 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         return instanceName;
     }   //toString
 
-    /**
-     * This method is called to release the exclusive ownership of the subsystem when a certain operation has
-     * completed.
-     *
-     * @param context specifies the releaseOwnership parameters.
-     */
-    private void releaseOwnership(Object context)
-    {
-        final String funcName = "releaseOwnership";
-        OwnershipParams ownershipParams = (OwnershipParams) context;
+    // /**
+    //  * This method is called to release the exclusive ownership of the subsystem when a certain operation has
+    //  * completed.
+    //  *
+    //  * @param context specifies the releaseOwnership parameters.
+    //  */
+    // private void releaseOwnership(Object context)
+    // {
+    //     final String funcName = "releaseOwnership";
+    //     OwnershipParams ownershipParams = (OwnershipParams) context;
 
-        releaseExclusiveAccess(ownershipParams.owner);
-        if (msgTracer != null)
-        {
-            msgTracer.traceInfo(funcName, "%s: Released ownership on behalf of the %s.", instanceName, ownershipParams.owner);
-        }
+    //     releaseExclusiveAccess(ownershipParams.owner);
+    //     if (msgTracer != null)
+    //     {
+    //         msgTracer.traceInfo(funcName, "%s: Released ownership on behalf of the %s.", instanceName, ownershipParams.owner);
+    //     }
 
-        if (ownershipParams.completionEvent != null)
-        {
-            if (ownershipParams.releaseOwnershipEvent.isSignaled())
-            {
-                // setPosition was completed successfully, indicate so in the completion event.
-                ownershipParams.completionEvent.signal();
-            }
-            else
-            {
-                // setPosition was canceled, indicate so in the completion event.
-                ownershipParams.completionEvent.cancel();
-            }
-        }
-    }   //releaseOwnership
+    //     if (ownershipParams.completionEvent != null)
+    //     {
+    //         if (ownershipParams.releaseOwnershipEvent.isSignaled())
+    //         {
+    //             // setPosition was completed successfully, indicate so in the completion event.
+    //             ownershipParams.completionEvent.signal();
+    //         }
+    //         else
+    //         {
+    //             // setPosition was canceled, indicate so in the completion event.
+    //             ownershipParams.completionEvent.cancel();
+    //         }
+    //     }
+    // }   //releaseOwnership
 
     /**
      * This method sets the message tracer for logging trace messages.
@@ -641,8 +634,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
         else
         {
             // Use motor built-in close loop control.
-            motor1.setCloseLoopOutputLimits(-params.outputLimit, params.outputLimit);
-            motor1.setMotorPosition((params.currTarget - positionOffset)/positionScale);
+            // motor1.setCloseLoopOutputLimits(-params.outputLimit, params.outputLimit);
+            motor1.setMotorPosition((params.currTarget - positionOffset)/positionScale, params.outputLimit);
         }
 
         setTaskEnabled(true);
@@ -689,18 +682,20 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             completionEvent.clear();
         }
 
-        // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
-        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
-        {
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", instanceName, owner);
-            }
-            TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
-            OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
-            releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
-            completionEvent = releaseOwnershipEvent;
-        }
+        // // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
+        // if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        // {
+        //     if (msgTracer != null)
+        //     {
+        //         msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", instanceName, owner);
+        //     }
+        //     TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
+        //     OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
+        //     releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
+        //     completionEvent = releaseOwnershipEvent;
+        // }
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, msgTracer);
+        if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
         {
@@ -1159,14 +1154,16 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             completionEvent.clear();
         }
 
-        // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
-        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
-        {
-            TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
-            OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
-            releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
-            completionEvent = releaseOwnershipEvent;
-        }
+        // // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
+        // if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
+        // {
+        //     TrcEvent releaseOwnershipEvent = new TrcEvent(instanceName + ".releaseOwnership");
+        //     OwnershipParams ownershipParams = new OwnershipParams(owner, completionEvent, releaseOwnershipEvent);
+        //     releaseOwnershipEvent.setCallback(this::releaseOwnership, ownershipParams);
+        //     completionEvent = releaseOwnershipEvent;
+        // }
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, msgTracer);
+        if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
         {
@@ -1319,7 +1316,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             taskParams.stalled = false;
             if (motor != null)
             {
-                motor.set(0.0);
+                motor.setPower(0.0);
                 motor.resetPosition(false);
             }
             else if (servo != null)
@@ -1334,7 +1331,7 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             taskParams.stalled = isMotorStalled(calPower);
             if (motor != null)
             {
-                motor.set(calPower);
+                motor.setPower(calPower);
             }
             else if (servo != null)
             {
@@ -1469,8 +1466,8 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
                 power2 = TrcUtil.clipRange(power2, MIN_MOTOR_POWER, 0.0);
             }
 
-            motor1.set(power1);
-            motor2.set(power2);
+            motor1.setPower(power1);
+            motor2.setPower(power2);
 
             if (debugEnabled)
             {
@@ -1490,10 +1487,10 @@ public class TrcPidMotor implements TrcExclusiveSubsystem
             {
                 // If we are not sync'ing or stopping, just set the motor power. If we are stopping the motor, even if
                 // we are sync'ing, we should just stop. But we should still observe the limit switches.
-                motor1.set(power);
+                motor1.setPower(power);
                 if (motor2 != null)
                 {
-                    motor2.set(power);
+                    motor2.setPower(power);
                 }
             }
         }

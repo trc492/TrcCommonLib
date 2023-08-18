@@ -54,7 +54,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
     private final TrcEvent event;
     private final TrcTimer timer;
     private final TrcStateMachine<State> sm;
-    private int motorIndex = 0;
+    private int motorIndex;
 
     /**
      * Constructor: Create an instance of the object.
@@ -72,6 +72,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
         timer = new TrcTimer(moduleName);
         sm = new TrcStateMachine<>(moduleName);
         sm.start(State.START);
+        motorIndex = 0;
     }   //CmdDriveMotorsTest
 
     //
@@ -122,7 +123,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
             {
                 if (motors[i] != null)
                 {
-                    msg.append(String.format(Locale.US, " [%d]=%6.2f", i, motors[i].getPosition()));
+                    msg.append(String.format(Locale.US, " %s=%6.2f", motors[i], motors[i].getPosition()));
                 }
             }
             dashboard.displayPrintf(1, "Motors Test: state=%s, index=%d", state, motorIndex);
@@ -140,11 +141,11 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                         {
                             if (i == motorIndex)
                             {
-                                motors[i].setMotorPower(drivePower);
+                                motors[i].setPower(drivePower);
                             }
                             else
                             {
-                                motors[i].setMotorPower(0.0);
+                                motors[i].setPower(0.0);
                             }
                         }
                     }
@@ -175,7 +176,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
     {
         for (TrcMotor motor: motors)
         {
-            motor.set(0.0);
+            motor.setPower(0.0);
         }
     }   //stopAllWheels
 

@@ -253,7 +253,7 @@ public class TrcPidActuator extends TrcPidMotor
 
         if (lowerLimitSwitch != null && params.resetPosOnLowerLimit)
         {
-            motor1.resetPositionOnDigitalInput(lowerLimitSwitch);
+            motor1.resetPositionOnLowerLimitSwitch();
         }
 
         setPositionScaleAndOffset(params.scale, params.offset);

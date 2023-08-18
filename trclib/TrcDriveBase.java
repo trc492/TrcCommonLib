@@ -1316,7 +1316,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
             for (TrcMotor motor : motors)
             {
-                motor.set(0.0);
+                motor.setPower(0.0);
             }
         }
 

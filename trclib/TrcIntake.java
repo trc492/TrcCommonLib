@@ -255,7 +255,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         if (motor != null)
         {
-            motor.set(owner, delay, power, duration, event);
+            motor.setPower(owner, delay, power, duration, event);
         }
         else
         {
@@ -399,7 +399,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
             if (motor != null)
             {
-                motor.set(actionParams.intakePower);
+                motor.setPower(actionParams.intakePower);
             }
             else
             {

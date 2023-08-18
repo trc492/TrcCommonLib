@@ -273,7 +273,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lfMotor.getVelocity());
                 }
-                lfMotor.set(wheelPower);
+                lfMotor.setPower(wheelPower);
             }
 
             if (rfMotor != null)
@@ -283,7 +283,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rfMotor.getVelocity());
                 }
-                rfMotor.set(wheelPower);
+                rfMotor.setPower(wheelPower);
             }
 
             if (lbMotor != null)
@@ -293,7 +293,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lbMotor.getVelocity());
                 }
-                lbMotor.set(wheelPower);
+                lbMotor.setPower(wheelPower);
             }
 
             if (rbMotor != null)
@@ -303,7 +303,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rbMotor.getVelocity());
                 }
-                rbMotor.set(wheelPower);
+                rbMotor.setPower(wheelPower);
             }
 
             if (lcMotor != null)
@@ -313,7 +313,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lcMotor.getVelocity());
                 }
-                lcMotor.set(wheelPower);
+                lcMotor.setPower(wheelPower);
             }
 
             if (rcMotor != null)
@@ -323,7 +323,7 @@ public class TrcSimpleDriveBase extends TrcDriveBase
                 {
                     wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rcMotor.getVelocity());
                 }
-                rcMotor.set(wheelPower);
+                rcMotor.setPower(wheelPower);
             }
             setDriveTime(owner, driveTime, event);
         }

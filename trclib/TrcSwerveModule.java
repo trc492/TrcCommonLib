@@ -39,7 +39,7 @@ public class TrcSwerveModule
 
     private final String instanceName;
     public final TrcMotor driveMotor;
-    public final TrcPidMotor steerMotor;
+    public final TrcMotor steerMotor;
     public final TrcServo steerServo;
     private final TrcWarpSpace warpSpace;
     private boolean steerLimitsEnabled = false;
@@ -57,7 +57,7 @@ public class TrcSwerveModule
      * @param steerServo   specifies the steering servo.
      */
     private TrcSwerveModule(
-            String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor, TrcServo steerServo)
+            String instanceName, TrcMotor driveMotor, TrcMotor steerMotor, TrcServo steerServo)
     {
         if (debugEnabled)
         {
@@ -80,7 +80,7 @@ public class TrcSwerveModule
      * @param driveMotor   specifies the drive motor.
      * @param steerMotor   specifies the steering motor.
      */
-    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcPidMotor steerMotor)
+    public TrcSwerveModule(String instanceName, TrcMotor driveMotor, TrcMotor steerMotor)
     {
         this(instanceName, driveMotor, steerMotor, null);
     }   //TrcSwerveModule
@@ -150,7 +150,7 @@ public class TrcSwerveModule
 
         if (steerMotor != null)
         {
-            steerMotor.zeroCalibrate(this::doneZeroCalibrate, null);
+            steerMotor.zeroCalibrate(0.2, this::doneZeroCalibrate);
         }
         else
         {
@@ -314,22 +314,21 @@ public class TrcSwerveModule
     }   //getSteerAngle
 
     /**
-     * This method sets the motor output value. The value can be power or velocity percentage depending on whether
-     * the motor controller is in power mode or velocity mode.
+     * This method sets the motor power.
      *
-     * @param value specifies the percentage power or velocity (range -1.0 to 1.0) to be set.
+     * @param power specifies the percentage power (range -1.0 to 1.0) to be set.
      */
-    public void set(double value)
+    public void setPower(double power)
     {
-        final String funcName = "set";
+        final String funcName = "setPower";
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "value=%f", value);
+            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%f", power);
             dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
 
-        driveMotor.set(value * optimizedWheelDir);
+        driveMotor.setPower(power * optimizedWheelDir);
     }   //set
 
 }   //class TrcSwerveModule

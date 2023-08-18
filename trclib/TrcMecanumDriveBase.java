@@ -146,7 +146,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             {
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lfMotor.getVelocity());
             }
-            lfMotor.set(wheelPower);
+            lfMotor.setPower(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_FRONT.value];
@@ -154,7 +154,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             {
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rfMotor.getVelocity());
             }
-            rfMotor.set(wheelPower);
+            rfMotor.setPower(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.LEFT_BACK.value];
@@ -162,7 +162,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             {
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, lbMotor.getVelocity());
             }
-            lbMotor.set(wheelPower);
+            lbMotor.setPower(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             wheelPower = wheelPowers[MotorType.RIGHT_BACK.value];
@@ -170,7 +170,7 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
             {
                 wheelPower = motorPowerMapper.translateMotorPower(wheelPower, rbMotor.getVelocity());
             }
-            rbMotor.set(wheelPower);
+            rbMotor.setPower(wheelPower);
             if (wheelPower != 0.0) wheelsPowered = true;
 
             setDriveTime(owner, driveTime, event);

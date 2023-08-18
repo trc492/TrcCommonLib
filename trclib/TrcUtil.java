@@ -461,6 +461,18 @@ public class TrcUtil
     }   //clipRange
 
     /**
+     * This method clips the given value to the range limited by -limit as the low limit and limit as the high limit.
+     *
+     * @param value     specifies the value to be clipped
+     * @param limit     specifies the limit of the range between -limit and limit.
+     * @return the result of the clipped value.
+     */
+    public static double clipRange(double value, double limit)
+    {
+        return clipRange(value, -limit, limit);
+    }   //clipRange
+
+    /**
      * This method clips the given value to the range between -1.0 and 1.0.
      *
      * @param value specifies the value to be clipped

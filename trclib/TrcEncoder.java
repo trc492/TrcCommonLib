@@ -55,6 +55,13 @@ public interface TrcEncoder
     void setInverted(boolean inverted);
 
     /**
+     * This method checks if the encoder direction is inverted.
+     *
+     * @return true if encoder direction is rerversed, false otherwise.
+     */
+    boolean isInverted();
+
+    /**
      * This method sets the encoder scale and offset.
      *
      * @param scale specifies the scale value.
