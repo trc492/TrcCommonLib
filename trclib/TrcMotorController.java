@@ -108,10 +108,48 @@ public interface TrcMotorController
     void setBrakeModeEnabled(boolean enabled);
 
     /**
+     * This method enables the reverse limit switch and configures it to the specified type.
+     *
+     * @param normalClose specifies true as the normal close switch type, false as normal open.
+     */
+    void enableMotorRevLimitSwitch(boolean normalClose);
+
+    /**
+     * This method enables the forward limit switch and configures it to the specified type.
+     *
+     * @param normalClose specifies true as the normal close switch type, false as normal open.
+     */
+    void enableMotorFwdLimitSwitch(boolean normalClose);
+
+    /**
+     * This method disables the reverse limit switch.
+     */
+    void disableMotorRevLimitSwitch();
+
+    /**
+     * This method disables the forward limit switch.
+     */
+    void disableMotorFwdLimitSwitch();
+
+    /**
+     * This method checks if the reverse limit switch is enabled.
+     *
+     * @return true if enabled, false if disabled.
+     */
+    boolean isMotorRevLimitSwitchEnabled();
+
+    /**
+     * This method checks if the forward limit switch is enabled.
+     *
+     * @return true if enabled, false if disabled.
+     */
+    boolean isMotorFwdLimitSwitchEnabled();
+
+    /**
      * This method inverts the active state of the reverse limit switch, typically reflecting whether the switch is
      * wired normally open or normally close.
      *
-     * @param inverted specifies true to invert the limit switch, false otherwise.
+     * @param inverted specifies true to invert the limit switch to normal close, false to normal open.
      */
     void setMotorRevLimitSwitchInverted(boolean inverted);
 
@@ -119,7 +157,7 @@ public interface TrcMotorController
      * This method inverts the active state of the forward limit switch, typically reflecting whether the switch is
      * wired normally open or normally close.
      *
-     * @param inverted specifies true to invert the limit switch, false otherwise.
+     * @param inverted specifies true to invert the limit switch to normal close, false to normal open.
      */
     void setMotorFwdLimitSwitchInverted(boolean inverted);
 
@@ -136,6 +174,20 @@ public interface TrcMotorController
      * @return true if forward limit switch is active, false otherwise.
      */
     boolean isMotorFwdLimitSwitchActive();
+
+    /**
+     * This method sets the soft position limit for the reverse direction.
+     *
+     * @param limit specifies the limit in sensor units, null to disable.
+     */
+    void setMotorRevSoftPositionLimit(Double limit);
+
+    /**
+     * This method sets the soft position limit for the forward direction.
+     *
+     * @param limit specifies the limit in sensor units, null to disable.
+     */
+    void setMotorFwdSoftPositionLimit(Double limit);
 
     /**
      * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
@@ -239,18 +291,18 @@ public interface TrcMotorController
     void setMotorVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method returns the PID coefficients of the motor controller's velocity PID controller.
-     *
-     * @return PID coefficients of the motor's veloicty PID controller.
-     */
-    TrcPidController.PidCoefficients getMotorVelocityPidCoefficients();
-
-    /**
      * This method sets the PID tolerance of the motor controller's velocity PID controller.
      *
      * @param tolerance specifies the PID tolerance to set.
      */
     void setMotorVelocityPidTolerance(double tolerance);
+
+    /**
+     * This method returns the PID coefficients of the motor controller's velocity PID controller.
+     *
+     * @return PID coefficients of the motor's veloicty PID controller.
+     */
+    TrcPidController.PidCoefficients getMotorVelocityPidCoefficients();
 
     /**
      * This method checks if the motor is at the set velocity.
@@ -267,18 +319,18 @@ public interface TrcMotorController
     void setMotorPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method returns the PID coefficients of the motor controller's position PID controller.
-     *
-     * @return PID coefficients of the motor's position PID controller.
-     */
-    TrcPidController.PidCoefficients getMotorPositionPidCoefficients();
-
-    /**
      * This method sets the PID tolerance of the motor controller's position PID controller.
      *
      * @param tolerance specifies the PID tolerance to set.
      */
     void setMotorPositionPidTolerance(double tolerance);
+
+    /**
+     * This method returns the PID coefficients of the motor controller's position PID controller.
+     *
+     * @return PID coefficients of the motor's position PID controller.
+     */
+    TrcPidController.PidCoefficients getMotorPositionPidCoefficients();
 
     /**
      * This method checks if the motor is at the set position.
@@ -295,18 +347,18 @@ public interface TrcMotorController
     void setMotorCurrentPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method returns the PID coefficients of the motor controller's current PID controller.
-     *
-     * @return PID coefficients of the motor's current PID controller.
-     */
-    TrcPidController.PidCoefficients getMotorCurrentPidCoefficients();
-
-    /**
      * This method sets the PID tolerance of the motor controller's current PID controller.
      *
      * @param tolerance specifies the PID tolerance to set.
      */
     void setMotorCurrentPidTolerance(double tolerance);
+
+    /**
+     * This method returns the PID coefficients of the motor controller's current PID controller.
+     *
+     * @return PID coefficients of the motor's current PID controller.
+     */
+    TrcPidController.PidCoefficients getMotorCurrentPidCoefficients();
 
     /**
      * This method checks if the motor is at the set current.
@@ -335,14 +387,6 @@ public interface TrcMotorController
      * @return true if voltage compensation is enabled, false if disabled.
      */
     boolean isVoltageCompensationEnabled();
-
-    /**
-     * This method sets the lower and upper soft limits.
-     *
-     * @param lowerLimit specifies the position of the lower limit, null to disable lower limit.
-     * @param upperLimit specifies the position of the upper limit, null to disable upper limit.
-     */
-    void setSoftLimits(Double lowerLimit, Double upperLimit);
 
     /**
      * This method sets this motor to follow another motor. Motor subclass should override this if it supports this

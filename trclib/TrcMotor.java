@@ -78,7 +78,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         // timeout is only applicable for Position.
         double timeout;
         // prevPosTarget is used for setPidPower.
-        Double prevPosTarget;
+        Double prevPosTarget = null;
         double calPower;
         boolean calibrating = false;
         // Stall detection.
@@ -110,8 +110,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final TaskParams taskParams = new TaskParams();
 
     protected final String instanceName;
-    private final TrcDigitalInput revLimitSwitch;   // for software simulation
-    private final TrcDigitalInput fwdLimitSwitch;   // for software simulation
+    private final TrcDigitalInput lowerLimitSwitch; // for software simulation
+    private final TrcDigitalInput upperLimitSwitch; // for software simulation
     private final TrcEncoder encoder;               // for software simulation
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
@@ -120,6 +120,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private boolean softwarePidEnabled = false;
     private Double batteryNominalVoltage = null;
     private boolean limitSwitchesSwapped = false;
+    private boolean lowerLimitSwitchEnabled = false;
+    private boolean upperLimitSwitchEnabled = false;
     private Double softLowerLimit = null;
     private Double softUpperLimit = null;
     private double sensorScale = 1.0;
@@ -156,20 +158,20 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param revLimitSwitch specifies an external reverse limit switch, can be null if subclass supports it natively.
-     * @param fwdLimitSwitch specifies an external forward limit switch, can be null if subclass supports it natively.
+     * @param lowerLimitSwitch specifies an external lower limit switch, can be null if subclass supports it natively.
+     * @param upperLimitSwitch specifies an external forward limit switch, can be null if subclass supports it natively.
      * @param encoder specifies an external position sensor for reporting motor position, can be null if subclass
      *        supports it natively.
     //  * @param maxVelocity specifies the maximum velocity the motor can run, in sensor units per second, can be zero
     //  *        if not provided in which case velocity control mode is not available.
      */
     public TrcMotor(
-        String instanceName, TrcDigitalInput revLimitSwitch, TrcDigitalInput fwdLimitSwitch, TrcEncoder encoder)
+        String instanceName, TrcDigitalInput lowerLimitSwitch, TrcDigitalInput upperLimitSwitch, TrcEncoder encoder)
         // double maxVelocity)
     {
         this.instanceName = instanceName;
-        this.revLimitSwitch = revLimitSwitch;
-        this.fwdLimitSwitch = fwdLimitSwitch;
+        this.lowerLimitSwitch = lowerLimitSwitch;
+        this.upperLimitSwitch = upperLimitSwitch;
         this.encoder = encoder;
         odometry = new TrcOdometrySensor.Odometry(this);
         timer = new TrcTimer(instanceName);
@@ -273,19 +275,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //isVoltageCompensationEnabled
 
     /**
-     * This method sets the lower and upper soft limits.
-     *
-     * @param lowerLimit specifies the position of the lower limit, null to disable lower limit.
-     * @param upperLimit specifies the position of the upper limit, null to disable upper limit.
-     */
-    @Override
-    public void setSoftLimits(Double lowerLimit, Double upperLimit)
-    {
-        softLowerLimit = lowerLimit;
-        softUpperLimit = upperLimit;
-    }   //setSoftLimits
-
-    /**
      * This method adds the given motor to the list that will follow this motor. It should only be called by the
      * given motor to add it to the follower list of the motor it wants to follow.
      *
@@ -350,7 +339,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     /**
      * This method swaps the forward and reverse limit switches. By default, the lower limit switch is associated
      * with the reverse limit switch and the upper limit switch is associated with the forward limit switch. This
-     * method will swap the association.
+     * method will swap the association. Note: if you need to configure the lower and upper limit switches, you must
+     * configure them after this call.
      *
      * @param swapped specifies true to swap the limit switches, false otherwise.
      */
@@ -360,27 +350,102 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setLimitSwitchesSwapped
 
     /**
+     * This method enables the lower limit switch and configures it to the specified type.
+     *
+     * @param normalClose specifies true as the normal close switch type, false as normal open.
+     */
+    public void enableLowerLimitSwitch(boolean normalClose)
+    {
+        if (lowerLimitSwitch != null)
+        {
+            lowerLimitSwitchEnabled = true;
+            lowerLimitSwitch.setInverted(normalClose);
+        }
+        else if (limitSwitchesSwapped)
+        {
+            enableMotorFwdLimitSwitch(normalClose);
+        }
+        else
+        {
+            enableMotorRevLimitSwitch(normalClose);
+        }
+    }   //enableLowerLimitSwitch
+
+    /**
+     * This method enables the upper limit switch and configures it to the specified type.
+     *
+     * @param normalClose specifies true as the normal close switch type, false as normal open.
+     */
+    public void enableUpperLimitSwitch(boolean normalClose)
+    {
+        if (upperLimitSwitch != null)
+        {
+            upperLimitSwitchEnabled = true;
+            upperLimitSwitch.setInverted(normalClose);
+        }
+        else if (limitSwitchesSwapped)
+        {
+            enableMotorRevLimitSwitch(normalClose);
+        }
+        else
+        {
+            enableMotorFwdLimitSwitch(normalClose);
+        }
+    }   //enableUpperLimitSwitch
+
+    /**
+     * This method disables the lower limit switch.
+     */
+    public void disableLowerLimitSwitch()
+    {
+        if (lowerLimitSwitch != null)
+        {
+            lowerLimitSwitchEnabled = false;
+        }
+        else if (limitSwitchesSwapped)
+        {
+            disableMotorFwdLimitSwitch();
+        }
+        else
+        {
+            disableMotorRevLimitSwitch();
+        }
+    }   //disableLowerLimitSwitch
+
+    /**
+     * This method disables the upper limit switch.
+     */
+    public void disableUpperLimitSwitch()
+    {
+        if (upperLimitSwitch != null)
+        {
+            upperLimitSwitchEnabled = false;
+        }
+        else if (limitSwitchesSwapped)
+        {
+            disableMotorRevLimitSwitch();
+        }
+        else
+        {
+            disableMotorFwdLimitSwitch();
+        }
+    }   //disableUpperLimitSwitch
+
+    /**
      * This method inverts the active state of the lower limit switch, typically reflecting whether the switch is
      * wired normally open or normally close.
      *
-     * @param inverted specifies true to invert the limit switch, false otherwise.
+     * @param inverted specifies true to invert the limit switch to normal close, false to normal open.
      */
     public void setLowerLimitSwitchInverted(boolean inverted)
     {
-        if (limitSwitchesSwapped)
+        if (lowerLimitSwitch != null)
         {
-            if (fwdLimitSwitch != null)
-            {
-                fwdLimitSwitch.setInverted(inverted);
-            }
-            else
-            {
-                setMotorFwdLimitSwitchInverted(inverted);
-            }
+            lowerLimitSwitch.setInverted(inverted);
         }
-        else if (revLimitSwitch != null)
+        else if (limitSwitchesSwapped)
         {
-            revLimitSwitch.setInverted(inverted);
+            setMotorFwdLimitSwitchInverted(inverted);
         }
         else
         {
@@ -392,30 +457,45 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method inverts the active state of the upper limit switch, typically reflecting whether the switch is
      * wired normally open or normally close.
      *
-     * @param inverted specifies true to invert the limit switch, false otherwise.
+     * @param inverted specifies true to invert the limit switch to normal close, false to normal open.
      */
     public void setUpperLimitSwitchInverted(boolean inverted)
     {
-        if (limitSwitchesSwapped)
+        if (upperLimitSwitch != null)
         {
-            if (revLimitSwitch != null)
-            {
-                revLimitSwitch.setInverted(inverted);
-            }
-            else
-            {
-                setMotorRevLimitSwitchInverted(inverted);
-            }
+            upperLimitSwitch.setInverted(inverted);
         }
-        else if (fwdLimitSwitch != null)
+        else if (limitSwitchesSwapped)
         {
-            fwdLimitSwitch.setInverted(inverted);
+            setMotorRevLimitSwitchInverted(inverted);
         }
         else
         {
             setMotorFwdLimitSwitchInverted(inverted);
         }
-    }   //setUpperLimitSwitchInverted
+    }   //setFwdLimitSwitchInverted
+
+    /**
+     * This method checks if the lower limit switch is enabled.
+     *
+     * @return true if enabled, false if disabled.
+     */
+    public boolean isLowerLimitSwitchEnabled()
+    {
+        return lowerLimitSwitch != null? lowerLimitSwitchEnabled:
+               limitSwitchesSwapped? isMotorFwdLimitSwitchEnabled(): isMotorRevLimitSwitchEnabled();
+    }   //isLowerLimitSwitchEnabled
+
+    /**
+     * This method checks if the upper limit switch is enabled.
+     *
+     * @return true if enabled, false if disabled.
+     */
+    public boolean isUpperLimitSwitchEnabled()
+    {
+        return upperLimitSwitch != null? upperLimitSwitchEnabled:
+               limitSwitchesSwapped? isMotorRevLimitSwitchEnabled(): isMotorFwdLimitSwitchEnabled();
+    }   //isUpperLimitSwitchEnabled
 
     /**
      * This method returns the state of the lower limit switch.
@@ -424,14 +504,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public boolean isLowerLimitSwitchActive()
     {
-        if (limitSwitchesSwapped)
-        {
-            return fwdLimitSwitch != null? fwdLimitSwitch.isActive(): isMotorFwdLimitSwitchActive();
-        }
-        else
-        {
-            return revLimitSwitch != null? revLimitSwitch.isActive(): isMotorRevLimitSwitchActive();
-        }
+        return lowerLimitSwitch != null? lowerLimitSwitch.isActive():
+               limitSwitchesSwapped? isMotorFwdLimitSwitchActive(): isMotorRevLimitSwitchActive();
     }   //isLowerLimitSwitchActive
 
     /**
@@ -441,15 +515,39 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public boolean isUpperLimitSwitchActive()
     {
-        if (limitSwitchesSwapped)
-        {
-            return revLimitSwitch != null? revLimitSwitch.isActive(): isMotorRevLimitSwitchActive();
-        }
-        else
-        {
-            return fwdLimitSwitch != null? fwdLimitSwitch.isActive(): isMotorFwdLimitSwitchActive();
-        }
+        return upperLimitSwitch != null? upperLimitSwitch.isActive():
+               limitSwitchesSwapped? isMotorRevLimitSwitchActive(): isMotorFwdLimitSwitchActive();
     }   //isUpperLimitSwitchActive
+
+    /**
+     * This method sets the lower and upper soft position limits.
+     *
+     * @param lowerLimit specifies the position of the lower limit, null to disable lower limit.
+     * @param upperLimit specifies the position of the upper limit, null to disable upper limit.
+     * @param swapped specifies true to swap the direction (lowerLimit is forward and upperLimit is reverse), false
+     *        otherwise. This is only applicable for motor controller soft limits.
+     */
+    public void setSoftPositionLimits(Double lowerLimit, Double upperLimit, boolean swapped)
+    {
+        try
+        {
+            if (swapped)
+            {
+                setMotorRevSoftPositionLimit(upperLimit);
+                setMotorFwdSoftPositionLimit(lowerLimit);
+            }
+            else
+            {
+                setMotorRevSoftPositionLimit(lowerLimit);
+                setMotorFwdSoftPositionLimit(upperLimit);
+            }
+        }
+        catch (UnsupportedOperationException e)
+        {
+            softLowerLimit = lowerLimit;
+            softUpperLimit = upperLimit;
+        }
+    }   //setSoftPositionLimits
 
     /**
      * This method inverts the position sensor direction. This may be rare but there are scenarios where the motor
@@ -923,7 +1021,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             taskParams.holdTarget = holdTarget;
             taskParams.powerLimit = powerLimit;
             taskParams.timeout = timeout != 0.0? timeout + TrcTimer.getCurrentTime(): 0.0;
-            taskParams.prevPosTarget = null;
         }
     }   //setTaskParams
 
@@ -969,18 +1066,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             // Stop previous operation if there is one.
             stop();
             // Perform voltage compensation only on power control.
+            // If motor controller supports voltage compensation, voltageCompensation will not change the value and
+            // therefore a no-op.
             if (controlMode == ControlMode.Power)
             {
                 value = voltageCompensation(value);
             }
-            // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
-            // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
-            if ((revLimitSwitch != null || fwdLimitSwitch != null) &&
-                value < 0.0 && isLowerLimitSwitchActive() || value > 0.0 && isUpperLimitSwitchActive())
+            // Perform hardware limit switch check.
+            // If motor controller supports hardware limit switches, both lowerLimitSwitch and upperLimitSwitch should
+            // be null and therefore a no-op.
+            if (value < 0.0 && lowerLimitSwitch != null && lowerLimitSwitchEnabled && lowerLimitSwitch.isActive() ||
+                value > 0.0 && upperLimitSwitch != null && upperLimitSwitchEnabled && upperLimitSwitch.isActive())
             {
                 value = 0.0;
             }
             // Perform soft limit check.
+            // If motor controller supports soft limits, softLowerLimit and softUpperLimit will be null and therefore
+            // a no-op.
             double currPos = getPosition();
             if (value < 0.0 && softLowerLimit != null && currPos <= softLowerLimit ||
                 value > 0.0 && softUpperLimit != null && currPos >= softUpperLimit)
@@ -1222,22 +1324,25 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (validateOwnership(owner))
         {
+            boolean stopIt = false;
+            double currPos = getPosition();
             // Stop previous operation if there is one.
             stop();
             // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
             // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
-            boolean stopIt = false;
-            double currPos = getPosition();
-            if (revLimitSwitch != null || fwdLimitSwitch != null)
+            if (lowerLimitSwitch != null && lowerLimitSwitchEnabled ||
+                upperLimitSwitch != null && upperLimitSwitchEnabled)
             {
                 boolean forward = position > currPos;
 
-                if (!forward && isLowerLimitSwitchActive() || forward && isUpperLimitSwitchActive())
+                if (!forward && lowerLimitSwitch.isActive() || forward && upperLimitSwitch.isActive())
                 {
                     stopIt = true;
                 }
             }
-            // Perform soft limits check if they are set.
+            // Perform soft limit check.
+            // If motor controller supports soft limits, softLowerLimit and softUpperLimit will be null and therefore
+            // a no-op.
             if (!stopIt && (softLowerLimit != null || softUpperLimit != null))
             {
                 if (softLowerLimit != null && position <= softLowerLimit ||
@@ -1405,9 +1510,15 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
             synchronized (taskParams)
             {
-                if (currTarget != taskParams.prevPosTarget)
+                // Target position changes when:
+                // - Starting: Change target position according to power sign.
+                // - Stopping: Change target position to undertermined and hold current positionn if necessary.
+                // - Changing direction.
+                if (taskParams.prevPosTarget == null ||     // Starting.
+                    currTarget == null ||                   // Stopping.
+                    currTarget != taskParams.prevPosTarget) // Changing direction.
                 {
-                    if (power == 0.0)
+                    if (currTarget == null)
                     {
                         // We are stopping, Relax the power range to max range so we have full power to hold target if
                         // necessary.
@@ -1418,12 +1529,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         }
                         else
                         {
-                            stop();
+                            setControllerMotorPower(0.0, true);
                         }
                     }
                     else
                     {
-                        // We changed direction, change the target.
+                        // We are starting or changing direction.
                         setPosition(0.0, currTarget, holdTarget, power, null, 0.0);
                     }
                     taskParams.prevPosTarget = currTarget;
