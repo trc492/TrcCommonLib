@@ -1505,7 +1505,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             // or stopping).
             double currPos = getPosition();
             // currTarget is undetermined if the motor is stop.
-            Double currTarget = power < 0.0? minPos: power > 0.0? maxPos: null;
+            Double currTarget = power < 0.0? (Double)minPos: power > 0.0? (Double)maxPos: null;
             power = Math.abs(power);
 
             synchronized (taskParams)
