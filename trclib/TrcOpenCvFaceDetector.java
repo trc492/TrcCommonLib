@@ -70,6 +70,18 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
             return object.area();
         }   //getArea
 
+        /**
+         * This method returns the pose of the detected object relative to the camera.
+         *
+         * @return pose of the detected object relative to camera.
+         */
+        @Override
+        public TrcPose3D getPose()
+        {
+            // Face detection does not provide detected object pose, let caller use homography to calculate it.
+            return null;
+        }   //getPose
+
     }   //class DetectedObject
 
     private final CascadeClassifier faceDetector;

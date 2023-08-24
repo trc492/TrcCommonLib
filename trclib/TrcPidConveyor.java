@@ -32,16 +32,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * callers' access to the subsystem. While one caller starts the conveyor for an operation, nobody can access it until
  * the previous caller is done with the operation.
  */
-public class TrcPidConveyor extends TrcPidMotor
+public class TrcPidConveyor implements TrcExclusiveSubsystem
 {
     /**
      * This class contains all the parameters related to the conveyor.
      */
     public static class Parameters
     {
-        public TrcPidController.PidParameters pidParams;
-        public boolean useMotorCloseLoopControl;
-        public double scale = 1.0;
         public double objectDistance = 0.0;
         public double movePower = 1.0;
         public int maxCapacity = 1;
@@ -55,55 +52,8 @@ public class TrcPidConveyor extends TrcPidMotor
         public String toString()
         {
             return String .format(
-                Locale.US, "pidParams=%s, useMotorPid=%s, scale=%.3f, objDist=%.1f, movePower=%.1f, maxCap=%d",
-                pidParams, useMotorCloseLoopControl, scale, objectDistance, movePower, maxCapacity);
+                Locale.US, "objDist=%.1f, movePower=%.1f, maxCap=%d", objectDistance, movePower, maxCapacity);
         }   //toString
-
-        /**
-         * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
-         *
-         * @param pidParams specifies the PID parameters.
-         * @param useMotorCloseLoopControl specifies true to use motor close loop control, false to use software PID.
-         * @return this parameter object.
-         */
-        public Parameters setPidParams(TrcPidController.PidParameters pidParams, boolean useMotorCloseLoopControl)
-        {
-            this.pidParams = pidParams;
-            this.useMotorCloseLoopControl = useMotorCloseLoopControl;
-            return this;
-        }   //setPidParams
-
-        /**
-         * This method sets the PID parameters of the PID controller used for PID controlling the motor actuator.
-         *
-         * @param kP specifies the Proportional constant.
-         * @param kI specifies the Integral constant.
-         * @param kD specifies the Differential constant.
-         * @param tolerance specifies the tolerance.
-         * @param useMotorCloseLoopControl specifies true to use motor close loop control, false to use software PID.
-         * @return this parameter object.
-         */
-        public Parameters setPidParams(
-            double kP, double kI, double kD, double tolerance, boolean useMotorCloseLoopControl)
-        {
-            // TrcPidMotor is providing the PidInput method.
-            this.pidParams = new TrcPidController.PidParameters(kP, kI, kD, tolerance, null);
-            this.useMotorCloseLoopControl = useMotorCloseLoopControl;
-            return this;
-        }   //setPidParams
-
-        /**
-         * This method sets the scale of the conveyor distance sensor. It allows the conveyor to report real world
-         * position units such as inches instead of sensor units.
-         *
-         * @param scale specifies the scale multiplier to convert position sensor unit to real world unit.
-         * @return this parameter object.
-         */
-        public Parameters setScale(double scale)
-        {
-            this.scale = scale;
-            return this;
-        }   //setScale
 
         /**
          * This method sets the distance between objects inside the converyor.
@@ -143,6 +93,7 @@ public class TrcPidConveyor extends TrcPidMotor
 
     }   //class Parameters
 
+    public final TrcMotor motor;
     private final TrcDigitalInput entranceSensor;
     private final TrcDigitalInput exitSensor;
     private final Parameters params;
@@ -165,12 +116,10 @@ public class TrcPidConveyor extends TrcPidMotor
         String instanceName, TrcMotor motor, TrcDigitalInput entranceSensor, TrcDigitalInput exitSensor,
         Parameters params)
     {
-        super(instanceName, motor, params.useMotorCloseLoopControl, params.pidParams, null, 0.0);
+        this.motor = motor;
         this.entranceSensor = entranceSensor;
         this.exitSensor = exitSensor;
         this.params = params;
-
-        setPositionScale(params.scale);
 
         if (entranceSensor != null)
         {
@@ -276,7 +225,7 @@ public class TrcPidConveyor extends TrcPidMotor
             {
                 event.clear();
             }
-            setPosition(units*params.objectDistance, false, 1.0, event);
+            motor.setPosition(0.0, units*params.objectDistance, false, 1.0, event);
         }
     }   //move
 
@@ -329,11 +278,11 @@ public class TrcPidConveyor extends TrcPidMotor
         if (active)
         {
             numObjects++;
-            setPower(params.movePower);
+            motor.setPower(params.movePower);
         }
         else
         {
-            setPower(0.0);
+            motor.setPower(0.0);
         }
 
         if (entranceEvent != null)
@@ -357,7 +306,7 @@ public class TrcPidConveyor extends TrcPidMotor
         }
         else
         {
-            setPower(0.0);
+            motor.setPower(0.0);
         }
 
         if (exitEvent != null)

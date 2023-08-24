@@ -53,49 +53,52 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
          */
         double getArea();
 
+        /**
+         * This method returns the pose of the detected object relative to the camera.
+         *
+         * @return pose of the detected object relative to camera.
+         */
+        TrcPose3D getPose();
+
     }   //interface ObjectInfo
 
     public O detectedObj;
-    public int imageWidth;
-    public int imageHeight;
     public Rect rect;
     public double area;
-    public Point distanceFromImageCenter;
-    public Point distanceFromCamera;
-    public double targetWidth;
-    public double horizontalAngle;
+    public TrcPose3D pose;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param detectedObj specifies the detected object.
-     * @param imageWidth specifies the width of the camera image.
-     * @param imageHeight specifies the height of the camera image.
      * @param homographyMapper specifies the homography mapper, can be null if not provided in which case
      *        distanceFromCamera, targetWidth and horizontalAngle will not be determined.
-     * @param objHeightOffset specifies the object height offset above the floor.
-     * @param cameraHeight specifies the height of the camera above the floor.
+     * @param objHeightOffset specifies the object height offset above the floor, used by homography. Can be zero if
+     *        homographyMapper is null.
+     * @param cameraHeight specifies the height of the camera above the floor, used by homography. Can be zero if
+     *        homographyMapper is null.
      */
     public TrcVisionTargetInfo(
-        O detectedObj, int imageWidth, int imageHeight, TrcHomographyMapper homographyMapper,
-        double objHeightOffset, double cameraHeight)
+        O detectedObj, TrcHomographyMapper homographyMapper, double objHeightOffset, double cameraHeight)
     {
         this.detectedObj = detectedObj;
-        this.imageWidth = imageWidth;
-        this.imageHeight = imageHeight;
         this.rect = detectedObj.getRect();
         this.area = detectedObj.getArea();
-        distanceFromImageCenter = new Point(
-            rect.x + rect.width/2.0 - imageWidth/2.0, rect.y + rect.height/2.0 - imageHeight/2.0);
 
-        if (homographyMapper != null)
+        if (homographyMapper == null)
         {
+            // Caller did not provide homography mapper, it means the caller is doing pose calculation itself.
+            this.pose = detectedObj.getPose();
+        }
+        else
+        {
+            // Call provided homography mapper, we will use it to calculate the detected object pose.
             Point bottomLeft = homographyMapper.mapPoint(new Point(rect.x, rect.y + rect.height));
             Point bottomRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y + rect.height));
-            distanceFromCamera = new Point((bottomLeft.x + bottomRight.x)/2.0, (bottomLeft.y + bottomRight.y)/2.0);
-            targetWidth = bottomRight.x - bottomLeft.x;
-            double horiAngleRadian = Math.atan2(distanceFromCamera.x, distanceFromCamera.y);
-            horizontalAngle = Math.toDegrees(horiAngleRadian);
+            double xDistanceFromCamera = (bottomLeft.x + bottomRight.x)/2.0;
+            double yDistanceFromCamera = (bottomLeft.y + bottomRight.y)/2.0;
+            double horiAngleRadian = Math.atan2(xDistanceFromCamera, yDistanceFromCamera);
+            double horizontalAngle = Math.toDegrees(horiAngleRadian);
             if (objHeightOffset > 0.0)
             {
                 // If object is elevated off the ground, the object distance would be further than it actually is.
@@ -106,11 +109,23 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
                 //  cameraHeight / homographyDistance = objHeightOffset / adjustment
                 //  adjustment = objHeightOffset * homographyDistance / cameraHeight
                 double adjustment =
-                    objHeightOffset * TrcUtil.magnitude(distanceFromCamera.x, distanceFromCamera.y) / cameraHeight;
-                distanceFromCamera.x -= adjustment * Math.sin(horiAngleRadian);
-                distanceFromCamera.y -= adjustment * Math.cos(horiAngleRadian);
+                    objHeightOffset * TrcUtil.magnitude(xDistanceFromCamera, yDistanceFromCamera) / cameraHeight;
+                xDistanceFromCamera -= adjustment * Math.sin(horiAngleRadian);
+                yDistanceFromCamera -= adjustment * Math.cos(horiAngleRadian);
             }
+            // Don't have enough info to determine pitch and roll.
+            pose = new TrcPose3D(xDistanceFromCamera, yDistanceFromCamera, objHeightOffset, horizontalAngle, 0.0, 0.0);
         }
+    }   //TrcVisionTargetInfo
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param detectedObj specifies the detected object.
+     */
+    public TrcVisionTargetInfo(O detectedObj)
+    {
+        this(detectedObj, null, 0.0, 0.0);
     }   //TrcVisionTargetInfo
 
     /**
@@ -121,25 +136,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     @Override
     public String toString()
     {
-        String s;
-
-        if (distanceFromCamera != null)
-        {
-            s = String.format(
-                Locale.US,
-                "Obj=%s image(w=%d,h=%d) distImageCenter=%s distCamera=%s targetWidth=%.1f horiAngle=%.1f",
-                detectedObj, imageWidth, imageHeight, distanceFromImageCenter, distanceFromCamera, targetWidth,
-                horizontalAngle);
-        }
-        else
-        {
-            s = String.format(
-                Locale.US,
-                "Obj=%s image(w=%d,h=%d) distImageCenter=%s",
-                detectedObj, imageWidth, imageHeight, distanceFromImageCenter);
-        }
-
-        return s;
+        return String.format(Locale.US, "Obj=%s rect=%s area=%.3f pose=%s", detectedObj, rect, area, pose);
     }   //toString
 
 }   //class TrcVisionTargetInfo

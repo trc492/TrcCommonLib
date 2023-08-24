@@ -66,6 +66,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         @Override
         public Rect getRect()
         {
+            // Get detected object bounding box.
             return Imgproc.boundingRect(object);
         }   //getRect
 
@@ -77,8 +78,21 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         @Override
         public double getArea()
         {
+            // OpenCv returns the actual area of the object, not just the bounding box.
             return Imgproc.contourArea(object);
         }   //getArea
+
+        /**
+         * This method returns the pose of the detected object relative to the camera.
+         *
+         * @return pose of the detected object relative to camera.
+         */
+        @Override
+        public TrcPose3D getPose()
+        {
+            // ColorBlob detection does not provide detected object pose, let caller use homography to calculate it.
+            return null;
+        }   //getPose
 
     }   //class DetectedObject
 

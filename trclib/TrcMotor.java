@@ -303,7 +303,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //followMotor
 
     //
-    // TrcMotor only methods. Do not override unless you know what you are doing.
+    // TrcMotor only methods. Subclass should not override these methods unless you know what you are doing.
     //
 
     /**
@@ -2173,7 +2173,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         final String funcName = "pidCtrlTask";
         TrcEvent completionEvent = null;
-        // boolean endTask = false;
 
         synchronized (taskParams)
         {
@@ -2186,7 +2185,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     taskParams.calibrating = false;
                     completionEvent = taskParams.notifyEvent;
                     taskParams.notifyEvent = null;
-                    // endTask = true;
                 }
             }
             else
@@ -2264,10 +2262,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                     funcName, "%s.%s: onTarget=%s, event=%s",
                                     moduleName, instanceName, onTarget, completionEvent);
                             }
-                            // End task if we are just monitoring or have reached target and we are not holding target.
-                            // endTask = taskParams.pidCtrl == null || !taskParams.holdTarget;
                         }
-
                     }
                 }
             }
@@ -2277,11 +2272,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             completionEvent.signal();
         }
-
-        // if (endTask)
-        // {
-        //     pidCtrlTaskObj.unregisterTask();
-        // }
     }   //pidCtrlTask
 
     //

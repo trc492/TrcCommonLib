@@ -209,8 +209,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
                 if (filter == null || filter.validateTarget(obj))
                 {
                     TrcVisionTargetInfo<DetectedObject<?>> targetInfo =
-                        new TrcVisionTargetInfo<>(
-                            obj, imageWidth, imageHeight, homographyMapper, objHeightOffset, cameraHeight);
+                        new TrcVisionTargetInfo<>(obj, homographyMapper, objHeightOffset, cameraHeight);
                     targetList.add(targetInfo);
                 }
             }
