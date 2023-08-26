@@ -703,7 +703,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setMotorControlMode
 
     /**
-     * This method sets the motor power and will do the same to the followers.
+     * This method sets the motor power and will do the same to the followers. This method should be used instead of
+     * setMotorPower because this will set the correct control mode and will do the optimization of not sending same
+     * value to the motor repeatedly and also will take care of the followers.
      *
      * @param power specifies the percentage power (range -1.0 to 1.0) to be set.
      * @param changeControlMode specifies true to change control mode, false otherwise.
@@ -714,6 +716,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         // last time.
         if (controllerPower == null || power != controllerPower)
         {
+            // In most cases, changeControlMode should be true. In rare cases where we want to set motor power while
+            // running a close loop control mode, then we don't want to disturb the close loop control mode. This is
+            // typically used to stop the motor (set motor power to zero) before enabling a close loop control mode.
             if (changeControlMode)
             {
                 setMotorControlMode(ControlMode.Power, false);
@@ -727,6 +732,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordStartTime();
             setMotorPower(power);
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordEndTime();
+
             synchronized (followingMotorsList)
             {
                 for (TrcMotor follower : followingMotorsList)
@@ -740,7 +746,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setControllerMotorPower
 
     /**
-     * This method sets the motor velocity and will do the same to the followers.
+     * This method sets the motor velocity and will do the same to the followers. This method should be used instead
+     * of setMotorVelocity because this will set the correct control mode and do the optimization of not sending same
+     * value to the motor repeatedly and also will take care of the followers.
      *
      * @param velocity specifies the velocity in sensor units/sec.
      */
@@ -761,7 +769,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setControllerMotorVelocity
 
     /**
-     * This method sets the motor position and will do the same to the followers.
+     * This method sets the motor position and will do the same to the followers. This method should be used instead
+     * of setMotorPosition because this will set the correct control mode and will take care of the followers.
      *
      * @param position specifies the position in sensor units.
      * @param powerLimit specifies the maximum power output limits.
@@ -778,7 +787,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setControllerMotorPosition
 
     /**
-     * This method sets the motor current and will do the same to the followers.
+     * This method sets the motor current and will do the same to the followers. This method should be used instead
+     * of setMotorCurrent because this will set the correct control mode and do the optimization of not sending same
+     * value to the motor repeatedly and also will take care of the followers.
      *
      * @param current specifies the current in amperes.
      */
@@ -1094,7 +1105,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
             if (delay > 0.0)
             {
-                // The motor may be spinning, let's stop it.
+                // The motor may be spinning, let's stop it but don't change the control mode we already set in
+                // setTaskParams above.
                 setControllerMotorPower(0.0, false);
                 timer.set(delay, this::delayValueExpiredCallback, taskParams);
             }
@@ -1358,7 +1370,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                 if (delay > 0.0)
                 {
-                    // The motor may be spinning, let's stop it.
+                    // The motor may be spinning, let's stop it but don't change the control mode we already set in
+                    // setTaskParams above.
                     setControllerMotorPower(0.0, false);
                     timer.set(delay, this::delayPositionExpiredCallback, taskParams);
                 }
@@ -1670,6 +1683,37 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setVelocityPidCoefficients
 
     /**
+     * This method sets the PID coefficients of the motor's velocity PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     * @param iZone specifies IZone, can be 0.0 if not provided.
+     */
+    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    {
+        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+    }   //setVelocityPidCoefficients
+
+    /**
+     * This method sets the PID coefficients of the motor's velocity PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     */
+    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF)
+    {
+        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
+    }   //setVelocityPidCoefficients
+
+    /**
      * This method sets the PID tolerance of the motor's velocity PID controller.
      *
      * @param tolerance specifies the PID tolerance.
@@ -1795,6 +1839,37 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPositionPidCoefficients
 
     /**
+     * This method sets the PID coefficients of the motor's position PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     * @param iZone specifies IZone, can be 0.0 if not provided.
+     */
+    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    {
+        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+    }   //setPositionPidCoefficients
+
+    /**
+     * This method sets the PID coefficients of the motor's position PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     */
+    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF)
+    {
+        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
+    }   //setPositionPidCoefficients
+
+    /**
      * This method sets the PID tolerance of the motor's position PID controller.
      *
      * @param tolerance specifies the PID tolerance.
@@ -1917,6 +1992,37 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             setMotorCurrentPidCoefficients(pidCoeff);
         }
+    }   //setCurrentPidCoefficients
+
+    /**
+     * This method sets the PID coefficients of the motor's current PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     * @param iZone specifies IZone, can be 0.0 if not provided.
+     */
+    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    {
+        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+    }   //setCurrentPidCoefficients
+
+    /**
+     * This method sets the PID coefficients of the motor's current PID controller. Note that PID coefficients are
+     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
+     * the appropriate PID coefficients accordingly.
+     *
+     * @param kP specifies the Kp coefficient.
+     * @param kI specifies the Ki coefficient.
+     * @param kD specifies the Kd coefficient.
+     * @param kF specifies the Kf coefficient.
+     */
+    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF)
+    {
+        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
     }   //setCurrentPidCoefficients
 
     /**
@@ -2196,7 +2302,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 {
                     if (taskParams.controlMode != ControlMode.Power)
                     {
-                        // Doing software PID control or monitoring controller PID control.
+                        // Doing software close loop PID control or monitoring controller PID control.
                         boolean onTarget =
                             taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
                             taskParams.controlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
@@ -2235,18 +2341,57 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         }
                         else
                         {
-                            // Doing motor controller PID control.
-                            // We are monitoring for completion and sync the followers if motor controller does not support
-                            // motor following.
+                            // Doing motor controller close loop PID control.
+                            // We are monitoring for completion and sync the followers if motor controller does not
+                            // support motor following.
                             synchronized (followingMotorsList)
                             {
                                 if (!followingMotorsList.isEmpty())
                                 {
+                                    // Get the power of the master motor.
                                     double power = getMotorPower();
 
                                     for (TrcMotor follower : followingMotorsList)
                                     {
-                                        follower.setMotorPower(power);
+                                        switch (taskParams.controlMode)
+                                        {
+                                            case Velocity:
+                                                // Since this is running in a task loop and if the velocity did not
+                                                // change, we will be setting the same velocity over and over again.
+                                                // So, instead of calling setMotorVelocity, we call
+                                                // setControllerMotorVelocity which has optimization to not sending
+                                                // same velocity if it hasn't change.
+                                                follower.setControllerMotorVelocity(taskParams.motorValue);
+                                                break;
+
+                                            case Position:
+                                                // What does it mean to have position followers?
+                                                // If we are performing position control on followers, the followers
+                                                // must have their own position sensors and they must be synchronized.
+                                                // Even so, it's not guaranteed the movement of the followers are
+                                                // synchronized. Some may move faster than the others. It doesn't make
+                                                // much sense. It only makes sense if the motors are driving the same
+                                                // mechanism and are mechanically linked so you don't need to
+                                                // synchronize them. The motors are just sharing the load. In this
+                                                // case, all the followers should just mimic the power output of the
+                                                // master.
+                                                follower.setControllerMotorPower(power, true);
+                                                break;
+
+                                            case Current:
+                                                // Since this is running in a task loop and if the current did not
+                                                // change, we will be setting the same current over and over again.
+                                                // So, instead of calling setMotorCurrent, we call
+                                                // setControllerMotorCurrent which has optimization to not sending
+                                                // same current if it hasn't change.
+                                                follower.setControllerMotorCurrent(taskParams.motorValue);
+                                                break;
+
+                                            default:
+                                                // If we come here, it's power control mode which we excluded from
+                                                // the above code. So we should never come here.
+                                                throw new IllegalStateException("Should never come here.");
+                                        }
                                     }
                                 }
                             }
