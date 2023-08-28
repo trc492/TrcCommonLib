@@ -93,15 +93,12 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
      * @param instanceName specifies the instance name.
      * @param classifierPath specifies the file path for the classifier.
      * @param numImageBuffers specifies the number of image buffers to allocate.
-     * @param imageWidth specifies the width of the camera image.
-     * @param imageHeight specifies the height of the camera image.
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvFaceDetector(
-        String instanceName, String classifierPath, int numImageBuffers, int imageWidth, int imageHeight,
-        TrcDbgTrace tracer)
+        String instanceName, String classifierPath, int numImageBuffers, TrcDbgTrace tracer)
     {
-        super(instanceName, numImageBuffers, imageWidth, imageHeight, null, null, tracer);
+        super(instanceName, numImageBuffers, null, null, tracer);
         faceDetector = new CascadeClassifier(classifierPath);
         if (faceDetector.empty())
         {

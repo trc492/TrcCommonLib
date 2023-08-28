@@ -74,7 +74,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
     }   //interface FilterTarget
 
     private final String instanceName;
-    private final int imageWidth, imageHeight;
     private final TrcDbgTrace tracer;
     private final TrcHomographyMapper homographyMapper;
     private final TrcVisionTask<Mat, DetectedObject<?>> visionTask;
@@ -85,20 +84,15 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      *
      * @param instanceName specifies the instance name.
      * @param numImageBuffers specifies the number of image buffers to allocate.
-     * @param imageWidth specifies the width of the camera image.
-     * @param imageHeight specifies the height of the camera image.
      * @param cameraRect specifies the camera rectangle for Homography Mapper, can be null if not provided.
      * @param worldRect specifies the world rectangle for Homography Mapper, can be null if not provided.
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvDetector(
-        String instanceName, int numImageBuffers, int imageWidth, int imageHeight,
-        TrcHomographyMapper.Rectangle cameraRect, TrcHomographyMapper.Rectangle worldRect,
-        TrcDbgTrace tracer)
+        String instanceName, int numImageBuffers, TrcHomographyMapper.Rectangle cameraRect,
+        TrcHomographyMapper.Rectangle worldRect, TrcDbgTrace tracer)
     {
         this.instanceName = instanceName;
-        this.imageWidth = imageWidth;
-        this.imageHeight = imageHeight;
         this.tracer = tracer;
 
         if (cameraRect != null && worldRect != null)
