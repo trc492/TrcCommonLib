@@ -63,7 +63,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private static class TaskParams
     {
-        ControlMode controlMode;
+        ControlMode currControlMode;
+        ControlMode setToControlMode;
         // If pidCtrl is not null, the operation is a software PID control using this PID controller.
         TrcPidController pidCtrl;
         // motorValue can be power, velocity, position or current depending on controlMode.
@@ -687,14 +688,14 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         synchronized (taskParams)
         {
-            if (controlMode != taskParams.controlMode)
+            if (controlMode != taskParams.currControlMode)
             {
                 // We are changing control mode, clear all previous remembered values.
                 controllerPower = null;
                 controllerVelocity = null;
                 controllerCurrent = null;
             }
-            taskParams.controlMode = controlMode;
+            taskParams.currControlMode = controlMode;
             taskParams.pidCtrl = !useSoftwarePid? null:
                                  controlMode == ControlMode.Velocity? velPidCtrl:
                                  controlMode == ControlMode.Position? posPidCtrl:
@@ -911,7 +912,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         synchronized (params)
         {
-            switch (params.controlMode)
+            switch (params.setToControlMode)
             {
                 case Power:
                     setControllerMotorPower(params.motorValue, true);
@@ -1024,7 +1025,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         synchronized (taskParams)
         {
-            taskParams.controlMode = controlMode;
+            taskParams.setToControlMode = controlMode;
             taskParams.pidCtrl = null;
             taskParams.motorValue = motorValue;
             taskParams.duration = duration;
@@ -2300,19 +2301,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 taskParams.stalled = isMotorStalled(currPower);
                 if (!resetStall(currPower))
                 {
-                    if (taskParams.controlMode != ControlMode.Power)
+                    if (taskParams.currControlMode != ControlMode.Power)
                     {
                         // Doing software close loop PID control or monitoring controller PID control.
                         boolean onTarget =
                             taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
-                            taskParams.controlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
-                            taskParams.controlMode == ControlMode.Position? getMotorPositionOnTarget():
-                            taskParams.controlMode == ControlMode.Current? getMotorCurrentOnTarget(): false;
+                                taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
+                                    taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
+                                        taskParams.currControlMode == ControlMode.Current? getMotorCurrentOnTarget(): false;
                         boolean expired =   // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
-                            taskParams.pidCtrl != null && taskParams.controlMode == ControlMode.Position &&
+                            taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
                             !taskParams.holdTarget && (onTarget || expired);
 
                         if (doStop)
@@ -2353,7 +2354,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                                     for (TrcMotor follower : followingMotorsList)
                                     {
-                                        switch (taskParams.controlMode)
+                                        switch (taskParams.currControlMode)
                                         {
                                             case Velocity:
                                                 // Since this is running in a task loop and if the velocity did not
