@@ -110,7 +110,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
     private final TaskParams taskParams = new TaskParams();
 
-    protected final String instanceName;
+    private final String instanceName;
     private final TrcDigitalInput lowerLimitSwitch; // for software simulation
     private final TrcDigitalInput upperLimitSwitch; // for software simulation
     private final TrcEncoder encoder;               // for software simulation
@@ -1675,6 +1675,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 velPidCtrl = new TrcPidController(
                     instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getVelocity);
+                // Set to absolute setpoint as the default because velocity PID control is generally absolute.
+                velPidCtrl.setAbsoluteSetPoint(true);
             }
         }
         else
@@ -1813,6 +1815,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getVelocityOnTarget
 
     /**
+     * This method returns the software velocity PID controller if one was created by enabling software PID control.
+     * It does not mean software PID control is current enable. It just means software PID control was enabled at
+     * one point. This allows you to configure the software PID controller. For example, whether the target is absolute
+     * or relative, specifying noOscillation etc.
+     *
+     * @return software velocity PID controller.
+     */
+    public TrcPidController getVelocityPidController()
+    {
+        return velPidCtrl;
+    }   //getVelocityPidController
+
+    /**
      * This method sets the PID coefficients of the motor's position PID controller. Note that PID coefficients are
      * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
      * the appropriate PID coefficients accordingly.
@@ -1831,6 +1846,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 posPidCtrl = new TrcPidController(
                     instanceName + ".posPidCtrl", pidCoeff, 1.0, this::getPosition);
+                // Set to absolute setpoint as the default because position PID control is generally absolute.
+                posPidCtrl.setAbsoluteSetPoint(true);
             }
         }
         else
@@ -1969,6 +1986,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getPositionOnTarget
 
     /**
+     * This method returns the software position PID controller if one was created by enabling software PID control.
+     * It does not mean software PID control is current enable. It just means software PID control was enabled at
+     * one point. This allows you to configure the software PID controller. For example, whether the target is absolute
+     * or relative, specifying noOscillation etc.
+     *
+     * @return software position PID controller.
+     */
+    public TrcPidController getPositionPidController()
+    {
+        return posPidCtrl;
+    }   //getPositionPidController
+
+    /**
      * This method sets the PID coefficients of the motor's current PID controller. Note that PID coefficients are
      * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
      * the appropriate PID coefficients accordingly.
@@ -1987,6 +2017,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 currentPidCtrl = new TrcPidController(
                     instanceName + ".currentPidCtrl", pidCoeff, 1.0, this::getCurrent);
+                // Set to absolute setpoint as the default because current PID control is generally absolute.
+                currentPidCtrl.setAbsoluteSetPoint(true);
             }
         }
         else
@@ -2123,6 +2155,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         return onTarget;
     }   //getCurrentOnTarget
+
+    /**
+     * This method returns the software current PID controller if one was created by enabling software PID control.
+     * It does not mean software PID control is current enable. It just means software PID control was enabled at
+     * one point. This allows you to configure the software PID controller. For example, whether the target is absolute
+     * or relative, specifying noOscillation etc.
+     *
+     * @return software current PID controller.
+     */
+    public TrcPidController getCurrentPidController()
+    {
+        return currentPidCtrl;
+    }   //getCurrentPidController
 
     //
     // Stall detection.
