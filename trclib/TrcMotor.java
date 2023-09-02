@@ -868,6 +868,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setSoftwarePidCurrent
 
     /**
+     * This method cancels a previous operation by resetting the state set by the previous operation.
+     */
+    private void cancel()
+    {
+        timer.cancel();
+        synchronized (taskParams)
+        {
+            taskParams.calibrating = false;
+            if (taskParams.notifyEvent != null)
+            {
+                taskParams.notifyEvent.cancel();
+                taskParams.notifyEvent = null;
+            }
+        }
+    }   //cancel
+
+    /**
      * This method stops the motor regardless of the control mode and resets it to power control mode.
      *
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
@@ -877,17 +894,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         if (validateOwnership(owner))
         {
-            timer.cancel();
-            synchronized (taskParams)
-            {
-                taskParams.calibrating = false;
-                if (taskParams.notifyEvent != null)
-                {
-                    taskParams.notifyEvent.cancel();
-                    taskParams.notifyEvent = null;
-                }
-                setControllerMotorPower(0.0, true);
-            }
+            cancel();
+            // In addition to canceling the previous operation states, stop the physical motor.
+            setControllerMotorPower(0.0, true);
         }
     }   //stop
 
@@ -1075,8 +1084,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (validateOwnership(owner))
         {
-            // Stop previous operation if there is one.
-            stop();
+            // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
+            cancel();
             // Perform voltage compensation only on power control.
             // If motor controller supports voltage compensation, voltageCompensation will not change the value and
             // therefore a no-op.
@@ -1339,8 +1348,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             boolean stopIt = false;
             double currPos = getPosition();
-            // Stop previous operation if there is one.
-            stop();
+            // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
+            cancel();
             // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
             // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
             if (lowerLimitSwitch != null && lowerLimitSwitchEnabled ||

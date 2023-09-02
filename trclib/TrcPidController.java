@@ -746,9 +746,9 @@ public class TrcPidController
     /**
      * This method sets the ramp rate of the PID controller output. It is sometimes useful to limit the acceleration
      * of the output of the PID controller. For example, the strafing PID controller on a mecanum drive base may
-     * benefit from a lower acceleration to minimize wheel slipperage.
+     * benefit from a lower acceleration to minimize wheel slippage.
      *
-     * @param rampRate specifies the ramp rate in percent power per second.
+     * @param rampRate specifies the ramp rate in percent power per second, null to disable.
      */
     public void setRampRate(Double rampRate)
     {
