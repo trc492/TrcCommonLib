@@ -237,6 +237,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private final TrcTaskMgr.TaskObject odometryTaskObj;
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
+    private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -354,12 +355,45 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //driveTimerHandler
 
     /**
+     * This method sets the drive orientation mode.
+     *
+     * @param orientation specifies the drive orientation (FIELD, ROBOT, INVERTED).
+     * @param resetHeading specifies true to reset robot heading, false otherwise (only applicable for FIELD mode).
+     */
+    public void setDriveOrientation(DriveOrientation orientation, boolean resetHeading)
+    {
+        // Don't allow setting FIELD mode if drive base doesn't support holonomic drive.
+        if (orientation != DriveOrientation.FIELD || supportsHolonomicDrive())
+        {
+            driveOrientation = orientation;
+            // If switching to FIELD oriented driving, reset robot heading so that the current robot heading is "north".
+            if (resetHeading && driveOrientation == DriveOrientation.FIELD)
+            {
+                TrcPose2D robotPose = getFieldPosition();
+                robotPose.angle = 0.0;
+                setFieldPosition(robotPose);
+            }
+        }
+        else
+        {
+            throw new UnsupportedOperationException("Drive base does not support holonomic drive.");
+        }
+    }   //setDriveOrientation
+
+    /**
+     * This method returns the current drive orientation mode.
+     */
+    public DriveOrientation getDriveOrientation()
+    {
+        return driveOrientation;
+    }   //getDriveOrientation
+
+    /**
      * This method returns robot heading to be maintained in teleop drive according to drive orientation mode.
      *
-     * @param driveOrientation specifies the drive orientation mode.
      * @return robot heading to be maintained.
      */
-    public double getDriveGyroAngle(DriveOrientation driveOrientation)
+    public double getDriveGyroAngle()
     {
         double angle;
 
