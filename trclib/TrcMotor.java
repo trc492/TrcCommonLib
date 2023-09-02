@@ -131,6 +131,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     // Used to remember previous set values so to optimize if value set is the same as previous set values.
     private Double controllerPower;
     private Double controllerVelocity;
+    private Double controllerPosition;
     private Double controllerCurrent;
     // Software PID controllers.
     private TrcPidController velPidCtrl = null;
@@ -693,6 +694,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 // We are changing control mode, clear all previous remembered values.
                 controllerPower = null;
                 controllerVelocity = null;
+                controllerPosition = null;
                 controllerCurrent = null;
             }
             taskParams.currControlMode = controlMode;
@@ -778,13 +780,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private void setControllerMotorPosition(double position, double powerLimit)
     {
-        // Position mode doesn't have the same optimization as the other control modes.
-        setMotorControlMode(ControlMode.Position, false);
+        // Optimization: Only do this if we are not already in position control mode or position is different from
+        // last time.
+        if (controllerPosition == null || position != controllerPosition)
+        {
+            // Position mode doesn't have the same optimization as the other control modes.
+            setMotorControlMode(ControlMode.Position, false);
+            controllerPosition = position;
 
-        if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordStartTime();
-        setMotorPosition(position, powerLimit);
-        if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordEndTime();
-        // pidCtrlTask will take care of followers.
+            if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordStartTime();
+            setMotorPosition(position, powerLimit);
+            if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordEndTime();
+            // pidCtrlTask will take care of followers.
+        }
     }   //setControllerMotorPosition
 
     /**
@@ -1684,7 +1692,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 velPidCtrl = new TrcPidController(
                     instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getVelocity);
-                // Set to absolute setpoint as the default because velocity PID control is generally absolute.
+                // Set to absolute setpoint because velocity PID control is generally absolute.
                 velPidCtrl.setAbsoluteSetPoint(true);
             }
         }
@@ -1855,7 +1863,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 posPidCtrl = new TrcPidController(
                     instanceName + ".posPidCtrl", pidCoeff, 1.0, this::getPosition);
-                // Set to absolute setpoint as the default because position PID control is generally absolute.
+                // Set to absolute setpoint because position PID control is generally absolute.
                 posPidCtrl.setAbsoluteSetPoint(true);
             }
         }
@@ -2026,7 +2034,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 currentPidCtrl = new TrcPidController(
                     instanceName + ".currentPidCtrl", pidCoeff, 1.0, this::getCurrent);
-                // Set to absolute setpoint as the default because current PID control is generally absolute.
+                // Set to absolute setpoint because current PID control is generally absolute.
                 currentPidCtrl.setAbsoluteSetPoint(true);
             }
         }
