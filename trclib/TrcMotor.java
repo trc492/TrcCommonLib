@@ -116,6 +116,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final TrcEncoder encoder;               // for software simulation
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
+    private TrcPerformanceTimer pidCtrlTaskPerformanceTimer = null;
     private boolean odometryEnabled = false;
     // Configurations for software simulation of motor controller features.
     private boolean softwarePidEnabled = false;
@@ -205,6 +206,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method enables/disables performance monitoring of the PID control task.
+     *
+     * @param enabled specifies true to enable, false to disable.
+     */
+    public void setPerformanceMonitorEnabled(boolean enabled)
+    {
+        if (!enabled)
+        {
+            pidCtrlTaskPerformanceTimer = null;
+        }
+        else if (pidCtrlTaskPerformanceTimer == null)
+        {
+            pidCtrlTaskPerformanceTimer = new TrcPerformanceTimer("pidCtrlTask");
+        }
+    }   //setPerformanceMonitorEnabled
 
     /**
      * This method sets the message tracer for logging trace messages.
@@ -2239,40 +2257,36 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
     /**
      * This method checks if the motor was stalled and if power has been removed for at least resetTimeout, the
-     * stalled condition is then cleared.
+     * stalled condition is then cleared. This assumes the caller has acquired the taskParams lock.
      *
      * @param power specifies the power applying to the motor.
      * @return true if the motor was stalled, false otherwise.
      */
     private boolean resetStall(double power)
     {
-        boolean wasStalled;
+        boolean wasStalled = taskParams.stalled;
 
-        synchronized (taskParams)
+        if (wasStalled)
         {
-            wasStalled = taskParams.stalled;
-            if (wasStalled)
+            if (power == 0.0)
             {
-                if (power == 0.0)
+                // We had a stalled condition but if power is removed for at least reset timeout, we clear the
+                // stalled condition.
+                if (taskParams.resetTimeout == 0.0 ||
+                    TrcTimer.getCurrentTime() - taskParams.prevTime >= taskParams.resetTimeout)
                 {
-                    // We had a stalled condition but if power is removed for at least reset timeout, we clear the
-                    // stalled condition.
-                    if (taskParams.resetTimeout == 0.0 ||
-                        TrcTimer.getCurrentTime() - taskParams.prevTime >= taskParams.resetTimeout)
+                    taskParams.prevPos = getPosition();
+                    taskParams.prevTime = TrcTimer.getCurrentTime();
+                    taskParams.stalled = false;
+                    if (beepDevice != null)
                     {
-                        taskParams.prevPos = getPosition();
-                        taskParams.prevTime = TrcTimer.getCurrentTime();
-                        taskParams.stalled = false;
-                        if (beepDevice != null)
-                        {
-                            beepDevice.playTone(beepLowFrequency, beepDuration);
-                        }
+                        beepDevice.playTone(beepLowFrequency, beepDuration);
                     }
                 }
-                else
-                {
-                    taskParams.prevTime = TrcTimer.getCurrentTime();
-                }
+            }
+            else
+            {
+                taskParams.prevTime = TrcTimer.getCurrentTime();
             }
         }
 
@@ -2284,15 +2298,15 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     //
 
     /**
-     * This method is called by the calibration task to zero calibrate of a motor. This assumes the caller has
-     * acquired the taskParams lock. This method will update currPower and stalled in taskParams.
+     * This method is called by the calibration task to zero calibrate a motor. This assumes the caller has acquired
+     * the taskParams lock. This method will update currPower and stalled in taskParams.
      *
      * @param calPower specifies the zero calibration power applied to the motor.
      * @return true if calibration is done, false otherwise.
      */
-    private boolean zeroCalibratedMotor(double calPower)
+    private boolean zeroCalibratingMotor(double calPower)
     {
-        final String funcName = "zeroCalibratedMotor";
+        final String funcName = "zeroCalibratingMotor";
         boolean done = isLowerLimitSwitchActive() || taskParams.stalled;
 
         if (done)
@@ -2319,7 +2333,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
 
         return done;
-    }   //zeroCalibratedMotor
+    }   //zeroCalibratingMotor
 
     //
     // Close-loop Control Task.
@@ -2343,12 +2357,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         final String funcName = "pidCtrlTask";
         TrcEvent completionEvent = null;
 
+        if (pidCtrlTaskPerformanceTimer != null)
+        {
+            pidCtrlTaskPerformanceTimer.recordStartTime();
+        }
+
         synchronized (taskParams)
         {
             if (taskParams.calibrating)
             {
                 // We are in zero calibration mode.
-                if (zeroCalibratedMotor(taskParams.calPower))
+                if (zeroCalibratingMotor(taskParams.calPower))
                 {
                     // Done with zero calibration.
                     taskParams.calibrating = false;
@@ -2368,9 +2387,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         // Doing software close loop PID control or monitoring controller PID control.
                         boolean onTarget =
                             taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
-                                taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
-                                    taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
-                                        taskParams.currControlMode == ControlMode.Current? getMotorCurrentOnTarget(): false;
+                            taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
+                            taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
+                                taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
                         boolean expired =   // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
@@ -2474,6 +2493,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     }
                 }
             }
+        }
+
+        if (pidCtrlTaskPerformanceTimer != null)
+        {
+            pidCtrlTaskPerformanceTimer.recordEndTime();
         }
 
         if (completionEvent != null)
@@ -3330,6 +3354,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             motorSetCurrentElapsedTimer.printElapsedTime(tracer);
         }
     }   //printElapsedTime
+
+    /**
+     * This method prints the PID control task performance info using the given tracer.
+     *
+     * @param tracer specifies the tracer to use for printing elapsed time info.
+     */
+    public void printPidControlTaskPerformance(TrcDbgTrace tracer)
+    {
+        if (pidCtrlTaskPerformanceTimer != null)
+        {
+            tracer.traceInfo("printPidControlTaskPerformance", "%s", pidCtrlTaskPerformanceTimer);
+        }
+    }   //printPidControlTaskPerformance
 
 //    /**
 //     * Transforms the desired percentage of motor stall torque to the motor duty cycle (aka power)
