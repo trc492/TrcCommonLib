@@ -117,7 +117,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
     private final TrcTaskMgr.TaskObject pidCtrlTaskObj;
-    private boolean initialized = false;
     private TrcPerformanceTimer pidCtrlTaskPerformanceTimer = null;
     private boolean odometryEnabled = false;
     // Configurations for software simulation of motor controller features.
@@ -181,7 +180,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         odometry = new TrcOdometrySensor.Odometry(this);
         timer = new TrcTimer(instanceName);
         pidCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".pidCtrlTask", this::pidCtrlTask);
-        pidCtrlTaskObj.registerTask(TaskType.START_TASK);
         pidCtrlTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
 
         if (odometryTaskObj == null)
@@ -2357,145 +2355,140 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private void pidCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         final String funcName = "pidCtrlTask";
-        // PID control task is enabled in this constructor. At this time, the physical motor object has not been
-        // constructed yet. If we are running this task on a separate thread, it may start running before the
-        // constructor finished. Therefore, we should not start PID control processing until after START_MODE.
-        if (initialized)
+
+        TrcEvent completionEvent = null;
+
+        if (pidCtrlTaskPerformanceTimer != null)
         {
-            TrcEvent completionEvent = null;
+            pidCtrlTaskPerformanceTimer.recordStartTime();
+        }
 
-            if (pidCtrlTaskPerformanceTimer != null)
+        synchronized (taskParams)
+        {
+            if (taskParams.calibrating)
             {
-                pidCtrlTaskPerformanceTimer.recordStartTime();
-            }
-
-            synchronized (taskParams)
-            {
-                if (taskParams.calibrating)
+                // We are in zero calibration mode.
+                if (zeroCalibratingMotor(taskParams.calPower))
                 {
-                    // We are in zero calibration mode.
-                    if (zeroCalibratingMotor(taskParams.calPower))
-                    {
-                        // Done with zero calibration.
-                        taskParams.calibrating = false;
-                        completionEvent = taskParams.notifyEvent;
-                        taskParams.notifyEvent = null;
-                    }
+                    // Done with zero calibration.
+                    taskParams.calibrating = false;
+                    completionEvent = taskParams.notifyEvent;
+                    taskParams.notifyEvent = null;
                 }
-                else
+            }
+            else
+            {
+                // Do stall detection.
+                double currPower = getMotorPower();
+                taskParams.stalled = isMotorStalled(currPower);
+                if (!resetStall(currPower))
                 {
-                    // Do stall detection.
-                    double currPower = getMotorPower();
-                    taskParams.stalled = isMotorStalled(currPower);
-                    if (!resetStall(currPower))
+                    if (taskParams.currControlMode != ControlMode.Power)
                     {
-                        if (taskParams.currControlMode != ControlMode.Power)
+                        // Doing software close loop PID control or monitoring controller PID control.
+                        boolean onTarget =
+                            taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
+                                taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
+                                    taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
+                                        taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
+                        boolean expired =   // Only for software PID control.
+                            taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
+                            TrcTimer.getCurrentTime() >= taskParams.timeout;
+                        boolean doStop =    // Only for software PID control.
+                            taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
+                            !taskParams.holdTarget && (onTarget || expired);
+
+                        if (doStop)
                         {
-                            // Doing software close loop PID control or monitoring controller PID control.
-                            boolean onTarget =
-                                taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
-                                    taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
-                                        taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
-                                            taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                            boolean expired =   // Only for software PID control.
-                                taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
-                                TrcTimer.getCurrentTime() >= taskParams.timeout;
-                            boolean doStop =    // Only for software PID control.
-                                taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
-                                !taskParams.holdTarget && (onTarget || expired);
+                            // We are stopping motor but control mode is not Power, so don't overwrite it.
+                            setControllerMotorPower(0.0, false);
+                        }
+                        else if (taskParams.pidCtrl != null)
+                        {
+                            // Doing software PID control.
+                            double power = taskParams.pidCtrl.getOutput();
 
-                            if (doStop)
+                            if (taskParams.powerLimit != null)
                             {
-                                // We are stopping motor but control mode is not Power, so don't overwrite it.
-                                setControllerMotorPower(0.0, false);
+                                // Only applicable for Position control mode.
+                                power = TrcUtil.clipRange(power, taskParams.powerLimit);
                             }
-                            else if (taskParams.pidCtrl != null)
+                            // Software PID control sets motor power but control mode is not Power, so don't
+                            // overwrite it.
+                            setControllerMotorPower(taskParams.pidCtrl.getOutput(), false);
+
+                            if (msgTracer != null && tracePidInfo)
                             {
-                                // Doing software PID control.
-                                double power = taskParams.pidCtrl.getOutput();
-
-                                if (taskParams.powerLimit != null)
-                                {
-                                    // Only applicable for Position control mode.
-                                    power = TrcUtil.clipRange(power, taskParams.powerLimit);
-                                }
-                                // Software PID control sets motor power but control mode is not Power, so don't
-                                // overwrite it.
-                                setControllerMotorPower(taskParams.pidCtrl.getOutput(), false);
-
-                                if (msgTracer != null && tracePidInfo)
-                                {
-                                    taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                                }
+                                taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
                             }
-                            else
+                        }
+                        else
+                        {
+                            // Doing motor controller close loop PID control.
+                            // We are monitoring for completion and sync the followers if motor controller does not
+                            // support motor following.
+                            synchronized (followingMotorsList)
                             {
-                                // Doing motor controller close loop PID control.
-                                // We are monitoring for completion and sync the followers if motor controller does not
-                                // support motor following.
-                                synchronized (followingMotorsList)
+                                if (!followingMotorsList.isEmpty())
                                 {
-                                    if (!followingMotorsList.isEmpty())
+                                    // Get the power of the master motor.
+                                    double power = getMotorPower();
+
+                                    for (TrcMotor follower : followingMotorsList)
                                     {
-                                        // Get the power of the master motor.
-                                        double power = getMotorPower();
-
-                                        for (TrcMotor follower : followingMotorsList)
+                                        switch (taskParams.currControlMode)
                                         {
-                                            switch (taskParams.currControlMode)
-                                            {
-                                                case Velocity:
-                                                    // Since this is running in a task loop and if the velocity did not
-                                                    // change, we will be setting the same velocity over and over again.
-                                                    // So, instead of calling setMotorVelocity, we call
-                                                    // setControllerMotorVelocity which has optimization to not sending
-                                                    // same velocity if it hasn't change.
-                                                    follower.setControllerMotorVelocity(taskParams.motorValue);
-                                                    break;
+                                            case Velocity:
+                                                // Since this is running in a task loop and if the velocity did not
+                                                // change, we will be setting the same velocity over and over again.
+                                                // So, instead of calling setMotorVelocity, we call
+                                                // setControllerMotorVelocity which has optimization to not sending
+                                                // same velocity if it hasn't change.
+                                                follower.setControllerMotorVelocity(taskParams.motorValue);
+                                                break;
 
-                                                case Position:
-                                                    // What does it mean to have position followers?
-                                                    // If we are performing position control on followers, the
-                                                    // followers must have their own position sensors and they must
-                                                    // be synchronized. Even so, it's not guaranteed the movement of
-                                                    // the followers are synchronized. Some may move faster than the
-                                                    // others. It doesn't make much sense. It only makes sense if the
-                                                    // motors are driving the same mechanism and are mechanically
-                                                    // linked so you don't need to synchronize them. The motors are
-                                                    // just sharing the load. In this case, all the followers should
-                                                    // just mimic the power output of the master.
-                                                    follower.setControllerMotorPower(power, true);
-                                                    break;
+                                            case Position:
+                                                // What does it mean to have position followers?
+                                                // If we are performing position control on followers, the
+                                                // followers must have their own position sensors and they must
+                                                // be synchronized. Even so, it's not guaranteed the movement of
+                                                // the followers are synchronized. Some may move faster than the
+                                                // others. It doesn't make much sense. It only makes sense if the
+                                                // motors are driving the same mechanism and are mechanically
+                                                // linked so you don't need to synchronize them. The motors are
+                                                // just sharing the load. In this case, all the followers should
+                                                // just mimic the power output of the master.
+                                                follower.setControllerMotorPower(power, true);
+                                                break;
 
-                                                case Current:
-                                                    // Since this is running in a task loop and if the current did not
-                                                    // change, we will be setting the same current over and over again.
-                                                    // So, instead of calling setMotorCurrent, we call
-                                                    // setControllerMotorCurrent which has optimization to not sending
-                                                    // same current if it hasn't change.
-                                                    follower.setControllerMotorCurrent(taskParams.motorValue);
-                                                    break;
+                                            case Current:
+                                                // Since this is running in a task loop and if the current did not
+                                                // change, we will be setting the same current over and over again.
+                                                // So, instead of calling setMotorCurrent, we call
+                                                // setControllerMotorCurrent which has optimization to not sending
+                                                // same current if it hasn't change.
+                                                follower.setControllerMotorCurrent(taskParams.motorValue);
+                                                break;
 
-                                                default:
-                                                    // If we come here, it's power control mode which we excluded from
-                                                    // the above code. So we should never come here.
-                                                    throw new IllegalStateException("Should never come here.");
-                                            }
+                                            default:
+                                                // If we come here, it's power control mode which we excluded from
+                                                // the above code. So we should never come here.
+                                                throw new IllegalStateException("Should never come here.");
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            if (onTarget || expired)
+                        if (onTarget || expired)
+                        {
+                            completionEvent = taskParams.notifyEvent;
+                            taskParams.notifyEvent = null;
+                            if (completionEvent != null && msgTracer != null)
                             {
-                                completionEvent = taskParams.notifyEvent;
-                                taskParams.notifyEvent = null;
-                                if (completionEvent != null && msgTracer != null)
-                                {
-                                    msgTracer.traceInfo(
-                                        funcName, "%s.%s: onTarget=%s, event=%s",
-                                        moduleName, instanceName, onTarget, completionEvent);
-                                }
+                                msgTracer.traceInfo(
+                                    funcName, "%s.%s: onTarget=%s, event=%s",
+                                    moduleName, instanceName, onTarget, completionEvent);
                             }
                         }
                     }
@@ -2510,17 +2503,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             if (completionEvent != null)
             {
                 completionEvent.signal();
-            }
-        }
-        else if (taskType == TaskType.START_TASK)
-        {
-            // This is really irrelevant if pidCtrlTask is run on the main robot thread. This code is to make ourselves
-            // thread-safe in case we are running this task on a separate thread.
-            initialized = true;
-            pidCtrlTaskObj.unregisterTask(TaskType.START_TASK);
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "%s: %s initialized.", runMode, instanceName);
             }
         }
     }   //pidCtrlTask
@@ -3190,6 +3172,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     @Override
     public Odometry getOdometry(int axisIndex)
     {
+        Odometry odom;
+
         synchronized (odometry)
         {
             if (!odometryEnabled)
@@ -3197,8 +3181,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 throw new RuntimeException("Motor odometry is not enabled.");
             }
 
-            return odometry.clone();
+            odom = odometry.clone();
         }
+
+        return odom;
     }   //getOdometry
 
     /**

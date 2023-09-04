@@ -107,7 +107,7 @@ public class TrcTaskMgr
          *  This contains code that initializes the task before a competition mode is about to start and is run on
          *  the main robot thread. Typically, if the task is a robot subsystem, you may put last minute mode specific
          *  initialization code here. Most of the time, you don't need to register StartTask because all initialization
-         *  is done in initRobot(). But sometimes, you may want to delay a certain initialization until right before
+         *  is done in robotInit(). But sometimes, you may want to delay a certain initialization until right before
          *  competition starts. For example, you may want to reset the gyro heading right before competition starts to
          *  prevent drifting.
          *

@@ -45,6 +45,7 @@ public class TrcPeriodicThread<T>
     private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
     private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
     private TrcDbgTrace dbgTrace = null;
+    private static boolean robotInitialized = false;
 
     public interface PeriodicTask
     {
@@ -105,7 +106,7 @@ public class TrcPeriodicThread<T>
          */
         public synchronized boolean isTaskEnabled()
         {
-            return taskEnabled && periodicThread.isAlive();
+            return robotInitialized && taskEnabled && periodicThread.isAlive();
         }   //isTaskEnabled
 
         /**
@@ -221,6 +222,17 @@ public class TrcPeriodicThread<T>
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method is called by the framework scheduler to inform us whether robotInit has finished. Periodic threads
+     * won't be executing until robotInit has finished.
+     *
+     * @param init specifies true if robotInit has finished, false otherwise.
+     */
+    public static void setRobotInitialized(boolean init)
+    {
+        robotInitialized = init;
+    }   //setRobotInitialized
 
     /**
      * This method returns the number of active threads.
