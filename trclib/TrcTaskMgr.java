@@ -38,8 +38,8 @@ public class TrcTaskMgr
     private static final boolean debugEnabled = false;
 
     public static final long PERIODIC_INTERVAL_MS = 20;         // in msec (50 Hz)
-    public static final long INPUT_INTERVAL_MS = 20;            // in msec
-    public static final long OUTPUT_INTERVAL_MS = 20;           // in msec
+    public static final long INPUT_INTERVAL_MS = 10;            // in msec
+    public static final long OUTPUT_INTERVAL_MS = 10;           // in msec
     public static final long TASKTIME_THRESHOLD_MS = PERIODIC_INTERVAL_MS * 2;
 
     /**

@@ -67,15 +67,16 @@ public class TrcWatchdogMgr
          * @param name specifies the name of the watchdog.
          * @param thread specifies the thread the watchdog is monitoring.
          * @param heartBeatThreshold specifies the maximum heart beat interval in seconds.
+         * @param paused specifies true to create the watchdog in paused mode, false otherwise.
          */
-        private Watchdog(String name, Thread thread, double heartBeatThreshold)
+        private Watchdog(String name, Thread thread, double heartBeatThreshold, boolean paused)
         {
             this.name = name;
             this.heartBeatThreshold = heartBeatThreshold;
             this.thread = thread;
             this.heartBeatExpiredTime = TrcTimer.getCurrentTime() + heartBeatThreshold;
             this.expired = false;
-            this.paused = false;
+            this.paused = paused;
         }   //Watchdog
 
         /**
@@ -246,9 +247,10 @@ public class TrcWatchdogMgr
      *
      * @param name specifies the name of the watchdog.
      * @param heartBeatThreshold specifies the maximum heart beat interval in seconds.
+     * @param paused specifies true to create the watchdog in paused mode, false otherwise.
      * @return newly created watchdog.
      */
-    public static Watchdog registerWatchdog(String name, double heartBeatThreshold)
+    public static Watchdog registerWatchdog(String name, double heartBeatThreshold, boolean paused)
     {
         final String funcName = "registerWatchdog";
         Watchdog watchdog = null;
@@ -267,7 +269,7 @@ public class TrcWatchdogMgr
 
             if (!watchdogMap.containsKey(currThread))
             {
-                watchdog = new Watchdog(name, currThread, heartBeatThreshold);
+                watchdog = new Watchdog(name, currThread, heartBeatThreshold, paused);
                 watchdogList.add(watchdog);
                 watchdogMap.put(currThread, watchdog);
             }
@@ -286,11 +288,24 @@ public class TrcWatchdogMgr
      * Important: this method must be called in the thread the watchdog is monitoring.
      *
      * @param name specifies the name of the watchdog.
+     * @param paused specifies true to create the watchdog in paused mode, false otherwise.
+     * @return newly created watchdog.
+     */
+    public static Watchdog registerWatchdog(String name, boolean paused)
+    {
+        return registerWatchdog(name, DEF_HEARTBEAT_THRESHOLD, paused);
+    }   //registerWatchdog
+
+    /**
+     * This method registers a new watchdog for the current thread if one is not already registered.
+     * Important: this method must be called in the thread the watchdog is monitoring.
+     *
+     * @param name specifies the name of the watchdog.
      * @return newly created watchdog.
      */
     public static Watchdog registerWatchdog(String name)
     {
-        return registerWatchdog(name, DEF_HEARTBEAT_THRESHOLD);
+        return registerWatchdog(name, DEF_HEARTBEAT_THRESHOLD, false);
     }   //registerWatchdog
 
     /**
