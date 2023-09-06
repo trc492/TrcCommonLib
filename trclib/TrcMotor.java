@@ -130,6 +130,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private double sensorScale = 1.0;
     private double sensorOffset = 0.0;
     private double zeroPosition = 0.0;
+    private double currMotorPower = 0.0;
     // Used to remember previous set values so to optimize if value set is the same as previous set values.
     private Double controllerPower;
     private Double controllerVelocity;
@@ -180,7 +181,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         odometry = new TrcOdometrySensor.Odometry(this);
         timer = new TrcTimer(instanceName);
         pidCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".pidCtrlTask", this::pidCtrlTask);
-        pidCtrlTaskObj.registerTask(TaskType.POST_PERIODIC_TASK);
+        pidCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
 
         if (odometryTaskObj == null)
         {
@@ -750,8 +751,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 controllerPower = null;
             }
 
+            currMotorPower = power;
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordStartTime();
-            setMotorPower(power);
+            setMotorPower(currMotorPower);
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordEndTime();
 
             synchronized (followingMotorsList)
@@ -759,7 +761,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 for (TrcMotor follower : followingMotorsList)
                 {
                     if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordStartTime();
-                    follower.setMotorPower(power);
+                    follower.setMotorPower(currMotorPower);
                     if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordEndTime();
                 }
             }
@@ -1218,9 +1220,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @return current motor percentage power (range -1.0 to 1.0).
      */
+    private double getPower(boolean cached)
+    {
+        return cached? currMotorPower: getMotorPower();
+    }   //getPower
+
+    /**
+     * This method returns the motor power.
+     *
+     * @return current motor percentage power (range -1.0 to 1.0).
+     */
     public double getPower()
     {
-        return getMotorPower();
+        return getPower(false);
     }   //getPower
 
     /**
@@ -2379,9 +2391,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             else
             {
                 // Do stall detection.
-                double currPower = getMotorPower();
-                taskParams.stalled = isMotorStalled(currPower);
-                if (!resetStall(currPower))
+                taskParams.stalled = isMotorStalled(currMotorPower);
+                if (!resetStall(currMotorPower))
                 {
                     if (taskParams.currControlMode != ControlMode.Power)
                     {
@@ -2432,7 +2443,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 if (!followingMotorsList.isEmpty())
                                 {
                                     // Get the power of the master motor.
-                                    double power = getMotorPower();
+                                    double power = getPower(false);
 
                                     for (TrcMotor follower : followingMotorsList)
                                     {

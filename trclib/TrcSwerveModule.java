@@ -220,8 +220,8 @@ public class TrcSwerveModule
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "angle=%f,optimize=%s,hold=%s", angle, optimize,
-                hold);
+            dbgTrace.traceEnter(
+                funcName, TrcDbgTrace.TraceLevel.API, "angle=%f,optimize=%s,hold=%s", angle, optimize, hold);
         }
 
         // If we are not optimizing, reset wheel direction back to normal.

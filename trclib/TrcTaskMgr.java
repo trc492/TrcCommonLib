@@ -37,9 +37,8 @@ public class TrcTaskMgr
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
-    public static final long PERIODIC_INTERVAL_MS = 20;         // in msec (50 Hz)
-    public static final long INPUT_INTERVAL_MS = 10;            // in msec
-    public static final long OUTPUT_INTERVAL_MS = 10;           // in msec
+    public static final long PERIODIC_INTERVAL_MS = 20;         // in msec
+    public static final long IO_INTERVAL_MS = 10;               // in msec
     public static final long TASKTIME_THRESHOLD_MS = PERIODIC_INTERVAL_MS * 2;
 
     /**
@@ -102,7 +101,7 @@ public class TrcTaskMgr
     {
         /**
          * This method is called at the appropriate time this task is registered for.
-         *
+         * <p>
          * StartTask:
          *  This contains code that initializes the task before a competition mode is about to start and is run on
          *  the main robot thread. Typically, if the task is a robot subsystem, you may put last minute mode specific
@@ -110,29 +109,35 @@ public class TrcTaskMgr
          *  is done in robotInit(). But sometimes, you may want to delay a certain initialization until right before
          *  competition starts. For example, you may want to reset the gyro heading right before competition starts to
          *  prevent drifting.
-         *
+         * </p>
+         * <p>
          * StopTask:
          *  This contains code that cleans up the task before a competition mode is about to end and is run on the main
          *  robot thread. Typically, if the task is a robot subsystem, you may put code to stop the robot here. Most of
          *  the time, you don't need to register StopTask because the system will cut power to all the motors after a
          *  competition mode has ended.
-         *
+         * </p>
+         * <p>
          * PrePeriodicTask:
          *  This contains code that runs periodically on the main robot thread at PERIODIC_INTERVAL before periodic().
          *  Typically, you will put code that deals with any input sensor readings here that Periodic() may depend on.
-         *
+         * </p>
+         * <p>
          * PostPeriodicTask:
          *  This contains code that runs periodically on the main robot thread at PERIODIC_INTERVAL after periodic().
          *  Typically, you will put code that deals with actions that requires high frequency processing.
-         *
+         * </p>
+         * <p>
          * InputTask:
          *  This contains code that runs periodically on the input thread. Typically, you will put code that deals
          *  with any input or sensor readings that may otherwise degrade the performance of the main robot thread.
-         *
+         * </p>
+         * <p>
          * OutputTask:
          *  This contains code that runs periodically on the output thread. Typically, you will put code that deals
          *  with actions that may otherwise degrade the performance of the main robot thread.
-         *
+         * </p>
+         * <p>
          * StandaloneTask:
          *  This contains code that will run on its own thread at the specified task interval. Typically, you will
          *  put code that may take a long time to execute and could affect the performance of shared threads such as
@@ -146,6 +151,23 @@ public class TrcTaskMgr
         void runTask(TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop);
 
     }   //interface Task
+
+    /**
+     * This interface can be provided by the platform dependent task scheduler who will be called before and after each
+     * IO task loop. Typically, it will contain code to initialize the hardware to start or end bulk IO cycle. If
+     * platform dependent hardware doesn't require this, it doesn't need to implement it. To provide this interface,
+     * call the registerIoTaskLoopBegin and registerIoTaskLoopEnd methods.
+     */
+    public interface IoTaskCallback
+    {
+        /**
+         * This method is called by the IO task thread begin or after each IO task loop. It typically contains code
+         * to initialize the hardware to start or end build bulk IO cycle.
+         *
+         * @param runMode specifies the robot run mode (e.g. Autonomous, TeleOp, Test).
+         */
+        void ioTaskCallback(TrcRobot.RunMode runMode);
+    }   //interface IoTaskCallback
 
     /**
      * This class implements TaskObject that will be created whenever a class is registered as a cooperative
@@ -222,24 +244,17 @@ public class TrcTaskMgr
                     taskThread.setProcessingInterval(taskInterval);
                     taskThread.setTaskEnabled(true);
                 }
-                else
+                else if (type == TaskType.INPUT_TASK || type == TaskType.OUTPUT_TASK)
                 {
                     taskThread = null;
-                    if (type == TaskType.INPUT_TASK)
+                    // There is only one global IO thread. All INPUT_TASKs and OUTPUT_TASKs run on this thread.
+                    // The IO thread is created on first registration, so create it if not already.
+                    if (ioThread == null)
                     {
-                        //
-                        // There is only one global input thread. All INPUT_TASKs run on this thread.
-                        // The input thread is created on first registration, so create it if not already.
-                        //
-                        TrcTaskMgr.startInputThread();
-                    }
-                    else if (type == TaskType.OUTPUT_TASK)
-                    {
-                        //
-                        // There is only one global output thread. All OUTPUT_TASKs run on this thread.
-                        // The output thread is created on first registration, so create it if not already.
-                        //
-                        TrcTaskMgr.startOutputThread();
+                        ioThread = new TrcPeriodicThread<>(
+                            moduleName + ".ioThread", TrcTaskMgr::ioTask, null, Thread.MAX_PRIORITY);
+                        ioThread.setProcessingInterval(IO_INTERVAL_MS);
+                        ioThread.setTaskEnabled(true);
                     }
                 }
             }
@@ -483,51 +498,9 @@ public class TrcTaskMgr
     }   //class TaskObject
 
     private static final List<TaskObject> taskList = new CopyOnWriteArrayList<>();
-    private static TrcPeriodicThread<Object> inputThread = null;
-    private static TrcPeriodicThread<Object> outputThread = null;
-
-    /**
-     * This method is called by registerTask for INPUT_TASK to create the input thread if not already.
-     */
-    private static synchronized void startInputThread()
-    {
-        if (inputThread == null)
-        {
-            inputThread = startThread(
-                moduleName + ".inputThread", TrcTaskMgr::inputTask, INPUT_INTERVAL_MS, Thread.MAX_PRIORITY);
-        }
-    }   //startInputThread
-
-    /**
-     * This method is called by registerTask for OUTPUT_TASK to create the output thread if not already.
-     */
-    private static synchronized void startOutputThread()
-    {
-        if (outputThread == null)
-        {
-            outputThread = startThread(
-                moduleName + ".outputThread", TrcTaskMgr::outputTask, OUTPUT_INTERVAL_MS, Thread.MAX_PRIORITY);
-        }
-    }   //startOutputThread
-
-    /**
-     * This method starts a periodic thread for processing tasks.
-     *
-     * @param instanceName specifies the instance name of the thread.
-     * @param task specifies the task run by the thread.
-     * @param interval specifies the processing interval of the task.
-     * @param taskPriority specifies the thread priority.
-     * @return the created thread.
-     */
-    private static TrcPeriodicThread<Object> startThread(
-        String instanceName, TrcPeriodicThread.PeriodicTask task, long interval, int taskPriority)
-    {
-        TrcPeriodicThread<Object> thread = new TrcPeriodicThread<>(instanceName, task, null, taskPriority);
-        thread.setProcessingInterval(interval);
-        thread.setTaskEnabled(true);
-
-        return thread;
-    }   //startThread
+    private static TrcPeriodicThread<Object> ioThread = null;
+    private static IoTaskCallback ioTaskLoopBegin = null;
+    private static IoTaskCallback ioTaskLoopEnd = null;
 
     /**
      * This method creates a TRC task. If the TRC task is registered as a STANDALONE task, it is run on a separately
@@ -573,16 +546,10 @@ public class TrcTaskMgr
             }
         }
 
-        if (inputThread != null)
+        if (ioThread != null)
         {
-            inputThread.terminateTask();
-            inputThread = null;
-        }
-
-        if (outputThread != null)
-        {
-            outputThread.terminateTask();
-            outputThread = null;
+            ioThread.terminateTask();
+            ioThread = null;
         }
     }   //terminateAllThreads
 
@@ -620,24 +587,38 @@ public class TrcTaskMgr
     }   //executeTaskType
 
     /**
-     * This method runs the periodic input task.
+     * This method is called by the platform dependent scheduler to register callbacks at the beginning and ending
+     * of the IO task loop.
      *
-     * @param context specifies the context (not used).
+     * @param ioLoopBegin specifies the IO task loop begin callback, null if not provided.
+     * @param ioLoopEnd specifies the IO task loop end callback, null if not provided.
      */
-    private static void inputTask(Object context)
+    public static void registerIoTaskLoopCallback(IoTaskCallback ioLoopBegin, IoTaskCallback ioLoopEnd)
     {
-        executeTaskType(TaskType.INPUT_TASK, TrcRobot.getRunMode(), false);
-    }   //inputTask
+        ioTaskLoopBegin = ioLoopBegin;
+        ioTaskLoopEnd = ioLoopEnd;
+    }   //registerIoTaskLoopCallback
 
     /**
-     * This method runs the periodic output task.
+     * This method runs the periodic an IO task loop.
      *
      * @param context specifies the context (not used).
      */
-    private static void outputTask(Object context)
+    private static void ioTask(Object context)
     {
-        executeTaskType(TaskType.OUTPUT_TASK, TrcRobot.getRunMode(), false);
-    }   //outputTask
+        TrcRobot.RunMode runMode = TrcRobot.getRunMode();
+
+        if (ioTaskLoopBegin != null)
+        {
+            ioTaskLoopBegin.ioTaskCallback(runMode);
+        }
+        executeTaskType(TaskType.INPUT_TASK, runMode, false);
+        executeTaskType(TaskType.OUTPUT_TASK, runMode, false);
+        if (ioTaskLoopEnd != null)
+        {
+            ioTaskLoopEnd.ioTaskCallback(runMode);
+        }
+    }   //ioTask
 
     /**
      * This method prints the performance metrics of all tasks with the given tracer.

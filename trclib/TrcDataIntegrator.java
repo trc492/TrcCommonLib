@@ -115,7 +115,7 @@ public class TrcDataIntegrator<D>
         if (enabled)
         {
             reset();
-            integratorTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
+            integratorTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         else
         {

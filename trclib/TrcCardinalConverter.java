@@ -118,7 +118,7 @@ public class TrcCardinalConverter<D>
         if (!this.enabled && enabled)
         {
             reset();
-            converterTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
+            converterTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         else if (this.enabled && !enabled)
         {
