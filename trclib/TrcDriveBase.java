@@ -57,16 +57,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private static final boolean SYNC_GYRO_DATA = false;
 
     /**
-     * This enum specifies different drive modes.
-     */
-    public enum DriveMode
-    {
-        TANK_MODE,
-        HOLONOMIC_MODE,
-        ARCADE_MODE
-    }   //enum DriveMode
-
-    /**
      * This enum specifies all the drive orientation modes:
      * - ROBOT: Robot centric driving mode.
      * - FIELD: Field centric driving mode.
