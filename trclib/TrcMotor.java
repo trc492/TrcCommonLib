@@ -110,7 +110,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
     private final TaskParams taskParams = new TaskParams();
 
-    private final String instanceName;
+    protected final String instanceName;
     private final TrcDigitalInput lowerLimitSwitch; // for software simulation
     private final TrcDigitalInput upperLimitSwitch; // for software simulation
     private final TrcEncoder encoder;               // for software simulation
