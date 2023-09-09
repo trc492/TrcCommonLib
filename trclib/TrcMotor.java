@@ -699,6 +699,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setSoftwarePidEnabled
 
     /**
+     * This method checks which PID controller to use for close-loop control.
+     *
+     * @param controlMode specifies the control mode.
+     * @param useSoftwarePid specifies true to use software PID control, false otherwise.
+     * @return the PID controller to used for close-loop control.
+     */
+    private TrcPidController pidCtrlToUse(ControlMode controlMode, boolean useSoftwarePid)
+    {
+        return !useSoftwarePid? null:
+               controlMode == ControlMode.Velocity? velPidCtrl:
+               controlMode == ControlMode.Position? posPidCtrl:
+               controlMode == ControlMode.Current? currentPidCtrl: null;
+    }   //pidCtrlToUse
+
+    /**
      * This method sets the motor control mode and initializes ActionParams appropriately for the control mode.
      *
      * @param controlMode specifies the motor control mode.
@@ -717,10 +732,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 controllerCurrent = null;
             }
             taskParams.currControlMode = controlMode;
-            taskParams.pidCtrl = !useSoftwarePid? null:
-                                 controlMode == ControlMode.Velocity? velPidCtrl:
-                                 controlMode == ControlMode.Position? posPidCtrl:
-                                 controlMode == ControlMode.Current? currentPidCtrl: null;
+            taskParams.pidCtrl = pidCtrlToUse(controlMode, useSoftwarePid);
         }
     }   //setMotorControlMode
 
@@ -1063,7 +1075,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         synchronized (taskParams)
         {
             taskParams.setToControlMode = controlMode;
-            taskParams.pidCtrl = null;
+            taskParams.pidCtrl = pidCtrlToUse(controlMode, softwarePidEnabled);
             taskParams.motorValue = motorValue;
             taskParams.duration = duration;
             taskParams.notifyEvent = completionEvent;
