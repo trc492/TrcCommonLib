@@ -54,20 +54,30 @@ public interface TrcOpenCvPipeline<O>
     O[] getDetectedObjects();
 
     /**
-     * This method sets the intermediate mat of the pipeline as the video output mat and optionally annotate the
-     * detected rectangle on it.
+     * This method enables/disables image annotation of the detected object.
+     *
+     * @param enabled specifies true to enable annotation, false to disable.
+     */
+    void setAnnotateEnabled(boolean enabled);
+
+    /**
+     * This method checks if image annotation is enabled.
+     *
+     * @return true if annotation is enabled, false otherwise.
+     */
+    boolean isAnnotateEnabled();
+
+    /**
+     * This method sets the intermediate mat of the pipeline as the video output mat.
      *
      * @param intermediateStep specifies the intermediate mat used as video output (0 is the original input frame).
-     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
      */
-    void setVideoOutput(int intermediateStep, boolean annotate);
+    void setVideoOutput(int intermediateStep);
 
     /**
      * This method cycles to the next intermediate mat of the pipeline as the video output mat.
-     *
-     * @param annotate specifies true to annotate detected rectangles on the output mat, false otherwise.
      */
-    void setNextVideoOutput(boolean annotate);
+    void setNextVideoOutput();
 
     /**
      * This method returns an intermediate processed frame. Typically, a pipeline processes a frame in a number of
