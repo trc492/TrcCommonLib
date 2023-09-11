@@ -204,7 +204,7 @@ public abstract class TrcGameController
      * @param doExp specifies true if the value will be exponentially raised, false otherwise.
      * @return exponentially raised value.
      */
-    protected double expValue(double value, boolean doExp)
+    private double expValue(double value, boolean doExp)
     {
         double output;
 
