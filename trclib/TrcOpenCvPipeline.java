@@ -22,7 +22,11 @@
 
 package TrcCommonLib.trclib;
 
+import static org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX;
+
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
@@ -100,16 +104,24 @@ public interface TrcOpenCvPipeline<O>
      * This method is called to overlay rectangles of the detected objects on an image.
      *
      * @param image specifies the frame to be rendered to the video output.
+     * @param label specifies the text label to be annotated on the detected object, can be null if not provided.
      * @param detectedObjects specifies the detected objects.
      * @param color specifies the color of the annotated rectangle.
      * @param thickness specifies the thickness of the annotated rectangle.
      */
     default void annotateFrame(
-        Mat image, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects, Scalar color, int thickness)
+        Mat image, String label, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects, Scalar color, int thickness)
     {
         for (TrcOpenCvDetector.DetectedObject<?> object : detectedObjects)
         {
-            Imgproc.rectangle(image, object.getRect(), color, thickness);
+            Rect objRect = object.getRect();
+            Imgproc.rectangle(image, objRect, color, thickness);
+            if (label != null)
+            {
+                Imgproc.putText(
+                    image, label, new Point(objRect.x, objRect.y + objRect.height), FONT_HERSHEY_SIMPLEX, 1, color,
+                    thickness);
+            }
         }
     }   //annotatedFrame
 

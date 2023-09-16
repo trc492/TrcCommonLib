@@ -278,7 +278,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             {
                 Mat output = getIntermediateOutput(intermediateStep);
                 Scalar color = intermediateStep == 0? ANNOTATE_RECT_COLOR: ANNOTATE_RECT_WHITE;
-                annotateFrame(output, detectedObjects, color, ANNOTATE_RECT_THICKNESS);
+                annotateFrame(output, instanceName, detectedObjects, color, ANNOTATE_RECT_THICKNESS);
 //                // This line is for tuning Homography.
 //                Imgproc.line(output, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
             }
