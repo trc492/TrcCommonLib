@@ -170,14 +170,15 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     }   //class FilterContourParams
 
     private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0, 255);
-    private static final Scalar ANNOTATE_RECT_WHITE = new Scalar(255, 255, 255, 255);
     private static final int ANNOTATE_RECT_THICKNESS = 3;
+    private static final double ANNOTATE_FONT_SCALE = 0.3;
 
     private final String instanceName;
     private final int colorConversion;
-    private final double[] colorThresholds;
+    private double[] colorThresholds;
     private final FilterContourParams filterContourParams;
     private final TrcDbgTrace tracer;
+    private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
     private final Mat[] intermediateMats;
 
@@ -211,9 +212,10 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
         this.tracer = tracer;
-        intermediateMats = new Mat[2];
+        intermediateMats = new Mat[3];
         intermediateMats[0] = null;
-        intermediateMats[1] = colorThresholdOutput;
+        intermediateMats[1] = colorConversionOutput;
+        intermediateMats[2] = colorThresholdOutput;
     }   //TrcOpenCvColorBlobPipeline
 
     /**
@@ -226,6 +228,26 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method returns the color threshold values.
+     *
+     * @return array of color threshold values.
+     */
+    public double[] getColorThresholds()
+    {
+        return colorThresholds;
+    }   //getColorThresholds
+
+    /**
+     * This method sets the color threshold values.
+     *
+     * @param colorThresholds specifies an array of color threshold values.
+     */
+    public void setColorThresholds(double... colorThresholds)
+    {
+        this.colorThresholds = colorThresholds;
+    }   //setColorThresholds
 
     //
     // Implements TrcOpenCvPipeline interface.
@@ -277,8 +299,9 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             if (annotateEnabled)
             {
                 Mat output = getIntermediateOutput(intermediateStep);
-                Scalar color = intermediateStep == 0? ANNOTATE_RECT_COLOR: ANNOTATE_RECT_WHITE;
-                annotateFrame(output, instanceName, detectedObjects, color, ANNOTATE_RECT_THICKNESS);
+                annotateFrame(
+                    output, instanceName, detectedObjects, ANNOTATE_RECT_COLOR, ANNOTATE_RECT_THICKNESS,
+                    ANNOTATE_FONT_SCALE);
 //                // This line is for tuning Homography.
 //                Imgproc.line(output, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
             }
@@ -388,9 +411,9 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      */
     private void filterByColor(Mat input, int colorConversion, double[] colorThresholds, Mat out)
     {
-        Imgproc.cvtColor(input, out, colorConversion);
+        Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
         Core.inRange(
-            out, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
+            colorConversionOutput, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), out);
     }   //filterByColor
 

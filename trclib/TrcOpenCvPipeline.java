@@ -108,9 +108,11 @@ public interface TrcOpenCvPipeline<O>
      * @param detectedObjects specifies the detected objects.
      * @param color specifies the color of the annotated rectangle.
      * @param thickness specifies the thickness of the annotated rectangle.
+     * @param fontScale specifies the scale factor that is multiplied by the font-specific base size.
      */
     default void annotateFrame(
-        Mat image, String label, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects, Scalar color, int thickness)
+        Mat image, String label, TrcOpenCvDetector.DetectedObject<?>[] detectedObjects, Scalar color, int thickness,
+        double fontScale)
     {
         for (TrcOpenCvDetector.DetectedObject<?> object : detectedObjects)
         {
@@ -119,8 +121,8 @@ public interface TrcOpenCvPipeline<O>
             if (label != null)
             {
                 Imgproc.putText(
-                    image, label, new Point(objRect.x, objRect.y + objRect.height), FONT_HERSHEY_SIMPLEX, 1, color,
-                    thickness);
+                    image, label, new Point(objRect.x, objRect.y + objRect.height), FONT_HERSHEY_SIMPLEX, fontScale,
+                    color, thickness);
             }
         }
     }   //annotatedFrame
