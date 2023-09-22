@@ -432,6 +432,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         Imgproc.findContours(
             input, contours, hierarchy, externalOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
             Imgproc.CHAIN_APPROX_SIMPLE);
+        hierarchy.release();
     }   //findContours
 
     /**
