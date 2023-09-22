@@ -2785,7 +2785,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param tolerance specifies the preset tolerance.
      * @param posPresets specifies an array of preset positions in scaled unit.
-     * @return this parameter object.
      */
     public void setPosPresets(double tolerance, double... posPresets)
     {

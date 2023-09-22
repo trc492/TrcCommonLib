@@ -280,7 +280,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
 
         intermediateMats[0] = input;
         filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
-        findContours(colorThresholdOutput, false, contoursOutput);
+        findContours(colorThresholdOutput, true, contoursOutput);
         if (filterContourParams != null)
         {
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
