@@ -180,6 +180,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private final TrcDbgTrace tracer;
     private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
+    private final Mat hierarchy = new Mat();
     private final Mat[] intermediateMats;
 
     private final TrcVisionPerformanceMetrics performanceMetrics = new TrcVisionPerformanceMetrics();
@@ -426,13 +427,10 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      */
     private void findContours(Mat input, boolean externalOnly, List<MatOfPoint> contours)
     {
-        Mat hierarchy = new Mat();
-
         contours.clear();
         Imgproc.findContours(
             input, contours, hierarchy, externalOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
             Imgproc.CHAIN_APPROX_SIMPLE);
-        hierarchy.release();
     }   //findContours
 
     /**
