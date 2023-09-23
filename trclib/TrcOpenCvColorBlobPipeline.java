@@ -170,6 +170,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     }   //class FilterContourParams
 
     private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0, 255);
+    private static final Scalar ANNOTATE_RECT_WHITE = new Scalar(255, 255, 255, 255);
     private static final int ANNOTATE_RECT_THICKNESS = 3;
     private static final double ANNOTATE_FONT_SCALE = 0.3;
 
@@ -300,9 +301,9 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             if (annotateEnabled)
             {
                 Mat output = getIntermediateOutput(intermediateStep);
+                Scalar color = intermediateStep == 0? ANNOTATE_RECT_COLOR: ANNOTATE_RECT_WHITE;
                 annotateFrame(
-                    output, instanceName, detectedObjects, ANNOTATE_RECT_COLOR, ANNOTATE_RECT_THICKNESS,
-                    ANNOTATE_FONT_SCALE);
+                    output, instanceName, detectedObjects, color, ANNOTATE_RECT_THICKNESS, ANNOTATE_FONT_SCALE);
 //                // This line is for tuning Homography.
 //                Imgproc.line(output, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
             }
