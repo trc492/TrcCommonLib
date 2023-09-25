@@ -167,12 +167,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param upperLimitSwitch specifies an external forward limit switch, can be null if subclass supports it natively.
      * @param encoder specifies an external position sensor for reporting motor position, can be null if subclass
      *        supports it natively.
-    //  * @param maxVelocity specifies the maximum velocity the motor can run, in sensor units per second, can be zero
-    //  *        if not provided in which case velocity control mode is not available.
      */
     public TrcMotor(
         String instanceName, TrcDigitalInput lowerLimitSwitch, TrcDigitalInput upperLimitSwitch, TrcEncoder encoder)
-        // double maxVelocity)
     {
         this.instanceName = instanceName;
         this.lowerLimitSwitch = lowerLimitSwitch;
