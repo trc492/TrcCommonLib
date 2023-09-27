@@ -88,11 +88,35 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
          * @return pose of the detected object relative to camera.
          */
         @Override
-        public TrcPose3D getPose()
+        public TrcPose3D getObjectPose()
         {
             // ColorBlob detection does not provide detected object pose, let caller use homography to calculate it.
             return null;
-        }   //getPose
+        }   //getObjectPose
+
+        /**
+         * This method returns the real world width of the detected object.
+         *
+         * @return real world width of the detected object.
+         */
+        @Override
+        public Double getObjectWidth()
+        {
+            // ColorBlob detection does not provide detected object width, let caller use homography to calculate it.
+            return null;
+        }   //getObjectWidth
+
+        /**
+         * This method returns the real world depth of the detected object.
+         *
+         * @return real world depth of the detected object.
+         */
+        @Override
+        public Double getObjectDepth()
+        {
+            // ColorBlob detection does not provide detected object depth, let caller use homography to calculate it.
+            return null;
+        }   //getObjectDepth
 
     }   //class DetectedObject
 
