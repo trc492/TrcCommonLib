@@ -199,7 +199,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private static final double ANNOTATE_FONT_SCALE = 0.3;
 
     private final String instanceName;
-    private final int colorConversion;
+    private final Integer colorConversion;
     private double[] colorThresholds;
     private final FilterContourParams filterContourParams;
     private final TrcDbgTrace tracer;
@@ -217,15 +217,18 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
-     * @param colorThresholds specifies an array of color thresholds. If useHsv is false, the array contains RGB
-     *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If useHsv is true, the array contains
-     *        HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
+     * @param colorConversion specifies color space conversion, can be null if no color space conversion.
+     *        Note: FTC ECOV input Mat format is RGBA, so you need to do Imgproc.COLOR_RGBA2xxx or
+     *        Imgproc.COLOR_RGB2xxx conversion. For FRC, the Desktop OpenCV input Mat format is BGRA, so you need to
+     *        do Imgproc.COLOR_BGRAxxx or Imgproc.COLOR_BGR2xxx conversion.
+     * @param colorThresholds specifies an array of color thresholds. If color space is RGB, the array contains RGB
+     *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If color space is HSV, the array
+     *        contains HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
      * @param filterContourParams specifies the parameters for filtering contours.
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvColorBlobPipeline(
-        String instanceName, int colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
+        String instanceName, Integer colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
         TrcDbgTrace tracer)
     {
         if (colorThresholds == null || colorThresholds.length != 6)
@@ -435,11 +438,16 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      *        (hueMin, hueMax, satMin, satMax, valueMin, valueMax) if useHsv is true.
      * @param out specifies the output frame for the result.
      */
-    private void filterByColor(Mat input, int colorConversion, double[] colorThresholds, Mat out)
+    private void filterByColor(Mat input, Integer colorConversion, double[] colorThresholds, Mat out)
     {
-        Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
+        if (colorConversion != null)
+        {
+            Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
+            input = colorConversionOutput;
+        }
+
         Core.inRange(
-            colorConversionOutput, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
+            input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), out);
     }   //filterByColor
 
