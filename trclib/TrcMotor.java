@@ -125,16 +125,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private boolean limitSwitchesSwapped = false;
     private boolean lowerLimitSwitchEnabled = false;
     private boolean upperLimitSwitchEnabled = false;
-    private Double softLowerLimit = null;
-    private Double softUpperLimit = null;
+    private Double softLowerLimit = null;   // in scaled units.
+    private Double softUpperLimit = null;   // in scaled units.
     private double sensorScale = 1.0;
     private double sensorOffset = 0.0;
-    private double zeroPosition = 0.0;
+    private double zeroPosition = 0.0;      // in scaled units.
     private double currMotorPower = 0.0;
     // Used to remember previous set values so to optimize if value set is the same as previous set values.
     private Double controllerPower;
     private Double controllerVelocity;
     private Double controllerPosition;
+    private Double controllerPowerLimit;
     private Double controllerCurrent;
     // Software PID controllers.
     private TrcPidController velPidCtrl = null;
@@ -262,6 +263,28 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         setBeep(beepDevice, DEF_BEEP_LOW_FREQUENCY, DEF_BEEP_HIGH_FREQUECY, DEF_BEEP_DURATION);
     }   //setBeep
+
+    /**
+     * This method converts position sensor units to scaled units.
+     *
+     * @param pos specifies position in sensor units.
+     * @return position in scaled units.
+     */
+    public double convertPositionToScaledUnits(double pos)
+    {
+        return pos*sensorScale - zeroPosition + sensorOffset;
+    }   //convertPositionToScaledUnits
+
+    /**
+     * This method converts position scaled units to sensor units.
+     *
+     * @param pos specifies position in scaled units.
+     * @return position in sensor units.
+     */
+    public double convertPositionToSensorUnits(double pos)
+    {
+        return (pos - sensorOffset + zeroPosition)/sensorScale;
+    }   //convertPositionToSensorUnits
 
     //
     // Implements TrcMotorController interface simulating features that the motor controller does not have support
@@ -540,8 +563,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     /**
      * This method sets the lower and upper soft position limits.
      *
-     * @param lowerLimit specifies the position of the lower limit, null to disable lower limit.
-     * @param upperLimit specifies the position of the upper limit, null to disable upper limit.
+     * @param lowerLimit specifies the position of the lower limit in scaled units, null to disable lower limit.
+     * @param upperLimit specifies the position of the upper limit in scaled units, null to disable upper limit.
      * @param swapped specifies true to swap the direction (lowerLimit is forward and upperLimit is reverse), false
      *        otherwise. This is only applicable for motor controller soft limits.
      */
@@ -549,6 +572,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         try
         {
+            // Convert the limits back to sensor units.
+            lowerLimit = convertPositionToSensorUnits(lowerLimit);
+            upperLimit = convertPositionToSensorUnits(upperLimit);
             if (swapped)
             {
                 setMotorRevSoftPositionLimit(upperLimit);
@@ -605,7 +631,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //isPositionSensorInverted
 
     /**
-     * This method sets the position sensor scale and offset.
+     * This method sets the position sensor scale and offset for translating sensor units to real world units.
      *
      * @param scale specifies scale factor to multiply the position sensor reading.
      * @param offset specifies offset added to the scaled sensor reading.
@@ -637,19 +663,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         if (motorGetPositionElapsedTimer != null) motorGetPositionElapsedTimer.recordStartTime();
         if (encoder != null)
         {
-            // This is scaled position.
+            // This is scaled position (i.e. encoder is responsible for scaling).
             currPos = encoder.getPosition();
         }
         else
         {
-            // If motor controller does scale and offset, this is scaled. Otherwise, we will do scaling ourselves.
-            currPos = getMotorPosition();
+            // Motor controller position sensor is not scaled, we will do scaling here.
+            currPos = getMotorPosition()*sensorScale;
+            if (zeroAdjust)
+            {
+                currPos = currPos - zeroPosition + sensorOffset;
+            }
         }
         if (motorGetPositionElapsedTimer != null) motorGetPositionElapsedTimer.recordEndTime();
-        // We will scale if motor controller does not do it.
-        currPos = currPos*sensorScale + sensorOffset;
 
-        return zeroAdjust? currPos - zeroPosition: currPos;
+        return currPos;
     }   //getControllerPosition
 
     /**
@@ -661,19 +689,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void resetPosition(boolean hardware)
     {
-        if (hardware)
+        if (encoder != null)
         {
-            if (encoder != null)
-            {
-                encoder.reset();
-            }
-            else
+            // External encoder doesn't support soft reset.
+            encoder.reset();
+        }
+        else
+        {
+            if (hardware)
             {
                 resetMotorPosition();
             }
+            zeroPosition = getControllerPosition(false);
         }
-
-        zeroPosition = getControllerPosition(false);
     }   //resetPosition
 
     /**
@@ -726,6 +754,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 controllerPower = null;
                 controllerVelocity = null;
                 controllerPosition = null;
+                controllerPowerLimit = null;
                 controllerCurrent = null;
             }
             taskParams.currControlMode = controlMode;
@@ -764,7 +793,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordStartTime();
             setMotorPower(currMotorPower);
             if (motorSetPowerElapsedTimer != null) motorSetPowerElapsedTimer.recordEndTime();
-
+            // Take care of motor followers.
             synchronized (followingMotorsList)
             {
                 for (TrcMotor follower : followingMotorsList)
@@ -782,7 +811,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * of setMotorVelocity because this will set the correct control mode and do the optimization of not sending same
      * value to the motor repeatedly and also will take care of the followers.
      *
-     * @param velocity specifies the velocity in sensor units/sec.
+     * @param velocity specifies the velocity in scaled units/sec.
      */
     private void setControllerMotorVelocity(double velocity)
     {
@@ -794,7 +823,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             controllerVelocity = velocity;
 
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordStartTime();
-            setMotorVelocity(velocity);
+            setMotorVelocity(velocity/sensorScale);
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
@@ -804,21 +833,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor position and will do the same to the followers. This method should be used instead
      * of setMotorPosition because this will set the correct control mode and will take care of the followers.
      *
-     * @param position specifies the position in sensor units.
+     * @param position specifies the position in scaled units.
      * @param powerLimit specifies the maximum power output limits.
      */
     private void setControllerMotorPosition(double position, double powerLimit)
     {
         // Optimization: Only do this if we are not already in position control mode or position is different from
         // last time.
-        if (controllerPosition == null || position != controllerPosition)
+        if (controllerPosition == null || controllerPowerLimit == null ||
+            position != controllerPosition || powerLimit != controllerPowerLimit)
         {
             // Position mode doesn't have the same optimization as the other control modes.
             setMotorControlMode(ControlMode.Position, false);
             controllerPosition = position;
+            controllerPowerLimit = powerLimit;
 
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordStartTime();
-            setMotorPosition(position, powerLimit);
+            setMotorPosition(convertPositionToSensorUnits(position), powerLimit);
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
@@ -850,7 +881,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     /**
      * This method commands the motor to run at the given velocity using software PID control.
      *
-     * @param velocity specifies the velocity in sensor units/sec.
+     * @param velocity specifies the velocity in scaled units/sec.
      */
     private void setSoftwarePidVelocity(double velocity)
     {
@@ -869,7 +900,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     /**
      * This method commands the motor to run to the given position using software PID control.
      *
-     * @param position specifies the position in sensor units.
+     * @param position specifies the position in scaled units.
      */
     private void setSoftwarePidPosition(double position)
     {
@@ -1092,8 +1123,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *        require ownership.
      * @param controlMode specifies the motor control mode (Power, Velocity, Current).
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param value specifies the percentage power (range -1.0 to 1.0) or velocity (sensor unit/sec or scaled
-     *        units/sec).
+     * @param value specifies the percentage power (range -1.0 to 1.0) or velocity (scaled units/sec).
      * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
      *        turning off.
      * @param completionEvent specifies the event to signal when the motor operation is completed.
@@ -1252,7 +1282,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
      *        ownership aware.
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param velocity specifies velocity in sensor units/sec or scaled units/sec.
+     * @param velocity specifies velocity in scaled units/sec.
      * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
      *        turning off.
      * @param event specifies the event to signal when the motor operation is completed
@@ -1268,7 +1298,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * for which the motor will be turned off afterwards.
      *
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param velocity specifies velocity in sensor units/sec or scaled units/sec.
+     * @param velocity specifies velocity in scaled units/sec.
      * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
      *        turning off.
      * @param event specifies the event to signal when the motor operation is completed
@@ -1284,7 +1314,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * for which the motor will be turned off afterwards.
      *
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param velocity specifies velocity in sensor units/sec or scaled units/sec.
+     * @param velocity specifies velocity in scaled units/sec.
      * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
      *        turning off.
      */
@@ -1297,7 +1327,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor velocity. If the motor is not in the correct control mode, it will stop the motor
      * and set it to power control mode.
      *
-     * @param velocity specifies velocity in sensor units/sec or scaled units/sec.
+     * @param velocity specifies velocity in scaled units/sec.
      */
     public void setVelocity(double velocity)
     {
@@ -1310,7 +1340,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * may impact performance because it may involve initiating USB/CAN/I2C bus cycles. Therefore, it may be
      * beneficial to enable the odometry task to calculate the velocity value.
      *
-     * @return motor velocity in sensor units per second.
+     * @return motor velocity in scaled units/sec.
      */
     public double getVelocity()
     {
@@ -1326,7 +1356,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            currVel = getMotorVelocity();
+            currVel = getMotorVelocity()/sensorScale;
         }
 
         return currVel;
@@ -1364,7 +1394,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
      *        ownership aware.
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      * @param powerLimit specifies the maximum power output limits.
      * @param completionEvent specifies the event to signal when the motor operation is completed.
@@ -1395,30 +1425,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             boolean stopIt = false;
             double currPos = getPosition();
+            boolean forward = position > currPos;
             // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
             cancel();
             // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
             // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
-            if (lowerLimitSwitch != null && lowerLimitSwitchEnabled ||
-                upperLimitSwitch != null && upperLimitSwitchEnabled)
+            if (lowerLimitSwitchEnabled && !forward && lowerLimitSwitch.isActive() ||
+                upperLimitSwitchEnabled && forward && upperLimitSwitch.isActive())
             {
-                boolean forward = position > currPos;
-
-                if (!forward && lowerLimitSwitch.isActive() || forward && upperLimitSwitch.isActive())
-                {
-                    stopIt = true;
-                }
+                stopIt = true;
             }
             // Perform soft limit check.
             // If motor controller supports soft limits, softLowerLimit and softUpperLimit will be null and therefore
             // a no-op.
-            if (!stopIt && (softLowerLimit != null || softUpperLimit != null))
+            if (!stopIt && (softLowerLimit != null && position <= softLowerLimit ||
+                            softUpperLimit != null && position >= softUpperLimit))
             {
-                if (softLowerLimit != null && position <= softLowerLimit ||
-                    softUpperLimit != null && position >= softUpperLimit)
-                {
-                    stopIt = true;
-                }
+                stopIt = true;
             }
 
             if (!stopIt)
@@ -1445,7 +1468,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * and set it to power control mode.
      *
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      * @param powerLimit specifies the maximum power output limits.
      * @param completionEvent specifies the event to signal when the motor operation is completed.
@@ -1462,7 +1485,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * and set it to power control mode.
      *
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      * @param powerLimit specifies the maximum power output limits.
      * @param completionEvent specifies the event to signal when the motor operation is completed.
@@ -1478,7 +1501,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * and set it to power control mode.
      *
      * @param delay specifies the time in seconds to delay before setting the value, 0.0 if no delay.
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      * @param powerLimit specifies the maximum power output limits.
      */
@@ -1491,7 +1514,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor position. If the motor is not in the correct control mode, it will stop the motor
      * and set it to power control mode.
      *
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      * @param powerLimit specifies the maximum power output limits.
      */
@@ -1504,7 +1527,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor position. If the motor is not in the correct control mode, it will stop the motor
      * and set it to power control mode.
      *
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      * @param holdTarget specifies true to hold position target, false otherwise.
      */
     public void setPosition(double position, boolean holdTarget)
@@ -1516,7 +1539,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor position. If the motor is not in the correct control mode, it will stop the motor
      * and set it to power control mode.
      *
-     * @param position specifies the position in sensor units to be set.
+     * @param position specifies the position in scaled units to be set.
      */
     public void setPosition(double position)
     {
@@ -1527,7 +1550,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method returns the motor position by reading the position sensor. As a performance optimization, it gets
      * the position from cached odometry if odometry is enabled.
      *
-     * @return current motor position in sensor units.
+     * @return current motor position in scaled units.
      */
     public double getPosition()
     {
@@ -2620,7 +2643,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             globalTracer.traceInfo(
                 funcName, "%s.%s: reset position on digital trigger! (BeforePos=%.2f)",
-                moduleName, instanceName, getMotorPosition());
+                moduleName, instanceName, getPosition());
             resetPosition(false);
         }
 
@@ -2755,6 +2778,23 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     public void zeroCalibrate(double calPower, TrcEvent.Callback callback)
     {
         zeroCalibrate(null, calPower, null, callback);
+    }   //zeroCalibrate
+
+    /**
+     * This method starts zero calibration mode by moving the motor with specified calibration power until a limit
+     * switch is hit or the motor is stalled.
+     * Generally, calibration power should be negative so that the motor will move towards the lower limit switch.
+     * However, in some scenarios such as a turret that can turn all the way around and has only one limit switch,
+     * it may be necessary to use a positive calibration power to move it towards the limit switch instead of using
+     * negative calibration power and turning the long way around that may cause wires to entangle.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the motor.
+     * @param calPower specifies the motor power for the zero calibration, can be positive or negative depending on
+     *        the desire direction of movement.
+     */
+    public void zeroCalibrate(String owner, double calPower)
+    {
+        zeroCalibrate(owner, calPower, null, null);
     }   //zeroCalibrate
 
     /**
