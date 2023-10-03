@@ -63,21 +63,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private static class TaskParams
     {
-        ControlMode currControlMode;
-        ControlMode setToControlMode;
+        ControlMode currControlMode = ControlMode.Power;
+        ControlMode setToControlMode = ControlMode.Power;
         // If pidCtrl is not null, the operation is a software PID control using this PID controller.
-        TrcPidController pidCtrl;
+        TrcPidController pidCtrl = null;
         // motorValue can be power, velocity, position or current depending on controlMode.
-        double motorValue;
+        double motorValue = 0.0;
         // duration is only applicable for Power, Velocity and Current.
-        double duration;
-        TrcEvent notifyEvent;
+        double duration = 0.0;
+        TrcEvent notifyEvent = null;
         // holdTarget is only applicable for Position.
-        boolean holdTarget;
+        boolean holdTarget = false;
         // powerLimit is only applicable for Position.
-        Double powerLimit;
+        Double powerLimit = 1.0;
         // timeout is only applicable for Position.
-        double timeout;
+        double timeout = 0.0;
         // prevPosTarget is used for setPidPower.
         Double prevPosTarget = null;
         double calPower;
