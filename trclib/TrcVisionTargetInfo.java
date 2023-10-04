@@ -59,7 +59,19 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
          * @return pose of the detected object relative to camera.
          */
         TrcPose3D getObjectPose();
+
+        /**
+         * This method returns the objects real world width.
+         *
+         * @return object real world width, null if not supported.
+         */
         Double getObjectWidth();
+
+        /**
+         * This method returns the objects real world depth.
+         *
+         * @return object real world depth, null if not supported.
+         */
         Double getObjectDepth();
 
     }   //interface ObjectInfo
@@ -126,7 +138,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
             objPose = new TrcPose3D(xDistanceFromCamera, yDistanceFromCamera, objHeightOffset, horizontalAngle, 0.0,
                                    0.0);
             objWidth = bottomRight.x - bottomLeft.x;
-            objDepth = topLeft.y - bottomLeft.y;
+            objDepth = ((topLeft.y + topRight.y) - (bottomLeft.y + bottomRight.y))/2.0;
         }
     }   //TrcVisionTargetInfo
 
