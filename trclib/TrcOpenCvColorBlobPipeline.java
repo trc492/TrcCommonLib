@@ -202,6 +202,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private final Integer colorConversion;
     private double[] colorThresholds;
     private final FilterContourParams filterContourParams;
+    private final boolean externalContourOnly;
     private final TrcDbgTrace tracer;
     private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
@@ -224,12 +225,14 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      * @param colorThresholds specifies an array of color thresholds. If color space is RGB, the array contains RGB
      *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If color space is HSV, the array
      *        contains HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
-     * @param filterContourParams specifies the parameters for filtering contours.
+     * @param filterContourParams specifies the parameters for filtering contours, can be null if not provided.
+     * @param externalContourOnly specifies true for finding external contours only, false otherwise (not applicable
+     *        if filterContourParams is null).
      * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvColorBlobPipeline(
         String instanceName, Integer colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
-        TrcDbgTrace tracer)
+        boolean externalContourOnly, TrcDbgTrace tracer)
     {
         if (colorThresholds == null || colorThresholds.length != 6)
         {
@@ -240,6 +243,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         this.colorConversion = colorConversion;
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
+        this.externalContourOnly = externalContourOnly;
         this.tracer = tracer;
         intermediateMats = new Mat[3];
         intermediateMats[0] = null;
@@ -307,8 +311,21 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         double startTime = TrcTimer.getCurrentTime();
 
         intermediateMats[0] = input;
-        filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
-        findContours(colorThresholdOutput, true, contoursOutput);
+        // Do color space conversion.
+        if (colorConversion != null)
+        {
+            Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
+            input = colorConversionOutput;
+        }
+        // Do color filtering.
+        Core.inRange(
+            input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
+            new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), colorThresholdOutput);
+        // Find contours.
+        Imgproc.findContours(
+            input, contoursOutput, hierarchy, externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
+            Imgproc.CHAIN_APPROX_SIMPLE);
+        // Do contour filtering.
         if (filterContourParams != null)
         {
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
@@ -428,43 +445,6 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return getIntermediateOutput(intermediateStep);
     }   //getSelectedOutput
-
-    /**
-     * This method process the image by filtering with the specified color ranges.
-     *
-     * @param input specifies the input frame.
-     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
-     * @param colorThresholds specifies the color ranges (redMin, redMax, greenMin, greenMax, blueMin, blueMax) or
-     *        (hueMin, hueMax, satMin, satMax, valueMin, valueMax) if useHsv is true.
-     * @param out specifies the output frame for the result.
-     */
-    private void filterByColor(Mat input, Integer colorConversion, double[] colorThresholds, Mat out)
-    {
-        if (colorConversion != null)
-        {
-            Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
-            input = colorConversionOutput;
-        }
-
-        Core.inRange(
-            input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
-            new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), out);
-    }   //filterByColor
-
-    /**
-     * Sets the values of pixels in a binary image to their distance to the nearest black pixel.
-     *
-     * @param input specifies the image from which to find object contours.
-     * @param externalOnly specifies true to use EXTERNAL mode, false to use LIST mode.
-     * @param contours specifies the list to hold the contours found.
-     */
-    private void findContours(Mat input, boolean externalOnly, List<MatOfPoint> contours)
-    {
-        contours.clear();
-        Imgproc.findContours(
-            input, contours, hierarchy, externalOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
-            Imgproc.CHAIN_APPROX_SIMPLE);
-    }   //findContours
 
     /**
      * This method filters out contours that do not meet certain criteria.
