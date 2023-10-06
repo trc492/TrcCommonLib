@@ -323,8 +323,8 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), colorThresholdOutput);
         // Find contours.
         Imgproc.findContours(
-            input, contoursOutput, hierarchy, externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
-            Imgproc.CHAIN_APPROX_SIMPLE);
+            colorThresholdOutput, contoursOutput, hierarchy,
+            externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
         // Do contour filtering.
         if (filterContourParams != null)
         {
