@@ -41,11 +41,12 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param rect specifies the rect of the detected object.
          */
-        public DetectedObject(Rect rect)
+        public DetectedObject(String label, Rect rect)
         {
-            super(rect);
+            super(label, rect);
         }   //DetectedObject
 
         /**
@@ -156,7 +157,7 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
             targets = new DetectedObject[faceRects.length];
             for (int i = 0; i < targets.length; i++)
             {
-                targets[i] = new DetectedObject(faceRects[i]);
+                targets[i] = new DetectedObject(instanceName, faceRects[i]);
             }
         }
 

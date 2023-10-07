@@ -40,15 +40,18 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      */
     public static abstract class DetectedObject<O> implements TrcVisionTargetInfo.ObjectInfo
     {
+        public final String label;
         public final O object;
 
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param object specifies the contour of the object.
          */
-        public DetectedObject(O object)
+        public DetectedObject(String label, O object)
         {
+            this.label = label;
             this.object = object;
         }   //DetectedObject
 
@@ -60,7 +63,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         @Override
         public String toString()
         {
-            return "Rect=" + getRect() + ",area=" + getArea();
+            return "label=" + label + ",Rect=" + getRect() + ",area=" + getArea();
         }   //toString
 
     }   //class DetectedObject
@@ -73,7 +76,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         boolean validateTarget(DetectedObject<?> object);
     }   //interface FilterTarget
 
-    private final String instanceName;
+    protected final String instanceName;
     private final TrcDbgTrace tracer;
     private final TrcHomographyMapper homographyMapper;
     private final TrcVisionTask<Mat, DetectedObject<?>> visionTask;

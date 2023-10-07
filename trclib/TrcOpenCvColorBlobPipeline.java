@@ -51,11 +51,12 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param contour specifies the contour of the detected object.
          */
-        public DetectedObject(MatOfPoint contour)
+        public DetectedObject(String label, MatOfPoint contour)
         {
-            super(contour);
+            super(label, contour);
         }   //DetectedObject
 
         /**
@@ -339,7 +340,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             detectedObjects = new DetectedObject[contoursOutput.size()];
             for (int i = 0; i < detectedObjects.length; i++)
             {
-                detectedObjects[i] = new DetectedObject(contoursOutput.get(i));
+                detectedObjects[i] = new DetectedObject(instanceName, contoursOutput.get(i));
             }
 
             if (annotateEnabled)
