@@ -40,7 +40,7 @@ public abstract class TrcSensor<D>
      * This class implements the SensorData object that consists of the sensor value as well as a timestamp when the
      * data sample is taken.
      *
-     * @param <T> specifies the sensor value type. It could be integer, double, enum or any type.
+     * @param <T> specifies the sensor value type. It could be integer, double, enum or any complex type.
      */
     public static class SensorData<T>
     {

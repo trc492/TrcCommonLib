@@ -473,7 +473,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         }
         else
         {
-//            odometryTaskObj.unregisterTask();
             odometryTaskObj.unregisterTask();
         }
 
