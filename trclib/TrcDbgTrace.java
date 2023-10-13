@@ -380,7 +380,7 @@ public class TrcDbgTrace
         {
             StringBuilder msg = new StringBuilder();
 
-            msg.append(String.format(Locale.US, "tag=\">>>>>\" %s.state=\"%s\"", name, state));
+            msg.append(String.format(Locale.US, "tag=\"^^^^^\" %s.state=\"%s\"", name, state));
 
             if (driveBase != null)
             {
