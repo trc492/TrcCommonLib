@@ -820,11 +820,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
         {
             integrator.reset(zIndex);
         }
-        else
-        {
-            SensorData<Double> data = getProcessedData(zIndex, DataType.HEADING);
-            zZeroPos = data.value;
-        }
 
         if (debugEnabled)
         {
@@ -914,6 +909,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             {
                 resetZIntegrator();
             }
+
+            SensorData<Double> data = getProcessedData(zIndex, DataType.HEADING);
+            zZeroPos = data.value;
 
             updateOdometry();
             odometry.prevTimestamp = odometry.currTimestamp;
