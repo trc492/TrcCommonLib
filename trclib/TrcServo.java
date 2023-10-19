@@ -772,6 +772,17 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     }   //validatePresetIndex
 
     /**
+     * This method returns the preset position at the specified index.
+     *
+     * @param index specifies the index into the preset position table.
+     * @return preset position.
+     */
+    public double getPresetPosition(int index)
+    {
+        return posPresets[index];
+    }   //getPresetPosition
+
+    /**
      * This method sets the servo to the specified preset position.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
