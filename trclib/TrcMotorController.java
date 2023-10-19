@@ -394,6 +394,6 @@ public interface TrcMotorController
      *
      * @param motor specifies the motor to follow.
      */
-    void followMotor(TrcMotor motor);
+    void follow(TrcMotor motor);
 
 }   //interface TrcMotorController

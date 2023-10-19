@@ -121,7 +121,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
     private final String instanceName;
     private final TrcMotor motor;
-    private final TrcServo servo;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
     private final TrcEvent.Callback eventCallback;
@@ -135,24 +134,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
-     * @param servo specifies the continuous servo object.
      * @param params specifies the parameters object.
      * @param sensorTrigger specifies the sensor trigger object, can be null if none.
      * @param eventCallback specifies the notification callback when a trigger event occurred,
      *        null if no sensorTrigger.
      */
     private TrcIntake(
-        String instanceName, TrcMotor motor, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
+        String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
         TrcEvent.Callback eventCallback)
     {
-        if (servo != null && !servo.isContinuous())
-        {
-            throw new RuntimeException("Servo must be a continuous servo.");
-        }
-
         this.instanceName = instanceName;
         this.motor = motor;
-        this.servo = servo;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.eventCallback = eventCallback;
@@ -166,56 +158,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
      * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param eventCallback specifies the notification callback when a trigger event occurred,
-     *        null if no sensorTrigger.
-     */
-    public TrcIntake(
-        String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback eventCallback)
-    {
-        this(instanceName, motor, null, params, sensorTrigger, eventCallback);
-    }   //TrcIntake
-
-    /**
-     * Constructor: Creates an instance of the object.
-     *
-     * @param instanceName specifies the hardware name.
-     * @param servo specifies the continuous servo object.
-     * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param eventCallback specifies the notification callback when a trigger event occurred,
-     *        null if no sensorTrigger.
-     */
-    public TrcIntake(
-        String instanceName, TrcServo servo, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback eventCallback)
-    {
-        this(instanceName, null, servo, params, sensorTrigger, eventCallback);
-    }   //TrcIntake
-
-    /**
-     * Constructor: Creates an instance of the object.
-     *
-     * @param instanceName specifies the hardware name.
-     * @param motor specifies the motor object.
-     * @param params specifies the parameters object.
      */
     public TrcIntake(String instanceName, TrcMotor motor, Parameters params)
     {
-        this(instanceName, motor, null, params, null, null);
-    }   //TrcIntake
-
-    /**
-     * Constructor: Creates an instance of the object.
-     *
-     * @param instanceName specifies the hardware name.
-     * @param servo specifies the continuous servo object.
-     * @param params specifies the parameters object.
-     */
-    public TrcIntake(String instanceName, TrcServo servo, Parameters params)
-    {
-        this(instanceName, null, servo, params, null, null);
+        this(instanceName, motor, params, null, null);
     }   //TrcIntake
 
     /**
@@ -228,7 +174,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         return String.format(
             Locale.US, "%s: pwr=%.3f, current=%.3f, autoAssistActive=%s, hasObject=%s",
-            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, isAutoAssistActive(), hasObject());
+            instanceName, getPower(), motor.getMotorCurrent(), isAutoAssistActive(), hasObject());
     }   //toString
 
     /**
@@ -238,7 +184,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public double getPower()
     {
-        return motor != null? motor.getMotorPower(): servo.getPower();
+        return motor.getMotorPower();
     }   //getPower
 
     /**
@@ -253,14 +199,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void setPower(String owner, double delay, double power, double duration, TrcEvent event)
     {
-        if (motor != null)
-        {
-            motor.setPower(owner, delay, power, duration, event);
-        }
-        else
-        {
-            servo.setPower(owner, delay, power, duration, event);
-        }
+        motor.setPower(owner, delay, power, duration, event);
     }   //setPower
 
     /**
@@ -397,14 +336,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
                     TrcTimer.getModeElapsedTime(), actionParams, objCaptured);
             }
 
-            if (motor != null)
-            {
-                motor.setPower(actionParams.intakePower);
-            }
-            else
-            {
-                servo.setPower(actionParams.intakePower);
-            }
+            motor.setPower(actionParams.intakePower);
             sensorTrigger.enableTrigger(this::triggerCallback);
 
             if (actionParams.timeout > 0.0)

@@ -321,7 +321,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param motor specifies the motor that will follow this motor.
      */
-    private void addFollowingMotor(TrcMotor motor)
+    private void addFollower(TrcMotor motor)
     {
         synchronized (followingMotorsList)
         {
@@ -330,7 +330,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 followingMotorsList.add(motor);
             }
         }
-    }   //addFollowingMotor
+    }   //addFollower
 
     /**
      * This method sets this motor to follow another motor.
@@ -338,10 +338,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param motor specifies the motor to follow.
      */
     @Override
-    public void followMotor(TrcMotor motor)
+    public void follow(TrcMotor motor)
     {
-        motor.addFollowingMotor(this);
-    }   //followMotor
+        motor.addFollower(this);
+    }   //follow
 
     //
     // TrcMotor only methods. Subclass should not override these methods unless you know what you are doing.
@@ -2818,7 +2818,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     //
 
     /**
-     * This method sets an array of preset positions for the motor actuator.
+     * This method sets an array of preset positions for the motor.
      *
      * @param tolerance specifies the preset tolerance.
      * @param posPresets specifies an array of preset positions in scaled unit.
@@ -2841,7 +2841,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //validatePresetIndex
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
@@ -2864,7 +2864,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param preset specifies the index to the preset position array.
@@ -2882,7 +2882,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param preset specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
@@ -2898,7 +2898,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param preset specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
@@ -2910,7 +2910,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param preset specifies the index to the preset position array.
      * @param event specifies the event to signal when done, can be null if not provided.
@@ -2921,7 +2921,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param preset specifies the index to the preset position array.
@@ -2933,7 +2933,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
      * @param preset specifies the index to the preset position array.
@@ -2944,7 +2944,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param preset specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
@@ -2955,7 +2955,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPresetPosition
 
     /**
-     * This method sets the actuator to the specified preset position.
+     * This method sets the motor to the specified preset position.
      *
      * @param preset specifies the index to the preset position array.
      */
@@ -3035,10 +3035,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //nextPresetIndexDown
 
     /**
-     * This method sets the actuator to the next preset position up or down from the current position.
+     * This method sets the motor to the next preset position up or down from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
      *        is required.
      * @param presetUp specifies true to move to next preset up, false to move to next preset down.
      * @param powerLimit specifies the maximum power limit.
@@ -3054,10 +3054,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setNextPresetPosition
 
     /**
-     * This method sets the actuator to the next preset position up from the current position.
+     * This method sets the motor to the next preset position up from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
      *        is required.
      * @param powerLimit specifies the maximum power limit.
      */
@@ -3067,10 +3067,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //presetPositionUp
 
     /**
-     * This method sets the actuator to the next preset position down from the current position.
+     * This method sets the motor to the next preset position down from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the actuator movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
      *        is required.
      * @param powerLimit specifies the maximum power limit.
      */

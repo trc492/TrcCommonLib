@@ -227,12 +227,12 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         if (servo2 != null)
         {
             servo2.setInverted(params.servo2Inverted);
-            servo1.addFollower(servo2);
+            servo2.follow(servo1);
         }
 
         if (params.maxStepRate != 0.0)
         {
-            servo.setStepMode(params.maxStepRate, params.minPos, params.maxPos);
+            servo.setStepModeParams(params.maxStepRate, params.minPos, params.maxPos);
         }
 
         timer = new TrcTimer(instanceName);

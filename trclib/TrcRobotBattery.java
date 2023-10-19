@@ -84,7 +84,7 @@ public abstract class TrcRobotBattery
     }   //TrcRobotBattery
 
     /**
-     * This method returns the state of the Arm in a string.
+     * This method returns the state of the battery in a string.
      */
     @Override
     public String toString()
