@@ -304,7 +304,7 @@ public class TrcPose2D
     }   //translatePose
 
     /**
-     * This method adds a relative pose to the this pose and return the resulting pose. The relative pose has a
+     * This method adds a relative pose to this pose and return the resulting pose. The relative pose has a
      * relative vector and relative angle from this pose.
      *
      * @param relativePose specifies the pose relative to the previous pose.
@@ -312,9 +312,26 @@ public class TrcPose2D
      */
     public TrcPose2D addRelativePose(TrcPose2D relativePose)
     {
-        RealVector vec = TrcUtil.createVector(this.x, this.y).add(
-                TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+        RealVector vec =
+            TrcUtil.createVector(this.x, this.y).add(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+
         return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle + relativePose.angle);
     }   //addRelativePose
+
+    /**
+     * This method subtracts a relative pose from this pose and return the resulting pose. The relative pose has a
+     * relative vector and relative angle from the resulting pose to this pose. In other words, adding the relative
+     * pose to the resulting pose would yield this pose.
+     *
+     * @param relativePose specifies the relative pose from the resulting pose.
+     * @return resulting pose.
+     */
+    public TrcPose2D subtractRelativePose(TrcPose2D relativePose)
+    {
+        RealVector vec =
+            TrcUtil.createVector(this.x, this.y).subtract(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+
+        return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle - relativePose.angle);
+    }   //subtractRelativePose
 
 }   //class TrcPose2D

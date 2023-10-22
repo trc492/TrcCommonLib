@@ -238,6 +238,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
     private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
+    private Double lastRobotHeading = null;
+    private boolean robotTurning = false;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -391,11 +393,23 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     /**
      * This method returns robot heading to be maintained in teleop drive according to drive orientation mode.
      *
+     * @param turnPower specifies the robot's current turning power.
      * @return robot heading to be maintained.
      */
-    public double getDriveGyroAngle()
+    public double getDriveGyroAngle(double turnPower)
     {
         double angle;
+
+        if (turnPower != 0.0)
+        {
+            robotTurning = true;
+        }
+        else if (robotTurning || lastRobotHeading == null)
+        {
+            // Robot just stopped turning or this is the first call, save the last robot heading.
+            lastRobotHeading = gyro.getZHeading().value;
+            robotTurning = false;
+        }
 
         switch (driveOrientation)
         {
@@ -409,7 +423,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
             default:
             case FIELD:
-                angle = gyro != null? gyro.getZHeading().value: 0.0;
+                angle = gyro == null? 0.0: robotTurning? gyro.getZHeading().value: lastRobotHeading;
                 break;
         }
 

@@ -209,6 +209,17 @@ public class TrcPose3D
     }   //hashCode
 
     /**
+     * This method converts the Pose3D to a Pose2D.
+     *
+     * @return converted Pose2D.
+     */
+    public TrcPose2D toPose2D()
+    {
+        // TrcPose2D has a positive clockwise angle but TrcPose3D has a positive counter clockwise yaw.
+        return new TrcPose2D(x, y, -yaw);
+    }   //toPose2D
+
+    /**
      * This method returns the vector form of this pose.
      *
      * @return vector form of this pose.
