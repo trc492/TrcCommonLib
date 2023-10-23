@@ -1044,7 +1044,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //setSensitivity
 
     /**
-     * This method enables gyro assist drive.
+     * This method enables/disables gyro assist drive.
+     *
+     * @param turnPidCtrl specifies the turn PID controller to enable GyroAssist, null to disable.
      */
     public void setGyroAssistEnabled(TrcPidController turnPidCtrl)
     {
@@ -1062,12 +1064,12 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //isGyroAssistEnabled
 
     /**
-     * This method calculates and returns the gyro assist power.
+     * This method calculates and returns the gyro assist power to be added to turnPower to compensate heading drift.
      *
      * @param turnPower specifies the turn power.
      * @return gyro assist power.
      */
-    public double getGyroAssistPower(double turnPower)
+    protected double getGyroAssistPower(double turnPower)
     {
         final String funcName = "getGyroAssistPower";
         double gyroAssistPower = 0.0;
@@ -1076,6 +1078,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         {
             if (turnPower != 0.0)
             {
+                // Robot is turning, do not need to apply GyroAssist power.
                 robotTurning = true;
             }
             else
@@ -1083,13 +1086,17 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 // The robot is going straight.
                 if (robotTurning || gyroAssistHeading == null)
                 {
-                    // Robot just stopped turning or this is the first call, save the last robot heading.
+                    // Robot just stopped turning or this is the first call, save the current robot heading.
+                    // Set the current robot heading as the PID target to maintain this heading.
                     gyroAssistHeading = gyro.getZHeading().value;
                     gyroAssistPidCtrl.setTarget(gyroAssistHeading);
                     robotTurning = false;
-                    TrcDbgTrace.globalTraceInfo(
-                        funcName, "Maintain robot heading: %f", gyroAssistHeading);
+                    if (debugEnabled)
+                    {
+                        dbgTrace.traceInfo(funcName, "Maintain robot heading at %f", gyroAssistHeading);
+                    }
                 }
+                // Robot is going straight, use turnPid controller to calculate GyroAssist power.
                 gyroAssistPower = gyroAssistPidCtrl.getOutput();
             }
         }
