@@ -226,7 +226,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     }   //interface MotorPowerMapper
 
     private static final double DEF_SENSITIVITY = 0.5;
-//    private static final double DEF_MAX_OUTPUT = 1.0;
 
     private final TrcMotor[] motors;
     private final TrcGyro gyro;
@@ -238,8 +237,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
     private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
-    private Double lastRobotHeading = null;
-    private boolean robotTurning = false;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -247,10 +244,12 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private TrcDriveBaseOdometry driveBaseOdometry = null;
     protected MotorPowerMapper motorPowerMapper = null;
     private double sensitivity = DEF_SENSITIVITY;
-//    private double maxOutput = DEF_MAX_OUTPUT;
-    private double gyroMaxRotationRate = 0.0;
-    private double gyroAssistGain = 1.0;
-    private boolean gyroAssistEnabled = false;
+
+    // GyroAssist driving.
+    private TrcPidController gyroAssistPidCtrl = null;
+    private Double gyroAssistHeading = null;
+    private boolean robotTurning = false;
+
     private TrcPidController xTippingPidCtrl = null;
     private TrcPidController yTippingPidCtrl = null;
     private boolean antiTippingEnabled = false;
@@ -398,18 +397,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getDriveGyroAngle(double turnPower)
     {
-        double angle;
-
-        if (turnPower != 0.0)
-        {
-            robotTurning = true;
-        }
-        else if (robotTurning || lastRobotHeading == null)
-        {
-            // Robot just stopped turning or this is the first call, save the last robot heading.
-            lastRobotHeading = gyro.getZHeading().value;
-            robotTurning = false;
-        }
+        double angle = 0.0;
 
         switch (driveOrientation)
         {
@@ -421,9 +409,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 angle = 180.0;
                 break;
 
-            default:
             case FIELD:
-                angle = gyro == null? 0.0: robotTurning? gyro.getZHeading().value: lastRobotHeading;
+                // Without gyro, FIELD mode will behave like ROBOT mode.
+                angle = gyro == null? 0.0: gyro.getZHeading().value;
                 break;
         }
 
@@ -539,15 +527,32 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      * starting position relative to the field origin.
      *
      * @param pose specifies the absolute position of the robot relative to the field origin.
+     * @param positionOnly specifies true for setting position only but not heading, false to also set heading.
      */
-    public void setFieldPosition(TrcPose2D pose)
+    public void setFieldPosition(TrcPose2D pose, boolean positionOnly)
     {
         synchronized (odometry)
         {
+            if (positionOnly)
+            {
+                // Setting position only, so restore the current robot heading.
+                pose.angle = getHeading();
+            }
             resetOdometry();
             odometry.setPositionAs(pose);
         }
     }   //setFieldPosition
+
+    /**
+     * This method sets the robot's absolute field position to the given pose. This can be used to set the robot's
+     * starting position relative to the field origin.
+     *
+     * @param pose specifies the absolute position of the robot relative to the field origin.
+     */
+    public void setFieldPosition(TrcPose2D pose)
+    {
+        setFieldPosition(pose, false);
+    }   // setFieldPosition
 
     /**
      * This method returns the robot position relative to <code>pose</code>.
@@ -1038,84 +1043,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         this.sensitivity = sensitivity;
     }   //setSensitivity
 
-//    /**
-//     * This method sets the maximum output value of the motor.
-//     *
-//     * @param maxOutput specifies the maximum output value.
-//     */
-//    public void setMaxOutput(double maxOutput)
-//    {
-//        final String funcName = "setMaxOutput";
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "maxOutput=%f", maxOutput);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-//        }
-//
-//        this.maxOutput = Math.abs(maxOutput);
-//    }   //setMaxOutput
-//
-//    /**
-//     * This method clips the motor output to the range of -maxOutput to maxOutput.
-//     *
-//     * @param output specifies the motor output.
-//     * @return clipped motor output.
-//     */
-//    protected double clipMotorOutput(double output)
-//    {
-//        final String funcName = "clipMotorOutput";
-//        double motorOutput = TrcUtil.clipRange(output, -maxOutput, maxOutput);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "output=%f", output);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", motorOutput);
-//        }
-//
-//        return motorOutput;
-//    }   //clipMotorOutput
-
     /**
      * This method enables gyro assist drive.
-     *
-     * @param gyroMaxRotationRate specifies the maximum rotation rate of the robot base reported by the gyro.
-     * @param gyroAssistGain specifies the gyro assist proportional gain.
      */
-    public void enableGyroAssist(double gyroMaxRotationRate, double gyroAssistGain)
+    public void setGyroAssistEnabled(TrcPidController turnPidCtrl)
     {
-        final String funcName = "enableGyroAssist";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "gyroMaxRate=%f,gyroAssistGain=%f",
-                gyroMaxRotationRate, gyroAssistGain);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.gyroMaxRotationRate = gyroMaxRotationRate;
-        this.gyroAssistGain = gyroAssistGain;
-        this.gyroAssistEnabled = true;
-    }   //enableGyroAssist
-
-    /**
-     * This method disables gyro assist drive.
-     */
-    public void disableGyroAssist()
-    {
-        final String funcName = "disableGyroAssist";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
-        this.gyroMaxRotationRate = 0.0;
-        this.gyroAssistGain = 1.0;
-        this.gyroAssistEnabled = false;
-    }   //disableGyroAssist
+        this.gyroAssistPidCtrl = turnPidCtrl;
+    }   //setGyroAssistEnabled
 
     /**
      * This method checks if Gyro Assist is enabled.
@@ -1124,31 +1058,39 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public boolean isGyroAssistEnabled()
     {
-        return gyroAssistEnabled;
+        return gyroAssistPidCtrl != null;
     }   //isGyroAssistEnabled
 
     /**
      * This method calculates and returns the gyro assist power.
      *
-     * @param rotation specifies the rotation power.
+     * @param turnPower specifies the turn power.
      * @return gyro assist power.
      */
-    public double getGyroAssistPower(double rotation)
+    public double getGyroAssistPower(double turnPower)
     {
         final String funcName = "getGyroAssistPower";
         double gyroAssistPower = 0.0;
 
-        if (gyroAssistEnabled)
+        if (gyroAssistPidCtrl != null)
         {
-            double turnRate = gyro.getZRotationRate().value;
-            double error = rotation - turnRate / gyroMaxRotationRate;
-            gyroAssistPower = TrcUtil.clipRange(gyroAssistGain * error);
-
-            if (debugEnabled)
+            if (turnPower != 0.0)
             {
-                dbgTrace.traceInfo(
-                    funcName, "rotation=%f, turnRate=%f, error=%f, gyroAssistPower=%f",
-                    rotation, turnRate, error, gyroAssistPower);
+                robotTurning = true;
+            }
+            else
+            {
+                // The robot is going straight.
+                if (robotTurning || gyroAssistHeading == null)
+                {
+                    // Robot just stopped turning or this is the first call, save the last robot heading.
+                    gyroAssistHeading = gyro.getZHeading().value;
+                    gyroAssistPidCtrl.setTarget(gyroAssistHeading);
+                    robotTurning = false;
+                    TrcDbgTrace.globalTraceInfo(
+                        funcName, "Maintain robot heading: %f", gyroAssistHeading);
+                }
+                gyroAssistPower = gyroAssistPidCtrl.getOutput();
             }
         }
 
