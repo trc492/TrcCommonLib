@@ -116,7 +116,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final TrcEncoder encoder;               // for software simulation
     private final TrcOdometrySensor.Odometry odometry;
     private final TrcTimer timer;
-    private final TrcTaskMgr.TaskObject pidCtrlTaskObj;
     private TrcPerformanceTimer pidCtrlTaskPerformanceTimer = null;
     private boolean odometryEnabled = false;
     // Configurations for software simulation of motor controller features.
@@ -178,7 +177,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         this.encoder = encoder;
         odometry = new TrcOdometrySensor.Odometry(this);
         timer = new TrcTimer(instanceName);
-        pidCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".pidCtrlTask", this::pidCtrlTask);
+        TrcTaskMgr.TaskObject pidCtrlTaskObj = TrcTaskMgr.createTask(instanceName + ".pidCtrlTask", this::pidCtrlTask);
         pidCtrlTaskObj.registerTask(TaskType.OUTPUT_TASK);
 
         if (odometryTaskObj == null)
