@@ -30,6 +30,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -207,6 +208,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private final TrcDbgTrace tracer;
     private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
+    private final Mat morphologyOutput = new Mat();
     private final Mat hierarchy = new Mat();
     private final Mat[] intermediateMats;
 
@@ -214,6 +216,8 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private final AtomicReference<DetectedObject[]> detectedObjectsUpdate = new AtomicReference<>();
     private int intermediateStep = 0;
     private boolean annotateEnabled = false;
+    private int morphOp = Imgproc.MORPH_CLOSE;
+    private Mat kernelMat = null;
 
     /**
      * Constructor: Create an instance of the object.
@@ -246,10 +250,11 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         this.filterContourParams = filterContourParams;
         this.externalContourOnly = externalContourOnly;
         this.tracer = tracer;
-        intermediateMats = new Mat[3];
+        intermediateMats = new Mat[4];
         intermediateMats[0] = null;
         intermediateMats[1] = colorConversionOutput;
         intermediateMats[2] = colorThresholdOutput;
+        intermediateMats[3] = morphologyOutput;
     }   //TrcOpenCvColorBlobPipeline
 
     /**
@@ -282,6 +287,42 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         this.colorThresholds = colorThresholds;
     }   //setColorThresholds
+
+    /**
+     * This method enables Morphology operation in the pipeline with the specifies kernel shape and size.
+     *
+     * @param morphOp specifies the Morphology operation.
+     * @param kernelShape specifies the kernel shape.
+     * @param kernelSize specifies the kernel size.
+     */
+    public void setMorphologyOp(int morphOp, int kernelShape, Size kernelSize)
+    {
+        if (kernelMat != null)
+        {
+            // Release an existing kernel mat if there is one.
+            kernelMat.release();
+        }
+        this.morphOp = morphOp;
+        kernelMat = Imgproc.getStructuringElement(kernelShape, kernelSize);
+    }   //setMorphologyOp
+
+    /**
+     * This method enables Morphology operation in the pipeline with default kernel shape and size.
+     *
+     * @param morphOp specifies the Morphology operation.
+     */
+    public void setMorphologyOp(int morphOp)
+    {
+        setMorphologyOp(morphOp, Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+    }   //setMorphologyOp
+
+    /**
+     * This method enables Morphology operation in the pipeline with default kernel shape and size.
+     */
+    public void setMorphologyOp()
+    {
+        setMorphologyOp(Imgproc.MORPH_CLOSE, Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+    }   //setMorphologyOp
 
     //
     // Implements TrcOpenCvPipeline interface.
@@ -322,9 +363,16 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         Core.inRange(
             input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), colorThresholdOutput);
+        input = colorConversionOutput;
+        // Do morphology.
+        if (kernelMat != null)
+        {
+            Imgproc.morphologyEx(input, morphologyOutput, morphOp, kernelMat);
+            input = morphologyOutput;
+        }
         // Find contours.
         Imgproc.findContours(
-            colorThresholdOutput, contoursOutput, hierarchy,
+            input, contoursOutput, hierarchy,
             externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
         // Do contour filtering.
         if (filterContourParams != null)
