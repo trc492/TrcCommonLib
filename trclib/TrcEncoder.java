@@ -34,9 +34,9 @@ public interface TrcEncoder
     void reset();
 
     /**
-     * This method reads the absolute position of the encoder.
+     * This method reads the normalized absolute position of the encoder.
      *
-     * @return absolute position of the encoder.
+     * @return normalized absolute position of the encoder.
      */
     double getRawPosition();
 
@@ -66,7 +66,8 @@ public interface TrcEncoder
      *
      * @param scale specifies the scale value.
      * @param offset specifies the offset value.
+     * @param zeroOffset specifies the zero offset for absolute encoder.
      */
-    void setScaleAndOffset(double scale, double offset);
+    void setScaleAndOffset(double scale, double offset, double zeroOffset);
 
 }   //interface TrcEncoder

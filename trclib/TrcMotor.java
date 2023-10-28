@@ -634,12 +634,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param scale specifies scale factor to multiply the position sensor reading.
      * @param offset specifies offset added to the scaled sensor reading.
+     * @param zeroOffset specifies the zero offset for absolute encoder.
      */
-    public void setPositionSensorScaleAndOffset(double scale, double offset)
+    public void setPositionSensorScaleAndOffset(double scale, double offset, double zeroOffset)
     {
         if (encoder != null)
         {
-            encoder.setScaleAndOffset(scale, offset);
+            encoder.setScaleAndOffset(scale, offset, zeroOffset);
         }
         else
         {
@@ -648,6 +649,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             sensorOffset = offset;
         }
     }   //setPositionSensorScaleAndOffset
+
+    /**
+     * This method returns the normalized raw position of the external encoder if one is provided.
+     *
+     * @return external encoder normalized raw position.
+     */
+    public double getEncoderRawPosition()
+    {
+        return encoder != null? encoder.getRawPosition(): 0.0;
+    }   //getEncoderRawPosition
 
     /**
      * This method gets the scaled position from an external position sensor if provided. Otherwise, it gets it from
