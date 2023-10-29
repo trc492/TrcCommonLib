@@ -43,6 +43,27 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private static final String debugSubsystem = null;
     private static final boolean verbosePidInfo = false;
 
+    /**
+     * Some actuators are non-linear. The load may vary depending on the position. For example, raising an arm
+     * against gravity will have the maximum load when the arm is horizontal and zero load when vertical. This
+     * caused problem when applying PID control on this kind of actuator because PID controller is only good at
+     * controlling linear actuators. To make PID controller works for non-linear actuators, we need to add power
+     * compensation that counteracts the non-linear component of the load so that PID only deals with the resulting
+     * linear load. However, a generic PID controller doesn't understand the actuator and has no way to come up
+     * with the compensation. Therefore, it is up to the user of the TrcPIDMotor to provide this interface for
+     * computing the output compensation.
+     */
+    public interface PowerCompensation
+    {
+        /**
+         * This method is called to compute the power compensation to counteract the varying non-linear load.
+         *
+         * @param currPower specifies the current motor power.
+         * @return compensation value of the actuator.
+         */
+        double getCompensation(double currPower);
+
+    }   //interface PowerCompensation
 
     public enum TriggerMode
     {
@@ -69,6 +90,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         ControlMode setToControlMode = ControlMode.Power;
         // If pidCtrl is not null, the operation is a software PID control using this PID controller.
         TrcPidController pidCtrl = null;
+        PowerCompensation powerComp = null;
         // motorValue can be power, velocity, position or current depending on controlMode.
         double motorValue = 0.0;
         // duration is only applicable for Power, Velocity and Current.
@@ -140,8 +162,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private Double controllerCurrent;
     // Software PID controllers.
     private TrcPidController velPidCtrl = null;
+    private PowerCompensation velPowerComp = null;
     private TrcPidController posPidCtrl = null;
+    private PowerCompensation posPowerComp = null;
     private TrcPidController currentPidCtrl = null;
+    private PowerCompensation currentPowerComp = null;
     // Tracer config.
     private TrcDbgTrace msgTracer = null;
     private boolean tracePidInfo = false;
@@ -751,6 +776,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //pidCtrlToUse
 
     /**
+     * This method checks which PID Power Compensation callback to use for close-loop control.
+     *
+     * @param controlMode specifies the control mode.
+     * @param useSoftwarePid specifies true to use software PID control, false otherwise.
+     * @return the Power Compensation callback to used for close-loop control.
+     */
+    private PowerCompensation powerCompToUse(ControlMode controlMode, boolean useSoftwarePid)
+    {
+        return !useSoftwarePid? null:
+               controlMode == ControlMode.Velocity? velPowerComp:
+               controlMode == ControlMode.Position? posPowerComp:
+               controlMode == ControlMode.Current? currentPowerComp: null;
+    }   //powerCompToUse
+
+    /**
      * This method sets the motor control mode and initializes ActionParams appropriately for the control mode.
      *
      * @param controlMode specifies the motor control mode.
@@ -771,6 +811,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             taskParams.currControlMode = controlMode;
             taskParams.pidCtrl = pidCtrlToUse(controlMode, useSoftwarePid);
+            taskParams.powerComp = powerCompToUse(controlMode, useSoftwarePid);
         }
     }   //setMotorControlMode
 
@@ -1116,6 +1157,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             taskParams.setToControlMode = controlMode;
             taskParams.pidCtrl = pidCtrlToUse(controlMode, softwarePidEnabled);
+            taskParams.powerComp = powerCompToUse(controlMode, softwarePidEnabled);
             taskParams.motorValue = motorValue;
             taskParams.duration = duration;
             taskParams.notifyEvent = completionEvent;
@@ -1860,18 +1902,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param powerComp specifies the power compensation callback.
      */
-    public void setVelocityPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    public void setVelocityPidPowerComp(PowerCompensation powerComp)
     {
         if (softwarePidEnabled)
         {
-            if (velPidCtrl != null)
-            {
-                velPidCtrl.setPowerComp(powerComp);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Velocity PID coeefficients have not been set.");
-            }
+            velPowerComp = powerComp;
         }
     }   //setVelocityPidPowerComp
 
@@ -2051,18 +2086,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param powerComp specifies the power compensation callback.
      */
-    public void setPositionPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    public void setPositionPidPowerComp(PowerCompensation powerComp)
     {
         if (softwarePidEnabled)
         {
-            if (posPidCtrl != null)
-            {
-                posPidCtrl.setPowerComp(powerComp);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Position PID coeefficients have not been set.");
-            }
+            posPowerComp = powerComp;
         }
     }   //setPositionPidPowerComp
 
@@ -2242,18 +2270,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param powerComp specifies the power compensation callback.
      */
-    public void setCurrentPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    public void setCurrentPidPowerComp(PowerCompensation powerComp)
     {
         if (softwarePidEnabled)
         {
-            if (currentPidCtrl != null)
-            {
-                currentPidCtrl.setPowerComp(powerComp);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Current PID coeefficients have not been set.");
-            }
+            currentPowerComp = powerComp;
         }
     }   //setCurrentPidPowerComp
 
@@ -2540,8 +2561,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                         {
                             TrcDbgTrace.globalTraceInfo(
-                                funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, pidCtrl=%s, powerLimit=%s",
-                                debugSubsystem, onTarget, expired, doStop, taskParams.pidCtrl, taskParams.powerLimit);
+                                funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, powerLimit=%s, pidCtrl=%s",
+                                debugSubsystem, onTarget, expired, doStop, taskParams.powerLimit, taskParams.pidCtrl);
                         }
 
                         if (doStop)
@@ -2560,6 +2581,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 // Only applicable for Position control mode.
                                 power = TrcUtil.clipRange(power, taskParams.powerLimit);
                             }
+
+                            if (taskParams.powerComp != null)
+                            {
+                                power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
+                            }
                             // Software PID control sets motor power but control mode is not Power, so don't
                             // overwrite it.
                             setControllerMotorPower(power, false);
@@ -2567,8 +2593,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, power=%f, powerLimit=%s",
-                                    debugSubsystem, onTarget, expired, doStop, power, taskParams.powerLimit);
+                                    funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, powerLimit=%s, power=%f",
+                                    debugSubsystem, onTarget, expired, doStop, taskParams.powerLimit, power);
                             }
 
                             if (msgTracer != null && tracePidInfo)
