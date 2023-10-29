@@ -200,7 +200,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public double toLogicalPosition(double physicalPosition)
     {
-         physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
+        physicalPosition = TrcUtil.clipRange(physicalPosition, physicalMin, physicalMax);
         return TrcUtil.scaleRange(physicalPosition, physicalMin, physicalMax, logicalMin, logicalMax);
     }   //toLogicalPosition
 
@@ -328,7 +328,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         synchronized (taskParams)
         {
             double logicalPos =
-                toLogicalPosition(TrcUtil.clipRange(taskParams.targetPosition, physicalMin, physicalMax));
+                toLogicalPosition(taskParams.targetPosition);
             setLogicalPosition(logicalPos);
 
             synchronized (followers)
