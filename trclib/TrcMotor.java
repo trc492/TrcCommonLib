@@ -40,7 +40,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private static final String moduleName = "TrcMotor";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
+    private static final String debugSubsystem = null;
     private static final boolean verbosePidInfo = false;
+
 
     public enum TriggerMode
     {
@@ -1601,6 +1603,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void setPidPower(String owner, double power, double minPos, double maxPos, boolean holdTarget)
     {
+        final String funcName = "setPidPower";
+
         if (validateOwnership(owner))
         {
             // If power is negative, set the target to minPos. If power is positive, set the target to maxPos. We
@@ -1615,11 +1619,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             {
                 // Target position changes when:
                 // - Starting: Change target position according to power sign.
-                // - Stopping: Change target position to undertermined and hold current positionn if necessary.
+                // - Stopping: Change target position to undetermined and hold current position if necessary.
                 // - Changing direction.
-                if (taskParams.prevPosTarget == null ||     // Starting.
-                    currTarget == null ||                   // Stopping.
-                    currTarget != taskParams.prevPosTarget) // Changing direction.
+                if (currTarget != null ^ taskParams.prevPosTarget != null ||            // Starting or stopping.
+                    currTarget != null && !currTarget.equals(taskParams.prevPosTarget)) // Changing direction.
                 {
                     if (currTarget == null)
                     {
@@ -1629,16 +1632,34 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         {
                             // Hold target at current position.
                             setPosition(0.0, currPos, true, 1.0, null, 0.0);
+                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                            {
+                                TrcDbgTrace.globalTraceInfo(
+                                    funcName, "[%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                            }
                         }
                         else
                         {
                             setControllerMotorPower(0.0, true);
+                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                            {
+                                TrcDbgTrace.globalTraceInfo(
+                                    funcName, "[%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                            }
                         }
                     }
                     else
                     {
                         // We are starting or changing direction.
                         setPosition(0.0, currTarget, holdTarget, power, null, 0.0);
+                        if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                        {
+                            TrcDbgTrace.globalTraceInfo(
+                                funcName, "[%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                        }
                     }
                     taskParams.prevPosTarget = currTarget;
                 }
@@ -1651,6 +1672,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 {
                     // Direction did not change but we need to update the power range.
                     taskParams.powerLimit = power;
+                    if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                    {
+                        TrcDbgTrace.globalTraceInfo(
+                            funcName, "[%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                            debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                    }
                 }
             }
         }
@@ -2510,6 +2537,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
                             !taskParams.holdTarget && (onTarget || expired);
 
+                        if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                        {
+                            TrcDbgTrace.globalTraceInfo(
+                                funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, pidCtrl=%s, powerLimit=%s",
+                                debugSubsystem, onTarget, expired, doStop, taskParams.pidCtrl, taskParams.powerLimit);
+                        }
+
                         if (doStop)
                         {
                             // We are stopping motor but control mode is not Power, so don't overwrite it.
@@ -2522,12 +2556,20 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                             if (taskParams.powerLimit != null)
                             {
+                                // Apply power limit to the calculated PID power.
                                 // Only applicable for Position control mode.
                                 power = TrcUtil.clipRange(power, taskParams.powerLimit);
                             }
                             // Software PID control sets motor power but control mode is not Power, so don't
                             // overwrite it.
-                            setControllerMotorPower(taskParams.pidCtrl.getOutput(), false);
+                            setControllerMotorPower(power, false);
+
+                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                            {
+                                TrcDbgTrace.globalTraceInfo(
+                                    funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, power=%f, powerLimit=%s",
+                                    debugSubsystem, onTarget, expired, doStop, power, taskParams.powerLimit);
+                            }
 
                             if (msgTracer != null && tracePidInfo)
                             {
@@ -2537,6 +2579,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         else
                         {
                             // Doing motor controller close loop PID control.
+                            // If a power limit is set, adjust native motor PID control correspondingly.
+                            if (taskParams.powerLimit != null)
+                            {
+                                // Set the same target position but change power limit if necessary.
+                                // If powerLimit did not change from last time, setControllerMotorPosition is a no-op.
+                                setControllerMotorPosition(controllerPosition, taskParams.powerLimit);
+                            }
                             // We are monitoring for completion and sync the followers if motor controller does not
                             // support motor following.
                             synchronized (followingMotorsList)
