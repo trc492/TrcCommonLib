@@ -1762,8 +1762,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                velPidCtrl = new TrcPidController(
-                    instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getVelocity);
+                velPidCtrl = new TrcPidController(instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getVelocity);
                 // Set to absolute setpoint because velocity PID control is generally absolute.
                 velPidCtrl.setAbsoluteSetPoint(true);
             }
@@ -1828,6 +1827,26 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             setMotorVelocityPidTolerance(tolerance);
         }
     }   //setVelocityPidTolerance
+
+    /**
+     * This method sets the power compensation callback of the motor's velocity PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setVelocityPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            if (velPidCtrl != null)
+            {
+                velPidCtrl.setPowerComp(powerComp);
+            }
+            else
+            {
+                throw new IllegalStateException("Software Velocity PID coeefficients have not been set.");
+            }
+        }
+    }   //setVelocityPidPowerComp
 
     /**
      * This method sets the PID parameters of the motor's velocity PID controller. Note that PID coefficients are
@@ -2001,6 +2020,26 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPositionPidTolerance
 
     /**
+     * This method sets the power compensation callback of the motor's position PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setPositionPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            if (posPidCtrl != null)
+            {
+                posPidCtrl.setPowerComp(powerComp);
+            }
+            else
+            {
+                throw new IllegalStateException("Software Position PID coeefficients have not been set.");
+            }
+        }
+    }   //setPositionPidPowerComp
+
+    /**
      * This method sets the PID parameters of the motor's position PID controller. Note that PID coefficients are
      * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
      * the appropriate PID coefficients accordingly.
@@ -2170,6 +2209,26 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             setMotorCurrentPidTolerance(tolerance);
         }
     }   //setCurrentPidTolerance
+
+    /**
+     * This method sets the power compensation callback of the motor's current PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setCurrentPidPowerComp(TrcPidController.PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            if (currentPidCtrl != null)
+            {
+                currentPidCtrl.setPowerComp(powerComp);
+            }
+            else
+            {
+                throw new IllegalStateException("Software Current PID coeefficients have not been set.");
+            }
+        }
+    }   //setCurrentPidPowerComp
 
     /**
      * This method sets the PID parameters of the motor's current PID controller. Note that PID coefficients are

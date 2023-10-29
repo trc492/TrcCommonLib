@@ -818,6 +818,20 @@ public class TrcPidController
     }   //setTargetTolerance
 
     /**
+     * This method sets the PID control power compensation. powerComp will be called during getOutput for calculating
+     * power compensation for load components such as gravity.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setPowerComp(PowerCompensation powerComp)
+    {
+        synchronized (pidCtrlState)
+        {
+            pidParams.powerCompensation = powerComp;
+        }
+    }   //setPowerComp
+
+    /**
      * This method sets a range limit on the target set point.
      *
      * @param minTarget specifies the target set point lower range limit.
