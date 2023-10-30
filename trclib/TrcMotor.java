@@ -210,7 +210,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         if (odometryTaskObj == null)
         {
             // Odometry task is a singleton that manages odometry of all motors. The task reads the odometry of all
-            // motors periodically
+            // motors periodically.
             // This will be a STANDALONE_TASK so that it won't degrade the host task with long delay waiting for the
             // hardware. If we create individual task for each motor, moving them to STANDALONE_TASK will create too
             // many threads.
