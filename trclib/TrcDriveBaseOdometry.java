@@ -75,12 +75,6 @@ import java.util.Locale;
 public class TrcDriveBaseOdometry
 {
     private static final String moduleName = "TrcDriveBaseOdometry";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     /**
      * This class encapsulates an axis sensor with its axis offset.
@@ -145,13 +139,6 @@ public class TrcDriveBaseOdometry
      */
     public TrcDriveBaseOdometry(AxisSensor[] xSensors, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         if (ySensors == null || angleSensor == null || ySensors.length < 1)
         {
             throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
@@ -384,9 +371,9 @@ public class TrcDriveBaseOdometry
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
 
-        if (debugEnabled)
+        if (debugTracer != null)
         {
-            dbgTrace.traceInfo(
+            debugTracer.traceInfo(
                 funcName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
                 Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
                 odometryDelta.position.y, odometryDelta.position.angle);
@@ -442,18 +429,18 @@ public class TrcDriveBaseOdometry
                 data = s.odometry.velocity;
                 if (deltaTime != 0)
                 {
-                    data -= s.axisOffset/scale *
-                            Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
+                    data -=
+                        s.axisOffset/scale * Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
                 }
             }
             value += data;
 
             if (debugTracer != null)
             {
-                debugTracer.traceInfo(moduleName, "%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
-                        position? "Pos": "Vel", i, TrcTimer.getModeElapsedTime(s.odometry.currTimestamp),
-                        angleOdometry.currPos, position? s.odometry.currPos: s.odometry.velocity, data,
-                        value/(i + 1));
+                debugTracer.traceInfo(
+                    moduleName, "%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
+                    position? "Pos": "Vel", i, TrcTimer.getModeElapsedTime(s.odometry.currTimestamp),
+                    angleOdometry.currPos, position? s.odometry.currPos: s.odometry.velocity, data, value/(i + 1));
             }
         }
 

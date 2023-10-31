@@ -343,16 +343,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void driveTimerHandler(Object context)
     {
-        if (driveOwner != null)
+        stop(driveOwner);
+        if (driveTimerEvent != null)
         {
-            stop(driveOwner);
-            driveOwner = null;
-            if (driveTimerEvent != null)
-            {
-                driveTimerEvent.signal();
-                driveTimerEvent = null;
-            }
+            driveTimerEvent.signal();
+            driveTimerEvent = null;
         }
+        driveOwner = null;
     }   //driveTimerHandler
 
     /**
