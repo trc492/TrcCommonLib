@@ -363,7 +363,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         Core.inRange(
             input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
             new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), colorThresholdOutput);
-        input = colorConversionOutput;
+        input = colorThresholdOutput;
         // Do morphology.
         if (kernelMat != null)
         {
@@ -372,8 +372,8 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         }
         // Find contours.
         Imgproc.findContours(
-            input, contoursOutput, hierarchy,
-            externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+            input, contoursOutput, hierarchy, externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
+            Imgproc.CHAIN_APPROX_SIMPLE);
         // Do contour filtering.
         if (filterContourParams != null)
         {
