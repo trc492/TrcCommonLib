@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Titan Robotics Club (http://www.titanrobotics.com)
+ * Copyright (c) 2023 Titan Robotics Club (http://www.titanrobotics.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,29 +72,48 @@ import java.util.Locale;
  * on the front or the back of the drive base equidistant to the centroid and tangential to the centroid of the drive
  * base.
  */
-public class TrcDriveBaseOdometry
+public class TrcOdometryWheel
 {
-    private static final String moduleName = "TrcDriveBaseOdometry";
+    private static final String moduleName = "TrcOdometryWheel";
+    private static final boolean debugEnabled = false;
+    private TrcDbgTrace dbgTrace = null;
 
     /**
      * This class encapsulates an axis sensor with its axis offset.
      */
     public static class AxisSensor
     {
+        // Odometry sensor, typically an encoder.
         final TrcOdometrySensor sensor;
+        // Parallel offset of the axis wheel from wheel base centroid.
         final double axisOffset;
+        // Clockwise angle offset in radians of the axis wheel from the tangent of the wheel base circle.
+        final double angleOffset;
         private TrcOdometrySensor.Odometry odometry = null;
+
+        /**
+         * Constructor: Create an instance of the odometry wheel
+         *
+         * @param sensor specifies the odometry sensor.
+         * @param parallelOffset specifies the parallel axis offset from wheel base centroid.
+         * @param orthogonalOffset specifies the orthogonal axis offset from wheel base centroid.
+         */
+        public AxisSensor(TrcOdometrySensor sensor, double parallelOffset, double orthogonalOffset)
+        {
+            this.sensor = sensor;
+            this.axisOffset = parallelOffset;
+            this.angleOffset = Math.asin(orthogonalOffset/parallelOffset);
+        }   //AxisSensor
 
         /**
          * Constructor: Create an instance of the object.
          *
          * @param sensor specifies the odometry sensor.
-         * @param axisOffset specifies the axis offset from centroid.
+         * @param parallelOffset specifies the parallel axis offset from wheel base centroid.
          */
-        public AxisSensor(TrcOdometrySensor sensor, double axisOffset)
+        public AxisSensor(TrcOdometrySensor sensor, double parallelOffset)
         {
-            this.sensor = sensor;
-            this.axisOffset = axisOffset;
+            this(sensor, parallelOffset, 0.0);
         }   //AxisSensor
 
         /**
@@ -104,7 +123,7 @@ public class TrcDriveBaseOdometry
          */
         public AxisSensor(TrcOdometrySensor sensor)
         {
-            this(sensor, 0.0);
+            this(sensor, 0.0, 0.0);
         }   //AxisSensor
 
         /**
@@ -115,7 +134,9 @@ public class TrcDriveBaseOdometry
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "(%s:offset=%.1f,odometry=%s)", sensor, axisOffset, odometry);
+            return String.format(
+                Locale.US, "(%s:axisOffset=%.1f,angleOffset=%.3f,odometry=%s)",
+                sensor, axisOffset, angleOffset, odometry);
         }   //toString
 
     }   //class AxisSensor
@@ -124,8 +145,8 @@ public class TrcDriveBaseOdometry
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
-    private TrcDbgTrace debugTracer = TrcDbgTrace.getGlobalTracer();
-    private String debugInstance = "rfDriveMotor";
+    private TrcDbgTrace debugTracer = null;//TrcDbgTrace.getGlobalTracer();
+    private String debugInstance = null;//"rfDriveMotor";
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
@@ -138,7 +159,7 @@ public class TrcDriveBaseOdometry
      * @param ySensors specifies an array of Odometry sensors for the Y-axis.
      * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(AxisSensor[] xSensors, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
+    public TrcOdometryWheel(AxisSensor[] xSensors, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
         if (ySensors == null || angleSensor == null || ySensors.length < 1)
         {
@@ -165,7 +186,7 @@ public class TrcDriveBaseOdometry
         }
 
         angleSensor.resetOdometry(true);
-    }   //TrcDriveBaseOdometry
+    }   //TrcOdometryWheel
 
     /**
      * Constructor: Create an instance of the object. This is typically used for configuration 4.
@@ -174,10 +195,10 @@ public class TrcDriveBaseOdometry
      * @param ySensors specifies an array of Odometry sensors for the Y-axis.
      * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(AxisSensor xSensor, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
+    public TrcOdometryWheel(AxisSensor xSensor, AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
         this(new AxisSensor[] {xSensor}, ySensors, angleSensor);
-    }   //TrcDriveBaseOdometry
+    }   //TrcOdometryWheel
 
     /**
      * Constructor: Create an instance of the object. This is typically used for configuration 3.
@@ -185,10 +206,10 @@ public class TrcDriveBaseOdometry
      * @param ySensors specifies an array of Odometry sensors for the Y-axis.
      * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
+    public TrcOdometryWheel(AxisSensor[] ySensors, TrcOdometrySensor angleSensor)
     {
         this((AxisSensor[])null, ySensors, angleSensor);
-    }   //TrcDriveBaseOdometry
+    }   //TrcOdometryWheel
 
     /**
      * Constructor: Create an instance of the object. This is typically use for configuration 2.
@@ -197,7 +218,7 @@ public class TrcDriveBaseOdometry
      * @param ySensor specifies an Odometry sensors for the Y-axis.
      * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(AxisSensor xSensor, AxisSensor ySensor, TrcOdometrySensor angleSensor)
+    public TrcOdometryWheel(AxisSensor xSensor, AxisSensor ySensor, TrcOdometrySensor angleSensor)
     {
         this(new AxisSensor[] {xSensor}, new AxisSensor[] {ySensor}, angleSensor);
     }   //TrcDriveBaseOdometry
@@ -208,7 +229,7 @@ public class TrcDriveBaseOdometry
      * @param ySensor specifies an Odometry sensors for the Y-axis.
      * @param angleSensor specifies the Odometry sensor for rotation.
      */
-    public TrcDriveBaseOdometry(AxisSensor ySensor, TrcOdometrySensor angleSensor)
+    public TrcOdometryWheel(AxisSensor ySensor, TrcOdometrySensor angleSensor)
     {
         this((AxisSensor[])null, new AxisSensor[] {ySensor}, angleSensor);
     }   //TrcDriveBaseOdometry
@@ -346,7 +367,7 @@ public class TrcDriveBaseOdometry
      * position data are deltas but not velocities because we only integrate position data into absolute field
      * position.
      *
-     * @return the delta odometry.
+     * @return delta odometry.
      */
     public synchronized TrcDriveBase.Odometry getOdometryDelta()
     {
@@ -372,9 +393,9 @@ public class TrcDriveBaseOdometry
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
 
-        if (debugTracer != null)
+        if (debugEnabled)
         {
-            debugTracer.traceInfo(
+            dbgTrace.traceInfo(
                 funcName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
                 Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
                 odometryDelta.position.y, odometryDelta.position.angle);
@@ -413,7 +434,7 @@ public class TrcDriveBaseOdometry
      */
     private double averageSensorValues(AxisSensor[] axisSensors, double scale, boolean position)
     {
-        double value = 0.0;
+        double sum = 0.0;
 
         for (int i = 0; i < axisSensors.length; i++)
         {
@@ -422,7 +443,9 @@ public class TrcDriveBaseOdometry
 
             if (position)
             {
-                data = s.odometry.currPos - s.axisOffset/scale * Math.toRadians(angleOdometry.currPos);
+//                s.axisOffset * Math.toRadians(angleOdometry.currPos) / scale;
+                data = s.odometry.currPos -
+                       s.axisOffset/scale * Math.toRadians(angleOdometry.currPos) * Math.cos(s.angleOffset);
             }
             else
             {
@@ -430,11 +453,11 @@ public class TrcDriveBaseOdometry
                 data = s.odometry.velocity;
                 if (deltaTime != 0)
                 {
-                    data -=
-                        s.axisOffset/scale * Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
+                    data -= s.axisOffset/scale * Math.cos(s.angleOffset) *
+                            Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
                 }
             }
-            value += data;
+            sum += data;
 
             if (debugTracer != null && position && (debugInstance == null || s.sensor.getName().contains(debugInstance)))
             {
@@ -442,11 +465,11 @@ public class TrcDriveBaseOdometry
                     moduleName, "%s.%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
                     s.sensor.getName(), position? "Pos": "Vel", i,
                     TrcTimer.getModeElapsedTime(s.odometry.currTimestamp), angleOdometry.currPos,
-                    position? s.odometry.currPos: s.odometry.velocity, data, value/(i + 1));
+                    position? s.odometry.currPos: s.odometry.velocity, data, sum/(i + 1));
             }
         }
 
-        return value/axisSensors.length;
+        return sum/axisSensors.length;
     }   //averageSensorValues
 
-}   //class TrcDriveBaseOdometry
+}   //class TrcOdometryWheel

@@ -895,6 +895,17 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     //
 
     /**
+     * This method returns the instance name.
+     *
+     * @return instance name.
+     */
+    @Override
+    public String getName()
+    {
+        return instanceName;
+    }   //getName
+
+    /**
      * This method resets the odometry data and sensor. TODO: need to support multiple axes.
      *
      * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may

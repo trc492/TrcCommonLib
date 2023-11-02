@@ -3137,7 +3137,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 if (posPresets[i] > currPos)
                 {
                     index = i;
-                    if (Math.abs(currPos - posPresets[i]) <= presetTolerance)
+                    if (Math.abs(currPos - posPresets[i]) <= presetTolerance && index < posPresets.length -1 )
                     {
                         index++;
                     }
@@ -3357,6 +3357,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     //
     // Implements TrcOdometrySensor interfaces.
     //
+
+    /**
+     * This method returns the instance name.
+     *
+     * @return instance name.
+     */
+    @Override
+    public String getName()
+    {
+        return instanceName;
+    }   //getName
 
     /**
      * This method resets the odometry data and sensor.

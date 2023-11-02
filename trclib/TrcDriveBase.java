@@ -241,7 +241,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
     protected double stallVelThreshold = 0.0;
-    private TrcDriveBaseOdometry driveBaseOdometry = null;
+    private TrcOdometryWheel driveBaseOdometry = null;
     protected MotorPowerMapper motorPowerMapper = null;
     private double sensitivity = DEF_SENSITIVITY;
 
@@ -989,7 +989,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param driveBaseOdometry specifies the drive base odometry device.
      */
-    public void setDriveBaseOdometry(TrcDriveBaseOdometry driveBaseOdometry)
+    public void setDriveBaseOdometry(TrcOdometryWheel driveBaseOdometry)
     {
         synchronized (odometry)
         {
