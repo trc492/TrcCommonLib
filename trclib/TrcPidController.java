@@ -33,7 +33,7 @@ import java.util.Stack;
 public class TrcPidController
 {
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
+    private static final String debugInstance = null;
 
     public static final double DEF_SETTLING_TIME = 0.2;
 
@@ -676,6 +676,7 @@ public class TrcPidController
         synchronized (pidCtrlState)
         {
             pidParams.tolerance = Math.abs(tolerance);
+            pidParams.steadyStateError = pidParams.tolerance;
         }
     }   //setTargetTolerance
 
@@ -986,7 +987,7 @@ public class TrcPidController
             {
                 pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
 
-                if (debugEnabled)
+                if (debugInstance != null && instanceName.contains(debugInstance))
                 {
                     globalTracer.traceInfo(
                         funcName,
@@ -997,7 +998,7 @@ public class TrcPidController
             }
             else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
             {
-                if (debugEnabled)
+                if (debugInstance != null && instanceName.contains(debugInstance))
                 {
                     globalTracer.traceInfo(
                         funcName, "currTime=%.3f, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +

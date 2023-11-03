@@ -75,8 +75,6 @@ import java.util.Locale;
 public class TrcOdometryWheel
 {
     private static final String moduleName = "TrcOdometryWheel";
-    private static final boolean debugEnabled = false;
-    private TrcDbgTrace dbgTrace = null;
 
     /**
      * This class encapsulates an axis sensor with its axis offset.
@@ -393,9 +391,9 @@ public class TrcOdometryWheel
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
 
-        if (debugEnabled)
+        if (debugTracer != null)
         {
-            dbgTrace.traceInfo(
+            debugTracer.traceInfo(
                 funcName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
                 Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
                 odometryDelta.position.y, odometryDelta.position.angle);

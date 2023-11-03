@@ -761,6 +761,49 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setSoftwarePidEnabled
 
     /**
+     * This method returns the PID control target. It could be a position, velocity or current depending on the
+     * current active PID controller.
+     *
+     * @return PID control target, zero if no active PID controller.
+     */
+    public double getPidTarget()
+    {
+        double target;
+
+        synchronized (taskParams)
+        {
+            if (softwarePidEnabled)
+            {
+                target = taskParams.pidCtrl != null? taskParams.pidCtrl.getTarget(): 0.0;
+            }
+            else
+            {
+                switch (taskParams.currControlMode)
+                {
+                    case Velocity:
+                        target = controllerVelocity;
+                        break;
+
+                    case Position:
+                        target = controllerPosition;
+                        break;
+
+                    case Current:
+                        target = controllerCurrent;
+                        break;
+
+                    default:
+                        // Not in PID control mode.
+                        target = 0.0;
+                        break;
+                }
+            }
+        }
+
+        return target;
+    }   //getPidTarget
+
+    /**
      * This method checks which PID controller to use for close-loop control.
      *
      * @param controlMode specifies the control mode.
@@ -1677,8 +1720,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                                    funcName, "[%.3f:%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
+                                    taskParams.prevPosTarget);
                             }
                         }
                         else
@@ -1687,8 +1731,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                                    funcName, "[%.3f:%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
+                                    taskParams.prevPosTarget);
                             }
                         }
                     }
@@ -1699,8 +1744,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                         {
                             TrcDbgTrace.globalTraceInfo(
-                                funcName, "[%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                                funcName, "[%.3f:%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
+                                taskParams.prevPosTarget);
                         }
                     }
                     taskParams.prevPosTarget = currTarget;
@@ -1717,8 +1763,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                     {
                         TrcDbgTrace.globalTraceInfo(
-                            funcName, "[%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                            debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
+                            funcName, "[%.3f:%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                            TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
+                            taskParams.prevPosTarget);
                     }
                 }
             }
@@ -2549,21 +2596,14 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         boolean onTarget =
                             taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
                                 taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
-                                    taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
-                                        taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
+                                taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
+                                taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
                         boolean expired =   // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
                             !taskParams.holdTarget && (onTarget || expired);
-
-                        if (debugSubsystem != null && instanceName.contains(debugSubsystem))
-                        {
-                            TrcDbgTrace.globalTraceInfo(
-                                funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, powerLimit=%s, pidCtrl=%s",
-                                debugSubsystem, onTarget, expired, doStop, taskParams.powerLimit, taskParams.pidCtrl);
-                        }
 
                         if (doStop)
                         {
@@ -2593,8 +2633,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%s] onTarget=%s, expired=%s, doStop=%s, powerLimit=%s, power=%f",
-                                    debugSubsystem, onTarget, expired, doStop, taskParams.powerLimit, power);
+                                    funcName,
+                                    "[%.3f:%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
+                                    TrcTimer.getModeElapsedTime(), debugSubsystem, onTarget, getPosition(),
+                                    taskParams.pidCtrl.getTarget(), expired, doStop, taskParams.powerLimit, power);
                             }
 
                             if (msgTracer != null && tracePidInfo)
@@ -2671,6 +2713,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         {
                             completionEvent = taskParams.notifyEvent;
                             taskParams.notifyEvent = null;
+                            // Only print this once to reduce clutter.
                             if (completionEvent != null && msgTracer != null)
                             {
                                 msgTracer.traceInfo(
@@ -3130,17 +3173,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (posPresets != null)
         {
-            double currPos = getPosition();
+            double currPos = getPosition() + presetTolerance;
 
             for (int i = 0; i < posPresets.length; i++)
             {
-                if (posPresets[i] > currPos)
+                if (posPresets[i] > currPos )
                 {
                     index = i;
-                    if (Math.abs(currPos - posPresets[i]) <= presetTolerance && index < posPresets.length -1 )
-                    {
-                        index++;
-                    }
                     break;
                 }
             }
@@ -3165,17 +3204,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (posPresets != null)
         {
-            double currPos = getPosition();
+            double currPos = getPosition() - presetTolerance;
 
             for (int i = posPresets.length - 1; i >= 0; i--)
             {
                 if (posPresets[i] < currPos)
                 {
                     index = i;
-                    if (Math.abs(currPos - posPresets[i]) <= presetTolerance)
-                    {
-                        index--;
-                    }
                     break;
                 }
             }
