@@ -676,7 +676,11 @@ public class TrcPidController
         synchronized (pidCtrlState)
         {
             pidParams.tolerance = Math.abs(tolerance);
-            pidParams.steadyStateError = pidParams.tolerance;
+            // Never allow tolerance larger than steady state error.
+            if (tolerance > pidParams.steadyStateError)
+            {
+                pidParams.steadyStateError = pidParams.tolerance;
+            }
         }
     }   //setTargetTolerance
 
