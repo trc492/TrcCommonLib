@@ -99,8 +99,9 @@ public class TrcOdometryWheel
         public AxisSensor(TrcOdometrySensor sensor, double parallelOffset, double orthogonalOffset)
         {
             this.sensor = sensor;
-            this.axisOffset = parallelOffset;
-            this.angleOffset = Math.asin(orthogonalOffset/parallelOffset);
+            // angleOffset is the angle of the odometry wheel from the tangent of wheel to the turning circle.
+            this.angleOffset = Math.atan(orthogonalOffset/parallelOffset);
+            this.axisOffset = parallelOffset * Math.cos(angleOffset);
         }   //AxisSensor
 
         /**
@@ -143,8 +144,8 @@ public class TrcOdometryWheel
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
-    private TrcDbgTrace debugTracer = null;//TrcDbgTrace.getGlobalTracer();
-    private String debugInstance = null;//"rfDriveMotor";
+    private TrcDbgTrace debugTracer = TrcDbgTrace.getGlobalTracer();
+    private String debugInstance = "rfDriveMotor";
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
@@ -441,9 +442,7 @@ public class TrcOdometryWheel
 
             if (position)
             {
-//                s.axisOffset * Math.toRadians(angleOdometry.currPos) / scale;
-                data = s.odometry.currPos -
-                       s.axisOffset/scale * Math.toRadians(angleOdometry.currPos) * Math.cos(s.angleOffset);
+                data = s.odometry.currPos - s.axisOffset/scale * Math.toRadians(angleOdometry.currPos);
             }
             else
             {
