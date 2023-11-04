@@ -93,19 +93,23 @@ public class TrcOdometryWheel
          * Constructor: Create an instance of the odometry wheel
          *
          * @param sensor specifies the odometry sensor.
-         * @param parallelOffset specifies the parallel axis offset from wheel base centroid.
-         * @param orthogonalOffset specifies the orthogonal axis offset from wheel base centroid.
+         * @param parallelOffset specifies the distance offset of the line parallel to the odometry wheel from the
+         *        wheel base centroid.
+         * @param orthogonalOffset specifies the distance offset of the line orthogonal to the odometry wheel from
+         *        wheel base centroid.
          */
         public AxisSensor(TrcOdometrySensor sensor, double parallelOffset, double orthogonalOffset)
         {
             this.sensor = sensor;
-            // angleOffset is the angle of the odometry wheel from the tangent of wheel to the turning circle.
+            // angle of the line parallel to the odometry wheel from the tangent of the turning circle. If the odometry
+            // wheel is tangent to the turning circle, angleOffset is 0 degree.
             this.angleOffset = Math.atan(orthogonalOffset/parallelOffset);
-            this.axisOffset = parallelOffset * Math.cos(angleOffset);
+            // axisOffset is the parallel offset adjusted by the angle offset.
+            this.axisOffset = parallelOffset / Math.cos(angleOffset);
         }   //AxisSensor
 
         /**
-         * Constructor: Create an instance of the object.
+         * Constructor: Create an instance of the object. The odometry wheel is tangent to the turning circle.
          *
          * @param sensor specifies the odometry sensor.
          * @param parallelOffset specifies the parallel axis offset from wheel base centroid.
@@ -116,7 +120,7 @@ public class TrcOdometryWheel
         }   //AxisSensor
 
         /**
-         * Constructor: Create an instance of the object.
+         * Constructor: Create an instance of the object. The odometry wheel is at the center of the turning circle.
          *
          * @param sensor specifies the odometry sensor.
          */
@@ -126,7 +130,7 @@ public class TrcOdometryWheel
         }   //AxisSensor
 
         /**
-         * This method returns the sensor info in string forma.
+         * This method returns the sensor info in string form.
          *
          * @return string form of sensor info.
          */
@@ -438,31 +442,41 @@ public class TrcOdometryWheel
         for (int i = 0; i < axisSensors.length; i++)
         {
             AxisSensor s = axisSensors[i];
-            double data;
+            double currData;
 
             if (position)
             {
-                data = s.odometry.currPos - s.axisOffset/scale * Math.toRadians(angleOdometry.currPos);
+                // Note: rotation doesn't generate any displacement and is therefore subtracted from the
+                //       deltaDisplacement.
+                // deltaDisplacement = deltaPos - rotationDistance
+                //                   = (currPos - prevPos) - axisOffset * (currHeading - prevHeading)
+                //                   = (currPos - axisOffset * currHeading) - (prevPos - axisOffset * prevHeading)
+                //                   = currData - prevData
+                currData = s.odometry.currPos - s.axisOffset/scale * Math.toRadians(angleOdometry.currPos);
             }
             else
             {
+                // Note: rotation doesn't generate any displacement and therefore rotationVel is subtracted from
+                //       the registered velocity.
+                // displacementVel = currVel - rotationVel
                 double deltaTime = angleOdometry.currTimestamp - angleOdometry.prevTimestamp;
-                data = s.odometry.velocity;
+                currData = s.odometry.velocity;
                 if (deltaTime != 0)
                 {
-                    data -= s.axisOffset/scale * Math.cos(s.angleOffset) *
-                            Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
+                    currData -=
+                        s.axisOffset/scale * Math.toRadians(angleOdometry.currPos - angleOdometry.prevPos)/deltaTime;
                 }
             }
-            sum += data;
+            sum += currData;
 
-            if (debugTracer != null && position && (debugInstance == null || s.sensor.getName().contains(debugInstance)))
+            if (debugTracer != null && position &&
+                (debugInstance == null || s.sensor.getName().contains(debugInstance)))
             {
                 debugTracer.traceInfo(
-                    moduleName, "%s.%s[%d] timestamp=%.6f, angle=%.1f, data=%.1f, adjData=%.1f, value=%.1f",
+                    moduleName, "%s.%s[%d] timestamp=%.6f, heading=%.1f, pos/vel=%.1f, currData=%.1f, avgData=%.1f",
                     s.sensor.getName(), position? "Pos": "Vel", i,
                     TrcTimer.getModeElapsedTime(s.odometry.currTimestamp), angleOdometry.currPos,
-                    position? s.odometry.currPos: s.odometry.velocity, data, sum/(i + 1));
+                    position? s.odometry.currPos: s.odometry.velocity, currData, sum/(i + 1));
             }
         }
 
