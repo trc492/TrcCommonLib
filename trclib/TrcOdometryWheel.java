@@ -148,8 +148,8 @@ public class TrcOdometryWheel
     private final AxisSensor[] ySensors;
     private final TrcOdometrySensor angleSensor;
     private TrcOdometrySensor.Odometry angleOdometry;
-    private TrcDbgTrace debugTracer = TrcDbgTrace.getGlobalTracer();
-    private String debugInstance = "rfDriveMotor";
+    private TrcDbgTrace debugTracer = null;
+    private String debugInstance = null;
     private double xScale = 1.0;
     private double yScale = 1.0;
     private double angleScale = 1.0;
