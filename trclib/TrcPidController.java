@@ -995,7 +995,7 @@ public class TrcPidController
                 {
                     globalTracer.traceInfo(
                         funcName,
-                        "[%.3f] %s.moving, err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, " +
+                        "[%.3f] %s.inProgress, err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, " +
                         "stallErrRateThreshold=%.1f",
                         currTime, instanceName, pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance,
                         pidParams.steadyStateError, pidParams.stallErrRateThreshold);
@@ -1006,7 +1006,8 @@ public class TrcPidController
                 if (onTargetDebugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName, "[%.3f] %s.settling, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
+                        funcName,
+                        "[%.3f] %s.onTarget, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
                         "steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
                         currTime, instanceName, pidCtrlState.settlingStartTime, pidCtrlState.currError,
                         pidCtrlState.errorRate, pidParams.tolerance, pidParams.steadyStateError,

@@ -2039,8 +2039,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 odometryDelta = driveBaseOdometry.getOdometryDelta();
                 updateOdometry(odometryDelta, odometry.position.angle);
 
-                if (Math.abs(odometryDelta.velocity.x) > stallVelThreshold ||
-                    Math.abs(odometryDelta.velocity.y) > stallVelThreshold)
+                if (TrcUtil.magnitude(odometryDelta.velocity.x, odometryDelta.velocity.y) > stallVelThreshold)
                 {
                     // reset stall start time to current time if drive base has movement.
                     stallStartTime = TrcTimer.getCurrentTime();
