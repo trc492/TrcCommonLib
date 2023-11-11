@@ -33,7 +33,6 @@ import java.util.Stack;
 public class TrcPidController
 {
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final String debugInstance = null;
 
     public static final double DEF_SETTLING_TIME = 0.2;
 
@@ -421,6 +420,7 @@ public class TrcPidController
     private final Stack<Double> outputLimitStack = new Stack<>();
     private final PidCtrlState pidCtrlState = new PidCtrlState();
 
+    private boolean onTargetDebugEnabled = false;
     private TrcDbgTrace debugTracer = null;
     private boolean verboseTrace = false;
 
@@ -991,24 +991,26 @@ public class TrcPidController
             {
                 pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
 
-                if (debugInstance != null && instanceName.contains(debugInstance))
+                if (onTargetDebugEnabled)
                 {
                     globalTracer.traceInfo(
                         funcName,
-                        "err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
-                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance,
+                        "[%.3f] %s.moving, err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, " +
+                        "stallErrRateThreshold=%.1f",
+                        currTime, instanceName, pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance,
                         pidParams.steadyStateError, pidParams.stallErrRateThreshold);
                 }
             }
             else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
             {
-                if (debugInstance != null && instanceName.contains(debugInstance))
+                if (onTargetDebugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName, "currTime=%.3f, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
+                        funcName, "[%.3f] %s.settling, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
                         "steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
-                        currTime, pidCtrlState.settlingStartTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                        pidParams.tolerance, pidParams.steadyStateError, pidParams.stallErrRateThreshold);
+                        currTime, instanceName, pidCtrlState.settlingStartTime, pidCtrlState.currError,
+                        pidCtrlState.errorRate, pidParams.tolerance, pidParams.steadyStateError,
+                        pidParams.stallErrRateThreshold);
                 }
 
                 onTarget = true;
@@ -1278,6 +1280,16 @@ public class TrcPidController
             verboseTrace = enabled && verbose;
         }
     }   //setDebugTraceEnabled
+
+    /**
+     * This method enables/disables onTarget debugging.
+     *
+     * @param enabled specifies true to enable onTarget debugging, false to disable.
+     */
+    public void setOnTargetDebugEnabled(boolean enabled)
+    {
+        this.onTargetDebugEnabled = enabled;
+    }   //setOnTargetDebugEnabled
 
     /**
      * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
