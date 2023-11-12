@@ -171,6 +171,12 @@ public interface TrcExclusiveSubsystem
                 // Operation was canceled, indicate so in the completion event.
                 ownershipParams.completionEvent.cancel();
             }
+
+            if (ownershipParams.msgTracer != null)
+            {
+                ownershipParams.msgTracer.traceInfo(
+                    funcName, "%s: signal completion event %s", this, ownershipParams.completionEvent);
+            }
         }
     }   //releaseOwnership
 

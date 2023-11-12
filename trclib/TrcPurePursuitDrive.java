@@ -1073,8 +1073,9 @@ public class TrcPurePursuitDrive
             if (msgTracer != null)
             {
                 msgTracer.traceInfo(
-                    funcName, "Done [index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
-                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
+                    funcName, "[%.3f] Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
+                    TrcTimer.getModeElapsedTime(), pathIndex, path.getSize(), stalled, timedOut, posOnTarget,
+                    headingOnTarget);
                 if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
                 yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
                 turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);

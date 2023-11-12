@@ -2573,6 +2573,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         synchronized (taskParams)
         {
+            boolean onTarget = false;
+            boolean expired = false;
+
             if (taskParams.calibrating)
             {
                 // We are in zero calibration mode.
@@ -2593,12 +2596,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     if (taskParams.currControlMode != ControlMode.Power)
                     {
                         // Doing software close loop PID control or monitoring controller PID control.
-                        boolean onTarget =
+                        onTarget =
                             taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
                                 taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
                                 taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
                                 taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                        boolean expired =   // Only for software PID control.
+                        expired =   // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
@@ -2713,13 +2716,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         {
                             completionEvent = taskParams.notifyEvent;
                             taskParams.notifyEvent = null;
-                            // Only print this once to reduce clutter.
-                            if (completionEvent != null && msgTracer != null)
-                            {
-                                msgTracer.traceInfo(
-                                    funcName, "%s.%s: onTarget=%s, event=%s",
-                                    moduleName, instanceName, onTarget, completionEvent);
-                            }
                         }
                     }
                 }
@@ -2733,6 +2729,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             if (completionEvent != null)
             {
                 completionEvent.signal();
+                // Only print this once to reduce clutter.
+                if (msgTracer != null)
+                {
+                    msgTracer.traceInfo(
+                        funcName, "%s.%s: onTarget=%s, expired=%s, event=%s",
+                        moduleName, instanceName, onTarget, expired, completionEvent);
+                }
             }
         }
     }   //pidCtrlTask
