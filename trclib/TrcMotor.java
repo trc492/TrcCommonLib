@@ -2733,8 +2733,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 if (msgTracer != null)
                 {
                     msgTracer.traceInfo(
-                        funcName, "%s.%s: onTarget=%s, expired=%s, event=%s",
-                        moduleName, instanceName, onTarget, expired, completionEvent);
+                        funcName, "[%.3f] %s.%s: onTarget=%s, expired=%s, event=%s",
+                        TrcTimer.getModeElapsedTime(), moduleName, instanceName, onTarget, expired, completionEvent);
                 }
             }
         }
