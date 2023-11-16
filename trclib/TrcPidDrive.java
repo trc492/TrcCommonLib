@@ -69,13 +69,6 @@ public class TrcPidDrive
     private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
 
-    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
-    private static final double DEF_STALL_TIMEOUT = 0.2;
-    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
-    private double stallDetectionDelay = 0.0;
-    private double stallTimeout = 0.0;
-    private double stallDetectionStartTime = 0.0;
-
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private final TrcPidController xPidCtrl;
@@ -390,39 +383,6 @@ public class TrcPidDrive
     }   //setBeep
 
     /**
-     * This method enables/disables stall detection.
-     *
-     * @param stallDetectionDelay specifies stall detection start delay in seconds.
-     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
-     *        motionless to be considered stalled.
-     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
-     */
-    public synchronized void setStallDetectionEnabled(
-        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
-    {
-        this.stallDetectionDelay = stallDetectionDelay;
-        this.stallTimeout = stallTimeout;
-        driveBase.setStallVelocityThreshold(stallVelThreshold);
-    }   //setStallDetectionEnabled
-
-    /**
-     * This method enables/disables stall detection.
-     *
-     * @param enabled specifies true to enable stall detection, false to disable.
-     */
-    public void setStallDetectionEnabled(boolean enabled)
-    {
-        if (enabled)
-        {
-            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
-        }
-        else
-        {
-            setStallDetectionEnabled(0.0, 0.0, 0.0);
-        }
-    }   //setStallDetectionEnabled
-
-    /**
      * This method starts a PID operation by setting the PID targets.
      *
      * @param xTarget specifies the X target position.
@@ -463,18 +423,21 @@ public class TrcPidDrive
         if (xPidCtrl != null)
         {
             xPidCtrl.setTarget(xTarget);
+            xPidCtrl.startStallDetection();
             xError = xPidCtrl.getError();
         }
 
         if (yPidCtrl != null)
         {
             yPidCtrl.setTarget(yTarget);
+            yPidCtrl.startStallDetection();
             yError = yPidCtrl.getError();
         }
 
         if (turnPidCtrl != null)
         {
             turnPidCtrl.setTarget(turnTarget, warpSpaceEnabled? warpSpace: null);
+            turnPidCtrl.startStallDetection();
             turnError = turnPidCtrl.getError();
         }
 
@@ -486,7 +449,6 @@ public class TrcPidDrive
 
         double currTime = TrcTimer.getCurrentTime();
         expiredTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
-        stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
         this.holdTarget = holdTarget;
         this.turnOnly = xError == 0.0 && yError == 0.0 && turnError != 0.0;
@@ -1183,6 +1145,7 @@ public class TrcPidDrive
                 if (turnPidCtrl != null)
                 {
                     turnPidCtrl.setTarget(headingTarget);
+                    turnPidCtrl.startStallDetection();
                 }
                 maintainHeading = true;
                 setTaskEnabled(true);
@@ -1351,12 +1314,13 @@ public class TrcPidDrive
 
         double currTime = TrcTimer.getCurrentTime();
         boolean expired = currTime >= expiredTime;
-        boolean stalled =
-            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();
         boolean yOnTarget = yPidCtrl == null || yPidCtrl.isOnTarget();
         boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget();
         boolean onTarget = turnOnTarget && (turnOnly || xOnTarget && yOnTarget);
+        boolean stalled = (xPidCtrl == null || xPidCtrl.isStalled()) &&
+                          (yPidCtrl == null || yPidCtrl.isStalled()) &&
+                          (turnPidCtrl == null || turnPidCtrl.isStalled());
 
 //        if (stuckWheelHandler != null)
 //        {
@@ -1418,6 +1382,10 @@ public class TrcPidDrive
                 notifyEvent.signal();
                 notifyEvent = null;
             }
+
+            if (xPidCtrl != null) xPidCtrl.endStallDetection();
+            if (yPidCtrl != null) yPidCtrl.endStallDetection();
+            if (turnPidCtrl != null) turnPidCtrl.endStallDetection();
         }
         // If we come here, we are not on target yet, keep driving.
         else if (xPidCtrl != null && driveBase.supportsHolonomicDrive())

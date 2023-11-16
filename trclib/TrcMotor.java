@@ -106,7 +106,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         Double prevPosTarget = null;
         double calPower;
         boolean calibrating = false;
-        // Stall detection.
+        // Stall protection.
         double stallMinPower = 0.0;
         double stallTolerance = 0.0;
         double stallTimeout = 0.0;
@@ -985,6 +985,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             velPidCtrl.reset();
             velPidCtrl.setTarget(velocity);
+            velPidCtrl.startStallDetection();
             setMotorControlMode(ControlMode.Velocity, true);
         }
         else
@@ -1004,6 +1005,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             posPidCtrl.reset();
             posPidCtrl.setTarget(position);
+            posPidCtrl.startStallDetection();
             setMotorControlMode(ControlMode.Position, true);
         }
         else
@@ -1023,6 +1025,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             currentPidCtrl.reset();
             currentPidCtrl.setTarget(current);
+            currentPidCtrl.startStallDetection();
             setMotorControlMode(ControlMode.Current, true);
         }
         else
@@ -2455,7 +2458,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                 if (msgTracer != null)
                 {
-                    msgTracer.traceInfo(funcName, "%s.%s: stalled", moduleName, instanceName);
+                    msgTracer.traceInfo(
+                        funcName, "[%.3f] %s.%s: stall protection activated.",
+                        TrcTimer.getModeElapsedTime(), moduleName, instanceName);
                 }
             }
         }
@@ -2574,6 +2579,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         synchronized (taskParams)
         {
             boolean onTarget = false;
+            boolean stalled = false;
             boolean expired = false;
 
             if (taskParams.calibrating)
@@ -2585,6 +2591,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     taskParams.calibrating = false;
                     completionEvent = taskParams.notifyEvent;
                     taskParams.notifyEvent = null;
+                    if (msgTracer != null)
+                    {
+                        msgTracer.traceInfo(
+                            funcName, "[%.3f] %s: Zero calibration done.", TrcTimer.getModeElapsedTime(), instanceName);
+                    }
                 }
             }
             else
@@ -2601,7 +2612,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
                                 taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
                                 taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                        expired =   // Only for software PID control.
+                        stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
+                        expired =           // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
@@ -2613,41 +2625,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             // We are stopping motor but control mode is not Power, so don't overwrite it.
                             setControllerMotorPower(0.0, false);
                         }
-                        else if (taskParams.pidCtrl != null)
-                        {
-                            // Doing software PID control.
-                            double power = taskParams.pidCtrl.getOutput();
-
-                            if (taskParams.powerLimit != null)
-                            {
-                                // Apply power limit to the calculated PID power.
-                                // Only applicable for Position control mode.
-                                power = TrcUtil.clipRange(power, taskParams.powerLimit);
-                            }
-
-                            if (taskParams.powerComp != null)
-                            {
-                                power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
-                            }
-                            // Software PID control sets motor power but control mode is not Power, so don't
-                            // overwrite it.
-                            setControllerMotorPower(power, false);
-
-                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
-                            {
-                                TrcDbgTrace.globalTraceInfo(
-                                    funcName,
-                                    "[%.3f:%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
-                                    TrcTimer.getModeElapsedTime(), debugSubsystem, onTarget, getPosition(),
-                                    taskParams.pidCtrl.getTarget(), expired, doStop, taskParams.powerLimit, power);
-                            }
-
-                            if (msgTracer != null && tracePidInfo)
-                            {
-                                taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                            }
-                        }
-                        else
+                        else if (taskParams.pidCtrl == null)
                         {
                             // Doing motor controller close loop PID control.
                             // If a power limit is set, adjust native motor PID control correspondingly.
@@ -2711,8 +2689,46 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 }
                             }
                         }
+                        else if (!onTarget && !stalled && !expired)
+                        {
+                            // Doing software PID control.
+                            double power = taskParams.pidCtrl.getOutput();
 
-                        if (onTarget || expired)
+                            if (taskParams.powerLimit != null)
+                            {
+                                // Apply power limit to the calculated PID power.
+                                // Only applicable for Position control mode.
+                                power = TrcUtil.clipRange(power, taskParams.powerLimit);
+                            }
+
+                            if (taskParams.powerComp != null)
+                            {
+                                power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
+                            }
+                            // Software PID control sets motor power but control mode is not Power, so don't
+                            // overwrite it.
+                            setControllerMotorPower(power, false);
+
+                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                            {
+                                TrcDbgTrace.globalTraceInfo(
+                                    funcName,
+                                    "[%.3f:%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
+                                    TrcTimer.getModeElapsedTime(), debugSubsystem, onTarget, getPosition(),
+                                    taskParams.pidCtrl.getTarget(), expired, doStop, taskParams.powerLimit, power);
+                            }
+
+                            if (msgTracer != null && tracePidInfo)
+                            {
+                                taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                            }
+                        }
+                        else
+                        {
+                            taskParams.pidCtrl.endStallDetection();
+                        }
+
+                        if (onTarget || stalled || expired)
                         {
                             completionEvent = taskParams.notifyEvent;
                             taskParams.notifyEvent = null;
