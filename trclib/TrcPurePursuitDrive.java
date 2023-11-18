@@ -1332,7 +1332,6 @@ public class TrcPurePursuitDrive
         //
         for (int i = Math.max(pathIndex, 1); i < path.getSize(); i++)
         {
-            msgTracer.traceInfo(funcName, ">>>>> Processing segment %d...", i);
             TrcWaypoint segmentStart = path.getWaypoint(i - 1);
             TrcWaypoint segmentEnd = path.getWaypoint(i);
             // If there is a valid intersection, return it.
@@ -1349,7 +1348,7 @@ public class TrcPurePursuitDrive
                         waypointEventHandler.waypointEvent(i - 1, segmentStart);
                     }
 
-                    if (msgTracer != null)
+                    if (debugEnabled && msgTracer != null)
                     {
                         msgTracer.traceInfo(funcName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
                                             i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
