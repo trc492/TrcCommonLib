@@ -404,6 +404,36 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setStallProtection
 
     /**
+     * This method enables/disables stall detection.
+     *
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
+     */
+    public void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
+    {
+        if (posPidCtrl != null)
+        {
+            posPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param enabled specifies true to enable stall detection, false to disable.
+     */
+    public void setStallDetectionEnabled(boolean enabled)
+    {
+        if (posPidCtrl != null)
+        {
+            posPidCtrl.setStallDetectionEnabled(enabled);
+        }
+    }   //setStallDetectionEnabled
+
+    /**
      * This method swaps the forward and reverse limit switches. By default, the lower limit switch is associated
      * with the reverse limit switch and the upper limit switch is associated with the forward limit switch. This
      * method will swap the association. Note: if you need to configure the lower and upper limit switches, you must

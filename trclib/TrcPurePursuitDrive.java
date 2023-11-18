@@ -104,19 +104,13 @@ public class TrcPurePursuitDrive
     private double beepFrequency = DEF_BEEP_FREQUENCY;
     private double beepDuration = DEF_BEEP_DURATION;
 
-    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
-    private static final double DEF_STALL_TIMEOUT = 0.2;
-    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
-    private double stallDetectionDelay = 0.0;
-    private double stallTimeout = 0.0;
-    private double stallDetectionStartTime = 0.0;
-
     private double moveOutputLimit = Double.POSITIVE_INFINITY;
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean incrementalTurn;
     private volatile boolean maintainHeading = false;
+    private volatile boolean stalled = false;
 
     private String owner = null;
     private TrcPath path;
@@ -159,6 +153,7 @@ public class TrcPurePursuitDrive
         }
 
         incrementalTurn = xPosPidCoeff != null;
+        // If invertedTarget is true, use Abhay's way to set target to zero and just keep changing getInput.
         if (invertedTarget)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
@@ -306,17 +301,20 @@ public class TrcPurePursuitDrive
     /**
      * This method enables/disables stall detection.
      *
-     * @param stallDetectionDelay specifies stall detection start delay in seconds.
-     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
-     *        motionless to be considered stalled.
-     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
      */
-    public synchronized void setStallDetectionEnabled(
-        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
+    public void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
     {
-        this.stallDetectionDelay = stallDetectionDelay;
-        this.stallTimeout = stallTimeout;
-        driveBase.setStallVelocityThreshold(stallVelThreshold);
+        if (xPosPidCtrl != null)
+        {
+            xPosPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+        yPosPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        turnPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
     }   //setStallDetectionEnabled
 
     /**
@@ -326,14 +324,12 @@ public class TrcPurePursuitDrive
      */
     public void setStallDetectionEnabled(boolean enabled)
     {
-        if (enabled)
+        if (xPosPidCtrl != null)
         {
-            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
+            xPosPidCtrl.setStallDetectionEnabled(enabled);
         }
-        else
-        {
-            setStallDetectionEnabled(0.0, 0.0, 0.0);
-        }
+        yPosPidCtrl.setStallDetectionEnabled(enabled);
+        turnPidCtrl.setStallDetectionEnabled(enabled);
     }   //setStallDetectionEnabled
 
     public synchronized void setFastModeEnabled(boolean enabled)
@@ -586,7 +582,6 @@ public class TrcPurePursuitDrive
 
             double currTime = TrcTimer.getCurrentTime();
             timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
-            stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
             referencePose = driveBase.getFieldPosition();
             pathIndex = 1;
@@ -594,6 +589,7 @@ public class TrcPurePursuitDrive
             if (xPosPidCtrl != null)
             {
                 xPosPidCtrl.reset();
+                xPosPidCtrl.startStallDetection();
             }
             else
             {
@@ -611,7 +607,9 @@ public class TrcPurePursuitDrive
                 }
             }
             yPosPidCtrl.reset();
+            yPosPidCtrl.startStallDetection();
             turnPidCtrl.reset();
+            turnPidCtrl.startStallDetection();
             velPidCtrl.reset();
 
             if (invertedTarget)
@@ -1003,6 +1001,7 @@ public class TrcPurePursuitDrive
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
         relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
+        boolean lastSegment = pathIndex == path.getSize() - 1;
 
         if (!invertedTarget)
         {
@@ -1055,8 +1054,10 @@ public class TrcPurePursuitDrive
         // If we have timed out or finished, stop the operation.
         double currTime = TrcTimer.getCurrentTime();
         boolean timedOut = currTime >= timedOutTime;
-        boolean stalled =
-            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
+
+        stalled = (xPosPidCtrl == null || xPosPidCtrl.isStalled()) &&
+                  (yPosPidCtrl == null || yPosPidCtrl.isStalled()) &&
+                  (turnPidCtrl == null || turnPidCtrl.isStalled());
         boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
         boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget();
 
@@ -1068,7 +1069,7 @@ public class TrcPurePursuitDrive
             }
         }
 
-        if (stalled || timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
+        if (timedOut || lastSegment && (stalled ||posOnTarget && headingOnTarget))
         {
             if (msgTracer != null)
             {
@@ -1076,10 +1077,13 @@ public class TrcPurePursuitDrive
                     funcName, "[%.3f] Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
                     TrcTimer.getModeElapsedTime(), pathIndex, path.getSize(), stalled, timedOut, posOnTarget,
                     headingOnTarget);
-                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                if (tracePidInfo)
+                {
+                    if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                    yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                    turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                    velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                }
            }
 
             stop();
@@ -1093,6 +1097,10 @@ public class TrcPurePursuitDrive
                 onFinishedEvent.signal();
                 onFinishedEvent = null;
             }
+
+            if (xPosPidCtrl != null) xPosPidCtrl.endStallDetection();
+            yPosPidCtrl.endStallDetection();
+            turnPidCtrl.endStallDetection();
         }
         else if (xPosPidCtrl != null)
         {
@@ -1219,8 +1227,16 @@ public class TrcPurePursuitDrive
     private TrcWaypoint getFollowingPointOnSegment(
         TrcWaypoint startWaypoint, TrcWaypoint endWaypoint, TrcPose2D robotPose)
     {
+        final String funcName = "getFollowingPointOnSegment";
+
         if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
+            if (debugEnabled)
+            {
+                globalTracer.traceInfo(
+                    funcName, "pathIndex=%d, startPose=%s, endPose=%s",
+                    pathIndex, startWaypoint.getPositionPose(), endWaypoint.getPositionPose());
+            }
             return interpolate(
                 startWaypoint, endWaypoint, 1.0, !incrementalTurn? robotPose: null);
         }
@@ -1243,6 +1259,10 @@ public class TrcPurePursuitDrive
             {
                 // No valid intersection or end waypoint has the same location as the start waypoint.
                 // (i.e. same x and y but could have different angles).
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(funcName, "No valid intersection.");
+                }
                 return null;
             }
 //            else if (a == 0.0)
@@ -1273,10 +1293,26 @@ public class TrcPurePursuitDrive
                     //
                     // The furthest intersection point is not on the line segment, so skip this segment.
                     //
+                    if (debugEnabled)
+                    {
+                        globalTracer.traceInfo(
+                            funcName, "Intersection not on line segment t1=%f, t2=%f, t=%f, stalled=%s",
+                            t1, t2, t, stalled);
+                    }
                     return null;
                 }
 
-                return interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+                TrcWaypoint interpolated =
+                    interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+
+                if (debugEnabled)
+                {
+                    globalTracer.traceInfo(
+                        funcName, "startPoint=%s, endPoint=%s, interpolatedPoint=%s",
+                        startWaypoint.getPositionPose(), endWaypoint.getPositionPose(), interpolated.getPositionPose());
+                }
+
+                return interpolated;
             }
         }
     }   //getFollowingPointOnSegment
@@ -1296,6 +1332,7 @@ public class TrcPurePursuitDrive
         //
         for (int i = Math.max(pathIndex, 1); i < path.getSize(); i++)
         {
+            msgTracer.traceInfo(funcName, ">>>>> Processing segment %d...", i);
             TrcWaypoint segmentStart = path.getWaypoint(i - 1);
             TrcWaypoint segmentEnd = path.getWaypoint(i);
             // If there is a valid intersection, return it.
@@ -1320,6 +1357,16 @@ public class TrcPurePursuitDrive
                     pathIndex = i;
                 }
                 return interpolated;
+            }
+            else if (stalled)
+            {
+                if (msgTracer != null)
+                {
+                    msgTracer.traceInfo(
+                        funcName, "[%.3f] Segment %d is stalled, moving to the next segment.",
+                        TrcTimer.getModeElapsedTime(), i);
+                }
+                pathIndex = i;
             }
         }
         //

@@ -543,9 +543,13 @@ public class TrcPidController
     {
         synchronized (pidCtrlState)
         {
-            pidCtrlState.stallDetectionStartTime =
-                pidCtrlState.stallDetectionTimeout == 0.0?
-                    null: TrcTimer.getCurrentTime() + pidCtrlState.stallDetectionDelay;
+            // Start stall detection only if it's not already started.
+            if (pidCtrlState.stallDetectionStartTime == null)
+            {
+                pidCtrlState.stallDetectionStartTime =
+                    pidCtrlState.stallDetectionTimeout == 0.0 ?
+                        null : TrcTimer.getCurrentTime() + pidCtrlState.stallDetectionDelay;
+            }
         }
     }   //startStallDetection
 
@@ -889,7 +893,6 @@ public class TrcPidController
                     stalled = currTime > pidCtrlState.stallDetectionStartTime + pidCtrlState.stallDetectionTimeout;
                     if (stalled)
                     {
-                        pidCtrlState.stallDetectionStartTime = null;
                         if (pidCtrlState.infoEnabled)
                         {
                             globalTracer.traceInfo(

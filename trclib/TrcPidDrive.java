@@ -383,6 +383,40 @@ public class TrcPidDrive
     }   //setBeep
 
     /**
+     * This method enables/disables stall detection.
+     *
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
+     */
+    public void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
+    {
+        if (xPidCtrl != null)
+        {
+            xPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+        yPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        turnPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param enabled specifies true to enable stall detection, false to disable.
+     */
+    public void setStallDetectionEnabled(boolean enabled)
+    {
+        if (xPidCtrl != null)
+        {
+            xPidCtrl.setStallDetectionEnabled(enabled);
+        }
+        yPidCtrl.setStallDetectionEnabled(enabled);
+        turnPidCtrl.setStallDetectionEnabled(enabled);
+    }   //setStallDetectionEnabled
+
+    /**
      * This method starts a PID operation by setting the PID targets.
      *
      * @param xTarget specifies the X target position.
