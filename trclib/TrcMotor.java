@@ -120,7 +120,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     // Global objects.
     //
     private static final double DEF_BEEP_LOW_FREQUENCY = 440.0;     //in Hz
-    private static final double DEF_BEEP_HIGH_FREQUECY = 880.0;     //in Hz
+    private static final double DEF_BEEP_HIGH_FREQUENCY = 880.0;    //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;            //in seconds
 
     private static final ArrayList<TrcMotor> odometryMotors = new ArrayList<>();
@@ -174,7 +174,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     // Beep device.
     private TrcTone beepDevice = null;
     private double beepLowFrequency = DEF_BEEP_LOW_FREQUENCY;
-    private double beepHighFrequency = DEF_BEEP_HIGH_FREQUECY;
+    private double beepHighFrequency = DEF_BEEP_HIGH_FREQUENCY;
     private double beepDuration = DEF_BEEP_DURATION;
     // Reset position on digital trigger support.
     private TrcTriggerDigitalInput digitalTrigger;
@@ -287,7 +287,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void setBeep(TrcTone beepDevice)
     {
-        setBeep(beepDevice, DEF_BEEP_LOW_FREQUENCY, DEF_BEEP_HIGH_FREQUECY, DEF_BEEP_DURATION);
+        setBeep(beepDevice, DEF_BEEP_LOW_FREQUENCY, DEF_BEEP_HIGH_FREQUENCY, DEF_BEEP_DURATION);
     }   //setBeep
 
     /**
@@ -378,7 +378,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * stalled condition. A motor is considered stalled if:
      * - the power applied to the motor is above or equal to stallMinPower.
      * - the motor has not moved or movement stayed within stallTolerance for at least stallTimeout.
-     * Note: By definition, holding target position doing sofware PID control is stalling. If you decide to enable
+     * Note: By definition, holding target position doing software PID control is stalling. If you decide to enable
      *       stall protection while holding target, please make sure to set a stallMinPower much greater the power
      *       necessary to hold position against gravity, for example.
      *
@@ -749,7 +749,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
     /**
      * This method resets the motor position sensor if provided, typically an encoder. Otherwise, it resets the
-     * one on the motor controller if it supports one. If hardwae is false, it simulates the reset by reading
+     * one on the motor controller if it supports one. If hardware is false, it simulates the reset by reading
      * the current position as the zero position.
      *
      * @param hardware specifies true for resetting hardware position, false for resetting software position.
@@ -1020,7 +1020,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            throw new IllegalStateException("Software velocity PID coeefficients have not been set.");
+            throw new IllegalStateException("Software velocity PID coefficients have not been set.");
         }
     }   //setSoftwarePidVelocity
 
@@ -1040,7 +1040,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            throw new IllegalStateException("Software position PID coeefficients have not been set.");
+            throw new IllegalStateException("Software position PID coefficients have not been set.");
         }
     }   //setSoftwarePidPosition
 
@@ -1060,25 +1060,43 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            throw new IllegalStateException("Software current PID coeefficients have not been set.");
+            throw new IllegalStateException("Software current PID coefficients have not been set.");
         }
     }   //setSoftwarePidCurrent
 
     /**
-     * This method cancels a previous operation by resetting the state set by the previous operation.
+     * This method cancels a previous operation by resetting the state set by the previous operation. Note: cancel
+     * does not stop the motor and therefore it will still hold its position. If you want to stop the motor, call
+     * the stop method instead.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *        ownership aware.
      */
-    private void cancel()
+    public void cancel(String owner)
     {
-        timer.cancel();
-        synchronized (taskParams)
+        if (validateOwnership(owner))
         {
-            taskParams.calibrating = false;
-            if (taskParams.notifyEvent != null)
+            timer.cancel();
+            synchronized (taskParams)
             {
-                taskParams.notifyEvent.cancel();
-                taskParams.notifyEvent = null;
+                taskParams.calibrating = false;
+                if (taskParams.notifyEvent != null)
+                {
+                    taskParams.notifyEvent.cancel();
+                    taskParams.notifyEvent = null;
+                }
             }
         }
+    }   //cancel
+
+    /**
+     * This method cancels a previous operation by resetting the state set by the previous operation. Note: cancel
+     * does not stop the motor and therefore it will still hold its position. If you want to stop the motor, call
+     * the stop method instead.
+     */
+    public void cancel()
+    {
+        cancel(null);
     }   //cancel
 
     /**
@@ -1968,7 +1986,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Velocity PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
             }
         }
         else
@@ -2011,7 +2029,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     /**
      * This method returns the PID coefficients of the motor's velocity PID controller.
      *
-     * @return PID coefficients of the motor's veloicty PID controller.
+     * @return PID coefficients of the motor's velocity PID controller.
      */
     public TrcPidController.PidCoefficients getVelocityPidCoefficients()
     {
@@ -2025,7 +2043,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Velocity PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
             }
         }
         else
@@ -2053,7 +2071,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Velocity PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
             }
         }
         else
@@ -2152,7 +2170,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Position PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Position PID coefficients have not been set.");
             }
         }
         else
@@ -2209,7 +2227,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Position PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Position PID coefficients have not been set.");
             }
         }
         else
@@ -2225,7 +2243,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @return true if position has reached target, false otherwise.
      */
-    public boolean getPositioinOnTarget()
+    public boolean getPositionOnTarget()
     {
         boolean onTarget;
 
@@ -2237,7 +2255,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Position PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Position PID coefficients have not been set.");
             }
         }
         else
@@ -2336,7 +2354,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Current PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Current PID coefficients have not been set.");
             }
         }
         else
@@ -2393,7 +2411,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Current PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Current PID coefficients have not been set.");
             }
         }
         else
@@ -2421,7 +2439,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                throw new IllegalStateException("Software Current PID coeefficients have not been set.");
+                throw new IllegalStateException("Software Current PID coefficients have not been set.");
             }
         }
         else
@@ -3277,7 +3295,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor to the next preset position up or down from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
      *        is required.
      * @param presetUp specifies true to move to next preset up, false to move to next preset down.
      * @param powerLimit specifies the maximum power limit.
@@ -3296,7 +3314,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor to the next preset position up from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
      *        is required.
      * @param powerLimit specifies the maximum power limit.
      */
@@ -3309,7 +3327,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor to the next preset position down from the current position.
      *
      * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
-     *        automatically release ownership when the motor movement is coompleted, can be null if no ownership
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
      *        is required.
      * @param powerLimit specifies the maximum power limit.
      */
