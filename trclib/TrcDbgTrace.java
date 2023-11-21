@@ -174,7 +174,7 @@ public class TrcDbgTrace
      * @param msgLevel specifies the message tracing level.
      */
     public static void setGlobalTracerConfig(
-            boolean traceEnabled, TrcDbgTrace.TraceLevel traceLevel, TrcDbgTrace.MsgLevel msgLevel)
+        boolean traceEnabled, TrcDbgTrace.TraceLevel traceLevel, TrcDbgTrace.MsgLevel msgLevel)
     {
         globalTracer.setDbgTraceConfig(traceEnabled, traceLevel, msgLevel);
     }   //setGlobalTracerConfig
@@ -335,30 +335,30 @@ public class TrcDbgTrace
      * This method logs a MsgLevel.INFO entry that contains information about the match. The entry is in XML format
      * and is intended to be parsed by tools such as TrcTraceLogVisualizer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param infoName specifies the name to identify the information.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void logInfo(String funcName, String infoName, String format, Object... args)
+    public void logInfo(String callerName, String infoName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + format + " />", args);
+        traceMsg(callerName, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + format + " />", args);
     }   //logInfo
 
     /**
      * This method logs a MsgLevel.INFO entry that contains an event. The entry is in XML format and is intended to be
      * parsed by tools such as TrcTraceLogVisualizer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param eventName specifies the name to identify the event.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void logEvent(final String funcName, final String eventName, final String format, Object... args)
+    public void logEvent(String callerName, final String eventName, final String format, Object... args)
     {
         String newFormat = String.format(Locale.US, "<Event name=\"%s\" time=\"%.3f\" %s />",
                 eventName, TrcTimer.getModeElapsedTime(), format);
-        traceMsg(funcName, MsgLevel.INFO, newFormat, args);
+        traceMsg(callerName, MsgLevel.INFO, newFormat, args);
     }   //logEvent
 
     /**
@@ -473,136 +473,137 @@ public class TrcDbgTrace
     /**
      * This method is typically called at the beginning of a method to trace the entry parameters of the method.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param funcLevel specifies the trace level.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceEnter(final String funcName, final TraceLevel funcLevel, final String format, Object... args)
+    public void traceEnter(String callerName, TraceLevel funcLevel, String format, Object... args)
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            dbgLog.traceMsg(tracePrefix(funcName, true, false) + String.format(format, args) + ")\n");
+            dbgLog.traceMsg(tracePrefix(callerName, true, false) + String.format(format, args) + ")\n");
         }
     }   //traceEnter
 
     /**
      * This method is typically called at the beginning of a method.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param funcLevel specifies the trace level.
      */
-    public void traceEnter(final String funcName, final TraceLevel funcLevel)
+    public void traceEnter(String callerName, TraceLevel funcLevel)
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            dbgLog.traceMsg(tracePrefix(funcName, true, true));
+            dbgLog.traceMsg(tracePrefix(callerName, true, true));
         }
     }   //traceEnter
 
     /**
      * This method is typically called at the end of a method to trace the return value of the method.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param funcLevel specifies the trace level.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceExit(final String funcName, final TraceLevel funcLevel, final String format, Object... args)
+    public void traceExit(String callerName, TraceLevel funcLevel, String format, Object... args)
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            dbgLog.traceMsg(tracePrefix(funcName, false, false) + String.format(format, args) + "\n");
+            dbgLog.traceMsg(tracePrefix(callerName, false, false) + String.format(format, args) + "\n");
         }
     }   //traceExitMsg
 
     /**
      * This method is typically called at the end of a method.
-     * @param funcName specifies the calling method name.
+     *
+     * @param callerName specifies the name to identify the caller.
      * @param funcLevel specifies the trace level.
      */
-    public void traceExit(final String funcName, final TraceLevel funcLevel)
+    public void traceExit(String callerName, TraceLevel funcLevel)
     {
         if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
         {
-            dbgLog.traceMsg(tracePrefix(funcName, false, true));
+            dbgLog.traceMsg(tracePrefix(callerName, false, true));
         }
     }   //traceExit
 
     /**
      * This method is called to print a fatal message.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceFatal(final String funcName, final String format, Object... args)
+    public void traceFatal(String callerName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.FATAL, format, args);
+        traceMsg(callerName, MsgLevel.FATAL, format, args);
     }   //traceFatal
 
     /**
      * This method is called to print an error message.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceErr(final String funcName, final String format, Object... args)
+    public void traceErr(String callerName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.ERR, format, args);
+        traceMsg(callerName, MsgLevel.ERR, format, args);
     }   //traceErr
 
     /**
      * This method is called to print a warning message.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceWarn(final String funcName, final String format, Object... args)
+    public void traceWarn(String callerName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.WARN, format, args);
+        traceMsg(callerName, MsgLevel.WARN, format, args);
     }   //traceWarn
 
     /**
      * This method is called to print an information message.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceInfo(final String funcName, final String format, Object... args)
+    public void traceInfo(String callerName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.INFO, format, args);
+        traceMsg(callerName, MsgLevel.INFO, format, args);
     }   //traceInfo
 
     /**
      * This method is called to print a verbose message.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceVerbose(final String funcName, final String format, Object... args)
+    public void traceVerbose(String callerName, String format, Object... args)
     {
-        traceMsg(funcName, MsgLevel.VERBOSE, format, args);
+        traceMsg(callerName, MsgLevel.VERBOSE, format, args);
     }   //traceVerbose
 
     /**
      * This method is called to print a message only if the given interval timer has expired since the last
      * periodic message. This is useful to print out periodic status without overwhelming the debug console.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param timer specifies the interval timer.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public void traceInfoAtInterval(final String funcName, TrcIntervalTimer timer, final String format, Object... args)
+    public void traceInfoAtInterval(String callerName, TrcIntervalTimer timer, String format, Object... args)
     {
         if (timer.hasExpired())
         {
-            traceMsg(funcName, MsgLevel.INFO, format, args);
+            traceMsg(callerName, MsgLevel.INFO, format, args);
         }
     }   //traceInfoAtInterval
 
@@ -620,16 +621,18 @@ public class TrcDbgTrace
     /**
      * This method is the common worker for all the trace message methods.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param level specifies the message level.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    private void traceMsg(final String funcName, MsgLevel level, final String format, Object... args)
+    private void traceMsg(String callerName, MsgLevel level, String format, Object... args)
     {
         if (level.getValue() <= msgLevel.getValue())
         {
-            String msg = msgPrefix(funcName, level) + String.format(format, args);
+            String msg =
+                callerName + "." + new Throwable().getStackTrace()[2].getMethodName() + "_" + level +
+                " [" + TrcTimer.getModeElapsedTime() + "] " + String.format(format, args);
             dbgLog.msg(level, msg + "\n");
             if (traceLogger != null)
             {
@@ -641,86 +644,86 @@ public class TrcDbgTrace
     /**
      * This method is called to print a fatal message to the global tracer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public static void globalTraceFatal(final String funcName, final String format, Object... args)
+    public static void globalTraceFatal(String callerName, String format, Object... args)
     {
-        globalTraceMsg(funcName, MsgLevel.FATAL, format, args);
+        globalTraceMsg(callerName, MsgLevel.FATAL, format, args);
     }   //globalTraceFatal
 
     /**
      * This method is called to print an error message to the global tracer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public static void globalTraceErr(final String funcName, final String format, Object... args)
+    public static void globalTraceErr(String callerName, String format, Object... args)
     {
-        globalTraceMsg(funcName, MsgLevel.ERR, format, args);
+        globalTraceMsg(callerName, MsgLevel.ERR, format, args);
     }   //globalTraceErr
 
     /**
      * This method is called to print a warning message to the global tracer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public static void globalTraceWarn(final String funcName, final String format, Object... args)
+    public static void globalTraceWarn(String callerName, String format, Object... args)
     {
-        globalTraceMsg(funcName, MsgLevel.WARN, format, args);
+        globalTraceMsg(callerName, MsgLevel.WARN, format, args);
     }   //globalTraceWarn
 
     /**
      * This method is called to print an information message to the global tracer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public static void globalTraceInfo(final String funcName, final String format, Object... args)
+    public static void globalTraceInfo(String callerName, String format, Object... args)
     {
-        globalTraceMsg(funcName, MsgLevel.INFO, format, args);
+        globalTraceMsg(callerName, MsgLevel.INFO, format, args);
     }   //globalTraceInfo
 
     /**
      * This method is called to print a verbose message to the global tracer.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    public static void globalTraceVerbose(final String funcName, final String format, Object... args)
+    public static void globalTraceVerbose(String callerName, String format, Object... args)
     {
-        globalTraceMsg(funcName, MsgLevel.VERBOSE, format, args);
+        globalTraceMsg(callerName, MsgLevel.VERBOSE, format, args);
     }   //globalTraceVerbose
 
     /**
      * This method is the common worker for all the global trace message methods.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param level specifies the message level.
      * @param format specifies the format string of the message.
      * @param args specifies the message arguments.
      */
-    private static void globalTraceMsg(final String funcName, MsgLevel level, final String format, Object... args)
+    private static void globalTraceMsg(String callerName, MsgLevel level, String format, Object... args)
     {
-        getGlobalTracer().traceMsg(funcName, level, format, args);
+        getGlobalTracer().traceMsg(callerName, level, format, args);
    }   //globalTraceMsg
 
     /**
      * This method returns a trace prefix string. The trace prefix includes the indentation, the instance name and
      * calling method name.
      *
-     * @param funcName specifies the calling method name.
+     * @param callerName specifies the name to identify the caller.
      * @param enter specifies true if it is a traceEnter call, false if it is a traceExit call.
      * @param newline specifies true if it should print a newline, false otherwise.
      * @return trace prefix string.
      */
-    private String tracePrefix(final String funcName, boolean enter, boolean newline)
+    private String tracePrefix(String callerName, boolean enter, boolean newline)
     {
         StringBuilder prefix = new StringBuilder();
 
@@ -734,7 +737,8 @@ public class TrcDbgTrace
             prefix.append("| ");
         }
 
-        prefix.append(instanceName).append(".").append(funcName);
+        String methodName = new Throwable().getStackTrace()[2].getMethodName();
+        prefix.append(callerName).append(".").append(methodName);
 
         if (enter)
         {
@@ -752,42 +756,42 @@ public class TrcDbgTrace
     /**
      * This method returns a message prefix string.
      *
-     * @param funcName specifies the calling method name.
+     * @param prefix specifies the prefix that contains the instance and method names.
      * @param level specifies the message level.
      * @return message prefix string.
      */
-    private String msgPrefix(final String funcName, MsgLevel level)
+    private String msgPrefix(String prefix, MsgLevel level)
     {
-        String prefix = instanceName + "." + funcName;
+        String suffix;
 
         switch (level)
         {
             case FATAL:
-                prefix += "_Fatal: ";
+                suffix = "_Fatal: ";
                 break;
 
             case ERR:
-                prefix += "_Err: ";
+                suffix = "_Err: ";
                 break;
 
             case WARN:
-                prefix += "_Warn: ";
+                 suffix = "_Warn: ";
                 break;
 
             case INFO:
-                prefix += "_Info: ";
+                suffix = "_Info: ";
                 break;
 
             case VERBOSE:
-                prefix += "_Verbose: ";
+                suffix = "_Verbose: ";
                 break;
 
             default:
-                prefix += "_Unk: ";
+                suffix = "_Unk: ";
                 break;
         }
 
-        return prefix;
+        return prefix + suffix;
     }   //msgPrefix
 
 }   //class TrcDbgTrace
