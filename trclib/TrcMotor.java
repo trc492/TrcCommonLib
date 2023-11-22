@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
+import teamcode.subsystems.ElevatorArm;
 
 /**
  * This class implements a platform independent generic motor controller. Typically, this class is extended by a
@@ -37,7 +38,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsystem, TrcOdometrySensor
 {
-    private static final String moduleName = "TrcMotor";
+    private static final String moduleName = TrcMotor.class.getSimpleName();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
     private static final String debugSubsystem = null;
@@ -167,6 +168,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private PowerCompensation posPowerComp = null;
     private TrcPidController currentPidCtrl = null;
     private PowerCompensation currentPowerComp = null;
+    private Double closeLoopControlTarget = null;
     // Tracer config.
     private TrcDbgTrace msgTracer = null;
     private boolean tracePidInfo = false;
@@ -1143,6 +1145,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     break;
 
                 case Velocity:
+                    closeLoopControlTarget = params.motorValue;
                     if (softwarePidEnabled)
                     {
                         setSoftwarePidVelocity(params.motorValue);
@@ -1154,6 +1157,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     break;
 
                 case Current:
+                    closeLoopControlTarget = params.motorValue;
                     if (softwarePidEnabled)
                     {
                         setSoftwarePidCurrent(params.motorValue);
@@ -1213,8 +1217,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private double voltageCompensation(double power)
     {
-        final String funcName = "voltageCompensation";
-
         if (power != 0.0 && batteryNominalVoltage != null && batteryNominalVoltage > 0.0)
         {
             // Only do this if motor controller supports getBusVoltage.
@@ -1225,7 +1227,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             catch (UnsupportedOperationException e)
             {
-                globalTracer.traceWarn(funcName, "Motor controller does not support getBusVoltage.");
+                globalTracer.traceWarn(instanceName, "Motor controller does not support getBusVoltage.");
             }
         }
 
@@ -1279,14 +1281,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private void setMotorValue(
         String owner, ControlMode controlMode, double delay, double value, double duration, TrcEvent completionEvent)
     {
-        final String funcName = "setMotorValue";
-
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName,
-                "%s.%s: owner=%s, controlMode=%s, delay=%.3f, value=%f, duration=%.3f, event=%s",
-                moduleName, instanceName, owner, controlMode, delay, value, duration, completionEvent);
+                instanceName,
+                "owner=%s, controlMode=%s, delay=%.3f, value=%f, duration=%.3f, event=%s",
+                owner, controlMode, delay, value, duration, completionEvent);
         }
 
         if (completionEvent != null)
@@ -1522,6 +1522,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         synchronized (params)
         {
+            closeLoopControlTarget = params.motorValue;
             if (softwarePidEnabled)
             {
                 // Doing software PID control.
@@ -1552,13 +1553,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         String owner, double delay, double position, boolean holdTarget, double powerLimit, TrcEvent completionEvent,
         double timeout)
     {
-        final String funcName = "setPosition";
-
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "%s.%s: owner=%s, delay=%.3f, pos=%f, holdTarget=%s, powerLimit=%f, event=%s, timeout=%.3f",
-                moduleName, instanceName, owner, delay, position, holdTarget, powerLimit, completionEvent, timeout);
+                instanceName, "owner=%s, delay=%.3f, pos=%f, holdTarget=%s, powerLimit=%f, event=%s, timeout=%.3f",
+                owner, delay, position, holdTarget, powerLimit, completionEvent, timeout);
         }
 
         if (completionEvent != null)
@@ -1739,8 +1738,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void setPidPower(String owner, double power, double minPos, double maxPos, boolean holdTarget)
     {
-        final String funcName = "setPidPower";
-
         if (validateOwnership(owner))
         {
             // If power is negative, set the target to minPos. If power is positive, set the target to maxPos. We
@@ -1771,9 +1768,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%.3f:%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                    TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
-                                    taskParams.prevPosTarget);
+                                    instanceName, "[%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                             }
                         }
                         else
@@ -1782,9 +1778,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName, "[%.3f:%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                    TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
-                                    taskParams.prevPosTarget);
+                                    instanceName, "[%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                    debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                             }
                         }
                     }
@@ -1795,8 +1790,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                         {
                             TrcDbgTrace.globalTraceInfo(
-                                funcName, "[%.3f:%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                                TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
+                                instanceName, "[%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                                debugSubsystem, power, currPos, currTarget,
                                 taskParams.prevPosTarget);
                         }
                     }
@@ -1814,9 +1809,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                     {
                         TrcDbgTrace.globalTraceInfo(
-                            funcName, "[%.3f:%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
-                            TrcTimer.getModeElapsedTime(), debugSubsystem, power, currPos, currTarget,
-                            taskParams.prevPosTarget);
+                            instanceName, "[%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
+                            debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                     }
                 }
             }
@@ -2477,7 +2471,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private boolean isMotorStalled(double power)
     {
-        final String funcName = "isMotorStalled";
         boolean stalled = false;
 
         if (taskParams.stallMinPower > 0.0 && taskParams.stallTimeout > 0.0)
@@ -2506,9 +2499,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                 if (msgTracer != null)
                 {
-                    msgTracer.traceInfo(
-                        funcName, "[%.3f] %s.%s: stall protection activated.",
-                        TrcTimer.getModeElapsedTime(), moduleName, instanceName);
+                    msgTracer.traceInfo(instanceName, "Stall protection activated.");
                 }
             }
         }
@@ -2567,7 +2558,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private boolean zeroCalibratingMotor(double calPower)
     {
-        final String funcName = "zeroCalibratingMotor";
         boolean done = isLowerLimitSwitchActive() || taskParams.stalled;
 
         if (done)
@@ -2580,8 +2570,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 {
                     beepDevice.playTone(beepLowFrequency, beepDuration);
                 }
-                globalTracer.traceWarn(
-                    funcName, "%s.%s: Stalled, lower limit switch might have failed!", moduleName, instanceName);
+                globalTracer.traceWarn(instanceName, "Stalled, lower limit switch might have failed!");
             }
             setControllerMotorPower(0.0, true);
             resetPosition(false);
@@ -2615,8 +2604,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private void pidCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "pidCtrlTask";
-
         TrcEvent completionEvent = null;
 
         if (pidCtrlTaskPerformanceTimer != null)
@@ -2627,8 +2614,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         synchronized (taskParams)
         {
             boolean onTarget = false;
-            boolean stalled = false;
             boolean expired = false;
+            Double target = null;
 
             if (taskParams.calibrating)
             {
@@ -2641,8 +2628,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     taskParams.notifyEvent = null;
                     if (msgTracer != null)
                     {
-                        msgTracer.traceInfo(
-                            funcName, "[%.3f] %s: Zero calibration done.", TrcTimer.getModeElapsedTime(), instanceName);
+                        msgTracer.traceInfo(instanceName, "Zero calibration done.");
                     }
                 }
             }
@@ -2660,7 +2646,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
                                 taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
                                 taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                        stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
+                        boolean stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
                         expired =           // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
@@ -2760,10 +2746,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
                                 TrcDbgTrace.globalTraceInfo(
-                                    funcName,
-                                    "[%.3f:%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
-                                    TrcTimer.getModeElapsedTime(), debugSubsystem, onTarget, getPosition(),
-                                    taskParams.pidCtrl.getTarget(), expired, doStop, taskParams.powerLimit, power);
+                                    instanceName,
+                                    "[%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
+                                    debugSubsystem, onTarget, getPosition(), taskParams.pidCtrl.getTarget(), expired,
+                                    doStop, taskParams.powerLimit, power);
                             }
 
                             if (msgTracer != null && tracePidInfo)
@@ -2779,6 +2765,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (onTarget || stalled || expired)
                         {
                             completionEvent = taskParams.notifyEvent;
+                            target = closeLoopControlTarget;
+                            closeLoopControlTarget = null;
                             taskParams.notifyEvent = null;
                         }
                     }
@@ -2797,8 +2785,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 if (msgTracer != null)
                 {
                     msgTracer.traceInfo(
-                        funcName, "[%.3f] %s.%s: onTarget=%s, expired=%s, event=%s",
-                        TrcTimer.getModeElapsedTime(), moduleName, instanceName, onTarget, expired, completionEvent);
+                        instanceName, "onTarget=%s(%s), expired=%s, event=%s",
+                        onTarget, target, expired, completionEvent);
                 }
             }
         }
@@ -2818,13 +2806,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void resetPositionOnLowerLimitSwitch(TriggerMode triggerMode, TrcEvent.Callback triggerCallback)
     {
-        final String funcName = "resetPositionOnLowerLimitSwitch";
-
         if (debugEnabled)
         {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: triggerMode=%s,callback=%s",
-                moduleName, instanceName, triggerMode, triggerCallback != null);
+            globalTracer.traceInfo(instanceName, "triggerMode=%s,callback=%s", triggerMode, triggerCallback != null);
         }
 
         digitalTrigger = new TrcTriggerDigitalInput(
@@ -2882,22 +2866,18 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private void resetTriggerCallback(Object context)
     {
-        final String funcName = "resetTriggerCallback";
         boolean active = ((AtomicBoolean) context).get();
 
         if (debugEnabled)
         {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: trigger=%s,active=%s", moduleName, instanceName, digitalTrigger, active);
+            globalTracer.traceInfo(instanceName, "trigger=%s,active=%s", digitalTrigger, active);
         }
 
         if (triggerMode == TriggerMode.OnBoth ||
             triggerMode == TriggerMode.OnActive && active ||
             triggerMode == TriggerMode.OnInactive && !active)
         {
-            globalTracer.traceInfo(
-                funcName, "%s.%s: reset position on digital trigger! (BeforePos=%.2f)",
-                moduleName, instanceName, getPosition());
+            globalTracer.traceInfo(instanceName, "reset position on digital trigger! (BeforePos=%.2f)", getPosition());
             resetPosition(false);
         }
 
@@ -3395,13 +3375,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public void setOdometryEnabled(boolean enabled, boolean resetOdometry, boolean resetHardware)
     {
-        final String funcName = "setOdometryEnabled";
-
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "%s.%s: enabled=%s,resetOd=%s,hwReset=%s",
-                moduleName, instanceName, enabled, resetOdometry, resetHardware);
+                instanceName, "enabled=%s,resetOd=%s,hwReset=%s", enabled, resetOdometry, resetHardware);
         }
 
         if (enabled)
@@ -3529,8 +3506,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private static void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = moduleName + ".odometryTask";
-
         synchronized (odometryMotors)
         {
             for (TrcMotor motor : odometryMotors)
@@ -3565,8 +3540,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (Math.getExponent(high / low) >= 27)
                         {
                             globalTracer.traceWarn(
-                                funcName, "%s.%s: WARNING-Spurious encoder detected! odometry=%s",
-                                moduleName, motor, motor.odometry);
+                                motor.instanceName, "WARNING-Spurious encoder detected! odometry=%s", motor.odometry);
                             // Throw away spurious data and use previous data instead.
                             motor.odometry.currPos = motor.odometry.prevPos;
                         }
@@ -3586,7 +3560,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                     if (debugEnabled)
                     {
-                        globalTracer.traceInfo(funcName, "%s.%s: Odometry=%s", moduleName, motor, motor.odometry);
+                        globalTracer.traceInfo(motor.instanceName, "Odometry=%s", motor.odometry);
                     }
                 }
             }
@@ -3696,7 +3670,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         if (pidCtrlTaskPerformanceTimer != null)
         {
-            tracer.traceInfo("printPidControlTaskPerformance", "%s", pidCtrlTaskPerformanceTimer);
+            tracer.traceInfo(instanceName, "%s", pidCtrlTaskPerformanceTimer);
         }
     }   //printPidControlTaskPerformance
 
@@ -3710,7 +3684,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 //     */
 //    private double transformTorqueToMotorPower(double desiredStallTorquePercentage)
 //    {
-//        final String funcName = "transformTorqueToMotorPower";
 //        double power;
 //        //
 //        // Leverage motor curve information to linearize torque output across varying RPM
@@ -3736,8 +3709,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 //
 //        if (debugEnabled)
 //        {
-//            globalTracer.traceInfo(
-//                funcName, "%s.%s: torque=%f,power=%f", moduleName, instanceName, desiredStallTorquePercentage, power);
+//            globalTracer.traceInfo(instanceName, "torque=%f,power=%f", desiredStallTorquePercentage, power);
 //        }
 //
 //        return power;

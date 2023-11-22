@@ -130,7 +130,7 @@ public interface TrcExclusiveSubsystem
         {
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", this, owner);
+                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of %s.", this, owner);
             }
             releaseOwnershipEvent = new TrcEvent(this + ".releaseOwnership");
             OwnershipParams ownershipParams = new OwnershipParams(
@@ -156,7 +156,7 @@ public interface TrcExclusiveSubsystem
         if (ownershipParams.msgTracer != null)
         {
             ownershipParams.msgTracer.traceInfo(
-                funcName, "%s: Released ownership on behalf of the %s.", this, ownershipParams.owner);
+                funcName, "%s: Released ownership on behalf of %s.", this, ownershipParams.owner);
         }
 
         if (ownershipParams.completionEvent != null)
