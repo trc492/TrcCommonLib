@@ -237,7 +237,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
     private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
-    private double fieldNorthHeading;
+    private double fieldForwardHeading;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -296,7 +296,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
 
         xScale = yScale = angleScale = 1.0;
-        fieldNorthHeading = getHeading();
+        fieldForwardHeading = getHeading();
     }   //TrcDriveBase
 
     /**
@@ -366,13 +366,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         if (orientation != DriveOrientation.FIELD || supportsHolonomicDrive())
         {
             driveOrientation = orientation;
-            // If switching to FIELD oriented driving, reset robot heading so that the current robot heading is "north".
+            // If switching to FIELD oriented driving, reset robot heading so that the current robot heading is
+            // "forward".
             if (resetHeading && driveOrientation == DriveOrientation.FIELD)
             {
-//                TrcPose2D robotPose = getFieldPosition();
-//                robotPose.angle = 0.0;
-//                setFieldPosition(robotPose);
-                fieldNorthHeading = getHeading();
+                fieldForwardHeading = getHeading();
             }
         }
         else
@@ -409,10 +407,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 break;
 
             case FIELD:
-                angle = getHeading() - fieldNorthHeading;
-//                // Without gyro, FIELD mode will behave like ROBOT mode.
-//                angle = gyro == null? 0.0: gyro.getZHeading().value;
-////                angle = getHeading();
+                angle = getHeading() - fieldForwardHeading;
                 break;
         }
 

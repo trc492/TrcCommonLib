@@ -2614,6 +2614,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         synchronized (taskParams)
         {
             boolean onTarget = false;
+            boolean stalled = false;
             boolean expired = false;
             Double target = null;
 
@@ -2646,7 +2647,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
                                 taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
                                 taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                        boolean stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
+                        stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
                         expired =           // Only for software PID control.
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
@@ -2785,8 +2786,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 if (msgTracer != null)
                 {
                     msgTracer.traceInfo(
-                        instanceName, "onTarget=%s(%s), expired=%s, event=%s",
-                        onTarget, target, expired, completionEvent);
+                        instanceName, "onTarget=%s(%s), stalled=%s, expired=%s, event=%s",
+                        onTarget, target, stalled, expired, completionEvent);
                 }
             }
         }
