@@ -389,10 +389,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     /**
      * This method returns robot heading to be maintained in teleop drive according to drive orientation mode.
      *
-     * @param turnPower specifies the robot's current turning power.
      * @return robot heading to be maintained.
      */
-    public double getDriveGyroAngle(double turnPower)
+    public double getDriveGyroAngle()
     {
         double angle = 0.0;
 
@@ -409,6 +408,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             case FIELD:
                 // Without gyro, FIELD mode will behave like ROBOT mode.
                 angle = gyro == null? 0.0: gyro.getZHeading().value;
+//                angle = getHeading();
                 break;
         }
 
