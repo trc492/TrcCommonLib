@@ -237,6 +237,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
     private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
+    private Double fieldNorthHeading = null;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -367,9 +368,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             // If switching to FIELD oriented driving, reset robot heading so that the current robot heading is "north".
             if (resetHeading && driveOrientation == DriveOrientation.FIELD)
             {
-                TrcPose2D robotPose = getFieldPosition();
-                robotPose.angle = 0.0;
-                setFieldPosition(robotPose);
+//                TrcPose2D robotPose = getFieldPosition();
+//                robotPose.angle = 0.0;
+//                setFieldPosition(robotPose);
+                fieldNorthHeading = getHeading();
             }
         }
         else
@@ -406,9 +408,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 break;
 
             case FIELD:
-                // Without gyro, FIELD mode will behave like ROBOT mode.
-                angle = gyro == null? 0.0: gyro.getZHeading().value;
-//                angle = getHeading();
+                angle = fieldNorthHeading != null ? getHeading() - fieldNorthHeading : 0.0;
+//                // Without gyro, FIELD mode will behave like ROBOT mode.
+//                angle = gyro == null? 0.0: gyro.getZHeading().value;
+////                angle = getHeading();
                 break;
         }
 
