@@ -237,7 +237,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     protected double xScale, yScale, angleScale;
     private final Stack<Odometry> referenceOdometryStack = new Stack<>();
     private DriveOrientation driveOrientation = DriveOrientation.ROBOT;
-    private Double fieldNorthHeading = null;
+    private double fieldNorthHeading;
 
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
@@ -296,6 +296,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
 
         xScale = yScale = angleScale = 1.0;
+        fieldNorthHeading = getHeading();
     }   //TrcDriveBase
 
     /**
@@ -408,7 +409,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 break;
 
             case FIELD:
-                angle = fieldNorthHeading != null ? getHeading() - fieldNorthHeading : 0.0;
+                angle = getHeading() - fieldNorthHeading;
 //                // Without gyro, FIELD mode will behave like ROBOT mode.
 //                angle = gyro == null? 0.0: gyro.getZHeading().value;
 ////                angle = getHeading();
