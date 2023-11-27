@@ -1084,7 +1084,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                 {
                     // Robot just stopped turning or this is the first call, save the current robot heading.
                     // Set the current robot heading as the PID target to maintain this heading.
-                    gyroAssistHeading = gyro.getZHeading().value;
+                    gyroAssistHeading = getHeading();
                     gyroAssistPidCtrl.setTarget(gyroAssistHeading);
                     robotTurning = false;
                     if (debugEnabled)
