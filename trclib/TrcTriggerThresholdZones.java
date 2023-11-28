@@ -73,6 +73,13 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         public double sensorValue;
         public int prevZone;
         public int currZone;
+
+        @Override
+        public String toString()
+        {
+            return "(value=" + sensorValue + ", prevZone=" + prevZone + ", currZone=" + currZone + ")";
+        }   //toString
+
     }   //class CallbackContext
 
     private final String instanceName;
