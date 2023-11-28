@@ -32,14 +32,8 @@ import java.util.Locale;
  */
 public abstract class TrcEmic2TextToSpeech
 {
-    protected static final String moduleName = "TrcEmic2TextToSpeech";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     public static final int MIN_VOLUME = -48;
     public static final int MAX_VOLUME = 18;
@@ -56,7 +50,7 @@ public abstract class TrcEmic2TextToSpeech
         RoughRita(7),
         WhisperingWendy(8);
 
-        public int value;
+        final int value;
 
         Voice(int value)
         {
@@ -70,7 +64,7 @@ public abstract class TrcEmic2TextToSpeech
         Singing(1),
         Spanish(2);
 
-        public int value;
+        final int value;
 
         DemoMsg(int value)
         {
@@ -84,7 +78,7 @@ public abstract class TrcEmic2TextToSpeech
         CastilianSpanish(1),
         LatinSpanish(2);
 
-        public int value;
+        final int value;
 
         Language(int value)
         {
@@ -97,7 +91,7 @@ public abstract class TrcEmic2TextToSpeech
         DECTalk(0),
         Epson(1);
 
-        public int value;
+        final int value;
 
         Parser(int value)
         {
@@ -143,12 +137,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public TrcEmic2TextToSpeech(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer? globalTracer:
-                    new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcEmic2TextToSpeech
 
@@ -178,14 +166,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void speak(String msg)
     {
-        final String funcName = "speak";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "msg=%s", msg);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString("S" + msg + "\n", false);
         asyncReadString(RequestId.PROMPT);
     }   //speak
@@ -197,14 +177,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void playDemoMessage(DemoMsg msg)
     {
-        final String funcName = "playDemoMessage";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "msg=%s", msg);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString(String.format(Locale.US, "D%d\n", msg.value), false);
         asyncReadString(RequestId.PROMPT);
     }   //playDemoMessage
@@ -214,14 +186,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void stopPlayback()
     {
-        final String funcName = "stopPlayback";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString("X\n", true);
     }   //stopPlayback
 
@@ -230,14 +194,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void togglePlayback()
     {
-        final String funcName = "togglePlayback";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString("Z\n", true);
     }   //togglePlayback
 
@@ -248,14 +204,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void selectVoice(Voice voice)
     {
-        final String funcName = "selectVoice";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "voice=%s", voice);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString(String.format(Locale.US, "N%d\n", voice.value), false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
@@ -268,18 +216,14 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void setVolume(int vol)
     {
-        final String funcName = "setVolume";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "vol=%d", vol);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (vol < MIN_VOLUME)
+        {
             vol = MIN_VOLUME;
+        }
         else if (vol > MAX_VOLUME)
+        {
             vol = MAX_VOLUME;
+        }
 
         asyncWriteString(String.format(Locale.US, "V%d\n", vol), false);
         asyncReadString(RequestId.PROMPT);
@@ -304,14 +248,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void setSpeakingRate(int rate)
     {
-        final String funcName = "setSpeakingRate";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "rate=%d", rate);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (rate < 75 || rate > 600)
         {
             throw new IllegalArgumentException("Invalid speaking rate, must be between 75 to 600 words/min.");
@@ -329,14 +265,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void setLanguage(Language lang)
     {
-        final String funcName = "setLanguage";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "lang=%s", lang);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString(String.format(Locale.US, "L%d\n", lang.value), false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
@@ -349,14 +277,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void selectParser(Parser parser)
     {
-        final String funcName = "selectParser";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "parser=%s", parser);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString(String.format(Locale.US, "P%d\n", parser.value), false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
@@ -367,14 +287,6 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void revertDefaultConfig()
     {
-        final String funcName = "revertDefaultConfig";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         asyncWriteString("R\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
@@ -465,21 +377,15 @@ public abstract class TrcEmic2TextToSpeech
      */
     protected void notify(Object context)
     {
-        final String funcName = "notify";
         TrcSerialBusDevice.Request request = (TrcSerialBusDevice.Request) context;
         String reply = null;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "request=%s", request);
-        }
 
         if (request.readRequest && request.buffer != null)
         {
             reply = new String(request.buffer, StandardCharsets.US_ASCII);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "reply=<%s>", reply);
+                globalTracer.traceInfo(instanceName, "reply=<%s>", reply);
             }
         }
 
@@ -509,11 +415,6 @@ public abstract class TrcEmic2TextToSpeech
                     helpMsg = reply;
                     break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
         }
     }   //notify
 

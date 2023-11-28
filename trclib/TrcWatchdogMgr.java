@@ -37,7 +37,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcWatchdogMgr
 {
-    public static final String moduleName = "TrcWatchdogMgr";
+    public static final String moduleName = TrcWatchdogMgr.class.getSimpleName();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
@@ -103,8 +103,6 @@ public class TrcWatchdogMgr
          */
         public void sendHeartBeat()
         {
-            final String funcName = "sendHeartBeat";
-
             if (this.thread == Thread.currentThread())
             {
                 double currTime = TrcTimer.getCurrentTime();
@@ -120,7 +118,7 @@ public class TrcWatchdogMgr
             else
             {
                 globalTracer.traceWarn(
-                    funcName, "Only the thread created this watchdog %s is allowed to send heart beat (thread=%s).",
+                    moduleName, "Only the thread created this watchdog %s is allowed to send heart beat (thread=%s).",
                     name, thread.getName());
                 TrcDbgTrace.printThreadStack();
             }
@@ -133,13 +131,12 @@ public class TrcWatchdogMgr
          */
         private synchronized boolean checkForExpiration()
         {
-            final String funcName = "checkForExpiration";
             double currTime = TrcTimer.getCurrentTime();
 
             if (!paused && !expired && currTime > heartBeatExpiredTime)
             {
                 expired = true;
-                globalTracer.traceWarn(funcName, "[%.3f] watchdog %s expired.", currTime, this);
+                globalTracer.traceWarn(moduleName, "[%.3f] watchdog %s expired.", currTime, this);
                 TrcDbgTrace.printThreadStack(thread);
             }
 
@@ -155,7 +152,6 @@ public class TrcWatchdogMgr
          */
         public boolean unregister()
         {
-            final String funcName = "unregister";
             boolean success = false;
 
             if (this.thread == Thread.currentThread())
@@ -165,7 +161,7 @@ public class TrcWatchdogMgr
             else
             {
                 globalTracer.traceWarn(
-                    funcName, "Only the thread created this watchdog %s is allowed to unregister (thread=%s).",
+                    moduleName, "Only the thread created this watchdog %s is allowed to unregister (thread=%s).",
                     name, thread.getName());
                 TrcDbgTrace.printThreadStack();
             }
@@ -252,14 +248,13 @@ public class TrcWatchdogMgr
      */
     public static Watchdog registerWatchdog(String name, double heartBeatThreshold, boolean paused)
     {
-        final String funcName = "registerWatchdog";
         Watchdog watchdog = null;
 
         instance = getInstance();
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "Registering watchdog %s (heartBeatThreshold=%.3f).", name, heartBeatThreshold);
+                moduleName, "Registering watchdog %s (heartBeatThreshold=%.3f).", name, heartBeatThreshold);
             TrcDbgTrace.printThreadStack();
         }
 
@@ -275,7 +270,7 @@ public class TrcWatchdogMgr
             }
             else
             {
-                globalTracer.traceWarn(funcName, "Watchdog %s was already registered.", name);
+                globalTracer.traceWarn(moduleName, "Watchdog %s was already registered.", name);
                 TrcDbgTrace.printThreadStack();
             }
         }
@@ -317,12 +312,11 @@ public class TrcWatchdogMgr
      */
     public static boolean unregisterWatchdog(Watchdog watchdog)
     {
-        final String funcName = "unregisterWatchdog";
         boolean success;
 
         if (debugEnabled)
         {
-            globalTracer.traceInfo(funcName, "Unregistering watchdog %s.", watchdog);
+            globalTracer.traceInfo(moduleName, "Unregistering watchdog %s.", watchdog);
             TrcDbgTrace.printThreadStack();
         }
 
@@ -334,7 +328,7 @@ public class TrcWatchdogMgr
 
         if (!success)
         {
-            globalTracer.traceWarn(funcName, "Watchdog %s was never registered.", watchdog.name);
+            globalTracer.traceWarn(moduleName, "Watchdog %s was never registered.", watchdog.name);
             TrcDbgTrace.printThreadStack();
         }
 

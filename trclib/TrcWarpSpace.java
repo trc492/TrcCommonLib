@@ -31,14 +31,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcWarpSpace
 {
-    private static final String moduleName = "TrcWarpSpace";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     private final String instanceName;
     private final double warpSpaceRange;
 
@@ -51,13 +43,6 @@ public class TrcWarpSpace
      */
     public TrcWarpSpace(final String instanceName, double warpSpaceLowPoint, double warpSpaceHighPoint)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         if (warpSpaceHighPoint > warpSpaceLowPoint)
         {
             this.instanceName = instanceName;
@@ -111,16 +96,7 @@ public class TrcWarpSpace
      */
     public double getOptimizedTarget(double targetPos, double currentPos)
     {
-        final String funcName = "getOptimizedTarget";
-        double optimizedTarget = getOptimizedTarget(targetPos, currentPos, warpSpaceRange);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "target=%f,current=%f", targetPos, currentPos);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", optimizedTarget);
-        }
-
-        return optimizedTarget;
+        return getOptimizedTarget(targetPos, currentPos, warpSpaceRange);
     }   //getOptimizedTarget
 
 }   //class TrcWarpSpace

@@ -32,8 +32,6 @@ import java.util.Locale;
  */
 public class TrcDataBuffer
 {
-    private static final String moduleName = "TrcDataBuffer";
-
     private final String instanceName;
     private final int bufferSize;
     private final ArrayList<Double> bufferedData = new ArrayList<>();
@@ -63,8 +61,7 @@ public class TrcDataBuffer
         synchronized (bufferedData)
         {
             str = String.format(
-                Locale.US, "%s.%s[%d]=%s",
-                moduleName, instanceName, bufferSize, Arrays.toString(bufferedData.toArray()));
+                Locale.US, "%s[%d]=%s", instanceName, bufferSize, Arrays.toString(bufferedData.toArray()));
         }
 
         return str;

@@ -27,10 +27,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDigitalInput
 {
-    protected static final String moduleName = "TrcDigitalInput";
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     /**
      * This method is provided by the platform dependent digital input device to check the state of the input.
      *

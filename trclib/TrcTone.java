@@ -29,13 +29,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcTone
 {
-    private static final String moduleName = "TrcTone";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     /**
      * This enum type specifies the sound waveform to be used in playing a note.
@@ -73,7 +68,8 @@ public abstract class TrcTone
      */
     public abstract boolean isPlaying();
 
-    private Waveform defWaveform;
+    private final String instanceName;
+    private final Waveform defWaveform;
 
     /**
      * Constructor: Create and initialize an instance of the object.
@@ -83,13 +79,7 @@ public abstract class TrcTone
      */
     public TrcTone(final String instanceName, Waveform defWaveform)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
+        this.instanceName = instanceName;
         this.defWaveform = defWaveform;
     }   //TrcTone
 
@@ -127,15 +117,6 @@ public abstract class TrcTone
      */
     protected void genSineWave(short[] buffer, int sampleRate, double frequency, double volume)
     {
-        final String funcName = "genSineWave";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "sampleRate=%d,freq=%.0f,vol=%.2f", sampleRate, frequency, volume);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
-
         for (int i = 0; i < buffer.length; i++)
         {
             buffer[i] = (short)(Math.sin(2*Math.PI*i/(sampleRate/frequency))*Short.MAX_VALUE*volume);
@@ -153,15 +134,6 @@ public abstract class TrcTone
      */
     protected void genSquareWave(short[] buffer, int sampleRate, double frequency, double volume)
     {
-        final String funcName = "genSquareWave";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "sampleRate=%d,freq=%.0f,vol=%.2f", sampleRate, frequency, volume);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
-
         for (int i = 0; i < buffer.length; i++)
         {
             double data = ((i/(sampleRate/frequency))%1.0 >= 0.5)? Short.MIN_VALUE: Short.MAX_VALUE;
@@ -180,15 +152,6 @@ public abstract class TrcTone
      */
     protected void genTriangleWave(short[] buffer, int sampleRate, double frequency, double volume)
     {
-        final String funcName = "genTriangleWave";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "sampleRate=%d,freq=%.0f,vol=%.2f", sampleRate, frequency, volume);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
-
         for (int i = 0; i < buffer.length; i++)
         {
             double phase = (i/(sampleRate/frequency))%1.0;
@@ -212,19 +175,10 @@ public abstract class TrcTone
      * @param release specifies the release time in seconds.
      */
     protected void applySoundEnvelope(
-            short[] buffer, int sampleRate, double attack, double decay, double sustain, double release)
+        short[] buffer, int sampleRate, double attack, double decay, double sustain, double release)
     {
-        final String funcName = "applySoundEnvelope";
         int index;
         int length = 0;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC,
-                                "sampleRate=%d,attack=%.3f,decay=%.3f,sustain=%.3f,release=%.3f",
-                                sampleRate, attack, decay, sustain, release);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
-        }
         //
         // Apply attack.
         //
@@ -234,7 +188,7 @@ public abstract class TrcTone
             length = Math.min((int)(sampleRate*attack), buffer.length - index);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "Attack=%.3f,index=%d,len=%d", attack, index, length);
+                globalTracer.traceInfo(instanceName, "Attack=%.3f,index=%d,len=%d", attack, index, length);
             }
             scaleData(buffer, index, length, 1.0/length, 0.0);
         }
@@ -247,7 +201,7 @@ public abstract class TrcTone
             length = Math.min((int)(sampleRate*decay), buffer.length - index);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "Decay=%.3f,index=%d,len=%d", decay, index, length);
+                globalTracer.traceInfo(instanceName, "Decay=%.3f,index=%d,len=%d", decay, index, length);
             }
             scaleData(buffer, index, length, (sustain - 1.0)/length, 1.0);
         }
@@ -262,7 +216,7 @@ public abstract class TrcTone
             length = Math.min(length, buffer.length - index);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "Sustain=%.3f,index=%d,len=%d", sustain, index, length);
+                globalTracer.traceInfo(instanceName, "Sustain=%.3f,index=%d,len=%d", sustain, index, length);
             }
             scaleData(buffer, index, length, 0.0, sustain);
         }
@@ -275,7 +229,7 @@ public abstract class TrcTone
             length = buffer.length - index;
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "Release=%.3f,index=%d,len=%d", release, index, length);
+                globalTracer.traceInfo(instanceName, "Release=%.3f,index=%d,len=%d", release, index, length);
             }
             scaleData(buffer, index, length, -sustain/length, sustain);
         }

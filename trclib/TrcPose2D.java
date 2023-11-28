@@ -39,14 +39,6 @@ import java.util.Objects;
  */
 public class TrcPose2D
 {
-    private static final String moduleName = "TrcPose2D";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     public double x;
     public double y;
     public double angle;
@@ -60,13 +52,6 @@ public class TrcPose2D
      */
     public TrcPose2D(double x, double y, double angle)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                TrcDbgTrace.getGlobalTracer() :
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.x = x;
         this.y = y;
         this.angle = angle;
@@ -285,7 +270,6 @@ public class TrcPose2D
      */
     public TrcPose2D translatePose(double xOffset, double yOffset)
     {
-        final String funcName = "translatePose";
         TrcPose2D newPose = clone();
         double angleRadians = Math.toRadians(newPose.angle);
         double cosAngle = Math.cos(angleRadians);
@@ -293,12 +277,6 @@ public class TrcPose2D
 
         newPose.x += xOffset * cosAngle + yOffset * sinAngle;
         newPose.y += -xOffset * sinAngle + yOffset * cosAngle;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceInfo(funcName, "xOffset=%.1f, yOffset=%.1f, Pose:%s, newPose:%s",
-                xOffset, yOffset, this, newPose);
-        }
 
         return newPose;
     }   //translatePose
@@ -314,7 +292,6 @@ public class TrcPose2D
     {
         RealVector vec =
             TrcUtil.createVector(this.x, this.y).add(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
-
         return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle + relativePose.angle);
     }   //addRelativePose
 
@@ -330,7 +307,6 @@ public class TrcPose2D
     {
         RealVector vec =
             TrcUtil.createVector(this.x, this.y).subtract(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
-
         return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle - relativePose.angle);
     }   //subtractRelativePose
 

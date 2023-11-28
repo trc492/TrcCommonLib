@@ -28,7 +28,7 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAutoTask<T>
 {
-    private static final String moduleName = "TrcAutoTask";
+    private static final String moduleName = TrcAutoTask.class.getSimpleName();
 
     /**
      * This method is called to acquire ownership of all subsystems involved in the auto-assist operation. This is
@@ -111,8 +111,6 @@ public abstract class TrcAutoTask<T>
      */
     protected void startAutoTask(T startState, Object taskParams, TrcEvent completionEvent)
     {
-        final String funcName = "startAutoTask";
-
         if (owner == null || acquireSubsystemsOwnership())
         {
             this.taskParams = taskParams;
@@ -122,8 +120,7 @@ public abstract class TrcAutoTask<T>
         }
         else
         {
-            TrcDbgTrace.globalTraceWarn(
-                funcName, "%s.%s: failed to acquire subsystems ownership.", moduleName, instanceName);
+            TrcDbgTrace.globalTraceWarn(instanceName, "Failed to acquire subsystems ownership.");
         }
     }   //startAutoTask
 

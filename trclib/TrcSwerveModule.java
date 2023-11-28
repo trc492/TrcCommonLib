@@ -29,13 +29,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcSwerveModule
 {
-    private static final String moduleName = "TrcSwerveModule";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private final String instanceName;
     public final TrcMotor driveMotor;
@@ -59,13 +54,6 @@ public class TrcSwerveModule
     private TrcSwerveModule(
             String instanceName, TrcMotor driveMotor, TrcMotor steerMotor, TrcServo steerServo)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                        TrcDbgTrace.getGlobalTracer() :
-                        new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.driveMotor = driveMotor;
         this.steerMotor = steerMotor;
@@ -141,13 +129,6 @@ public class TrcSwerveModule
      */
     public void zeroCalibrateSteering()
     {
-        final String funcName = "zeroCalibrateSteering";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (steerMotor != null)
         {
             steerMotor.zeroCalibrate(0.2, this::doneZeroCalibrate);
@@ -155,11 +136,6 @@ public class TrcSwerveModule
         else
         {
             throw new RuntimeException("Zero calibration is not applicable for servo steering.");
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //zeroCalibrateSteering
 
@@ -173,36 +149,6 @@ public class TrcSwerveModule
         setSteerAngle(0.0, false, true);
     }   //doneZeroCalibrate
 
-//    /**
-//     * This method calibrates the steering range of the steering servo.
-//     *
-//     * @param stepRate specifies the step rate of the servo.
-//     */
-//    public void rangeCalibrateSteering(double stepRate)
-//    {
-//        final String funcName = "rangeCalibrateSteering";
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "stepRate=%f", stepRate);
-//        }
-//
-//        if (steerServo != null)
-//        {
-//            steerServo.rangeCalibrate(-180.0, 180.0, stepRate);
-//            setSteerAngle(0.0, false, true);
-//        }
-//        else
-//        {
-//            throw new RuntimeException("Steering range calibration is only applicable for servo steering.");
-//        }
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-//        }
-//    }   //rangeCalibrateSteering
-
     /**
      * This method sets the steer angle.
      *
@@ -212,7 +158,6 @@ public class TrcSwerveModule
      */
     public void setSteerAngle(double angle, boolean optimize, boolean hold)
     {
-        final String funcName = "setSteerAngle";
         double prevSteerAngle = getSteerAngle();
         angle = warpSpace.getOptimizedTarget(angle, prevSteerAngle);
         double angleDelta = angle - prevSteerAngle;
@@ -220,8 +165,7 @@ public class TrcSwerveModule
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "angle=%f,optimize=%s,hold=%s", angle, optimize, hold);
+            globalTracer.traceInfo(instanceName, "angle=%f,optimize=%s,hold=%s", angle, optimize, hold);
         }
 
         // If we are not optimizing, reset wheel direction back to normal.
@@ -266,10 +210,9 @@ public class TrcSwerveModule
         {
             if (optimize)
             {
-                dbgTrace.traceInfo(funcName, "Optimizing steer angle for %s: %.1f -> %.1f (%.0f)",
-                    instanceName, angle, newAngle, optimizedWheelDir);
+                globalTracer.traceInfo(
+                    instanceName, "Optimizing steer angle: %.1f -> %.1f (%.0f)", angle, newAngle, optimizedWheelDir);
             }
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, " (angle=%f)", angle);
         }
     }   //setSteerAngle
 
@@ -301,16 +244,7 @@ public class TrcSwerveModule
      */
     public double getSteerAngle()
     {
-        final String funcName = "getSteerAngle";
-        double angle = steerMotor != null ? steerMotor.getPosition() : steerServo.getPosition();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", angle);
-        }
-
-        return angle;
+        return steerMotor != null ? steerMotor.getPosition() : steerServo.getPosition();
     }   //getSteerAngle
 
     /**
@@ -320,14 +254,6 @@ public class TrcSwerveModule
      */
     public void setPower(double power)
     {
-        final String funcName = "setPower";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "power=%f", power);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         driveMotor.setPower(power * optimizedWheelDir);
     }   //set
 

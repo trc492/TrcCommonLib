@@ -30,7 +30,7 @@ import java.util.Locale;
  */
 public abstract class TrcRobotBattery
 {
-    private static final String moduleName = "TrcRobotBattery";
+    private static final String moduleName = TrcRobotBattery.class.getSimpleName();
 
     /**
      * This method returns the robot battery voltage.

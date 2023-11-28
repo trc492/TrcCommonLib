@@ -33,7 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class TrcTaskMgr
 {
-    private static final String moduleName = "TrcTaskMgr";
+    private static final String moduleName = TrcTaskMgr.class.getSimpleName();
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
@@ -446,7 +446,6 @@ public class TrcTaskMgr
          */
         private synchronized void recordElapsedTime(TaskType taskType)
         {
-            final String funcName = "recordElapsedTime";
             long currNanoTime = TrcTimer.getNanoTime();
             long startTime = taskStartTimes[taskType.value];
             long elapsedTime = currNanoTime - startTime;
@@ -457,14 +456,14 @@ public class TrcTaskMgr
             if (debugEnabled)
             {
                 globalTracer.traceVerbose(
-                    funcName, "Task %s.%s: start=%.6f, elapsed=%.6f",
+                    moduleName, "%s.%s: start=%.6f, elapsed=%.6f",
                     taskName, taskType, startTime/1000000000.0, elapsedTime/1000000000.0);
                 long timeThreshold = getTaskInterval()*1000000; //convert to nanoseconds.
                 if (timeThreshold == 0) timeThreshold = TASKTIME_THRESHOLD_MS * 1000000L;
                 if (timeThreshold > 0 && elapsedTime > timeThreshold)
                 {
                     globalTracer.traceWarn(
-                        funcName, "%s.%s takes too long (%.3f)", taskName, taskType, elapsedTime/1000000000.0);
+                        moduleName, "%s.%s takes too long (%s:%.3f)", taskName, taskType, elapsedTime/1000000000.0);
                 }
             }
         }   //recordElapsedTime
@@ -478,7 +477,6 @@ public class TrcTaskMgr
         private synchronized double getAverageTaskElapsedTime(TaskType taskType)
         {
             int slotCount = taskTimeSlotCounts[taskType.value];
-
             return slotCount == 0 ? 0.0 : (double)taskTotalElapsedTimes[taskType.value]/slotCount/1000000000.0;
         }   //getAverageTaskElapsedTime
 
@@ -491,7 +489,6 @@ public class TrcTaskMgr
         private synchronized double getAverageTaskInterval(TaskType taskType)
         {
             int slotCount = taskTimeSlotCounts[taskType.value];
-
             return slotCount == 0 ? 0.0 : (double)taskTotalIntervals[taskType.value]/slotCount/1000000000.0;
         }   //getAverageTaskInterval
 
@@ -512,7 +509,6 @@ public class TrcTaskMgr
      */
     public static TaskObject createTask(final String taskName, Task task)
     {
-        final String funcName = "createTask";
         TaskObject taskObj;
 
         taskObj = new TaskObject(taskName, task);
@@ -520,7 +516,7 @@ public class TrcTaskMgr
 
         if (debugEnabled)
         {
-            globalTracer.traceInfo(funcName, "taskName=%s, taskObj=%s", taskName, taskObj);
+            globalTracer.traceInfo(moduleName, "taskName=%s, taskObj=%s", taskName, taskObj);
         }
 
         return taskObj;
@@ -658,8 +654,6 @@ public class TrcTaskMgr
      */
     public static void printAllRegisteredTasks(TrcDbgTrace tracer)
     {
-        final String funcName = "printAllRegisteredTasks";
-
         for (TaskObject taskObj : taskList)
         {
             StringBuilder msg = new StringBuilder(taskObj.toString() + ":");
@@ -670,7 +664,7 @@ public class TrcTaskMgr
                 msg.append(type);
             }
 
-            tracer.traceInfo(funcName, "%s: %s", taskObj, msg);
+            tracer.traceInfo(moduleName, "%s: %s", taskObj, msg);
         }
     }   //printAllRegisteredTask
 

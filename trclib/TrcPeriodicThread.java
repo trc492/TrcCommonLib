@@ -38,13 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class TrcPeriodicThread<T>
 {
-    private static final String moduleName = "TrcPeriodicThread";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
     private static boolean robotInitialized = false;
 
     public interface PeriodicTask
@@ -186,13 +181,6 @@ public class TrcPeriodicThread<T>
      */
     public TrcPeriodicThread(final String instanceName, PeriodicTask task, Object context, int taskPriority)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.task = task;
         this.context = context;
@@ -271,19 +259,7 @@ public class TrcPeriodicThread<T>
      */
     public void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", enabled);
-        }
-
         taskState.setTaskEnabled(enabled);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setTaskEnabled
 
     /**
@@ -293,16 +269,7 @@ public class TrcPeriodicThread<T>
      */
     public boolean isTaskEnabled()
     {
-        final String funcName = "isTaskEnabled";
-        boolean enabled = taskState.isTaskEnabled();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", enabled);
-        }
-
-        return enabled;
+        return taskState.isTaskEnabled();
     }   //isTaskEnabled
 
     /**
@@ -312,14 +279,6 @@ public class TrcPeriodicThread<T>
      */
     public void setProcessingInterval(long interval)
     {
-        final String funcName = "setProcessingInterval";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "interval=%dms", interval);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         processingInterval = interval;
     }   //setProcessInterval
 
@@ -330,14 +289,6 @@ public class TrcPeriodicThread<T>
      */
     public long getProcessingInterval()
     {
-        final String funcName = "getProcessingInterval";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%d", processingInterval);
-        }
-
         return processingInterval;
     }   //getProcessingInterval
 
@@ -358,14 +309,6 @@ public class TrcPeriodicThread<T>
      */
     public T getData()
     {
-        final String funcName = "getData";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         return taskState.getData();
     }   //getData
 
@@ -378,7 +321,6 @@ public class TrcPeriodicThread<T>
      */
     public void run()
     {
-        final String funcName = "run";
         final Thread thread = Thread.currentThread();
         @SuppressWarnings("unused") long totalThreadNanoTime = 0;
         @SuppressWarnings("unused") int loopCount = 0;
@@ -386,10 +328,9 @@ public class TrcPeriodicThread<T>
         int numThreads = numActiveThreads.incrementAndGet();
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK);
-            dbgTrace.traceInfo(
-                moduleName, "Thread %d: name=%s, tid=%d, priority=%d, group=%s",
-                numThreads, instanceName, thread.getId(), thread.getPriority(), thread.getThreadGroup());
+            globalTracer.traceInfo(
+                instanceName, "Thread %d: tid=%d, priority=%d, group=%s",
+                numThreads, thread.getId(), thread.getPriority(), thread.getThreadGroup());
         }
 
         // Do not create a watchdog for the Watchdog Manager task.
@@ -410,8 +351,9 @@ public class TrcPeriodicThread<T>
 
                 if (debugEnabled)
                 {
-                    dbgTrace.traceVerbose(funcName, "%s: start=%.6f, elapsed=%.6f",
-                            instanceName, startNanoTime/1000000000.0, elapsedNanoTime/1000000000.0);
+                    globalTracer.traceVerbose(
+                        instanceName, "%s: start=%.6f, elapsed=%.6f",
+                        startNanoTime/1000000000.0, elapsedNanoTime/1000000000.0);
                 }
             }
 
@@ -459,10 +401,9 @@ public class TrcPeriodicThread<T>
         numThreads = numActiveThreads.decrementAndGet();
         if (debugEnabled)
         {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.CALLBK);
-            dbgTrace.traceInfo(
-                moduleName, "Exiting thread %d: %s (AvgLoopTime=%.6f)",
-                numThreads, instanceName, totalThreadNanoTime/1000000000.0/loopCount);
+            globalTracer.traceInfo(
+                instanceName, "Exiting thread (numThreads=%d, AvgLoopTime=%.6f)",
+                numThreads, totalThreadNanoTime/1000000000.0/loopCount);
         }
     }   //run
 

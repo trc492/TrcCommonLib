@@ -34,13 +34,8 @@ import java.util.Locale;
  */
 public abstract class TrcPixyCam2
 {
-    protected static final String moduleName = "TrcPixyCam2";
+    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     private static final short PIXY2_SEND_SYNC                  = (short)0xc1ae;
     private static final short PIXY2_RECV_SYNC                  = (short)0xc1af;
@@ -278,7 +273,7 @@ public abstract class TrcPixyCam2
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "data=%s, startIndex=%d", Arrays.toString(data), startIndex);
+                globalTracer.traceInfo(instanceName, "data=%s, startIndex=%d", Arrays.toString(data), startIndex);
             }
 
             for (int i = 0, index = startIndex + 2; i < vectors.length; i++, index += 6)
@@ -286,7 +281,7 @@ public abstract class TrcPixyCam2
                 vectors[i] = new Vector(data, index);
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%d]: %s", i, vectors[i]);
+                    globalTracer.traceInfo(instanceName, "[%d]: %s", i, vectors[i]);
                 }
             }
         }   //FeatureVectors
@@ -370,7 +365,7 @@ public abstract class TrcPixyCam2
 
     }   //class FeatureBarcodes
 
-    private final String instanceName;
+    protected final String instanceName;
     private int hardwareVersion = 0;
     private int firmwareVersion = 0;
     private byte firmwareType = 0;
@@ -384,13 +379,6 @@ public abstract class TrcPixyCam2
      */
     public TrcPixyCam2(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcPixyCam2
 
@@ -455,8 +443,8 @@ public abstract class TrcPixyCam2
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo(funcName, "Request%s => Response%s",
-                Arrays.toString(request), Arrays.toString(response));
+            globalTracer.traceInfo(
+                instanceName, "Request%s => Response%s", Arrays.toString(request), Arrays.toString(response));
         }
 
         if ((short) TrcUtil.bytesToInt(response[0], response[1]) == PIXY2_RECV_SYNC &&
@@ -593,7 +581,6 @@ public abstract class TrcPixyCam2
     public int setCameraBrightness(byte brightness)
     {
         byte[] data = {brightness};
-
         return sendDataRequest(PIXY2_REQ_SET_CAMERA_BRIGHTNESS, data);
     }   //setCameraBrightness
 
@@ -612,7 +599,6 @@ public abstract class TrcPixyCam2
         {
             byte[] data = {TrcUtil.intToByte(panValue, 0), TrcUtil.intToByte(panValue, 1),
                            TrcUtil.intToByte(tiltValue, 0), TrcUtil.intToByte(tiltValue, 1)};
-
             result = sendDataRequest(PIXY2_REQ_SET_SERVOS, data);
         }
 
@@ -631,7 +617,6 @@ public abstract class TrcPixyCam2
     public int setLED(byte red, byte green, byte blue)
     {
         byte[] data = {red, green, blue};
-
         return sendDataRequest(PIXY2_REQ_SET_LED, data);
     }   //setLED
 
@@ -645,7 +630,6 @@ public abstract class TrcPixyCam2
     public int setLamp(boolean upper, boolean lower)
     {
         byte[] data = {(byte) (upper ? 1 : 0), (byte) (lower ? 1 : 0)};
-
         return sendDataRequest(PIXY2_REQ_SET_LAMP, data);
     }   //setLamp
 
@@ -761,7 +745,6 @@ public abstract class TrcPixyCam2
     public int setMode(byte mode)
     {
         byte[] data = {mode};
-
         return sendDataRequest(PIXY2_REQ_SET_MODE, data);
     }   //setMode
 
@@ -774,7 +757,6 @@ public abstract class TrcPixyCam2
     public int setNextTurn(short angle)
     {
         byte[] data = {TrcUtil.intToByte(angle, 0), TrcUtil.intToByte(angle, 1)};
-
         return sendDataRequest(PIXY2_REQ_SET_NEXT_TURN, data);
     }   //setNextTurn
 
@@ -787,14 +769,12 @@ public abstract class TrcPixyCam2
     public int setDefaultTurn(short angle)
     {
         byte[] data = {TrcUtil.intToByte(angle, 0), TrcUtil.intToByte(angle, 1)};
-
         return sendDataRequest(PIXY2_REQ_SET_DEFAULT_TURN, data);
     }   //setDefaultTurn
 
     public int setVector(byte index)
     {
         byte[] data = {index};
-
         return sendDataRequest(PIXY2_REQ_SET_VECTOR, data);
     }   //setVector
 
@@ -807,7 +787,6 @@ public abstract class TrcPixyCam2
     {
         byte[] data = {TrcUtil.intToByte(x, 0), TrcUtil.intToByte(x, 1),
                        TrcUtil.intToByte(y, 0), TrcUtil.intToByte(y, 1), satFlag};
-
         return sendDataRequest(PIXY2_REQ_GET_RGB, data);
     }   //getRGB
 

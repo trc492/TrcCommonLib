@@ -40,14 +40,9 @@ import java.util.Stack;
  */
 public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 {
-    private static final String moduleName = "TrcDriveBase";
+    private static final String moduleName = TrcDriveBase.class.getSimpleName();
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
     //
     // If true, the change in pose is a twist, and is applied to the current pose using a non-zero curvature
     // (non-zero rotation velocity).
@@ -269,13 +264,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public TrcDriveBase(TrcMotor[] motors, TrcGyro gyro)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                globalTracer :
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.motors = motors;
         this.gyro = gyro;
 
@@ -449,12 +437,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void setOdometryEnabled(boolean enabled, boolean resetHardware)
     {
-        final String funcName = "setOdometryEnabled";
-
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s,resetHW=%s", enabled, resetHardware);
+            globalTracer.traceInfo(moduleName, "enabled=%s,resetHW=%s", enabled, resetHardware);
         }
 
         for (TrcMotor motor: motors)
@@ -467,16 +452,11 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             // We already reset position odometry when enabling motor odometry, so don't do it twice.
             // But we do need to reset heading odometry.
             resetOdometry(false, true, resetHardware);
-            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.PRE_PERIODIC_TASK);
+            odometryTaskObj.registerTask(TrcTaskMgr.TaskType.INPUT_TASK);
         }
         else
         {
             odometryTaskObj.unregisterTask();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //setOdometryEnabled
 
@@ -720,13 +700,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void setOdometryScales(double xScale, double yScale, double angleScale)
     {
-        final String funcName = "setOdometryScales";
-
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "xScale=%f,yScale=%f,angleScale=%f",
-                    xScale, yScale, angleScale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
+            globalTracer.traceInfo(moduleName, "xScale=%f,yScale=%f,angleScale=%f", xScale, yScale, angleScale);
         }
 
         synchronized (odometry)
@@ -772,18 +748,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getXPosition()
     {
-        final String funcName = "getXPosition";
-        final double pos;
-
-        pos = getRelativePosition().x;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pos);
-        }
-
-        return pos;
+        return getRelativePosition().x;
     }   //getXPosition
 
     /**
@@ -793,18 +758,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getYPosition()
     {
-        final String funcName = "getYPosition";
-        double pos;
-
-        pos = getRelativePosition().y;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", pos);
-        }
-
-        return pos;
+        return getRelativePosition().y;
     }   //getYPosition
 
     /**
@@ -815,21 +769,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getHeading()
     {
-        final String funcName = "getHeading";
-        final double heading;
-
         synchronized (odometry)
         {
-            heading = odometry.position.angle;
+            return odometry.position.angle;
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", heading);
-        }
-
-        return heading;
     }   //getHeading
 
     /**
@@ -839,18 +782,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getXVelocity()
     {
-        final String funcName = "getXVelocity";
-        final double vel;
-
-        vel = getRelativeVelocity().x;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", vel);
-        }
-
-        return vel;
+        return getRelativeVelocity().x;
     }   //getXVelocity
 
     /**
@@ -860,18 +792,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getYVelocity()
     {
-        final String funcName = "getYVelocity";
-        final double vel;
-
-        vel = getRelativeVelocity().y;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", vel);
-        }
-
-        return vel;
+        return getRelativeVelocity().y;
     }   //getYVelocity
 
     /**
@@ -881,21 +802,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public double getTurnRate()
     {
-        final String funcName = "getTurnRate";
-        final double turnRate;
-
         synchronized (odometry)
         {
-            turnRate = odometry.velocity.angle;
+            return odometry.velocity.angle;
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", turnRate);
-        }
-
-        return turnRate;
     }   //getGyroTurnRate
 
     /**
@@ -908,13 +818,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void resetOdometry(boolean resetPositionOdometry, boolean resetHeadingOdometry, boolean resetHardware)
     {
-        final String funcName = "resetOdometry";
-
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "resetPosOd=%s, resetHeadingOd=%s, resetHardware=%s",
+            globalTracer.traceInfo(
+                moduleName, "resetPosOd=%s, resetHeadingOd=%s, resetHardware=%s",
                 resetPositionOdometry, resetHeadingOdometry, resetHardware);
         }
 
@@ -955,11 +862,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
             odometry.position.x = odometry.position.y = 0.0;
             odometry.velocity.x = odometry.velocity.y = 0.0;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetOdometry
 
@@ -1003,11 +905,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void printMotorsState(TrcDbgTrace tracer)
     {
-        final String funcName = "printMotorsState";
-
         synchronized (odometry)
         {
-            tracer.traceInfo(funcName, "motorsState=%s", motorsState);
+            tracer.traceInfo(moduleName, "motorsState=%s", motorsState);
         }
     }   //printMotorsState
 
@@ -1028,14 +928,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void setSensitivity(double sensitivity)
     {
-        final String funcName = "setSensitivity";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "sensitivity=%f", sensitivity);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.sensitivity = sensitivity;
     }   //setSensitivity
 
@@ -1067,7 +959,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     protected double getGyroAssistPower(double turnPower)
     {
-        final String funcName = "getGyroAssistPower";
         double gyroAssistPower = 0.0;
 
         if (gyroAssistPidCtrl != null)
@@ -1089,7 +980,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     robotTurning = false;
                     if (debugEnabled)
                     {
-                        dbgTrace.traceInfo(funcName, "Maintain robot heading at %f", gyroAssistHeading);
+                        globalTracer.traceInfo(moduleName, "Maintain robot heading at %f", gyroAssistHeading);
                     }
                 }
                 // Robot is going straight, use turnPid controller to calculate GyroAssist power.
@@ -1203,14 +1094,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public int getNumMotors()
     {
-        final String funcName = "getNumMotors";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%d", motors.length);
-        }
-
         return motors.length;
     }   //getNumMotors
 
@@ -1222,14 +1105,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     protected void setInvertedMotor(int index, boolean inverted)
     {
-        final String funcName = "setInvertedMotor";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d,inverted=%s", index, inverted);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         motors[index].setMotorInverted(inverted);
     }   //setInvertedMotor
 
@@ -1264,14 +1139,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void setBrakeMode(boolean enabled)
     {
-        final String funcName = "setBrakeMode";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         for (TrcMotor motor : motors)
         {
             motor.setBrakeModeEnabled(enabled);
@@ -1286,11 +1153,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void stop(String owner)
     {
-        final String funcName = "stop";
-
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s", owner);
+            globalTracer.traceInfo(moduleName, "owner=%s", owner);
         }
 
         if (validateOwnership(owner))
@@ -1310,11 +1175,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             {
                 motor.setPower(0.0);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //stop
 
@@ -1415,15 +1275,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     public void curveDrive(
         String owner, double magnitude, double curve, boolean inverted, double driveTime, TrcEvent event)
     {
-        final String funcName = "curveDrive";
         double leftOutput;
         double rightOutput;
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,mag=%f,curve=%f,inverted=%s,driveTime=%.1f,event=%s",
+            globalTracer.traceInfo(
+                moduleName, "owner=%s,mag=%f,curve=%f,inverted=%s,driveTime=%.1f,event=%s",
                 owner, magnitude, curve, inverted, driveTime, event);
         }
 
@@ -1458,11 +1316,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             }
 
             tankDrive(owner, leftOutput, rightOutput, inverted, driveTime, event);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //curveDrive
 
@@ -1545,15 +1398,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     public void arcadeDrive(
         String owner, double drivePower, double turnPower, boolean inverted, double driveTime, TrcEvent event)
     {
-        final String funcName = "arcadeDrive";
         double leftPower;
         double rightPower;
 
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,drivePower=%f,turnPower=%f,inverted=%s,driveTime=%.1f,event=%s",
+            globalTracer.traceInfo(
+                moduleName, "owner=%s,drivePower=%f,turnPower=%f,inverted=%s,driveTime=%.1f,event=%s",
                 owner, drivePower, turnPower, inverted, driveTime, event);
         }
 
@@ -1572,11 +1423,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
             }
 
             tankDrive(owner, leftPower, rightPower, inverted, driveTime, event);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //arcadeDrive
 
@@ -1885,8 +1731,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         double dirInRads = Math.toRadians(direction);
         holonomicDrive(
-                owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, inverted,
-                0.0, driveTime, event);
+            owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, inverted, 0.0,
+            driveTime, event);
     }   //holonomicDrive_Polar
 
     /**
@@ -1925,8 +1771,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         double dirInRads = Math.toRadians(direction);
         holonomicDrive(
-                owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, false,
-                gyroAngle, driveTime, event);
+            owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, false, gyroAngle,
+            driveTime, event);
     }   //holonomicDrive_Polar
 
     /**
@@ -1977,8 +1823,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         double dirInRads = Math.toRadians(direction);
         holonomicDrive(
-                owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, false,
-                0.0, driveTime, event);
+            owner, magnitude * Math.sin(dirInRads), magnitude * Math.cos(dirInRads), rotation, false, 0.0, driveTime,
+            event);
     }   //holonomicDrive_Polar
 
     /**
@@ -2021,14 +1867,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void odometryTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "odometryTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s",
-                    taskType, runMode);
-        }
-
         synchronized (odometry)
         {
             Odometry odometryDelta;
@@ -2071,8 +1909,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     {
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "Gyro Before: timestamp=%.3f, pos=%.1f, vel=%.1f",
-                                    gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
+                            globalTracer.traceInfo(
+                                moduleName, "Gyro Before: timestamp=%.3f, pos=%.1f, vel=%.1f",
+                                gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
                         }
 
                         double refTimestamp = motorsState.currMotorOdometries[0].currTimestamp;
@@ -2080,8 +1919,9 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                         gyroOdometry.currTimestamp = refTimestamp;
                         if (debugEnabled)
                         {
-                            dbgTrace.traceInfo(funcName, "Gyro After: timestamp=%.3f, pos=%.1f, vel=%.1f",
-                                    gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
+                            globalTracer.traceInfo(
+                                moduleName, "Gyro After: timestamp=%.3f, pos=%.1f, vel=%.1f",
+                                gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
                         }
                     }
                     // Overwrite the angle/turnrate values if gyro present, since that's more accurate
@@ -2093,16 +1933,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "motorsState: %s", motorsState);
-                    dbgTrace.traceInfo(funcName, "delta: %s", odometryDelta);
-                    dbgTrace.traceInfo(funcName, "odometry: %s", odometry);
+                    globalTracer.traceInfo(
+                        moduleName, "motorsState=%s, delta=%s, odometry=%s", motorsState, odometryDelta, odometry);
                 }
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
     }   //odometryTask
 
@@ -2116,19 +1950,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void stopTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "stopTask";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK, "taskType=%s,runMode=%s", taskType, runMode);
-        }
-
         stop();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
     }   //stopTask
 
     /**
@@ -2142,7 +1964,6 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     private void synchronizeOdometries(TrcOdometrySensor.Odometry[] odometries)
     {
-        final String funcName = "synchronizeOdometries";
         int lastIndex = odometries.length - 1;
         double refTimestamp = odometries[lastIndex].currTimestamp;
 
@@ -2150,9 +1971,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         {
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "[%d] Before: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-                        i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
-                        odometries[i].velocity);
+                globalTracer.traceInfo(
+                    moduleName, "[%d] Before: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
+                    i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
+                    odometries[i].velocity);
             }
 
             odometries[i].currPos -= odometries[i].velocity * (odometries[i].currTimestamp - refTimestamp);
@@ -2160,17 +1982,19 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "[%d] After: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-                        i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
-                        odometries[i].velocity);
+                globalTracer.traceInfo(
+                    moduleName, "[%d] After: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
+                    i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
+                    odometries[i].velocity);
             }
         }
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo(funcName, "[%d] Reference: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-                    lastIndex, odometries[lastIndex].sensor, odometries[lastIndex].currTimestamp,
-                    odometries[lastIndex].currPos, odometries[lastIndex].velocity);
+            globalTracer.traceInfo(
+                moduleName, "[%d] Reference: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
+                lastIndex, odometries[lastIndex].sensor, odometries[lastIndex].currTimestamp,
+                odometries[lastIndex].currPos, odometries[lastIndex].velocity);
         }
     }   //synchronizeOdometries
 

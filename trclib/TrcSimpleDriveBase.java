@@ -29,6 +29,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcSimpleDriveBase extends TrcDriveBase
 {
+    private static final String moduleName = TrcSimpleDriveBase.class.getSimpleName();
+
     public enum MotorType
     {
         LEFT_FRONT(0),
@@ -215,13 +217,10 @@ public class TrcSimpleDriveBase extends TrcDriveBase
     public void tankDrive(
         String owner, double leftPower, double rightPower, boolean inverted, double driveTime, TrcEvent event)
     {
-        final String funcName = "tankDrive";
-
         if (debugEnabled)
         {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,leftPower=%f,rightPower=%f,inverted=%s,driveTime=%.1f,event=%s",
+            globalTracer.traceInfo(
+                moduleName, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s,driveTime=%.1f,event=%s",
                 owner, leftPower, rightPower, inverted, driveTime, event);
         }
 
@@ -327,11 +326,6 @@ public class TrcSimpleDriveBase extends TrcDriveBase
             }
             setDriveTime(owner, driveTime, event);
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //tankDrive
 
     /**
@@ -345,13 +339,8 @@ public class TrcSimpleDriveBase extends TrcDriveBase
     protected Odometry getOdometryDelta(
         TrcOdometrySensor.Odometry[] prevOdometries, TrcOdometrySensor.Odometry[] currOdometries)
     {
-        final String funcName = "getOdometryDelta";
         Odometry delta = new Odometry();
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
         //
         // Calculate heading and turn rate using positional info in case we don't have a gyro.
         // Get the average of all left and right motors separately, since this drivebase may have between 2-6 motors
@@ -395,11 +384,6 @@ public class TrcSimpleDriveBase extends TrcDriveBase
         {
             // reset stall start time to current time if drive base has movement.
             stallStartTime = TrcTimer.getCurrentTime();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
         }
 
         return delta;

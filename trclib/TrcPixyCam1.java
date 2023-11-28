@@ -34,7 +34,6 @@ import java.util.Locale;
  */
 public abstract class TrcPixyCam1
 {
-    protected static final String moduleName = "TrcPixyCam1";
     protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
 
@@ -160,9 +159,9 @@ public abstract class TrcPixyCam1
     {
         byte[] byteData = new byte[1];
 
-        for (int i = 0; i < data.length; i++)
+        for (byte value: data)
         {
-            byteData[0] = data[i];
+            byteData[0] = value;
             asyncWriteData(null, byteData);
         }
     }   //asyncWriteBytes
@@ -252,12 +251,11 @@ public abstract class TrcPixyCam1
      */
     private void processData(RequestId requestId, byte[] data, int length)
     {
-        final String funcName = "processData";
         int word;
 
         if (debugEnabled)
         {
-            globalTracer.traceVerbose(funcName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
+            globalTracer.traceVerbose(instanceName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
         }
 
         switch (requestId)
@@ -280,7 +278,7 @@ public abstract class TrcPixyCam1
                     asyncReadData(RequestId.SYNC, 2);
                     if (debugEnabled)
                     {
-                        globalTracer.traceWarn(funcName, "Unexpected data length %d in %s", length, requestId);
+                        globalTracer.traceWarn(instanceName, "Unexpected data length %d in %s", length, requestId);
                     }
                 }
                 else
@@ -304,7 +302,7 @@ public abstract class TrcPixyCam1
                         asyncReadData(RequestId.ALIGN, 1);
                         if (debugEnabled)
                         {
-                            globalTracer.traceInfo(funcName, "Word misaligned, realigning...");
+                            globalTracer.traceInfo(instanceName, "Word misaligned, realigning...");
                         }
                     }
                     else
@@ -317,7 +315,8 @@ public abstract class TrcPixyCam1
                         {
                             if (word != 0)
                             {
-                                globalTracer.traceWarn(funcName, "Unexpected word 0x%04x read in %s", word, requestId);
+                                globalTracer.traceWarn(
+                                    instanceName, "Unexpected word 0x%04x read in %s", word, requestId);
                             }
                         }
                     }
@@ -349,7 +348,7 @@ public abstract class TrcPixyCam1
                     asyncReadData(RequestId.SYNC, 2);
                     if (debugEnabled)
                     {
-                        globalTracer.traceWarn(funcName, "Unexpected data byte 0x%02x in %s", data[0], requestId);
+                        globalTracer.traceWarn(instanceName, "Unexpected data byte 0x%02x in %s", data[0], requestId);
                     }
                 }
                 break;
@@ -388,7 +387,8 @@ public abstract class TrcPixyCam1
                                 {
                                     for (int i = 0; i < detectedObjects.length; i++)
                                     {
-                                        globalTracer.traceInfo(funcName, "[%02d] %s", i, detectedObjects[i].toString());
+                                        globalTracer.traceInfo(
+                                            instanceName, "[%02d] %s", i, detectedObjects[i].toString());
                                     }
                                 }
                             }
@@ -490,14 +490,14 @@ public abstract class TrcPixyCam1
                         //
                         if (debugEnabled)
                         {
-                            globalTracer.traceInfo(funcName, "Object(%s)", currBlock);
+                            globalTracer.traceInfo(instanceName, "Object(%s)", currBlock);
                         }
                         objects.add(currBlock);
                         currBlock = null;
                     }
                     else if (debugEnabled)
                     {
-                        globalTracer.traceWarn(funcName, "Incorrect checksum %d (expecting %d).",
+                        globalTracer.traceWarn(instanceName, "Incorrect checksum %d (expecting %d).",
                             runningChecksum, currBlock.checksum);
                     }
                     //

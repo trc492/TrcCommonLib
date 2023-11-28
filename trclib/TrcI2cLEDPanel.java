@@ -31,13 +31,8 @@ import java.util.Arrays;
  */
 public abstract class TrcI2cLEDPanel
 {
-    protected static final String moduleName = "TrcI2cLEDPanel";
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
 
     private static final int I2C_BUFF_LEN = 32;
 
@@ -57,13 +52,6 @@ public abstract class TrcI2cLEDPanel
      */
     public TrcI2cLEDPanel(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcI2cLEDPanel
 
@@ -141,16 +129,7 @@ public abstract class TrcI2cLEDPanel
      */
     public int color(int red, int green, int blue)
     {
-        final String funcName = "color";
-        int colorValue = ((red & 0xf8) << 8) | ((green & 0xfc) << 3) | (blue >> 3);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "red=%d,green=%d,blue=%d", red, green, blue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=0x%x", colorValue);
-        }
-
-        return colorValue;
+        return ((red & 0xf8) << 8) | ((green & 0xfc) << 3) | (blue >> 3);
     }   //color
 
     /**
@@ -162,19 +141,12 @@ public abstract class TrcI2cLEDPanel
      */
     private void sendCommand(String command)
     {
-        final String funcName = "sendCommand";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "command=%s", command);
-        }
-
         command += "~";
         int cmdLen = command.length();
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo(funcName, "sendCommand(%s)=%d", command, command.length());
+            globalTracer.traceInfo(instanceName, "sendCommand(%s)=%d", command, command.length());
         }
         for (int i = 0; i < cmdLen; )
         {
@@ -184,16 +156,11 @@ public abstract class TrcI2cLEDPanel
                 byte[] data = command.substring(i, i + len).getBytes();
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "asyncWrite%s=%d", Arrays.toString(data), data.length);
+                    globalTracer.traceInfo(instanceName, "asyncWrite%s=%d", Arrays.toString(data), data.length);
                 }
                 asyncWriteData(data);
                 i += len;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
     }   //sendCommand
 

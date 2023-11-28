@@ -70,14 +70,6 @@ public class TrcSpuriousFilter extends TrcFilter
     @Override
     public void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         prevData = null;
     }   //reset
 
@@ -90,13 +82,6 @@ public class TrcSpuriousFilter extends TrcFilter
     @Override
     public double filterData(double data)
     {
-        final String funcName = "filterData";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
-        }
-
         if (prevData != null && Math.abs(data - prevData) >= distanceThreshold)
         {
             if (tracer != null)
@@ -108,11 +93,6 @@ public class TrcSpuriousFilter extends TrcFilter
         else
         {
             prevData = data;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "=%f", data);
         }
 
         return data;

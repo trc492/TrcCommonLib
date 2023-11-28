@@ -34,27 +34,30 @@ import java.util.Locale;
  * offset from the centroid of the drive base. For X-axis, the front sensor must have a positive offset value, the
  * back sensor must have a negative offset value. For Y-axis, the left sensor must have a positive offset value, the
  * right sensor must have a negative offset value. Some typical configurations are listed below.
- *
+ * <p>
  * Configuration 1:
  * This configuration has 2 sensors: one for Y-axis and one for rotation. The Y-axis sensor is most likely an encoder
  * on passive omni-wheels installed parallel to the Y-axis. The angle sensor is most likely a gyro. This configuration
  * does not support holonomic drive base since it doesn't provide X odometry. The Y sensor is typically installed
  * inline with either the left or the right wheels and tangential to the centroid of the drive base.
- *
+ * </p>
+ * <p>
  * Configuration 2:
  * This configuration has 3 sensors: one for X-axis, one for Y-axis and one for rotation. The X and Y sensors are most
  * likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor is
  * most likely a gyro. This configuration can support holonomic drive base. The Y sensor is typically installed
  * inline with either the left or the right wheels and tangential to the drive base centroid. The X sensor is
  * typically installed on the front or the back of the drive base tangential to the centroid of the drive base.
- *
+ * </p>
+ * <p>
  * Configuration 3:
  * This configuration also has 3 sensors: two for Y-axis and one for rotation. The Y sensors are most likely encoders
  * on passive omni-wheels installed parallel to the Y axis. The angle sensor is most likely a gyro. This configuration
  * does not support holonomic drive base since it doesn't provide X odometry. The two Y sensors are typically
  * installed on the left and right sides of the drive base equidistant to the centroid most likely inline with the
  * left and right wheels and tangential to the centroid of the drive base.
- *
+ * </p>
+ * <p>
  * Configuration 4:
  * This configuration has 4 sensors: one for X-axis, two for Y-axis and one for rotation. The three axes sensors are
  * most likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor
@@ -62,7 +65,8 @@ import java.util.Locale;
  * installed on the left and right sides of the drive base equidistant to the centroid most likely inline with the
  * left and right wheels and tangential to the centroid of the drive base. The X sensor is typically installed on
  * the front or the back of the drive base and tangential to the centroid of the drive base.
- *
+ * </p>
+ * <p>
  * Configuration 5:
  * This configuration has 5 sensors: two for X-axis, two for Y-axis and one for rotation. The four axes sensors are
  * most likely encoders on passive omni-wheels installed parallel to the X and Y axes respectively. The angle sensor
@@ -71,10 +75,11 @@ import java.util.Locale;
  * left and right wheels and tangential to the centroid of the drive base. The two X sensors are typically installed
  * on the front or the back of the drive base equidistant to the centroid and tangential to the centroid of the drive
  * base.
+ * </p>
  */
 public class TrcOdometryWheel
 {
-    private static final String moduleName = "TrcOdometryWheel";
+    private static final String moduleName = TrcOdometryWheel.class.getSimpleName();
 
     /**
      * This class encapsulates an axis sensor with its axis offset.
@@ -284,10 +289,12 @@ public class TrcOdometryWheel
      * It is very useful for debugging odometry related issues.
      *
      * @param tracer  specifies the tracer to be used for debug tracing, null to disable debug tracing.
+     * @param instanceName specifies the sensor instance to be debugged.
      */
-    public synchronized void setDebugTracer(TrcDbgTrace tracer)
+    public synchronized void setDebugTracer(TrcDbgTrace tracer, String instanceName)
     {
         this.debugTracer = tracer;
+        this.debugInstance = instanceName;
     }   //setDebugTracer
 
     /**
@@ -374,8 +381,6 @@ public class TrcOdometryWheel
      */
     public synchronized TrcDriveBase.Odometry getOdometryDelta()
     {
-        final String funcName = "getOdometryDelta";
-
         updateAxisOdometries(xSensors);
         updateAxisOdometries(ySensors);
         angleOdometry = angleSensor.getOdometry();
@@ -399,7 +404,7 @@ public class TrcOdometryWheel
         if (debugTracer != null)
         {
             debugTracer.traceInfo(
-                funcName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
+                moduleName, "x=%s,y=%s,avgX=%.1f,avgY=%.1f,deltaX=%.1f,deltaY=%.1f,deltaAngle=%.1f",
                 Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
                 odometryDelta.position.y, odometryDelta.position.angle);
         }
@@ -473,10 +478,9 @@ public class TrcOdometryWheel
                 (debugInstance == null || s.sensor.getName().contains(debugInstance)))
             {
                 debugTracer.traceInfo(
-                    moduleName, "%s.%s[%d] timestamp=%.6f, heading=%.1f, pos/vel=%.1f, currData=%.1f, avgData=%.1f",
-                    s.sensor.getName(), position? "Pos": "Vel", i,
-                    TrcTimer.getModeElapsedTime(s.odometry.currTimestamp), angleOdometry.currPos,
-                    position? s.odometry.currPos: s.odometry.velocity, currData, sum/(i + 1));
+                    moduleName, "%s.Pos[%d] timestamp=%.6f, heading=%.1f, pos/vel=%.1f, currData=%.1f, avgData=%.1f",
+                    s.sensor.getName(), i, TrcTimer.getModeElapsedTime(s.odometry.currTimestamp), angleOdometry.currPos,
+                    s.odometry.currPos, currData, sum/(i + 1));
             }
         }
 

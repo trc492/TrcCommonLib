@@ -30,14 +30,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcIntervalTimer
 {
-    private static final String moduleName = "TrcIntervalTimer";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     private final String instanceName;
     private final double interval;
     private double expirationTime;
@@ -50,13 +42,6 @@ public class TrcIntervalTimer
      */
     public TrcIntervalTimer(final String instanceName, final double interval)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.interval = interval;
         this.expirationTime = TrcTimer.getCurrentTime();
@@ -81,23 +66,12 @@ public class TrcIntervalTimer
      */
     public boolean hasExpired()
     {
-        final String funcName = "hasExpired";
         double currTime = TrcTimer.getCurrentTime();
         boolean expired = currTime >= expirationTime;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
 
         if (expired)
         {
             expirationTime = currTime + interval;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%b", expired);
         }
 
         return expired;

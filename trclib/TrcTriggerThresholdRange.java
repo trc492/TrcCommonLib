@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class TrcTriggerThresholdRange implements TrcTrigger
 {
-    private static final String moduleName = "TrcTriggerThresholdRange";
     private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
 
@@ -107,7 +106,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
 
         synchronized (triggerState)
         {
-            str = String.format(Locale.US, "%s.%s=%s", moduleName, instanceName, triggerState);
+            str = String.format(Locale.US, "%s=%s", instanceName, triggerState);
         }
 
         return str;
@@ -125,8 +124,6 @@ public class TrcTriggerThresholdRange implements TrcTrigger
      */
     private void setEnabled(boolean enabled, TrcEvent event)
     {
-        final String funcName = "setEnabled";
-
         synchronized (triggerState)
         {
             if (enabled && !triggerState.triggerEnabled)
@@ -154,8 +151,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
 
             if (debugEnabled)
             {
-                globalTracer.traceInfo(
-                    funcName, "%s.%s: enabled=%s (state=%s)", moduleName, instanceName, enabled, triggerState);
+                globalTracer.traceInfo(instanceName, "enabled=%s (state=%s)", enabled, triggerState);
             }
         }
     }   //setEnabled
@@ -217,7 +213,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
     /**
      * This method reads the current analog sensor value. It may return null if it failed to read the sensor.
      *
-     * @return current sensor value, null if it failed to read the sensor.
+     * @return current sensor value.
      */
     @Override
     public double getSensorValue()
@@ -248,13 +244,11 @@ public class TrcTriggerThresholdRange implements TrcTrigger
      */
     public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod, int maxCachedSize)
     {
-        final String funcName = "setTrigger";
-
         if (debugEnabled)
         {
             globalTracer.traceInfo(
-                funcName, "%s.%s: lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f, maxCachedSize=%d",
-                moduleName, instanceName, lowerThreshold, upperThreshold, settlingPeriod, maxCachedSize);
+                instanceName, "lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f, maxCachedSize=%d",
+                lowerThreshold, upperThreshold, settlingPeriod, maxCachedSize);
         }
 
         synchronized (triggerState)
@@ -262,7 +256,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
             triggerState.lowerThreshold = lowerThreshold;
             triggerState.upperThreshold = upperThreshold;
             triggerState.settlingPeriod = settlingPeriod;
-            triggerState.cachedData = new TrcDataBuffer(moduleName, maxCachedSize);
+            triggerState.cachedData = new TrcDataBuffer(instanceName, maxCachedSize);
         }
     }   //setTrigger
 
@@ -370,7 +364,6 @@ public class TrcTriggerThresholdRange implements TrcTrigger
      */
     private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "triggerTask";
         double currTime = TrcTimer.getCurrentTime();
         double currValue = getSensorValue();
         boolean triggered = false;
@@ -413,8 +406,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
         {
             if (debugEnabled)
             {
-                globalTracer.traceInfo(
-                    funcName, "%s.%s: Triggered (state=%s)", moduleName, instanceName, active);
+                globalTracer.traceInfo(instanceName, "Triggered (state=%s)", active);
             }
 
             if (triggerCallback != null)

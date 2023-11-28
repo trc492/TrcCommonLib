@@ -30,13 +30,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class TrcTraceLogger
 {
-    private static final String moduleName = "TrcTraceLogger";
+    private static final String moduleName = TrcTraceLogger.class.getSimpleName();
+    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
     private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
 
     private final String traceLogName;
     private final LinkedBlockingQueue<String> msgQueue;
@@ -44,7 +40,7 @@ public class TrcTraceLogger
     private PrintWriter traceLog = null;
     private volatile Thread loggerThread = null;
     private volatile boolean enabled = false;
-    private volatile TrcDbgTrace perfTracer = null;
+    private volatile boolean perfTracingEnabled = false;
     private double totalNanoTime = 0.0;
     private int totalMessages = 0;
 
@@ -55,13 +51,6 @@ public class TrcTraceLogger
      */
     public TrcTraceLogger(String traceLogName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                    TrcDbgTrace.getGlobalTracer():
-                    new TrcDbgTrace(moduleName + "." + traceLogName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.traceLogName = traceLogName;
         msgQueue = new LinkedBlockingQueue<>();
     }   //TrcTraceLogger
@@ -135,13 +124,12 @@ public class TrcTraceLogger
     /**
      * This method enables/disables performance report.
      *
-     * @param tracer specifies the tracer to be used for performance tracing, can be null to disable performance
-     *               tracing.
+     * @param enabled specifies true to enable performance tracing, false to disable.
      */
-    public synchronized void setPerformanceTracer(TrcDbgTrace tracer)
+    public synchronized void setPerformanceTracingEnabled(boolean enabled)
     {
-        perfTracer = tracer;
-    }   //setPerformanceTracer
+        perfTracingEnabled = enabled;
+    }   //setPerformanceTracingEnabled
 
     /**
      * This method is called to log a message to the log file.
@@ -176,10 +164,10 @@ public class TrcTraceLogger
         //
         // Make sure we don't recursively log the performance message itself.
         //
-        if (perfTracer != null && !msg.startsWith(moduleName + "." + traceLogName))
+        if (perfTracingEnabled && !msg.startsWith(moduleName + "." + traceLogName))
         {
-            perfTracer.traceInfo(moduleName + "." + traceLogName, "Avg message log time = %.3f msec",
-                    totalNanoTime/totalMessages/1000000000.0);
+            globalTracer.traceInfo(
+                traceLogName, "Avg message log time = %.3f msec", totalNanoTime/totalMessages/1000000000.0);
         }
     }   //writeMessage
 
@@ -203,12 +191,11 @@ public class TrcTraceLogger
      */
     private void loggerTask()
     {
-        final String funcName = "loggerTask";
         String msg;
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo("Trace Logger %s starting...", traceLogName);
+            globalTracer.traceInfo(traceLogName, "Trace Logger starting...");
         }
 
         while (!Thread.currentThread().isInterrupted())
@@ -219,14 +206,14 @@ public class TrcTraceLogger
                 writeMessage(msg);
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "[%.3f] Logging message <%s>", TrcTimer.getCurrentTime(), msg);
+                    globalTracer.traceInfo(traceLogName, "Logging message <%s>", msg);
                 }
             }
             catch (InterruptedException e)
             {
                 if (debugEnabled)
                 {
-                    dbgTrace.traceInfo(funcName, "Terminating Trace Logger %s", traceLogName);
+                    globalTracer.traceInfo(traceLogName, "Terminating Trace Logger");
                 }
                 break;
             }
@@ -239,13 +226,13 @@ public class TrcTraceLogger
             writeMessage(msg);
             if (debugEnabled)
             {
-                dbgTrace.traceInfo(funcName, "[%.3f] Emptying message <%s>", TrcTimer.getCurrentTime(), msg);
+                globalTracer.traceInfo(traceLogName, "Emptying message <%s>", msg);
             }
         }
 
         if (debugEnabled)
         {
-            dbgTrace.traceInfo(funcName, "Closing Trace Log %s", traceLogName);
+            globalTracer.traceInfo(traceLogName, "Closing Trace Log");
         }
 
         closeTraceLog();

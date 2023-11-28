@@ -28,13 +28,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDashboard
 {
-    private static final String moduleName = "TrcDashboard";
-    protected static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     /**
      * This method clears all the display lines.
      */
@@ -131,11 +124,6 @@ public abstract class TrcDashboard
      */
     public TrcDashboard(int numLines)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.numLines = numLines;
     }   //TrcDashboard
 

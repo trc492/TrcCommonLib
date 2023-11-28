@@ -70,14 +70,6 @@ public class TrcIIRFilter extends TrcFilter
     @Override
     public void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         filteredData = 0.0;
     }   //reset
 
@@ -90,21 +82,7 @@ public class TrcIIRFilter extends TrcFilter
     @Override
     public double filterData(double data)
     {
-        final String funcName = "filterData";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
-        }
-
-        filteredData = filteredData*(1.0 - weight) + data*weight;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", filteredData);
-        }
-
-        return filteredData;
+        return filteredData*(1.0 - weight) + data*weight;
     }   //filterData
 
 }   //class TrcIIRFilter

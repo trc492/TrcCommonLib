@@ -31,7 +31,7 @@ import java.util.ArrayList;
  */
 public class TrcGridDrive
 {
-    private static final String moduleName = "TrcGridDrive";
+    private static final String moduleName = TrcGridDrive.class.getSimpleName();
 
     private final TrcDriveBase driveBase;
     private final TrcPurePursuitDrive purePursuitDrive;
@@ -92,11 +92,9 @@ public class TrcGridDrive
      */
     public void cancel()
     {
-        final String funcName = "cancel";
-
         if (msgTracer != null)
         {
-            msgTracer.traceInfo(funcName, "Canceling Grid Drive.");
+            msgTracer.traceInfo(moduleName, "Canceling Grid Drive.");
         }
         // Note: this is a cooperative multi-task, so don't need to be thread-safe.
         setTaskEnabled(false);
@@ -125,7 +123,6 @@ public class TrcGridDrive
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
         boolean taskActive = isGridDriveActive();
 
         if (!taskActive && enabled)
@@ -133,7 +130,7 @@ public class TrcGridDrive
             gridDriveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "Enabling task.");
+                msgTracer.traceInfo(moduleName, "Enabling task.");
             }
         }
         else if (taskActive && !enabled)
@@ -141,7 +138,7 @@ public class TrcGridDrive
             gridDriveTaskObj.unregisterTask();
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "Disabling task.");
+                msgTracer.traceInfo(moduleName, "Disabling task.");
             }
         }
     }   //setTaskEnabled
@@ -225,7 +222,6 @@ public class TrcGridDrive
      */
     public void resetGridCellCenter()
     {
-        final String funcName = "resetGridCellCenter";
         TrcPose2D robotPose = driveBase.getFieldPosition();
         TrcPose2D cellCenterPose = adjustPoseToGridCellCenter(robotPose);
         // Do not change the heading, use original robot pose heading. We are resetting just the position.
@@ -233,7 +229,7 @@ public class TrcGridDrive
 
         if (msgTracer != null)
         {
-            msgTracer.traceInfo(funcName, "robotPose=%s, cellCenterPose=%s", robotPose, cellCenterPose);
+            msgTracer.traceInfo(moduleName, "robotPose=%s, cellCenterPose=%s", robotPose, cellCenterPose);
         }
 
         driveBase.setFieldPosition(cellCenterPose);
@@ -279,15 +275,13 @@ public class TrcGridDrive
      */
     private void setRelativeGridTarget(int xGridCells, int yGridCells)
     {
-        final String funcName = "setRelativeGridTarget";
-
         if (xGridCells != 0 && yGridCells == 0 || yGridCells != 0 && xGridCells == 0)
         {
             gridDriveQueue.add(new TrcPose2D(xGridCells, yGridCells, 0.0));
             if (msgTracer != null)
             {
                 msgTracer.traceInfo(
-                    funcName, "CellUnits=%d/%d (QSize=%d)", xGridCells, yGridCells, gridDriveQueue.size());
+                    moduleName, "CellUnits=%d/%d (QSize=%d)", xGridCells, yGridCells, gridDriveQueue.size());
             }
             setTaskEnabled(true);
         }
@@ -321,8 +315,6 @@ public class TrcGridDrive
      */
     public void driveToEndPoint(TrcPose2D endPoint)
     {
-        final String funcName = "driveToEndPoint";
-
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
             TrcPose2D robotPose = driveBase.getFieldPosition();
@@ -341,7 +333,7 @@ public class TrcGridDrive
 
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
+                msgTracer.traceInfo(moduleName, "EndPoint=%s, DrivePath=%s", endPoint, path);
             }
 
             callbackEvent.setCallback(this::driveDone, null);
@@ -380,8 +372,6 @@ public class TrcGridDrive
      */
     private void startGridDrive()
     {
-        final String funcName = "startGridDrive";
-
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
             TrcPose2D robotPose = driveBase.getFieldPosition();
@@ -393,7 +383,7 @@ public class TrcGridDrive
             if (msgTracer != null)
             {
                 msgTracer.traceInfo(
-                    funcName, "##### robotPose=%s, startGridPose=%s, QSize=%d",
+                    moduleName, "##### robotPose=%s, startGridPose=%s, QSize=%d",
                     robotPose, startGridPose, gridDriveQueue.size());
             }
 
@@ -405,7 +395,7 @@ public class TrcGridDrive
                 if (msgTracer != null)
                 {
                     msgTracer.traceInfo(
-                        funcName, "Adjacent Segments: prevSegment=%s, nextSegment=%s", prevSegment, nextSegment);
+                        moduleName, "Adjacent Segments: prevSegment=%s, nextSegment=%s", prevSegment, nextSegment);
                 }
 
                 if (!willTurn(prevSegment, nextSegment))
@@ -418,7 +408,7 @@ public class TrcGridDrive
                     if (msgTracer != null)
                     {
                         msgTracer.traceInfo(
-                            funcName, "Coalesced compatible segments: prevSegment=%s (QSize=%d)",
+                            moduleName, "Coalesced compatible segments: prevSegment=%s (QSize=%d)",
                             prevSegment, gridDriveQueue.size());
                     }
                     deferSegment = true;
@@ -529,7 +519,7 @@ public class TrcGridDrive
                     if (msgTracer != null)
                     {
                         msgTracer.traceInfo(
-                            funcName,
+                            moduleName,
                             "Turn Adjustments: prevEndPoint=%s, nextStartPoint=%s, nextSegPoint=%s (QSize=%d)",
                             prevEndPoint, nextStartPoint, nextSegmentPoint, gridDriveQueue.size());
                     }
@@ -551,7 +541,7 @@ public class TrcGridDrive
             TrcPath path = pathBuilder.toRelativeStartPath();
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "GridDrivePath=%s", path);
+                msgTracer.traceInfo(moduleName, "GridDrivePath=%s", path);
             }
 
             callbackEvent.setCallback(this::driveDone, null);

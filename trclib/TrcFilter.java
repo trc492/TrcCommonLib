@@ -28,14 +28,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcFilter
 {
-    protected static final String moduleName = "TrcFilter";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     /**
      * This method resets the filter.
      */
@@ -58,13 +50,6 @@ public abstract class TrcFilter
      */
     protected TrcFilter(final String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcFilter
 
