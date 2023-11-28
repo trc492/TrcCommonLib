@@ -874,7 +874,6 @@ public class TrcPidController
      */
     public boolean isStalled()
     {
-        final String funcName = "isStalled";
         boolean stalled = false;
 
         synchronized (pidCtrlState)
@@ -895,8 +894,7 @@ public class TrcPidController
                     {
                         if (pidCtrlState.infoEnabled)
                         {
-                            globalTracer.traceInfo(
-                                funcName, "[%.3f] %s: PID stalled.", TrcTimer.getModeElapsedTime(), instanceName);
+                            globalTracer.traceInfo(instanceName, "PID stalled.");
                         }
                     }
                 }
@@ -915,7 +913,6 @@ public class TrcPidController
      */
     public boolean isOnTarget()
     {
-        final String funcName = "isOnTarget";
         boolean onTarget = false;
 
         synchronized (pidCtrlState)
@@ -947,10 +944,8 @@ public class TrcPidController
                 if (pidCtrlState.debugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName,
-                        "[%.3f] %s.inProgress, err=%.3f, errRate=%.3f, tolerance=%.1f",
-                        TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.currError, pidCtrlState.errorRate,
-                        pidParams.tolerance);
+                        instanceName, "InProgress: err=%.3f, errRate=%.3f, tolerance=%.1f",
+                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
                 }
             }
             else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
@@ -958,10 +953,8 @@ public class TrcPidController
                 if (pidCtrlState.debugEnabled)
                 {
                     globalTracer.traceInfo(
-                        funcName,
-                        "[%.3f] %s.onTarget, err=%.3f, errRate=%.3f, tolerance=%.1f",
-                        TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.currError, pidCtrlState.errorRate,
-                        pidParams.tolerance);
+                        instanceName, "OnTarget: err=%.3f, errRate=%.3f, tolerance=%.1f",
+                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
                 }
 
                 onTarget = true;
@@ -1093,15 +1086,13 @@ public class TrcPidController
      */
     public void printPidInfo(TrcDbgTrace tracer, boolean verbose, TrcRobotBattery battery)
     {
-        final String funcName = "printPidInfo";
-
         if (tracer == null)
         {
             tracer = globalTracer;
         }
         //
-        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device. In the
-        // worst case, the commented code below makes 3 calls to String.format that costs about 15 msec!
+        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device.
+        // Therefore, the following code does only one format call to minimize the performance impact.
         //
         if (tracer != null)
         {
@@ -1112,25 +1103,23 @@ public class TrcPidController
                     if (battery != null)
                     {
                         tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, Volt=%.1f(%.1f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            battery.getVoltage(), battery.getLowestVoltage());
+                            instanceName,
+                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                            "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, Volt=%.1f(%.1f)",
+                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, pidCtrlState.pTerm,
+                            pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm, battery.getVoltage(),
+                            battery.getLowestVoltage());
                     }
                     else
                     {
                         tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
+                            instanceName,
+                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                            "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
+                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, pidCtrlState.pTerm,
+                            pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
                     }
                 }
                 else
@@ -1138,48 +1127,23 @@ public class TrcPidController
                     if (battery != null)
                     {
                         tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)" +
-                            ", Volt=%.1f(%.1f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            battery.getVoltage(), battery.getLowestVoltage());
+                            instanceName,
+                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                            "Output=%6.3f(%6.3f/%6.3f), Volt=%.1f(%.1f)",
+                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, battery.getVoltage(),
+                            battery.getLowestVoltage());
                     }
                     else
                     {
                         tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput);
+                            instanceName,
+                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                            "Output=%6.3f(%6.3f/%6.3f)",
+                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput);
                     }
                 }
-//                StringBuilder msg = new StringBuilder();
-//
-//                msg.append(String.format(
-//                    Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
-//                    TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-//                    pidCtrlState.error, pidCtrlState.output, minOutput, maxOutput));
-//
-//                if (verbose)
-//                {
-//                    msg.append(String.format(
-//                        Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
-//                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-//                        pidCtrlState.deltaTime, TrcUtil.getModeElapsedTime(pidCtrlState.timestamp)));
-//                }
-//
-//                if (battery != null)
-//                {
-//                    msg.append(String.format(Locale.US, ", Volt=%.1f(%.1f)",
-//                        battery.getVoltage(), battery.getLowestVoltage()));
-//                }
-//
-//                tracer.traceInfo(funcName, msg.toString());
             }
         }
     }   //printPidInfo
