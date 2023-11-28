@@ -109,6 +109,7 @@ public class TrcEvent
     public void cancel()
     {
         eventState.compareAndSet(EventState.CLEARED, EventState.CANCELED);
+        // We are canceling an event, remove the callback. We only do callbacks on signaled events, not canceled ones.
         setCallback(null, null);
     }   //cancel
 
@@ -171,7 +172,12 @@ public class TrcEvent
         final String funcName = "setCallback";
         CallbackEventList callbackEventList;
 
-        clear();
+        if (callback != null)
+        {
+            // We are setting a callback for the event, let's initialized the event state to clear.
+            clear();
+        }
+
         synchronized (callbackEventListMap)
         {
             callbackEventList = callbackEventListMap.get(thread);
