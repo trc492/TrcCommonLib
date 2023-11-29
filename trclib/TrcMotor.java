@@ -2652,8 +2652,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
-                            taskParams.pidCtrl != null && taskParams.currControlMode == ControlMode.Position &&
-                            !taskParams.holdTarget && (onTarget || expired);
+                            taskParams.pidCtrl != null && !taskParams.holdTarget && (onTarget || expired || stalled);
 
                         if (doStop)
                         {
@@ -2724,51 +2723,54 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 }
                             }
                         }
-                        else if (!onTarget && !stalled && !expired)
-                        {
-                            // Doing software PID control.
-                            double power = taskParams.pidCtrl.getOutput();
-
-                            if (taskParams.powerLimit != null)
-                            {
-                                // Apply power limit to the calculated PID power.
-                                // Only applicable for Position control mode.
-                                power = TrcUtil.clipRange(power, taskParams.powerLimit);
-                            }
-
-                            if (taskParams.powerComp != null)
-                            {
-                                power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
-                            }
-                            // Software PID control sets motor power but control mode is not Power, so don't
-                            // overwrite it.
-                            setControllerMotorPower(power, false);
-
-                            if (debugSubsystem != null && instanceName.contains(debugSubsystem))
-                            {
-                                TrcDbgTrace.globalTraceInfo(
-                                    instanceName,
-                                    "[%s] onTarget=%s/%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
-                                    debugSubsystem, onTarget, getPosition(), taskParams.pidCtrl.getTarget(), expired,
-                                    doStop, taskParams.powerLimit, power);
-                            }
-
-                            if (msgTracer != null && tracePidInfo)
-                            {
-                                taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                            }
-                        }
                         else
                         {
-                            taskParams.pidCtrl.endStallDetection();
+                            // Doing software PID control.
+                            if (!doStop)
+                            {
+                                // We are either holding target or we are not yet onTarget or stalled or timed out,
+                                // keep applying PID calculated power.
+                                double power = taskParams.pidCtrl.getOutput();
+
+                                if (taskParams.powerLimit != null)
+                                {
+                                    // Apply power limit to the calculated PID power.
+                                    // Only applicable for Position control mode.
+                                    power = TrcUtil.clipRange(power, taskParams.powerLimit);
+                                }
+
+                                if (taskParams.powerComp != null)
+                                {
+                                    power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
+                                }
+                                // Software PID control sets motor power but control mode is not Power, so don't
+                                // overwrite it.
+                                setControllerMotorPower(power, false);
+
+                                if (debugSubsystem != null && instanceName.contains(debugSubsystem))
+                                {
+                                    TrcDbgTrace.globalTraceInfo(
+                                        instanceName,
+                                        "[%s] onTarget=%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
+                                        debugSubsystem, onTarget, getPosition(), taskParams.pidCtrl.getTarget(),
+                                        expired,
+                                        doStop, taskParams.powerLimit, power);
+                                }
+
+                                if (msgTracer != null && tracePidInfo)
+                                {
+                                    taskParams.pidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
+                                }
+                            }
                         }
 
                         if (onTarget || stalled || expired)
                         {
+                            taskParams.pidCtrl.endStallDetection();
                             completionEvent = taskParams.notifyEvent;
                             target = closeLoopControlTarget;
-                            closeLoopControlTarget = null;
                             taskParams.notifyEvent = null;
+                            closeLoopControlTarget = null;
                         }
                     }
                 }
@@ -2785,9 +2787,26 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 // Only print this once to reduce clutter.
                 if (msgTracer != null)
                 {
+                    double currValue;
+                    switch (taskParams.currControlMode)
+                    {
+                        case Velocity:
+                            currValue = getVelocity();
+                            break;
+                        case Position:
+                            currValue = getPosition();
+                            break;
+                        case Current:
+                            currValue = getCurrent();
+                            break;
+                        default:
+                            // Should never come here but do it to make compiler happy.
+                            currValue = getPower();
+                            break;
+                    }
                     msgTracer.traceInfo(
-                        instanceName, "onTarget=%s(%s), stalled=%s, expired=%s, event=%s",
-                        onTarget, target, stalled, expired, completionEvent);
+                        instanceName, "onTarget=%s(%.3f/%s), stalled=%s, expired=%s, event=%s",
+                        onTarget, currValue, target, stalled, expired, completionEvent);
                 }
             }
         }
