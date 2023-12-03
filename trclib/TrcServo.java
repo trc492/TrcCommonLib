@@ -727,7 +727,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
                 }
             }
             taskParams.prevTime = currTime;
-            setPosition(taskParams.currPosition);
+            performSetPosition(taskParams);
         }
     }   //servoTask
 
