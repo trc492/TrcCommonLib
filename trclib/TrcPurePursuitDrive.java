@@ -1070,8 +1070,9 @@ public class TrcPurePursuitDrive
             {
                 msgTracer.traceInfo(
                     instanceName,
-                    "Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
-                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
+                    "Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s, robotPose=%s",
+                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget,
+                    driveBase.getFieldPosition());
                 if (tracePidInfo)
                 {
                     if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
