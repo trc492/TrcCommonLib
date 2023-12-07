@@ -1767,7 +1767,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             setPosition(0.0, currPos, true, 1.0, null, 0.0);
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
-                                TrcDbgTrace.globalTraceInfo(
+                                globalTracer.traceInfo(
                                     instanceName, "[%s] Holding: power=%f, currPos=%f, target=%s, prevTarget=%s",
                                     debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                             }
@@ -1777,7 +1777,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             setControllerMotorPower(0.0, true);
                             if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                             {
-                                TrcDbgTrace.globalTraceInfo(
+                                globalTracer.traceInfo(
                                     instanceName, "[%s] Stopping: power=%f, currPos=%f, target=%s, prevTarget=%s",
                                     debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                             }
@@ -1789,7 +1789,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         setPosition(0.0, currTarget, holdTarget, power, null, 0.0);
                         if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                         {
-                            TrcDbgTrace.globalTraceInfo(
+                            globalTracer.traceInfo(
                                 instanceName, "[%s] Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTarget=%s",
                                 debugSubsystem, power, currPos, currTarget,
                                 taskParams.prevPosTarget);
@@ -1808,7 +1808,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     taskParams.powerLimit = power;
                     if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                     {
-                        TrcDbgTrace.globalTraceInfo(
+                        globalTracer.traceInfo(
                             instanceName, "[%s] UpdatePower: power=%f, currPos=%f, target=%s, prevTarget=%s",
                             debugSubsystem, power, currPos, currTarget, taskParams.prevPosTarget);
                     }
@@ -2749,7 +2749,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                                 if (debugSubsystem != null && instanceName.contains(debugSubsystem))
                                 {
-                                    TrcDbgTrace.globalTraceInfo(
+                                    globalTracer.traceInfo(
                                         instanceName,
                                         "[%s] onTarget=%s(%f/%f), expired=%s, doStop=%s, powerLimit=%s, power=%f",
                                         debugSubsystem, onTarget, getPosition(), taskParams.pidCtrl.getTarget(),
@@ -3560,7 +3560,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         if (Math.getExponent(high / low) >= 27)
                         {
                             globalTracer.traceWarn(
-                                motor.instanceName, "WARNING-Spurious encoder detected! odometry=%s", motor.odometry);
+                                motor.instanceName, "WARNING-Spurious encoder detected! odometry=" + motor.odometry);
                             // Throw away spurious data and use previous data instead.
                             motor.odometry.currPos = motor.odometry.prevPos;
                         }
@@ -3580,7 +3580,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                     if (debugEnabled)
                     {
-                        globalTracer.traceInfo(motor.instanceName, "Odometry=%s", motor.odometry);
+                        globalTracer.traceInfo(motor.instanceName, "Odometry=" + motor.odometry);
                     }
                 }
             }
@@ -3649,48 +3649,44 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setElapsedTimerEnabled
 
     /**
-     * This method prints the elapsed time info using the given tracer.
-     *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * This method prints the elapsed time info.
      */
-    public static void printElapsedTime(TrcDbgTrace tracer)
+    public static void printElapsedTime()
     {
         if (motorGetPositionElapsedTimer != null)
         {
-            motorGetPositionElapsedTimer.printElapsedTime(tracer);
+            motorGetPositionElapsedTimer.printElapsedTime();
         }
 
         if (motorSetPowerElapsedTimer != null)
         {
-            motorSetPowerElapsedTimer.printElapsedTime(tracer);
+            motorSetPowerElapsedTimer.printElapsedTime();
         }
 
         if (motorSetVelocityElapsedTimer != null)
         {
-            motorSetVelocityElapsedTimer.printElapsedTime(tracer);
+            motorSetVelocityElapsedTimer.printElapsedTime();
         }
 
         if (motorSetPositionElapsedTimer != null)
         {
-            motorSetPositionElapsedTimer.printElapsedTime(tracer);
+            motorSetPositionElapsedTimer.printElapsedTime();
         }
 
         if (motorSetCurrentElapsedTimer != null)
         {
-            motorSetCurrentElapsedTimer.printElapsedTime(tracer);
+            motorSetCurrentElapsedTimer.printElapsedTime();
         }
     }   //printElapsedTime
 
     /**
-     * This method prints the PID control task performance info using the given tracer.
-     *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * This method prints the PID control task performance info.
      */
-    public void printPidControlTaskPerformance(TrcDbgTrace tracer)
+    public void printPidControlTaskPerformance()
     {
         if (pidCtrlTaskPerformanceTimer != null)
         {
-            tracer.traceInfo(instanceName, "%s", pidCtrlTaskPerformanceTimer);
+            globalTracer.traceInfo(instanceName, pidCtrlTaskPerformanceTimer.toString());
         }
     }   //printPidControlTaskPerformance
 

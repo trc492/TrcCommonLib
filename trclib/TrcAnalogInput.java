@@ -169,15 +169,13 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
     }   //setElapsedTimerEnabled
 
     /**
-     * This method prints the elapsed time info using the given tracer.
-     *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * This method prints the elapsed time info.
      */
-    public static void printElapsedTime(TrcDbgTrace tracer)
+    public static void printElapsedTime()
     {
         if (getInputElapsedTimer != null)
         {
-            getInputElapsedTimer.printElapsedTime(tracer);
+            getInputElapsedTimer.printElapsedTime();
         }
     }   //printElapsedTime
 

@@ -617,11 +617,9 @@ public class TrcTaskMgr
     }   //ioTask
 
     /**
-     * This method prints the performance metrics of all tasks with the given tracer.
-     *
-     * @param tracer specifies the tracer to be used for printing the task performance metrics.
+     * This method prints the performance metrics of all tasks.
      */
-    public static void printTaskPerformanceMetrics(TrcDbgTrace tracer)
+    public static void printTaskPerformanceMetrics()
     {
         for (TaskObject taskObj: taskList)
         {
@@ -642,17 +640,15 @@ public class TrcTaskMgr
 
             if (taskTypeCounter > 0)
             {
-                tracer.traceInfo("TaskPerformance", "%s", msg);
+                globalTracer.traceInfo(moduleName, msg.toString());
             }
         }
     }   //printTaskPerformanceMetrics
 
     /**
-     * This method prints all registered tasks with the given tracer.
-     *
-     * @param tracer specifies the tracer to be used for printing the task performance metrics.
+     * This method prints all registered tasks.
      */
-    public static void printAllRegisteredTasks(TrcDbgTrace tracer)
+    public static void printAllRegisteredTasks()
     {
         for (TaskObject taskObj : taskList)
         {
@@ -664,7 +660,7 @@ public class TrcTaskMgr
                 msg.append(type);
             }
 
-            tracer.traceInfo(moduleName, "%s: %s", taskObj, msg);
+            globalTracer.traceInfo(moduleName, taskObj + ": " + msg);
         }
     }   //printAllRegisteredTask
 

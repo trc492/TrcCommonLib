@@ -30,6 +30,11 @@ import java.util.Locale;
  */
 public class TrcDbgTrace
 {
+    private static final String moduleName = TrcDbgTrace.class.getSimpleName();
+
+    //
+    // Deprecated: starts here
+    //
     /**
      * This enum specifies the different debug tracing levels. They are used in the traceEnter and traceExit methods.
      */
@@ -59,73 +64,9 @@ public class TrcDbgTrace
 
     }   //enum TraceLevel
 
-    /**
-     * This enum specifies the different debug message levels. They are used in the traceMsg methods.
-     */
-    public enum MsgLevel
-    {
-        FATAL(1),
-        ERR(2),
-        WARN(3),
-        INFO(4),
-        VERBOSE(5);
-
-        private final int value;
-
-        MsgLevel(int value)
-        {
-            this.value = value;
-        }   //MsgLevel
-
-        public int getValue()
-        {
-            return this.value;
-        }   //getValue
-
-    }   //enum MsgLevel
-
-    /**
-     * This interface provides a platform independent way to write to the debug log. It is mainly for TrcLib which is
-     * platform agnostic. A platform dependent class will implement methods in this interface.
-     */
-    public interface DbgLog
-    {
-        /**
-         * This method is called to print a message with the specified message level to the debug console.
-         *
-         * @param level specifies the message level.
-         * @param msg specifies the message.
-         */
-        void msg(MsgLevel level, String msg);
-
-        /**
-         * This method is called to print a message to the debug console.
-         *
-         * @param msg specifies the message.
-         */
-        void traceMsg(String msg);
-
-    }   //interface DbgLog
-
-    private static TrcDbgTrace globalTracer = null;
     private static int indentLevel = 0;
-    private static DbgLog dbgLog = null;
-
-    private final String instanceName;
-    private boolean traceEnabled;
-    private TraceLevel traceLevel;
-    private MsgLevel msgLevel;
-    private TrcTraceLogger traceLogger = null;
-
-    /**
-     * This static method must be called to set the DbgLog object before any TrcDbgTrace can be instantiated.
-     *
-     * @param dbgLog specifies the dbgLog object to be set.
-     */
-    public static void setDbgLog(DbgLog dbgLog)
-    {
-        TrcDbgTrace.dbgLog = dbgLog;
-    }   //setDbgLog
+    private boolean traceEnabled = false;
+    private TraceLevel traceLevel = TraceLevel.FUNC;
 
     /**
      * Constructor: Create an instance of the object.
@@ -135,34 +76,12 @@ public class TrcDbgTrace
      * @param traceLevel specifies the trace level.
      * @param msgLevel specifies the message level.
      */
+    // Deprecated
     public TrcDbgTrace(String instanceName, boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
     {
-        if (dbgLog == null)
-        {
-            throw new NullPointerException("dbgLog must be set first.");
-        }
-
-        this.instanceName = instanceName;
-        setDbgTraceConfig(traceEnabled, traceLevel, msgLevel);
+        this(instanceName, null);
+        setDbgTraceConfig(traceEnabled, msgLevel);
     }   //TrcDbgTrace
-
-    /**
-     * This method returns a global debug trace object for tracing OpMode code. If it doesn't exist yet, one is
-     * created. This is an easy way to quickly get some debug output without a whole lot of setup overhead as the
-     * full module-based debug tracing.
-     *
-     * @return global opMode trace object.
-     */
-    public static TrcDbgTrace getGlobalTracer()
-    {
-        if (globalTracer == null)
-        {
-            globalTracer = new TrcDbgTrace(
-                "globalTracer", false, TrcDbgTrace.TraceLevel.API, TrcDbgTrace.MsgLevel.INFO);
-        }
-
-        return globalTracer;
-    }   //getGlobalTracer
 
     /**
      * This method sets the global tracer configuration. The OpMode trace object was created with default
@@ -170,305 +89,26 @@ public class TrcDbgTrace
      * set to INFO. Call this method if you want to change the configuration.
      *
      * @param traceEnabled specifies true if enabling method tracing.
-     * @param traceLevel specifies the method tracing level.
-     * @param msgLevel specifies the message tracing level.
+     * @param msgLevel specifies the message level.
      */
-    public static void setGlobalTracerConfig(
-        boolean traceEnabled, TrcDbgTrace.TraceLevel traceLevel, TrcDbgTrace.MsgLevel msgLevel)
+    // Deprecated
+    public static void setGlobalTracerConfig(boolean traceEnabled, TrcDbgTrace.MsgLevel msgLevel)
     {
-        globalTracer.setDbgTraceConfig(traceEnabled, traceLevel, msgLevel);
+        globalTracer.setDbgTraceConfig(traceEnabled, msgLevel);
     }   //setGlobalTracerConfig
-
-    /**
-     * This method prints the stack of the given thread to the trace log.
-     *
-     * @param thread specifies the thread to print its stack.
-     */
-    public static void printThreadStack(Thread thread)
-    {
-        final String funcName = "printThreadStack";
-        StringBuilder sb = new StringBuilder();
-
-        if (globalTracer == null)
-        {
-            getGlobalTracer();
-        }
-
-        for (StackTraceElement ste : thread.getStackTrace())
-        {
-            sb.append("\n").append(ste);
-        }
-
-        globalTracer.traceInfo(funcName, "thread stack: %s", sb.toString());
-    }   //printThreadStack
-
-    /**
-     * This method prints the stack of the current thread to the trace log.
-     */
-    public static void printThreadStack()
-    {
-        printThreadStack(Thread.currentThread());
-    }   //printThreadStack
-
-    /**
-     * This method opens a log file for writing all the trace messages to it.
-     *
-     * @param traceLogName specifies the full trace log file path name.
-     * @return true if log file is successfully opened, false if it failed.
-     */
-    public boolean openTraceLog(final String traceLogName)
-    {
-        boolean success = false;
-
-        if (traceLogger == null)
-        {
-            traceLogger = new TrcTraceLogger(traceLogName);
-            success = true;
-        }
-
-        return success;
-    }   //openTraceLog
-
-    /**
-     * This method opens a log file for writing all the trace messages to it. The log file is written to the specified
-     * folder. The file name will be formed by concatenating the date-time stamp with the specified file name.
-     *
-     * @param folderPath specifies the folder path.
-     * @param fileName specifies the file name, null if none provided.
-     * @return true if log file is successfully opened, false if it failed.
-     */
-    public boolean openTraceLog(final String folderPath, final String fileName)
-    {
-        //
-        // Create the folder if it doesn't exist.
-        //
-        File folder = new File(folderPath);
-        if (!folder.exists())
-        {
-            folder.mkdirs();
-        }
-        //
-        // Create full log file path.
-        //
-        String logFileName = folderPath + File.separator + TrcTimer.getCurrentTimeString();
-
-        if (fileName != null)
-        {
-            logFileName += "!" + fileName;
-        }
-        logFileName += ".log";
-
-        return openTraceLog(logFileName);
-    }   //openTraceLog
-
-    /**
-     * This method closes the trace log file.
-     */
-    public void closeTraceLog()
-    {
-        if (traceLogger != null)
-        {
-            traceLogger.setEnabled(false);
-            traceLogger = null;
-        }
-    }   //closeTraceLog
-
-    /**
-     * This method checks if the trace log is opened.
-     *
-     * @return true if trace log is opened, false otherwise.
-     */
-    public boolean isTraceLogOpened()
-    {
-        return traceLogger != null;
-    }   //isTraceLogOpened
-
-    /**
-     * This method returns the trace log file name if one is active.
-     *
-     * @return trace log file name if one is active, null if none.
-     */
-    public String getTraceLogName()
-    {
-        return traceLogger != null? traceLogger.toString(): null;
-    }   //getTraceLogName
-
-    /**
-     * This method enables/disables the trace log.
-     *
-     * @param enabled specifies true to enable trace log, false otherwise.
-     */
-    public void setTraceLogEnabled(boolean enabled)
-    {
-        if (traceLogger != null)
-        {
-            traceLogger.setEnabled(enabled);
-        }
-    }   //setTraceLogEnabled
-
-    /**
-     * This method checks if the trace log is enabled.
-     *
-     * @return true if trace log is enabled, false if disabled.
-     */
-    public boolean isTraceLogEnabled()
-    {
-        return (traceLogger != null && traceLogger.isEnabled());
-    }   //isTraceLogEnabled
 
     /**
      * This method sets the trace level, message level of the debug tracer. It can also enables/disables function
      * tracing.
      *
      * @param traceEnabled specifies true to enable function tracing, false to disable.
-     * @param traceLevel specifies the trace level.
      * @param msgLevel specifies the message level.
      */
-    public void setDbgTraceConfig(boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
+    public void setDbgTraceConfig(boolean traceEnabled, MsgLevel msgLevel)
     {
         this.traceEnabled = traceEnabled;
-        this.traceLevel = traceLevel;
         this.msgLevel = msgLevel;
     }   //setDbgTraceConfig
-
-    /**
-     * This method logs a MsgLevel.INFO entry that contains information about the match. The entry is in XML format
-     * and is intended to be parsed by tools such as TrcTraceLogVisualizer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param infoName specifies the name to identify the information.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void logInfo(String callerName, String infoName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + format + " />", args);
-    }   //logInfo
-
-    /**
-     * This method logs a MsgLevel.INFO entry that contains an event. The entry is in XML format and is intended to be
-     * parsed by tools such as TrcTraceLogVisualizer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param eventName specifies the name to identify the event.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void logEvent(String callerName, final String eventName, final String format, Object... args)
-    {
-        String newFormat = String.format(Locale.US, "<Event name=\"%s\" time=\"%.3f\" %s />",
-                eventName, TrcTimer.getModeElapsedTime(), format);
-        traceMsg(callerName, MsgLevel.INFO, newFormat, args);
-    }   //logEvent
-
-    /**
-     * This method logs a state info event using the global tracer. The state info event can be used to debug an
-     * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
-     *
-     * @param name specifies the instance name of the state machine.
-     * @param state specifies the current state of the state machine.
-     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
-     * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
-     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
-     * @param battery specifies the robot battery object, can be null if not interested in battery info.
-     */
-    public void traceStateInfo(
-        String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
-        TrcRobotBattery battery)
-    {
-        if (state != null)
-        {
-            StringBuilder msg = new StringBuilder();
-
-            msg.append(String.format(Locale.US, "tag=\"^^^^^\" %s.state=\"%s\"", name, state));
-
-            if (driveBase != null)
-            {
-                if (pidDrive != null && pidDrive.isActive())
-                {
-                    TrcPose2D robotPose = driveBase.getFieldPosition();
-                    TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
-                    msg.append(" RobotPose=")
-                       .append(robotPose)
-                       .append(" TargetPose=")
-                       .append(targetPose);
-                }
-
-                if (ppDrive != null && ppDrive.isActive())
-                {
-                    TrcPose2D robotPose = driveBase.getFieldPosition();
-                    TrcPose2D robotVel = driveBase.getFieldVelocity();
-                    TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
-                    msg.append(" RobotPose=")
-                       .append(robotPose)
-                       .append(" TargetPose=")
-                       .append(targetPose)
-                       .append(" vel=")
-                       .append(robotVel)
-                       .append(" Path=")
-                       .append(ppDrive.getPath());
-                }
-            }
-
-            if (battery != null)
-            {
-                msg.append(String.format(
-                    Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
-            }
-
-            logEvent("traceStateInfo", "StateInfo", "%s", msg);
-        }
-    }   //traceStateInfo
-
-    /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     * If the state involves PID controlled driving, it also logs the robot's movement.
-     *
-     * @param state specifies the current state of the state machine.
-     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
-     * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
-     */
-    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
-    {
-        traceStateInfo(name, state, driveBase, pidDrive, null, null);
-    }   //traceStateInfo
-
-    /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     * If the state involves PID controlled driving, it also logs the robot's movement.
-     *
-     * @param name specifies the instance name of the state machine.
-     * @param state specifies the current state of the state machine.
-     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
-     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
-     */
-    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
-    {
-        traceStateInfo(name, state, driveBase, null, ppDrive, null);
-    }   //traceStateInfo
-
-    /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     *
-     * @param name specifies the instance name of the state machine.
-     * @param state specifies the current state of the state machine.
-     * @param battery specifies the robot battery object, can be null if not interested in battery info.
-     */
-    public void traceStateInfo(String name, Object state, TrcRobotBattery battery)
-    {
-        traceStateInfo(name, state, null, null, null, battery);
-    }   //traceStateInfo
-
-    /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     *
-     * @param name specifies the instance name of the state machine.
-     * @param state specifies the current state of the state machine.
-     */
-    public void traceStateInfo(String name, Object state)
-    {
-        traceStateInfo(name, state, null, null, null, null);
-    }   //traceStateInfo
 
     /**
      * This method is typically called at the beginning of a method to trace the entry parameters of the method.
@@ -531,190 +171,6 @@ public class TrcDbgTrace
     }   //traceExit
 
     /**
-     * This method is called to print a fatal message.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceFatal(String callerName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.FATAL, format, args);
-    }   //traceFatal
-
-    /**
-     * This method is called to print an error message.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceErr(String callerName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.ERR, format, args);
-    }   //traceErr
-
-    /**
-     * This method is called to print a warning message.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceWarn(String callerName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.WARN, format, args);
-    }   //traceWarn
-
-    /**
-     * This method is called to print an information message.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceInfo(String callerName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.INFO, format, args);
-    }   //traceInfo
-
-    /**
-     * This method is called to print a verbose message.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceVerbose(String callerName, String format, Object... args)
-    {
-        traceMsg(callerName, MsgLevel.VERBOSE, format, args);
-    }   //traceVerbose
-
-    /**
-     * This method is called to print a message only if the given interval timer has expired since the last
-     * periodic message. This is useful to print out periodic status without overwhelming the debug console.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param timer specifies the interval timer.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceInfoAtInterval(String callerName, TrcIntervalTimer timer, String format, Object... args)
-    {
-        if (timer.hasExpired())
-        {
-            traceMsg(callerName, MsgLevel.INFO, format, args);
-        }
-    }   //traceInfoAtInterval
-
-    /**
-     * This method prints a debug message to the debug console.
-     *
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void tracePrintf(String format, Object... args)
-    {
-        dbgLog.traceMsg(String.format(format, args));
-    }   //tracePrintf
-
-    /**
-     * This method is the common worker for all the trace message methods.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param level specifies the message level.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    private void traceMsg(String callerName, MsgLevel level, String format, Object... args)
-    {
-        if (level.getValue() <= msgLevel.getValue())
-        {
-            String msg =
-                callerName + "." + new Throwable().getStackTrace()[2].getMethodName() + "_" + level +
-                " [" + TrcTimer.getModeElapsedTime() + "] " + String.format(format, args);
-            dbgLog.msg(level, msg + "\n");
-            if (traceLogger != null)
-            {
-                traceLogger.logMessage(msg);
-            }
-        }
-    }   //traceMsg
-
-    /**
-     * This method is called to print a fatal message to the global tracer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public static void globalTraceFatal(String callerName, String format, Object... args)
-    {
-        globalTraceMsg(callerName, MsgLevel.FATAL, format, args);
-    }   //globalTraceFatal
-
-    /**
-     * This method is called to print an error message to the global tracer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public static void globalTraceErr(String callerName, String format, Object... args)
-    {
-        globalTraceMsg(callerName, MsgLevel.ERR, format, args);
-    }   //globalTraceErr
-
-    /**
-     * This method is called to print a warning message to the global tracer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public static void globalTraceWarn(String callerName, String format, Object... args)
-    {
-        globalTraceMsg(callerName, MsgLevel.WARN, format, args);
-    }   //globalTraceWarn
-
-    /**
-     * This method is called to print an information message to the global tracer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public static void globalTraceInfo(String callerName, String format, Object... args)
-    {
-        globalTraceMsg(callerName, MsgLevel.INFO, format, args);
-    }   //globalTraceInfo
-
-    /**
-     * This method is called to print a verbose message to the global tracer.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public static void globalTraceVerbose(String callerName, String format, Object... args)
-    {
-        globalTraceMsg(callerName, MsgLevel.VERBOSE, format, args);
-    }   //globalTraceVerbose
-
-    /**
-     * This method is the common worker for all the global trace message methods.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param level specifies the message level.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    private static void globalTraceMsg(String callerName, MsgLevel level, String format, Object... args)
-    {
-        getGlobalTracer().traceMsg(callerName, level, format, args);
-   }   //globalTraceMsg
-
-    /**
      * This method returns a trace prefix string. The trace prefix includes the indentation, the instance name and
      * calling method name.
      *
@@ -752,46 +208,756 @@ public class TrcDbgTrace
 
         return prefix.toString();
     }   //tracePrefix
+    //
+    // Deprecated: ends here
+    //
 
     /**
-     * This method returns a message prefix string.
-     *
-     * @param prefix specifies the prefix that contains the instance and method names.
-     * @param level specifies the message level.
-     * @return message prefix string.
+     * This enum specifies the different debug message levels. They are used in the traceMsg methods.
      */
-    private String msgPrefix(String prefix, MsgLevel level)
+    public enum MsgLevel
     {
-        String suffix;
+        FATAL(1),
+        ERR(2),
+        WARN(3),
+        INFO(4),
+        DEBUG(5),
+        VERBOSE(6);
 
-        switch (level)
+        private final int value;
+
+        MsgLevel(int value)
         {
-            case FATAL:
-                suffix = "_Fatal: ";
-                break;
+            this.value = value;
+        }   //MsgLevel
 
-            case ERR:
-                suffix = "_Err: ";
-                break;
+        public int getValue()
+        {
+            return this.value;
+        }   //getValue
+    }   //enum MsgLevel
 
-            case WARN:
-                 suffix = "_Warn: ";
-                break;
+    /**
+     * This interface provides a platform independent way to write to the debug log. It is mainly for TrcLib which is
+     * platform agnostic. A platform dependent class will implement methods in this interface.
+     */
+    public interface DbgLog
+    {
+        /**
+         * This method is called to print a message with the specified message level to the debug console.
+         *
+         * @param level specifies the message level.
+         * @param msg specifies the message.
+         */
+        void msg(MsgLevel level, String msg);
+        //
+        // Deprecated: starts here
+        //
+        /**
+         * This method is called to print a message to the debug console.
+         *
+         * @param msg specifies the message.
+         */
+        void traceMsg(String msg);
+        //
+        // Deprecated: ends here
+        //
+    }   //interface DbgLog
 
-            case INFO:
-                suffix = "_Info: ";
-                break;
+    private static DbgLog dbgLog = null;
+    private static TrcDbgTrace globalTracer = null;
+    private static TrcTraceLogger traceLogger = null;
 
-            case VERBOSE:
-                suffix = "_Verbose: ";
-                break;
+    private final String instanceName;
+    private MsgLevel msgLevel = MsgLevel.INFO;
 
-            default:
-                suffix = "_Unk: ";
-                break;
+    /**
+     * Constructor: Create an instance of the object. This constructor is intended for internal use for creating
+     * the global tracer. For creating other tracers, use the constructor with just instanceName.
+     *
+     * @param instanceName specifies the instance name.
+     * @param dbgLog specifies the dbgLog object to be set.
+     */
+    public TrcDbgTrace(String instanceName, DbgLog dbgLog)
+    {
+        this.instanceName = instanceName;
+
+        if (dbgLog != null)
+        {
+            if (TrcDbgTrace.dbgLog == null)
+            {
+                TrcDbgTrace.dbgLog = dbgLog;
+                TrcDbgTrace.globalTracer = this;
+            }
+            else
+            {
+                throw new IllegalStateException(
+                    "This constructor can only be called internally to create the global Tracer.");
+            }
+        }
+    }   //TrcDbgTrace
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     */
+    public TrcDbgTrace(String instanceName)
+    {
+        this(instanceName, null);
+    }   //TrcDbgTrace
+
+    /**
+     * This method sets the message level for this tracer.
+     *
+     * @param msgLevel specifies the message level.
+     */
+    public void setTraceMessageLevel(MsgLevel msgLevel)
+    {
+        this.msgLevel = msgLevel;
+    }   //setTraceMessageLevel
+
+    /**
+     * This method returns a global debug trace object for tracing OpMode code. If it doesn't exist yet, one is
+     * created. This is an easy way to quickly get some debug output without a whole lot of setup overhead as the
+     * full module-based debug tracing.
+     *
+     * @return global opMode trace object.
+     */
+    public static TrcDbgTrace getGlobalTracer()
+    {
+        return globalTracer;
+    }   //getGlobalTracer
+
+    /**
+     * This method opens a log file for writing all the trace messages to it.
+     *
+     * @param traceLogName specifies the full trace log file path name.
+     * @return true if log file is successfully opened, false if it failed.
+     */
+    public static boolean openTraceLog(String traceLogName)
+    {
+        boolean success = false;
+
+        if (traceLogger == null)
+        {
+            traceLogger = new TrcTraceLogger(traceLogName);
+            success = true;
         }
 
-        return prefix + suffix;
-    }   //msgPrefix
+        return success;
+    }   //openTraceLog
+
+    /**
+     * This method opens a log file for writing all the trace messages to it. The log file is written to the specified
+     * folder. The file name will be formed by concatenating the date-time stamp with the specified file name.
+     *
+     * @param folderPath specifies the folder path.
+     * @param fileName specifies the file name, null if none provided.
+     * @return true if log file is successfully opened, false if it failed.
+     */
+    public static boolean openTraceLog(String folderPath, String fileName)
+    {
+        //
+        // Create the folder if it doesn't exist.
+        //
+        File folder = new File(folderPath);
+        if (!folder.exists())
+        {
+            folder.mkdirs();
+        }
+        //
+        // Create full log file path.
+        //
+        String logFileName = folderPath + File.separator + TrcTimer.getCurrentTimeString();
+
+        if (fileName != null)
+        {
+            logFileName += "!" + fileName;
+        }
+        logFileName += ".log";
+
+        return openTraceLog(logFileName);
+    }   //openTraceLog
+
+    /**
+     * This method closes the trace log file.
+     */
+    public static void closeTraceLog()
+    {
+        if (traceLogger != null)
+        {
+            traceLogger.setEnabled(false);
+            traceLogger = null;
+        }
+    }   //closeTraceLog
+
+    /**
+     * This method checks if the trace log is opened.
+     *
+     * @return true if trace log is opened, false otherwise.
+     */
+    public static boolean isTraceLogOpened()
+    {
+        return traceLogger != null;
+    }   //isTraceLogOpened
+
+    /**
+     * This method returns the trace log file name if one is active.
+     *
+     * @return trace log file name if one is active, null if none.
+     */
+    public static String getTraceLogName()
+    {
+        return traceLogger != null? traceLogger.toString(): null;
+    }   //getTraceLogName
+
+    /**
+     * This method enables/disables the trace log.
+     *
+     * @param enabled specifies true to enable trace log, false otherwise.
+     */
+    public static void setTraceLogEnabled(boolean enabled)
+    {
+        if (traceLogger != null)
+        {
+            traceLogger.setEnabled(enabled);
+        }
+    }   //setTraceLogEnabled
+
+    /**
+     * This method checks if the trace log is enabled.
+     *
+     * @return true if trace log is enabled, false if disabled.
+     */
+    public static boolean isTraceLogEnabled()
+    {
+        return (traceLogger != null && traceLogger.isEnabled());
+    }   //isTraceLogEnabled
+
+    /**
+     * This method prints the stack of the given thread to the trace log.
+     *
+     * @param thread specifies the thread to print its stack.
+     */
+    public static void printThreadStack(Thread thread)
+    {
+        StringBuilder sb = new StringBuilder("Thread stack: ");
+
+        for (StackTraceElement ste : thread.getStackTrace())
+        {
+            sb.append("\n").append(ste);
+        }
+
+        globalTracer.traceMsgWorker(moduleName, 2, MsgLevel.INFO, sb.toString());
+    }   //printThreadStack
+
+    /**
+     * This method prints the stack of the current thread to the trace log.
+     */
+    public static void printThreadStack()
+    {
+        printThreadStack(Thread.currentThread());
+    }   //printThreadStack
+
+    /**
+     * This method is the common worker for all the trace message methods.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param methodIndex specifies the index to the thread stack to obtain the method name.
+     * @param level specifies the message level.
+     * @param text specifies the message text.
+     */
+    private void traceMsgWorker(String callerInstance, int methodIndex, MsgLevel level, String text)
+    {
+        if (level.getValue() <= msgLevel.getValue())
+        {
+            String msg =
+                callerInstance + "." + new Throwable().getStackTrace()[methodIndex].getMethodName() + "_" + level +
+                " [" + TrcTimer.getModeElapsedTime() + "] " + text;
+            dbgLog.msg(level, msg + "\n");
+            if (traceLogger != null)
+            {
+                traceLogger.logMessage(msg);
+            }
+        }
+    }   //traceMsgWorker
+
+    /**
+     * This method is called to print a fatal message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceFatal(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+    }   //traceFatal
+
+    /**
+     * This method is called to print a fatal message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceFatal(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+    }   //traceFatal
+
+    /**
+     * This method is called to print an error message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceErr(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+    }   //traceErr
+
+    /**
+     * This method is called to print an error message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceErr(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+    }   //traceErr
+
+    /**
+     * This method is called to print a warning message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceWarn(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+    }   //traceWarn
+
+    /**
+     * This method is called to print a warning message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceWarn(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+    }   //traceWarn
+
+    /**
+     * This method is called to print an information message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceInfo(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+    }   //traceInfo
+
+    /**
+     * This method is called to print an information message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceInfo(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+    }   //traceInfo
+
+    /**
+     * This method is called to print a debug message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceDebug(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+    }   //traceDebug
+
+    /**
+     * This method is called to print a debug message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceDebug(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+    }   //traceDebug
+
+    /**
+     * This method is called to print a verbose message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public void traceVerbose(String callerInstance, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+    }   //traceVerbose
+
+    /**
+     * This method is called to print a verbose message.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void traceVerbose(String callerInstance, String format, Object... args)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+    }   //traceVerbose
+
+    /**
+     * This method is called to print a fatal message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceFatal(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+    }   //globalTraceFatal
+
+    /**
+     * This method is called to print a fatal message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceFatal(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+    }   //globalTraceFatal
+
+    /**
+     * This method is called to print an error message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceErr(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+    }   //globalTraceErr
+
+    /**
+     * This method is called to print an error message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceErr(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+    }   //globalTraceErr
+
+    /**
+     * This method is called to print a warning message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceWarn(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+    }   //globalTraceWarn
+
+    /**
+     * This method is called to print a warning message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceWarn(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+    }   //globalTraceWarn
+
+    /**
+     * This method is called to print an information message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceInfo(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+    }   //globalTraceInfo
+
+    /**
+     * This method is called to print an information message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceInfo(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+    }   //globalTraceInfo
+
+    /**
+     * This method is called to print a debug message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceDebug(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+    }   //globalTraceDebug
+
+    /**
+     * This method is called to print a debug message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceDebug(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+    }   //globalTraceDebug
+
+    /**
+     * This method is called to print a verbose message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param text specifies the message text.
+     */
+    public static void globalTraceVerbose(String callerInstance, String text)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+    }   //globalTraceVerbose
+
+    /**
+     * This method is called to print a verbose message using the global tracer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public static void globalTraceVerbose(String callerInstance, String format, Object... args)
+    {
+        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+    }   //globalTraceVerbose
+
+    /**
+     * This method logs a MsgLevel.INFO entry that contains information about the match. The entry is in XML format
+     * and is intended to be parsed by tools such as TrcTraceLogVisualizer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param infoName specifies the name to identify the information.
+     * @param text specifies the message text.
+     */
+    public void logInfo(String callerInstance, String infoName, String text)
+    {
+        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + text + " />");
+    }   //logInfo
+
+    /**
+     * This method logs a MsgLevel.INFO entry that contains information about the match. The entry is in XML format
+     * and is intended to be parsed by tools such as TrcTraceLogVisualizer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param infoName specifies the name to identify the information.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void logInfo(String callerInstance, String infoName, String format, Object... args)
+    {
+        traceMsgWorker(
+            callerInstance, 2, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + String.format(format, args) + " />");
+    }   //logInfo
+
+    /**
+     * This method logs a MsgLevel.INFO entry that contains an event. The entry is in XML format and is intended to be
+     * parsed by tools such as TrcTraceLogVisualizer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param eventName specifies the name to identify the event.
+     * @param text specifies the message text.
+     */
+    public void logEvent(String callerInstance, String eventName, String text)
+    {
+        traceMsgWorker(
+            callerInstance, 2, MsgLevel.INFO,
+            "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " + text + " />");
+    }   //logEvent
+
+    /**
+     * This method logs a MsgLevel.INFO entry that contains an event. The entry is in XML format and is intended to be
+     * parsed by tools such as TrcTraceLogVisualizer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param eventName specifies the name to identify the event.
+     * @param format specifies the format string of the message.
+     * @param args specifies the message arguments.
+     */
+    public void logEvent(String callerInstance, final String eventName, final String format, Object... args)
+    {
+        traceMsgWorker(
+            callerInstance, 2, MsgLevel.INFO,
+            "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " +
+            String.format(format, args) + " />");
+    }   //logEvent
+
+    /**
+     * This method logs a MsgLevel.INFO entry that contains an event. The entry is in XML format and is intended to be
+     * parsed by tools such as TrcTraceLogVisualizer.
+     *
+     * @param callerInstance specifies the name to identify the caller.
+     * @param methodIndex specifies the index to the thread stack to obtain the method name.
+     * @param eventName specifies the name to identify the event.
+     * @param text specifies the message text.
+     */
+    private void logEventInternal(String callerInstance, int methodIndex, String eventName, String text)
+    {
+        traceMsgWorker(
+            callerInstance, methodIndex, MsgLevel.INFO,
+            "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " + text + " />");
+    }   //logEventInternal
+
+    /**
+     * This method logs a state info event using the global tracer. The state info event can be used to debug an
+     * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
+     * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
+     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
+     * @param battery specifies the robot battery object, can be null if not interested in battery info.
+     */
+    private void traceStateInfoWorker(
+        String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
+        TrcRobotBattery battery)
+    {
+        if (state != null)
+        {
+            StringBuilder msg = new StringBuilder("tag=\"^^^^^\" " + name + ".state=\"" + state + "\"");
+
+            if (driveBase != null)
+            {
+                if (pidDrive != null && pidDrive.isActive())
+                {
+                    TrcPose2D robotPose = driveBase.getFieldPosition();
+                    TrcPose2D targetPose = pidDrive.getAbsoluteTargetPose();
+                    msg.append(" RobotPose=")
+                       .append(robotPose)
+                       .append(" TargetPose=")
+                       .append(targetPose);
+                }
+
+                if (ppDrive != null && ppDrive.isActive())
+                {
+                    TrcPose2D robotPose = driveBase.getFieldPosition();
+                    TrcPose2D robotVel = driveBase.getFieldVelocity();
+                    TrcPose2D targetPose = ppDrive.getTargetFieldPosition();
+                    msg.append(" RobotPose=")
+                       .append(robotPose)
+                       .append(" TargetPose=")
+                       .append(targetPose)
+                       .append(" vel=")
+                       .append(robotVel)
+                       .append(" Path=")
+                       .append(ppDrive.getPath());
+                }
+            }
+
+            if (battery != null)
+            {
+                msg.append(String.format(
+                    Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
+            }
+
+            logEventInternal(name, 4, "StateInfo", msg.toString());
+        }
+    }   //traceStateInfoWorker
+
+    /**
+     * This method logs a state info event using the global tracer. The state info event can be used to debug an
+     * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
+     * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
+     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
+     * @param battery specifies the robot battery object, can be null if not interested in battery info.
+     */
+    public void traceStateInfo(
+        String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
+        TrcRobotBattery battery)
+    {
+        traceStateInfoWorker(name, state, driveBase, pidDrive, ppDrive, battery);
+    }   //traceStateInfo
+
+    /**
+     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     * If the state involves PID controlled driving, it also logs the robot's movement.
+     *
+     * @param state specifies the current state of the state machine.
+     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
+     * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
+     */
+    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
+    {
+        traceStateInfoWorker(name, state, driveBase, pidDrive, null, null);
+    }   //traceStateInfo
+
+    /**
+     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     * If the state involves PID controlled driving, it also logs the robot's movement.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
+     * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
+     */
+    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
+    {
+        traceStateInfoWorker(name, state, driveBase, null, ppDrive, null);
+    }   //traceStateInfo
+
+    /**
+     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     * @param battery specifies the robot battery object, can be null if not interested in battery info.
+     */
+    public void traceStateInfo(String name, Object state, TrcRobotBattery battery)
+    {
+        traceStateInfoWorker(name, state, null, null, null, battery);
+    }   //traceStateInfo
+
+    /**
+     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     */
+    public void traceStateInfo(String name, Object state)
+    {
+        traceStateInfoWorker(name, state, null, null, null, null);
+    }   //traceStateInfo
 
 }   //class TrcDbgTrace

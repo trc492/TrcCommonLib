@@ -329,15 +329,13 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     }   //setElapsedTimerEnabled
 
     /**
-     * This method prints the elapsed time info using the given tracer.
-     *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * This method prints the elapsed time info.
      */
-    public void printElapsedTime(TrcDbgTrace tracer)
+    public void printElapsedTime()
     {
         if (getDataElapsedTimer != null)
         {
-            getDataElapsedTimer.printElapsedTime(tracer);
+            getDataElapsedTimer.printElapsedTime();
         }
     }   //printElapsedTime
 
