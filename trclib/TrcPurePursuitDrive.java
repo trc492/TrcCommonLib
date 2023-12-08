@@ -50,10 +50,7 @@ import org.apache.commons.math3.linear.RealVector;
  */
 public class TrcPurePursuitDrive
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-    private static final boolean verbosePidInfo = false;
-    private static final boolean invertedTarget = false;
+    private static final boolean INVERTED_TARGET = false;
 
     public interface WaypointEventHandler
     {
@@ -84,6 +81,7 @@ public class TrcPurePursuitDrive
 
     }   //enum InterpolationType
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private volatile double proximityRadius;    // Volatile so it can be changed at runtime
@@ -91,11 +89,11 @@ public class TrcPurePursuitDrive
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
-
-    private TrcDbgTrace msgTracer = null;
-    private TrcRobotBattery battery = null;
+    // Tracer config.
     private boolean logRobotPoseEvents = false;
     private boolean tracePidInfo = false;
+    private boolean verbosePidInfo = false;
+    private TrcRobotBattery battery = null;
 
     private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
@@ -139,6 +137,7 @@ public class TrcPurePursuitDrive
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
         TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
+        tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
 
         if (xPosPidCoeff == null || driveBase.supportsHolonomicDrive())
@@ -152,8 +151,8 @@ public class TrcPurePursuitDrive
         }
 
         incrementalTurn = xPosPidCoeff != null;
-        // If invertedTarget is true, use Abhay's way to set target to zero and just keep changing getInput.
-        if (invertedTarget)
+        // If INVERTED_TARGET is true, use Abhay's way to set target to zero and just keep changing getInput.
+        if (INVERTED_TARGET)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
                 new TrcPidController(
@@ -235,41 +234,36 @@ public class TrcPurePursuitDrive
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      * @param battery specifies the battery object to get battery info for the message.
      */
-    public synchronized void setMsgTracer(
-        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    public synchronized void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo,
+        TrcRobotBattery battery)
     {
-        this.msgTracer = tracer;
+        tracer.setTraceMessageLevel(msgLevel);
         this.logRobotPoseEvents = logRobotPoseEvents;
         this.tracePidInfo = tracePidInfo;
+        this.verbosePidInfo = verbosePidInfo;
         this.battery = battery;
-    }   //setMsgTracer
+    }   //setTraceLevel
 
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      */
-    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
+    public void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo)
     {
-        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer)
-    {
-        setMsgTracer(tracer, false, false, null);
-    }   //setMsgTracer
+        setTraceLevel(msgLevel, logRobotPoseEvents, tracePidInfo, verbosePidInfo, null);
+    }   //setTraceLevel
 
     /**
      * This method sets the beep device and the beep tones so that it can play beeps when motor stalled or if the
@@ -609,7 +603,7 @@ public class TrcPurePursuitDrive
             turnPidCtrl.startStallDetection();
             velPidCtrl.reset();
 
-            if (invertedTarget)
+            if (INVERTED_TARGET)
             {
                 if (xPosPidCtrl != null)
                 {
@@ -622,10 +616,7 @@ public class TrcPurePursuitDrive
             resetError = true;
             driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
 
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(instanceName, "Path=%s", path.toAbsolute(referencePose));
-            }
+            tracer.traceInfo(instanceName, "Path=%s", path.toAbsolute(referencePose));
         }
     }   //start
 
@@ -954,7 +945,7 @@ public class TrcPurePursuitDrive
     }   //getPath
 
     /**
-     * This method is called by xPosPidCtrl only in invertedTarget mode for getting the X distance to target.
+     * This method is called by xPosPidCtrl only in INVERTED_TARGET mode for getting the X distance to target.
      * @return x distance to target.
      */
     private synchronized double getXPosition()
@@ -963,7 +954,7 @@ public class TrcPurePursuitDrive
     }   //getXPosition
 
     /**
-     * This method is called by yPosPidCtrl only in invertedTarget mode for getting the Y distance to target.
+     * This method is called by yPosPidCtrl only in INVERTED_TARGET mode for getting the Y distance to target.
      * @return y distance to target.
      */
     private synchronized double getYPosition()
@@ -999,7 +990,7 @@ public class TrcPurePursuitDrive
         relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
         boolean lastSegment = pathIndex == path.getSize() - 1;
 
-        if (!invertedTarget)
+        if (!INVERTED_TARGET)
         {
             //
             // We only initialize the PID controller error state at the beginning. Once the path following has started,
@@ -1033,19 +1024,16 @@ public class TrcPurePursuitDrive
         yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
         turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "[%d] RobotPose=%s,TargetPose=%s,relPose=%s",
-                pathIndex, robotPose, targetPoint.pose, relativeTargetPose);
-            globalTracer.traceInfo(
-                instanceName,
-                "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
-                "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
-                getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
-                yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
-                xPosPower, yPosPower, turnPower, velPower);
-        }
+        tracer.traceDebug(
+            instanceName, "[%d] RobotPose=%s,TargetPose=%s,relPose=%s",
+            pathIndex, robotPose, targetPoint.pose, relativeTargetPose);
+        tracer.traceDebug(
+            instanceName,
+            "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
+            "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
+            getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
+            yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
+            xPosPower, yPosPower, turnPower, velPower);
 
         // If we have timed out or finished, stop the operation.
         double currTime = TrcTimer.getCurrentTime();
@@ -1066,30 +1054,24 @@ public class TrcPurePursuitDrive
 
         if (timedOut || lastSegment && (stalled ||posOnTarget && headingOnTarget))
         {
-            if (msgTracer != null)
+            tracer.traceInfo(
+                instanceName,
+                "Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s, robotPose=%s",
+                pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget,
+                driveBase.getFieldPosition());
+            if (tracePidInfo)
             {
-                msgTracer.traceInfo(
-                    instanceName,
-                    "Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s, robotPose=%s",
-                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget,
-                    driveBase.getFieldPosition());
-                if (tracePidInfo)
-                {
-                    if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                    yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                    turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                    velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                }
-           }
+                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            }
 
             stop();
 
             if (onFinishedEvent != null)
             {
-                if (msgTracer != null)
-                {
-                    msgTracer.traceInfo(instanceName, "Signal completion event %s.", onFinishedEvent);
-                }
+                tracer.traceInfo(instanceName, "Signal completion event %s.", onFinishedEvent);
                 onFinishedEvent.signal();
                 onFinishedEvent = null;
             }
@@ -1107,22 +1089,19 @@ public class TrcPurePursuitDrive
             driveBase.arcadeDrive(owner, yPosPower, turnPower, false);
         }
 
-        if (msgTracer != null)
+        if (logRobotPoseEvents)
         {
-            if (logRobotPoseEvents)
-            {
-                msgTracer.logEvent(
-                    instanceName, "RobotPose", "AbsPose=\"%s\" AbsTarget=\"%s\" Delta=\"%s\"",
-                    driveBase.getFieldPosition(), referencePose.addRelativePose(targetPoint.pose), relativeTargetPose);
-            }
+            tracer.logEvent(
+                instanceName, "RobotPose", "AbsPose=\"%s\" AbsTarget=\"%s\" Delta=\"%s\"",
+                driveBase.getFieldPosition(), referencePose.addRelativePose(targetPoint.pose), relativeTargetPose);
+        }
 
-            if (tracePidInfo)
-            {
-                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-            }
+        if (tracePidInfo)
+        {
+            if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
     }   //driveTask
 
@@ -1225,12 +1204,9 @@ public class TrcPurePursuitDrive
     {
         if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    instanceName, "pathIndex=%d, startPose=%s, endPose=%s",
-                    pathIndex, startWaypoint.getPositionPose(), endWaypoint.getPositionPose());
-            }
+            tracer.traceDebug(
+                instanceName, "pathIndex=%d, startPose=%s, endPose=%s",
+                pathIndex, startWaypoint.getPositionPose(), endWaypoint.getPositionPose());
             return interpolate(
                 startWaypoint, endWaypoint, 1.0, !incrementalTurn? robotPose: null);
         }
@@ -1253,10 +1229,7 @@ public class TrcPurePursuitDrive
             {
                 // No valid intersection or end waypoint has the same location as the start waypoint.
                 // (i.e. same x and y but could have different angles).
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "No valid intersection.");
-                }
+                tracer.traceDebug(instanceName, "No valid intersection.");
                 return null;
             }
 //            else if (a == 0.0)
@@ -1287,24 +1260,18 @@ public class TrcPurePursuitDrive
                     //
                     // The furthest intersection point is not on the line segment, so skip this segment.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(
-                            instanceName, "Intersection not on line segment t1=%f, t2=%f, t=%f, stalled=%s",
-                            t1, t2, t, stalled);
-                    }
+                    tracer.traceDebug(
+                        instanceName, "Intersection not on line segment t1=%f, t2=%f, t=%f, stalled=%s",
+                        t1, t2, t, stalled);
                     return null;
                 }
 
                 TrcWaypoint interpolated =
                     interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
 
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        instanceName, "startPoint=%s, endPoint=%s, interpolatedPoint=%s",
-                        startWaypoint.getPositionPose(), endWaypoint.getPositionPose(), interpolated.getPositionPose());
-                }
+                tracer.traceDebug(
+                    instanceName, "startPoint=%s, endPoint=%s, interpolatedPoint=%s",
+                    startWaypoint.getPositionPose(), endWaypoint.getPositionPose(), interpolated.getPositionPose());
 
                 return interpolated;
             }
@@ -1341,22 +1308,16 @@ public class TrcPurePursuitDrive
                         waypointEventHandler.waypointEvent(i - 1, segmentStart);
                     }
 
-                    if (debugEnabled && msgTracer != null)
-                    {
-                        msgTracer.traceInfo(
-                            instanceName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
-                            i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
-                    }
+                    tracer.traceDebug(
+                        instanceName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
+                        i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
                     pathIndex = i;
                 }
                 return interpolated;
             }
             else if (stalled)
             {
-                if (msgTracer != null)
-                {
-                    msgTracer.traceInfo(instanceName, "Segment %d is stalled, moving to the next segment.", i);
-                }
+                tracer.traceInfo(instanceName, "Segment %d is stalled, moving to the next segment.", i);
                 pathIndex = i;
             }
         }

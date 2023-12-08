@@ -318,6 +318,16 @@ public class TrcDbgTrace
     }   //setTraceMessageLevel
 
     /**
+     * This method returns the trace message level.
+     *
+     * @return trace message level.
+     */
+    public MsgLevel getTraceMessageLevel()
+    {
+        return msgLevel;
+    }   //getTraceMessageLevel
+
+    /**
      * This method returns a global debug trace object for tracing OpMode code. If it doesn't exist yet, one is
      * created. This is an easy way to quickly get some debug output without a whole lot of setup overhead as the
      * full module-based debug tracing.
@@ -491,7 +501,10 @@ public class TrcDbgTrace
      */
     public void traceFatal(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+        if (msgLevel.value >= MsgLevel.FATAL.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+        }
     }   //traceFatal
 
     /**
@@ -503,7 +516,10 @@ public class TrcDbgTrace
      */
     public void traceFatal(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.FATAL.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+        }
     }   //traceFatal
 
     /**
@@ -514,7 +530,10 @@ public class TrcDbgTrace
      */
     public void traceErr(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+        if (msgLevel.value >= MsgLevel.ERR.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+        }
     }   //traceErr
 
     /**
@@ -526,7 +545,10 @@ public class TrcDbgTrace
      */
     public void traceErr(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.ERR.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+        }
     }   //traceErr
 
     /**
@@ -537,7 +559,10 @@ public class TrcDbgTrace
      */
     public void traceWarn(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+        if (msgLevel.value >= MsgLevel.WARN.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+        }
     }   //traceWarn
 
     /**
@@ -549,7 +574,10 @@ public class TrcDbgTrace
      */
     public void traceWarn(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.WARN.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+        }
     }   //traceWarn
 
     /**
@@ -560,7 +588,10 @@ public class TrcDbgTrace
      */
     public void traceInfo(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+        }
     }   //traceInfo
 
     /**
@@ -572,7 +603,10 @@ public class TrcDbgTrace
      */
     public void traceInfo(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+        }
     }   //traceInfo
 
     /**
@@ -583,7 +617,10 @@ public class TrcDbgTrace
      */
     public void traceDebug(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+        if (msgLevel.value >= MsgLevel.DEBUG.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+        }
     }   //traceDebug
 
     /**
@@ -595,7 +632,10 @@ public class TrcDbgTrace
      */
     public void traceDebug(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.DEBUG.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+        }
     }   //traceDebug
 
     /**
@@ -606,7 +646,10 @@ public class TrcDbgTrace
      */
     public void traceVerbose(String callerInstance, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+        if (msgLevel.value >= MsgLevel.VERBOSE.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+        }
     }   //traceVerbose
 
     /**
@@ -618,7 +661,10 @@ public class TrcDbgTrace
      */
     public void traceVerbose(String callerInstance, String format, Object... args)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+        if (msgLevel.value >= MsgLevel.VERBOSE.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+        }
     }   //traceVerbose
 
     /**
@@ -629,7 +675,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceFatal(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.FATAL.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, text);
+        }
     }   //globalTraceFatal
 
     /**
@@ -641,7 +690,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceFatal(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.FATAL.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.FATAL, String.format(format, args));
+        }
     }   //globalTraceFatal
 
     /**
@@ -652,7 +704,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceErr(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.ERR.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.ERR, text);
+        }
     }   //globalTraceErr
 
     /**
@@ -664,7 +719,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceErr(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.ERR.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.ERR, String.format(format, args));
+        }
     }   //globalTraceErr
 
     /**
@@ -675,7 +733,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceWarn(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.WARN.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.WARN, text);
+        }
     }   //globalTraceWarn
 
     /**
@@ -687,7 +748,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceWarn(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.WARN.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.WARN, String.format(format, args));
+        }
     }   //globalTraceWarn
 
     /**
@@ -698,7 +762,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceInfo(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.INFO.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.INFO, text);
+        }
     }   //globalTraceInfo
 
     /**
@@ -710,7 +777,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceInfo(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.INFO.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.INFO, String.format(format, args));
+        }
     }   //globalTraceInfo
 
     /**
@@ -721,7 +791,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceDebug(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.DEBUG.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, text);
+        }
     }   //globalTraceDebug
 
     /**
@@ -733,7 +806,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceDebug(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.DEBUG.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.DEBUG, String.format(format, args));
+        }
     }   //globalTraceDebug
 
     /**
@@ -744,7 +820,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceVerbose(String callerInstance, String text)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+        if (globalTracer.msgLevel.value >= MsgLevel.VERBOSE.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, text);
+        }
     }   //globalTraceVerbose
 
     /**
@@ -756,7 +835,10 @@ public class TrcDbgTrace
      */
     public static void globalTraceVerbose(String callerInstance, String format, Object... args)
     {
-        getGlobalTracer().traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+        if (globalTracer.msgLevel.value >= MsgLevel.VERBOSE.value)
+        {
+            globalTracer.traceMsgWorker(callerInstance, 2, MsgLevel.VERBOSE, String.format(format, args));
+        }
     }   //globalTraceVerbose
 
     /**
@@ -769,7 +851,10 @@ public class TrcDbgTrace
      */
     public void logInfo(String callerInstance, String infoName, String text)
     {
-        traceMsgWorker(callerInstance, 2, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + text + " />");
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(callerInstance, 2, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + text + " />");
+        }
     }   //logInfo
 
     /**
@@ -783,8 +868,12 @@ public class TrcDbgTrace
      */
     public void logInfo(String callerInstance, String infoName, String format, Object... args)
     {
-        traceMsgWorker(
-            callerInstance, 2, MsgLevel.INFO, "<Info name=\"" + infoName + "\" " + String.format(format, args) + " />");
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(
+                callerInstance, 2, MsgLevel.INFO,
+                "<Info name=\"" + infoName + "\" " + String.format(format, args) + " />");
+        }
     }   //logInfo
 
     /**
@@ -797,9 +886,12 @@ public class TrcDbgTrace
      */
     public void logEvent(String callerInstance, String eventName, String text)
     {
-        traceMsgWorker(
-            callerInstance, 2, MsgLevel.INFO,
-            "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " + text + " />");
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(
+                callerInstance, 2, MsgLevel.INFO,
+                "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " + text + " />");
+        }
     }   //logEvent
 
     /**
@@ -813,10 +905,13 @@ public class TrcDbgTrace
      */
     public void logEvent(String callerInstance, final String eventName, final String format, Object... args)
     {
-        traceMsgWorker(
-            callerInstance, 2, MsgLevel.INFO,
-            "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " +
-            String.format(format, args) + " />");
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceMsgWorker(
+                callerInstance, 2, MsgLevel.INFO,
+                "<Event name=\"" + eventName + "\" time=\"" + TrcTimer.getModeElapsedTime() + "\" " +
+                String.format(format, args) + " />");
+        }
     }   //logEvent
 
     /**
@@ -907,7 +1002,10 @@ public class TrcDbgTrace
         String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
         TrcRobotBattery battery)
     {
-        traceStateInfoWorker(name, state, driveBase, pidDrive, ppDrive, battery);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceStateInfoWorker(name, state, driveBase, pidDrive, ppDrive, battery);
+        }
     }   //traceStateInfo
 
     /**
@@ -920,7 +1018,10 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
     {
-        traceStateInfoWorker(name, state, driveBase, pidDrive, null, null);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceStateInfoWorker(name, state, driveBase, pidDrive, null, null);
+        }
     }   //traceStateInfo
 
     /**
@@ -934,7 +1035,10 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
     {
-        traceStateInfoWorker(name, state, driveBase, null, ppDrive, null);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceStateInfoWorker(name, state, driveBase, null, ppDrive, null);
+        }
     }   //traceStateInfo
 
     /**
@@ -946,7 +1050,10 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(String name, Object state, TrcRobotBattery battery)
     {
-        traceStateInfoWorker(name, state, null, null, null, battery);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceStateInfoWorker(name, state, null, null, null, battery);
+        }
     }   //traceStateInfo
 
     /**
@@ -957,7 +1064,10 @@ public class TrcDbgTrace
      */
     public void traceStateInfo(String name, Object state)
     {
-        traceStateInfoWorker(name, state, null, null, null, null);
+        if (msgLevel.value >= MsgLevel.INFO.value)
+        {
+            traceStateInfoWorker(name, state, null, null, null, null);
+        }
     }   //traceStateInfo
 
 }   //class TrcDbgTrace

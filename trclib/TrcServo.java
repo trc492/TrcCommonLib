@@ -32,9 +32,6 @@ import java.util.Locale;
  */
 public abstract class TrcServo implements TrcExclusiveSubsystem
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This method inverts the servo direction.
      *
@@ -103,10 +100,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private final ArrayList<TrcServo> followers = new ArrayList<>();
     private final TaskParams taskParams = new TaskParams();
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcTimer timer;
     private final TrcTaskMgr.TaskObject servoTaskObj;
-    private TrcDbgTrace msgTracer = null;
 
     private double physicalMin = DEF_PHYSICAL_MIN;
     private double physicalMax = DEF_PHYSICAL_MAX;
@@ -126,6 +123,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public TrcServo(String instanceName)
     {
+        tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         timer = new TrcTimer(instanceName);
         servoTaskObj = TrcTaskMgr.createTask(instanceName + ".servoTask", this::servoTask);
@@ -146,12 +144,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      */
-    public void setMsgTracer(TrcDbgTrace tracer)
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
     {
-        this.msgTracer = tracer;
-    }   //setMsgTracer
+        tracer.setTraceMessageLevel(msgLevel);
+    }   //setTraceLevel
 
     /**
      * This method sets the logical range of the servo motor. This is typically used to limit the logical range
@@ -228,14 +226,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setStepModeParams(double maxStepRate, double minPos, double maxPos)
     {
-        final String funcName = "setStepModeParams";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
-        }
-
+        tracer.traceDebug(instanceName, "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
         this.maxStepRate = maxStepRate;
         this.minPos = minPos;
         this.maxPos = maxPos;
@@ -369,21 +360,15 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setPosition(String owner, double delay, double position, TrcEvent completionEvent, double timeout)
     {
-        final String funcName = "setPosition";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
-                owner, delay, position, completionEvent, timeout);
-        }
-
+        tracer.traceDebug(
+            instanceName, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
+            owner, delay, position, completionEvent, timeout);
         if (completionEvent != null)
         {
             completionEvent.clear();
         }
 
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, msgTracer);
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
@@ -490,21 +475,15 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     public void setPosition(
         String owner, double delay, double position, double stepRate, TrcEvent completionEvent)
     {
-        final String funcName = "setPosition";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
-                owner, delay, position, stepRate, completionEvent);
-        }
-
+        tracer.traceDebug(
+            instanceName, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
+            owner, delay, position, stepRate, completionEvent);
         if (completionEvent != null)
         {
             completionEvent.clear();
         }
 
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, msgTracer);
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
@@ -600,14 +579,9 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setPower(String owner, double delay, double power)
     {
-        final String funcName = "setPower";
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, null, tracer);
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "owner=%s,delay=%.3f,power=%f", owner, delay, power);
-        }
-
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, null, msgTracer);
+        tracer.traceDebug(instanceName, "owner=%s,delay=%.3f,power=%f", owner, delay, power);
         if (validateOwnership(owner))
         {
             taskParams.setParams(power, 0.0, 0.0, releaseOwnershipEvent, 0.0);
