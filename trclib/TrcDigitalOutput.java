@@ -27,6 +27,9 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDigitalOutput
 {
+    private static final String moduleName = TrcDigitalOutput.class.getSimpleName();
+    protected static TrcElapsedTimer setOutputElapsedTimer = null;
+
     /**
      * This method is provided by the platform dependent digital output port device to set the state of the output
      * port.
@@ -35,7 +38,6 @@ public abstract class TrcDigitalOutput
      */
     public abstract void setState(boolean state);
 
-    protected static TrcElapsedTimer setOutputElapsedTimer = null;
     private final String instanceName;
 
     /**
@@ -70,7 +72,7 @@ public abstract class TrcDigitalOutput
         {
             if (setOutputElapsedTimer == null)
             {
-                setOutputElapsedTimer = new TrcElapsedTimer("TrcDigitalOutput.setOutput", 2.0);
+                setOutputElapsedTimer = new TrcElapsedTimer(moduleName + ".setOutput", 2.0);
             }
         }
         else

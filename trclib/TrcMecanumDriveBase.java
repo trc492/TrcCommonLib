@@ -88,13 +88,9 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
         String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
         TrcEvent event)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                moduleName, "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
-        }
-
+        tracer.traceDebug(
+            moduleName, "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
+            owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
         if (validateOwnership(owner))
         {
             x = TrcUtil.clipRange(x);

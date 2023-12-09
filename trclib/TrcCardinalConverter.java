@@ -38,9 +38,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcCardinalConverter<D>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     private final String instanceName;
     private final TrcSensor<D> sensor;
     private final D dataType;
@@ -59,7 +56,7 @@ public class TrcCardinalConverter<D>
      * @param sensor specifies the sensor object that needs data unwrapping.
      * @param dataType specifies the data type to be unwrapped.
      */
-    public TrcCardinalConverter(final String instanceName, final TrcSensor<D> sensor, final D dataType)
+    public TrcCardinalConverter(String instanceName, TrcSensor<D> sensor, D dataType)
     {
         if (sensor == null)
         {
@@ -159,13 +156,6 @@ public class TrcCardinalConverter<D>
      */
     public synchronized void setCardinalRange(int index, double rangeLow, double rangeHigh)
     {
-        final String funcName = "setCardinalRange";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "low=%f, high=%f", rangeLow, rangeHigh);
-        }
-
         if (rangeLow > rangeHigh)
         {
             throw new IllegalArgumentException("cardinalRangeLow must not be greater than cardinalRangeHigh.");
@@ -184,17 +174,11 @@ public class TrcCardinalConverter<D>
      */
     public synchronized TrcSensor.SensorData<Double> getCartesianData(int index)
     {
-        final String funcName = "getCartesianData";
         TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
 
         if (enabled)
         {
             data.value += (cardinalRangeHighs[index] - cardinalRangeLows[index])*numCrossovers[index];
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
         }
 
         return data;

@@ -27,6 +27,9 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDigitalInput
 {
+    private static final String moduleName = TrcDigitalInput.class.getSimpleName();
+    protected static TrcElapsedTimer getInputElapsedTimer = null;
+
     /**
      * This method is provided by the platform dependent digital input device to check the state of the input.
      *
@@ -34,8 +37,7 @@ public abstract class TrcDigitalInput
      */
     public abstract boolean getInputState();
 
-    protected static TrcElapsedTimer getInputElapsedTimer = null;
-    protected String instanceName;
+    protected final String instanceName;
     private boolean inverted = false;
 
     /**
@@ -91,7 +93,7 @@ public abstract class TrcDigitalInput
         {
             if (getInputElapsedTimer == null)
             {
-                getInputElapsedTimer = new TrcElapsedTimer("TrcDigitalInput.getInput", 2.0);
+                getInputElapsedTimer = new TrcElapsedTimer(moduleName + ".getInput", 2.0);
             }
         }
         else

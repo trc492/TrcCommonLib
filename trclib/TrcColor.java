@@ -38,14 +38,12 @@ public class TrcColor
      * @param green specifies the green value (0-255).
      * @param blue specifies the blue value (0-255).
      */
-
     public TrcColor(int red, int green, int blue)
     {
         rgb = new double[3];
         rgb[0] = TrcUtil.clipRange(red, 0, 255)/255.0;
         rgb[1] = TrcUtil.clipRange(green, 0, 255)/255.0;
         rgb[2] = TrcUtil.clipRange(blue, 0, 255)/255.0;
-
         hsv = rgbToHsv(rgb);
     }   //TrcColor
 
@@ -175,7 +173,7 @@ public class TrcColor
             }
         }
 
-        return new double[]{hue, sat, value};
+        return new double[] {hue, sat, value};
      }  //rgbToHsv
 
 }   //class TrcColor

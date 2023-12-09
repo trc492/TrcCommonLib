@@ -24,6 +24,11 @@ package TrcCommonLib.trclib;
 
 public interface TrcDistanceSensor
 {
+    /**
+     * This method returns the distance sensor value in inches.
+     *
+     * @return distance in inches.
+     */
     double getDistanceInches();
 
     default double getDistanceMillimeters()

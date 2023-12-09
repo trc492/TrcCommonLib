@@ -30,9 +30,6 @@ import java.util.Arrays;
  */
 public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressableLED.Pattern>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This class contains information about an LED pattern. An LED pattern contains a pattern type, an array of colors
      * and a time interval between color changes for running patterns.
@@ -152,13 +149,6 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
      */
     public void setRGB(int red, int green, int blue)
     {
-        final String funcName = "setRGB";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "r=%d,g=%d,b=%d", red, green, blue);
-        }
-
         currPattern = new Pattern("WholeLengthColor", new TrcColor(red, green, blue), numLEDs);
         updateLED(currPattern.colorPattern);
     }   //setRGB
@@ -172,13 +162,6 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
      */
     public void setHSV(double hue, double sat, double value)
     {
-        final String funcName = "setHSV";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "h=%d,s=%d,v=%d", hue, sat, value);
-       }
-
         // TODO: Implement TrcColor.hsvToRgb
         // updateLED(currPattern.colorPattern);
     }   //setHSV
@@ -190,13 +173,6 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
      */
     public void setColor(TrcColor color)
     {
-        final String funcName = "setColor";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=%s", color);
-        }
-
         currPattern = new Pattern("PartialLengthColor", color, numLEDs);
         updateLED(currPattern.colorPattern);
     }   //setColor
@@ -213,13 +189,6 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
     @Override
     public Pattern getPattern()
     {
-        final String funcName = "getPattern";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "currPattern=%s", currPattern);
-        }
-
         return currPattern;
     }   //getPattern
 
@@ -231,13 +200,6 @@ public abstract class TrcAddressableLED extends TrcPriorityIndicator<TrcAddressa
     @Override
     public void setPattern(Pattern pattern)
     {
-        final String funcName = "setPattern";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "pattern=%s", pattern);
-        }
-
         this.currPattern = pattern;
         updateLED(currPattern != null? currPattern.colorPattern: null);
     }   //setPattern

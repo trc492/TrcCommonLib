@@ -174,11 +174,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void setSteerAngle(String owner, double angle, boolean optimize)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(moduleName, "owner=%s,angle=%f,optimize=%s", owner, angle, optimize);
-        }
-
+        tracer.traceDebug(moduleName, "owner=%s,angle=%f,optimize=%s", owner, angle, optimize);
         if (validateOwnership(owner))
         {
             lfModule.setSteerAngle(angle, optimize);
@@ -241,11 +237,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void stop(String owner, boolean resetSteer)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(moduleName, "owner=%s,steerNeutral=%s", owner, resetSteer);
-        }
-
+        tracer.traceDebug(moduleName, "owner=%s,steerNeutral=%s", owner, resetSteer);
         if (validateOwnership(owner))
         {
             super.stop(owner);
@@ -319,13 +311,9 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
         TrcEvent event)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                moduleName, "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
-        }
-
+        tracer.traceDebug(
+            moduleName, "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
+            owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
         if (validateOwnership(owner))
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)
@@ -356,7 +344,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 {
                     if (inverted)
                     {
-                        globalTracer.traceWarn(
+                        tracer.traceWarn(
                             moduleName, "You should not be using inverted and field reference frame at the same time!");
                     }
 

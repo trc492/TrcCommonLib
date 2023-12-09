@@ -28,8 +28,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAutoTask<T>
 {
-    private static final String moduleName = TrcAutoTask.class.getSimpleName();
-
     /**
      * This method is called to acquire ownership of all subsystems involved in the auto-assist operation. This is
      * typically done before starting an auto-assist operation.
@@ -63,10 +61,10 @@ public abstract class TrcAutoTask<T>
     protected abstract void runTaskState(
         Object params, T state, TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop);
 
+    protected final TrcDbgTrace tracer;
     private final String instanceName;
     private final String owner;
     private final TrcTaskMgr.TaskType taskType;
-    private final TrcDbgTrace msgTracer;
     private final TrcTaskMgr.TaskObject autoTaskObj;
     protected final TrcStateMachine<T> sm;
 
@@ -79,14 +77,13 @@ public abstract class TrcAutoTask<T>
      * @param instanceName specifies the task name.
      * @param owner specifies the owner to acquire ownership, can be null if not requiring ownership.
      * @param taskType specifies the auto-assist task type (e.g. TaskType.FAST_POSTPERIODIC_TASK).
-     * @param msgTracer specifies the tracer for logging events, can be null if not provided.
      */
-    protected TrcAutoTask(String instanceName, String owner, TrcTaskMgr.TaskType taskType, TrcDbgTrace msgTracer)
+    protected TrcAutoTask(String instanceName, String owner, TrcTaskMgr.TaskType taskType)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.owner = owner;
         this.taskType = taskType;
-        this.msgTracer = msgTracer;
         autoTaskObj = TrcTaskMgr.createTask(instanceName, this::autoTask);
         sm = new TrcStateMachine<>(instanceName);
     }   //TrcAutoTask
@@ -120,7 +117,7 @@ public abstract class TrcAutoTask<T>
         }
         else
         {
-            TrcDbgTrace.globalTraceWarn(instanceName, "Failed to acquire subsystems ownership.");
+            tracer.traceWarn(instanceName, "Failed to acquire subsystems ownership.");
         }
     }   //startAutoTask
 
@@ -197,11 +194,7 @@ public abstract class TrcAutoTask<T>
         if (state != null)
         {
             runTaskState(taskParams, state, taskType, runMode, slowPeriodicLoop);
-
-            if (msgTracer != null)
-            {
-                msgTracer.traceStateInfo(sm.toString(), state);
-            }
+            tracer.traceStateInfo(sm.toString(), state);
         }
     }   //autoTask
 

@@ -130,7 +130,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final ArrayList<TrcMotor> followingMotorsList = new ArrayList<>();
     private final TaskParams taskParams = new TaskParams();
 
-    private final TrcDbgTrace tracer;
+    protected final TrcDbgTrace tracer;
     protected final String instanceName;
     private final TrcDigitalInput lowerLimitSwitch; // for software simulation
     private final TrcDigitalInput upperLimitSwitch; // for software simulation
@@ -3456,7 +3456,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             if (!odometryEnabled)
             {
-                throw new RuntimeException("Motor odometry is not enabled.");
+                // Odometry is disabled, returned the last update.
+                tracer.traceErr(instanceName, "Motor odometry is not enabled.");
             }
 
             odom = odometry.clone();

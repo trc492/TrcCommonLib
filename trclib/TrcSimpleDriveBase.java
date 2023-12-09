@@ -217,13 +217,9 @@ public class TrcSimpleDriveBase extends TrcDriveBase
     public void tankDrive(
         String owner, double leftPower, double rightPower, boolean inverted, double driveTime, TrcEvent event)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                moduleName, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s,driveTime=%.1f,event=%s",
-                owner, leftPower, rightPower, inverted, driveTime, event);
-        }
-
+        tracer.traceDebug(
+            moduleName, "owner=%s,leftPower=%f,rightPower=%f,inverted=%s,driveTime=%.1f,event=%s",
+            owner, leftPower, rightPower, inverted, driveTime, event);
         if (validateOwnership(owner))
         {
             leftPower = TrcUtil.clipRange(leftPower);
