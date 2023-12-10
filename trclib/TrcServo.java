@@ -24,6 +24,7 @@ package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class implements a platform independent servo. Typically, this class is to be extended by a platform
@@ -123,7 +124,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private final String instanceName;
     private final TrcTimer timer;
     private final TrcTaskMgr.TaskObject servoTaskObj;
-    private ActionParams currActionParams = null;
+    private final AtomicReference<ActionParams> currActionParams = new AtomicReference<>();
 
     private double physicalMin = DEF_PHYSICAL_MIN;
     private double physicalMax = DEF_PHYSICAL_MAX;
@@ -284,29 +285,57 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     }   //follow
 
     /**
-     * This method cancels previous servo operation if applicable.
+     * This method finishes previous servo operation if applicable.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param canceled specifies true if the operation was canceled.
+     */
+    private void finish(String owner, boolean canceled)
+    {
+        ActionParams actionParams = currActionParams.getAndSet(null);
+
+        tracer.traceDebug(
+            instanceName,
+            "owner=" + owner + ", canceled=" + canceled + ", actionParams=(" + actionParams + "), taskEnabled=" +
+            isTaskEnabled());
+        if (actionParams != null && validateOwnership(owner))
+        {
+            synchronized (actionParams)
+            {
+                if (canceled)
+                {
+                    timer.cancel();
+                }
+
+                if (isTaskEnabled())
+                {
+                    setTaskEnabled(false);
+                }
+
+                if (actionParams.completionEvent != null)
+                {
+                    if (canceled)
+                    {
+                        actionParams.completionEvent.cancel();
+                    }
+                    else
+                    {
+                        actionParams.completionEvent.signal();
+                    }
+                    actionParams.completionEvent = null;
+                }
+            }
+        }
+    }   //finish
+
+    /**
+     * This method finishes previous servo operation if applicable.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
      */
     public void cancel(String owner)
     {
-        if (validateOwnership(owner) && currActionParams != null)
-        {
-            timer.cancel();
-
-            if (isTaskEnabled())
-            {
-                setTaskEnabled(false);
-            }
-
-            if (currActionParams.completionEvent != null)
-            {
-                currActionParams.completionEvent.cancel();
-                currActionParams.completionEvent = null;
-            }
-
-            currActionParams = null;
-        }
+        finish(owner, true);
     }   //cancel
 
     /**
@@ -314,7 +343,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void cancel()
     {
-        cancel(null);
+        finish(null, true);
     }   //cancel
 
     /**
@@ -337,29 +366,37 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private void performSetPosition(Object context)
     {
         ActionParams actionParams = (ActionParams) context;
-        double logicalPos = toLogicalPosition(actionParams.targetPosition);
 
-        setLogicalPosition(logicalPos);
-        synchronized (followers)
+        synchronized (actionParams)
         {
-            for (TrcServo servo: followers)
+            double logicalPos =
+                toLogicalPosition(actionParams.actionType == ActionType.SetPosition ?
+                                      actionParams.targetPosition : actionParams.currPosition);
+
+            tracer.traceDebug(instanceName, "actionParams=(" + actionParams + "), logicalPos=" + logicalPos);
+            setLogicalPosition(logicalPos);
+            synchronized (followers)
             {
-                servo.setLogicalPosition(logicalPos);
+                for (TrcServo servo : followers)
+                {
+                    servo.setLogicalPosition(logicalPos);
+                }
             }
-        }
 
-        if (actionParams.timeout > 0.0 && actionParams.completionEvent != null)
-        {
-            // A timeout is specified, set a timer for it and signal an event when it expires.
-            // Since servo has no position feedback mechanism, time is used to estimate how long it takes to
-            // complete the operation and signal the caller.
-            timer.set(actionParams.timeout, actionParams.completionEvent);
-        }
-        // Action performed, destroy the params if ActionType was not SetPower. SetPower will take care of cleaning
-        // up itself.
-        if (actionParams.actionType != ActionType.SetPower)
-        {
-            currActionParams = null;
+            if (actionParams.timeout > 0.0 && actionParams.completionEvent != null)
+            {
+                // A timeout is specified, set a timer for it and signal an event when it expires.
+                // Since servo has no position feedback mechanism, time is used to estimate how long it takes to
+                // complete the operation and signal the caller.
+                timer.set(actionParams.timeout, actionParams.completionEvent);
+                actionParams.completionEvent = null;
+            }
+            // Action performed, destroy the params if ActionType was SetPosition. SetPositionWithStepRate and SetPower
+            // will take care of cleaning up itself.
+            if (actionParams.actionType == ActionType.SetPosition)
+            {
+                finish(null, false);
+            }
         }
     }   //performSetPosition
 
@@ -381,7 +418,8 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      * @param completionEvent specifies an event object to signal when the timeout event has expired.
      * @param timeout specifies a maximum time value the operation should be completed in seconds.
      */
-    public void setPosition(String owner, double delay, double position, TrcEvent completionEvent, double timeout)
+    public void setPosition(
+        String owner, double delay, double position, TrcEvent completionEvent, double timeout)
     {
         tracer.traceDebug(
             instanceName, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
@@ -391,21 +429,28 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
             completionEvent.clear();
         }
 
-        cancel(owner);
+        finish(owner, true);
         TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
         {
-            currActionParams = new ActionParams();
-            currActionParams.setPositionParams(position, completionEvent, timeout);
-            if (delay > 0.0)
+            ActionParams actionParams = new ActionParams();
+            actionParams.setPositionParams(position, completionEvent, timeout);
+            if (currActionParams.compareAndSet(null, actionParams))
             {
-                timer.set(delay, this::performSetPosition, currActionParams);
+                if (delay > 0.0)
+                {
+                    timer.set(delay, this::performSetPosition, actionParams);
+                }
+                else
+                {
+                    performSetPosition(actionParams);
+                }
             }
             else
             {
-                performSetPosition(currActionParams);
+                throw new IllegalStateException("Existing active action (" + currActionParams.get() + ")");
             }
         }
     }   //setPosition
@@ -481,9 +526,13 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     {
         ActionParams actionParams = (ActionParams) context;
 
-        actionParams.currPosition = getPosition();
-        actionParams.prevTime = TrcTimer.getCurrentTime();
-        setTaskEnabled(true);
+        synchronized (actionParams)
+        {
+            actionParams.currPosition = getPosition();
+            actionParams.prevTime = TrcTimer.getCurrentTime();
+            setTaskEnabled(true);
+            tracer.traceDebug(instanceName, "actionParams=(" + actionParams + ")");
+        }
     }   //performSetPositionWithStepRate
 
     /**
@@ -507,21 +556,28 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
             completionEvent.clear();
         }
 
-        cancel(owner);
+        finish(owner, true);
         TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
         {
-            currActionParams = new ActionParams();
-            currActionParams.setPositionWithStepRateParams(position, stepRate, completionEvent);
-            if (delay > 0.0)
+            ActionParams actionParams = new ActionParams();
+            actionParams.setPositionWithStepRateParams(position, stepRate, completionEvent);
+            if (currActionParams.compareAndSet(null, actionParams))
             {
-                timer.set(delay, this::performSetPositionWithStepRate, currActionParams);
+                if (delay > 0.0)
+                {
+                    timer.set(delay, this::performSetPositionWithStepRate, actionParams);
+                }
+                else
+                {
+                    performSetPositionWithStepRate(actionParams);
+                }
             }
             else
             {
-                performSetPositionWithStepRate(currActionParams);
+                throw new IllegalStateException("Existing active action (" + currActionParams.get() + ")");
             }
         }
     }   //setPosition
@@ -574,28 +630,32 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     {
         ActionParams actionParams = (ActionParams) context;
 
-        if (!isTaskEnabled())
+        synchronized (actionParams)
         {
-            // Not already in stepping mode, do a setPosition to the direction according to the sign of the power
-            // and the step rate according to the magnitude of the power.
-            actionParams.targetPosition = actionParams.power > 0.0 ? maxPos : minPos;
-            actionParams.currStepRate = Math.abs(actionParams.power) * maxStepRate;
-            actionParams.currPosition = getPosition();
-            actionParams.prevTime = TrcTimer.getCurrentTime();
-            setTaskEnabled(true);
+            if (!isTaskEnabled())
+            {
+                // Not already in stepping mode, do a setPosition to the direction according to the sign of the power
+                // and the step rate according to the magnitude of the power.
+                actionParams.targetPosition = actionParams.power > 0.0 ? maxPos : minPos;
+                actionParams.currStepRate = Math.abs(actionParams.power)*maxStepRate;
+                actionParams.currPosition = getPosition();
+                actionParams.prevTime = TrcTimer.getCurrentTime();
+                setTaskEnabled(true);
+            }
+            else if (actionParams.power != 0.0)
+            {
+                // We are already in stepping mode, just change the stepping parameters.
+                actionParams.targetPosition = actionParams.power > 0.0 ? maxPos : minPos;
+                actionParams.currStepRate = Math.abs(actionParams.power)*maxStepRate;
+            }
+            else
+            {
+                // We are stopping.
+                finish(null, false);
+            }
+            currPower = actionParams.power;
+            tracer.traceDebug(instanceName, "actionParams=(" + actionParams + "), taskEnabled=" + isTaskEnabled());
         }
-        else if (actionParams.power != 0.0)
-        {
-            // We are already in stepping mode, just change the stepping parameters.
-            actionParams.targetPosition = actionParams.power > 0.0 ? maxPos : minPos;
-            actionParams.currStepRate = Math.abs(actionParams.power) * maxStepRate;
-        }
-        else
-        {
-            // We are stopping.
-            cancel(null);
-        }
-        currPower = actionParams.power;
     }   //performSetPower
 
     /**
@@ -610,15 +670,16 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         tracer.traceDebug(instanceName, "owner=%s,delay=%.3f,power=%f", owner, delay, power);
         if (validateOwnership(owner))
         {
-            currActionParams = new ActionParams();
-            currActionParams.setPowerParams(power);
+            ActionParams actionParams = new ActionParams();
+            actionParams.setPowerParams(power);
+            currActionParams.set(actionParams);
             if (delay > 0.0)
             {
-                timer.set(delay, this::performSetPower, currActionParams);
+                timer.set(delay, this::performSetPower, actionParams);
             }
             else
             {
-                performSetPower(currActionParams);
+                performSetPower(actionParams);
             }
         }
     }   //setPower
@@ -694,43 +755,43 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     private void servoTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        double currTime = TrcTimer.getCurrentTime();
-        double deltaPos = currActionParams.currStepRate * (currTime - currActionParams.prevTime);
+        ActionParams actionParams = currActionParams.get();
 
-        currActionParams.prevTime = currTime;
-        if (currActionParams.currPosition < currActionParams.targetPosition)
+        if (actionParams != null)
         {
-            currActionParams.currPosition += deltaPos;
-            if (currActionParams.currPosition > currActionParams.targetPosition)
+            synchronized (actionParams)
             {
-                currActionParams.currPosition = currActionParams.targetPosition;
-            }
-        }
-        else if (currActionParams.currPosition > currActionParams.targetPosition)
-        {
-            currActionParams.currPosition -= deltaPos;
-            if (currActionParams.currPosition < currActionParams.targetPosition)
-            {
-                currActionParams.currPosition = currActionParams.targetPosition;
-            }
-        }
-        else
-        {
-            //
-            // We have reached target, we are done.
-            //
-            setTaskEnabled(false);
-            if (currActionParams.completionEvent != null)
-            {
-                currActionParams.completionEvent.signal();
-                currActionParams.completionEvent = null;
-            }
-            currActionParams = null;
-        }
+                double currTime = TrcTimer.getCurrentTime();
+                double deltaPos = actionParams.currStepRate*(currTime - actionParams.prevTime);
 
-        if (currActionParams != null)
-        {
-            performSetPosition(currActionParams);
+                actionParams.prevTime = currTime;
+                if (actionParams.currPosition < actionParams.targetPosition)
+                {
+                    actionParams.currPosition += deltaPos;
+                    if (actionParams.currPosition > actionParams.targetPosition)
+                    {
+                        actionParams.currPosition = actionParams.targetPosition;
+                    }
+                }
+                else if (actionParams.currPosition > actionParams.targetPosition)
+                {
+                    actionParams.currPosition -= deltaPos;
+                    if (actionParams.currPosition < actionParams.targetPosition)
+                    {
+                        actionParams.currPosition = actionParams.targetPosition;
+                    }
+                }
+                else
+                {
+                    //
+                    // We have reached target, we are done.
+                    //
+                    finish(null, false);
+                }
+
+                tracer.traceVerbose(instanceName, "actionParams=(" + actionParams + ")");
+                performSetPosition(actionParams);
+            }
         }
     }   //servoTask
 

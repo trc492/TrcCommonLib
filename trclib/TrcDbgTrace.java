@@ -79,7 +79,7 @@ public class TrcDbgTrace
     // Deprecated
     public TrcDbgTrace(String instanceName, boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
     {
-        this(instanceName, null);
+        this(null, instanceName, null);
         setDbgTraceConfig(traceEnabled, msgLevel);
     }   //TrcDbgTrace
 
@@ -275,16 +275,17 @@ public class TrcDbgTrace
      * Constructor: Create an instance of the object. This constructor is intended for internal use for creating
      * the global tracer. For creating other tracers, use the constructor with just instanceName.
      *
+     * @param callerName specifies the module name of the caller.
      * @param instanceName specifies the instance name.
      * @param dbgLog specifies the dbgLog object to be set.
      */
-    public TrcDbgTrace(String instanceName, DbgLog dbgLog)
+    public TrcDbgTrace(String callerName, String instanceName, DbgLog dbgLog)
     {
         this.instanceName = instanceName;
 
-        if (dbgLog != null)
+        if (callerName != null && dbgLog != null)
         {
-            if (TrcDbgTrace.dbgLog == null)
+            if (TrcDbgTrace.dbgLog == null && callerName.equals("FrcRobotBase") || callerName.equals("FtcOpMode"))
             {
                 TrcDbgTrace.dbgLog = dbgLog;
                 TrcDbgTrace.globalTracer = this;
@@ -295,6 +296,11 @@ public class TrcDbgTrace
                     "This constructor can only be called internally to create the global Tracer.");
             }
         }
+        else if (callerName != null ^ dbgLog != null)
+        {
+            throw new IllegalStateException(
+                "This constructor can only be called internally to create the global Tracer.");
+        }
     }   //TrcDbgTrace
 
     /**
@@ -304,7 +310,7 @@ public class TrcDbgTrace
      */
     public TrcDbgTrace(String instanceName)
     {
-        this(instanceName, null);
+        this(null, instanceName, null);
     }   //TrcDbgTrace
 
     /**
