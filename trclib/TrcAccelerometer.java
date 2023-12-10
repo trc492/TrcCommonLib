@@ -212,12 +212,14 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
 
     /**
      * This method prints the elapsed time info.
+     *
+     * @param tracer specifies the tracer to be used to print the info.
      */
-    public void printElapsedTime()
+    public void printElapsedTime(TrcDbgTrace tracer)
     {
         if (getDataElapsedTimer != null)
         {
-            getDataElapsedTimer.printElapsedTime();
+            getDataElapsedTimer.printElapsedTime(tracer);
         }
     }   //printElapsedTime
 

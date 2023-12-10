@@ -35,8 +35,6 @@ import java.util.Queue;
  */
 public class TrcElapsedTimer
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-
     private final String instanceName;
     private final long averageWindow;
     private final Queue<Long> elapsedTimeQueue;
@@ -186,10 +184,12 @@ public class TrcElapsedTimer
 
     /**
      * This method prints the elapsed time info.
+     *
+     * @param tracer specifies the tracer to be used to print the info.
      */
-    public synchronized void printElapsedTime()
+    public synchronized void printElapsedTime(TrcDbgTrace tracer)
     {
-        globalTracer.traceInfo(instanceName, this.toString());
+        tracer.traceInfo(instanceName, this.toString());
     }   //printElapsedTime
 
 }   //class TrcElapsedTimer

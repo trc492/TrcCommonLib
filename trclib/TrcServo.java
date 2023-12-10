@@ -1065,12 +1065,14 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
     /**
      * This method prints the elapsed time info.
+     *
+     * @param tracer specifies the tracer to be used to print the info.
      */
-    public static void printElapsedTime()
+    public static void printElapsedTime(TrcDbgTrace tracer)
     {
         if (servoSetPosElapsedTimer != null)
         {
-            servoSetPosElapsedTimer.printElapsedTime();
+            servoSetPosElapsedTimer.printElapsedTime(tracer);
         }
     }   //printElapsedTime
 

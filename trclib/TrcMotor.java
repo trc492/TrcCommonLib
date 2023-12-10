@@ -3601,32 +3601,34 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
     /**
      * This method prints the elapsed time info.
+     *
+     * @param tracer specifies the tracer to be used to print the info.
      */
-    public static void printElapsedTime()
+    public static void printElapsedTime(TrcDbgTrace tracer)
     {
         if (motorGetPositionElapsedTimer != null)
         {
-            motorGetPositionElapsedTimer.printElapsedTime();
+            motorGetPositionElapsedTimer.printElapsedTime(tracer);
         }
 
         if (motorSetPowerElapsedTimer != null)
         {
-            motorSetPowerElapsedTimer.printElapsedTime();
+            motorSetPowerElapsedTimer.printElapsedTime(tracer);
         }
 
         if (motorSetVelocityElapsedTimer != null)
         {
-            motorSetVelocityElapsedTimer.printElapsedTime();
+            motorSetVelocityElapsedTimer.printElapsedTime(tracer);
         }
 
         if (motorSetPositionElapsedTimer != null)
         {
-            motorSetPositionElapsedTimer.printElapsedTime();
+            motorSetPositionElapsedTimer.printElapsedTime(tracer);
         }
 
         if (motorSetCurrentElapsedTimer != null)
         {
-            motorSetCurrentElapsedTimer.printElapsedTime();
+            motorSetCurrentElapsedTimer.printElapsedTime(tracer);
         }
     }   //printElapsedTime
 

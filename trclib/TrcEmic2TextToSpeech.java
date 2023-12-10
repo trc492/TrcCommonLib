@@ -32,9 +32,6 @@ import java.util.Locale;
  */
 public abstract class TrcEmic2TextToSpeech
 {
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     public static final int MIN_VOLUME = -48;
     public static final int MAX_VOLUME = 18;
 
@@ -125,6 +122,7 @@ public abstract class TrcEmic2TextToSpeech
         HELP_MSG
     }   //enum RequestId
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private volatile String configMsg = null;
     private volatile String versionMsg = null;
@@ -137,6 +135,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public TrcEmic2TextToSpeech(final String instanceName)
     {
+        tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
     }   //TrcEmic2TextToSpeech
 
@@ -383,10 +382,7 @@ public abstract class TrcEmic2TextToSpeech
         if (request.readRequest && request.buffer != null)
         {
             reply = new String(request.buffer, StandardCharsets.US_ASCII);
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "reply=<%s>", reply);
-            }
+            tracer.traceDebug(instanceName, "reply=<" + reply + ">");
         }
 
         if (reply != null)

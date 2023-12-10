@@ -30,9 +30,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcGameController
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This interface, if provided, will allow this class to do a notification callback when there are button
      * activities.
@@ -59,6 +56,7 @@ public abstract class TrcGameController
 
     private static final double DEF_DEADBAND_THRESHOLD = 0.15;
 
+    protected final TrcDbgTrace tracer;
     private final String instanceName;
     private final double deadbandThreshold;
     private final ButtonHandler buttonHandler;
@@ -76,6 +74,7 @@ public abstract class TrcGameController
     public TrcGameController(
         final String instanceName, final double deadbandThreshold, final ButtonHandler buttonHandler)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.deadbandThreshold = deadbandThreshold;
         this.buttonHandler = buttonHandler;
@@ -233,8 +232,6 @@ public abstract class TrcGameController
      */
     private void buttonEventTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "buttonEventTask";
-
         if (slowPeriodicLoop)
         {
             // Button events are human input. They are slow so don't need to run in a fast loop.
@@ -253,10 +250,7 @@ public abstract class TrcGameController
                     //
                     // Button is pressed.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Button %x pressed", buttonMask);
-                    }
+                    tracer.traceDebug(instanceName, "Button %x pressed", buttonMask);
                     buttonHandler.buttonEvent(this, buttonMask, true);
                 }
                 else
@@ -264,10 +258,7 @@ public abstract class TrcGameController
                     //
                     // Button is released.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Button %x released", buttonMask);
-                    }
+                    tracer.traceDebug(instanceName, "Button %x released", buttonMask);
                     buttonHandler.buttonEvent(this, buttonMask, false);
                 }
                 //
