@@ -197,7 +197,7 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.P
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcRevBlinkin(final String instanceName)
+    public TrcRevBlinkin(String instanceName)
     {
         super(instanceName);
     }   //TrcRevBlinkin

@@ -41,6 +41,7 @@ public abstract class TrcFilter
      */
     public abstract double filterData(double data);
 
+    protected final TrcDbgTrace tracer;
     protected final String instanceName;
 
     /**
@@ -48,8 +49,9 @@ public abstract class TrcFilter
      *
      * @param instanceName specifies the instance name.
      */
-    protected TrcFilter(final String instanceName)
+    protected TrcFilter(String instanceName)
     {
+        tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
     }   //TrcFilter
 

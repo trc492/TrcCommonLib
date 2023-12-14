@@ -165,7 +165,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     public static final int GYRO_INTEGRATE              = (1 << 3);
     public static final int GYRO_CONVERT_TO_CARTESIAN   = (1 << 4);
 
-    protected final String instanceName;
     private final Odometry odometry;
     private TrcDataIntegrator<DataType> integrator = null;
     private TrcCardinalConverter<DataType> cardinalConverter = null;
@@ -191,7 +190,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      *                filter will be used on that axis, the corresponding element in the array should be set to null.
      *                If no filter is used at all, filters can be set to null.
      */
-    public TrcGyro(final String instanceName, int numAxes, int options, TrcFilter[] filters)
+    public TrcGyro(String instanceName, int numAxes, int options, TrcFilter[] filters)
     {
         super(instanceName, numAxes, filters);
         odometry = new Odometry(this);
@@ -231,9 +230,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
         {
             throw new IllegalArgumentException("Options Integrator and CardinalConverter cannot coexist.");
         }
-
-        this.instanceName = instanceName;
-
         //
         // Create the data integrator.
         //
@@ -263,7 +259,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      *                GYRO_INTEGRATE - do integration on all axes to get headings.
      *                GYRO_CONVERT_TO_CARTESIAN - converts the Cardinal heading to Cartesian heading.
      */
-    public TrcGyro(final String instanceName, int numAxes, int options)
+    public TrcGyro(String instanceName, int numAxes, int options)
     {
         this(instanceName, numAxes, options, null);
     }   //TrcGyro

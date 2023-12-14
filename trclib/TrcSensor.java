@@ -33,9 +33,6 @@ import java.util.Locale;
  */
 public abstract class TrcSensor<D>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This class implements the SensorData object that consists of the sensor value as well as a timestamp when the
      * data sample is taken.
@@ -108,7 +105,8 @@ public abstract class TrcSensor<D>
     private static final int NUM_CAL_SAMPLES    = 100;
     private static final long CAL_INTERVAL      = 10;   //in msec.
 
-    private final String instanceName;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final int numAxes;
     private final TrcFilter[] filters;
     private final int[] signs;
@@ -124,7 +122,7 @@ public abstract class TrcSensor<D>
      * @param filters specifies an array of filter objects, one for each axis, to filter sensor data.
      *                If no filter is used, this can be set to null.
      */
-    public TrcSensor(final String instanceName, int numAxes, TrcFilter[] filters)
+    public TrcSensor(String instanceName, int numAxes, TrcFilter[] filters)
     {
         //
         // Make sure we have at least one axis.
@@ -150,6 +148,7 @@ public abstract class TrcSensor<D>
                     String.format(Locale.US, "filters must be an array of %d elements.", numAxes));
         }
 
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.numAxes = numAxes;
         this.filters = filters;
@@ -170,7 +169,7 @@ public abstract class TrcSensor<D>
      * @param instanceName specifies the instance name.
      * @param numAxes specifies the number of axes.
      */
-    public TrcSensor(final String instanceName, int numAxes)
+    public TrcSensor(String instanceName, int numAxes)
     {
         this(instanceName, numAxes, null);
     }   //TrcSensor
@@ -285,33 +284,32 @@ public abstract class TrcSensor<D>
      */
     public SensorData<Double> getProcessedData(int index, D dataType)
     {
-        final String funcName = "getProcessedData";
         SensorData<Double> data = (SensorData<Double>)getRawData(index, dataType);
 
         if (data != null)
         {
             double value = data.value;
 
-            if (debugEnabled) globalTracer.traceInfo(funcName, "raw=%.3f", value);
+            tracer.traceDebug(instanceName, "raw=" + value);
             if (filters[index] != null)
             {
                 value = filters[index].filterData(value);
-                if (debugEnabled) globalTracer.traceInfo(funcName, "filtered=%.3f", value);
+                tracer.traceDebug(instanceName, "filtered=" + value);
             }
 
             if (calibrator != null)
             {
                 value = calibrator.getCalibratedData(index, value);
-                if (debugEnabled) globalTracer.traceInfo(funcName, "calibrated=%.3f", value);
+                tracer.traceDebug(instanceName, "calibrated=" + value);
             }
 
             value = signs[index] * (value - offsets[index]) * scales[index];
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "scaled=%.3f (sign=%.0f,scale=%f,offset=%f)",
-                    value, signs[index], scales[index], offsets[index]);
-            }
+            tracer.traceDebug(
+                instanceName,
+                "scaledValue=" + value +
+                "(sign=" + signs[index] +
+                ",scale=" + scales[index] +
+                ",offset=" + offsets[index] + ")");
             data.value = value;
         }
 

@@ -41,7 +41,7 @@ public class TrcWarpSpace
      * @param warpSpaceLowPoint specifies the low point of the warp range.
      * @param warpSpaceHighPoint specifies the high point of the warp range.
      */
-    public TrcWarpSpace(final String instanceName, double warpSpaceLowPoint, double warpSpaceHighPoint)
+    public TrcWarpSpace(String instanceName, double warpSpaceLowPoint, double warpSpaceHighPoint)
     {
         if (warpSpaceHighPoint > warpSpaceLowPoint)
         {

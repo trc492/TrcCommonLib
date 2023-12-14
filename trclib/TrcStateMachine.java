@@ -48,7 +48,7 @@ public class TrcStateMachine<T>
      *
      * @param instanceName specifies the instance name of the state machine.
      */
-    public TrcStateMachine(final String instanceName)
+    public TrcStateMachine(String instanceName)
     {
         this.instanceName = instanceName;
     }   //TrcStateMachine

@@ -77,7 +77,7 @@ public abstract class TrcTone
      * @param instanceName specifies the instance name.
      * @param defWaveform specifies the default waveform type.
      */
-    public TrcTone(final String instanceName, Waveform defWaveform)
+    public TrcTone(String instanceName, Waveform defWaveform)
     {
         this.instanceName = instanceName;
         this.defWaveform = defWaveform;

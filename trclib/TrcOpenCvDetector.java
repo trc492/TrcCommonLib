@@ -76,8 +76,8 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         boolean validateTarget(DetectedObject<?> object);
     }   //interface FilterTarget
 
+    protected final TrcDbgTrace tracer;
     protected final String instanceName;
-    private final TrcDbgTrace tracer;
     private final TrcHomographyMapper homographyMapper;
     private final TrcVisionTask<Mat, DetectedObject<?>> visionTask;
     private volatile TrcOpenCvPipeline<DetectedObject<?>> openCvPipeline = null;
@@ -89,15 +89,13 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      * @param numImageBuffers specifies the number of image buffers to allocate.
      * @param cameraRect specifies the camera rectangle for Homography Mapper, can be null if not provided.
      * @param worldRect specifies the world rectangle for Homography Mapper, can be null if not provided.
-     * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvDetector(
         String instanceName, int numImageBuffers, TrcHomographyMapper.Rectangle cameraRect,
-        TrcHomographyMapper.Rectangle worldRect, TrcDbgTrace tracer)
+        TrcHomographyMapper.Rectangle worldRect)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
-        this.tracer = tracer;
-
         if (cameraRect != null && worldRect != null)
         {
             homographyMapper = new TrcHomographyMapper(cameraRect, worldRect);
@@ -116,7 +114,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         }
 
         visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers);
-        visionTask.setPerfReportEnabled(tracer);
     }   //TrcOpenCvDetector
 
     /**
@@ -193,7 +190,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject<?>>> comparator,
         double objHeightOffset, double cameraHeight)
     {
-        final String funcName = instanceName + ".getDetectedTargetsInfo";
         TrcVisionTargetInfo<DetectedObject<?>>[] detectedTargets = null;
         DetectedObject<?>[] objects = visionTask.getDetectedObjects();
 
@@ -220,11 +216,11 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
                 }
             }
 
-            if (detectedTargets != null && tracer != null)
+            if (detectedTargets != null)
             {
                 for (int i = 0; i < detectedTargets.length; i++)
                 {
-                    tracer.traceInfo(funcName, "[%d] Target=%s", i, detectedTargets[i]);
+                    tracer.traceDebug(instanceName, "[" + i + "] Target=" + detectedTargets[i]);
                 }
             }
         }

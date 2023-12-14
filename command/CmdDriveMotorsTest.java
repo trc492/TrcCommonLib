@@ -22,8 +22,6 @@
 
 package TrcCommonLib.command;
 
-import java.util.Locale;
-
 import TrcCommonLib.trclib.TrcDashboard;
 import TrcCommonLib.trclib.TrcDbgTrace;
 import TrcCommonLib.trclib.TrcEvent;
@@ -44,10 +42,10 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
         DONE
     }   //enum State
 
-    private static final String moduleName = "CmdDriveMotorsTest";
+    private static final String moduleName = CmdDriveMotorsTest.class.getSimpleName();
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
     private final TrcMotor[] motors;
     private final double driveTime;
     private final double drivePower;
@@ -119,15 +117,15 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
         {
             StringBuilder msg = new StringBuilder("Enc:");
 
-            for (int i = 0; i < motors.length; i++)
+            for (TrcMotor motor : motors)
             {
-                if (motors[i] != null)
+                if (motor != null)
                 {
-                    msg.append(String.format(Locale.US, " %s=%6.2f", motors[i], motors[i].getPosition()));
+                    msg.append(" ").append(motor).append("=").append(motor.getPosition());
                 }
             }
-            dashboard.displayPrintf(1, "Motors Test: state=%s, index=%d", state, motorIndex);
-            dashboard.displayPrintf(2, "%s", msg);
+            dashboard.displayPrintf(1, "Motors Test: state=" + state + ", index=" + motorIndex);
+            dashboard.displayPrintf(2, msg.toString());
     
             switch (state)
             {
@@ -163,7 +161,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                     break;
             }
 
-            globalTracer.traceStateInfo(sm.toString(), state);
+            tracer.traceStateInfo(sm.toString(), state);
         }
 
         return !sm.isEnabled();

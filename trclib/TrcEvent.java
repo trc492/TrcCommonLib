@@ -83,7 +83,7 @@ public class TrcEvent
     @Override
     public String toString()
     {
-        return String.format("(%s=%s)", instanceName, eventState.get());
+        return "(" + instanceName + "=" + eventState.get() + ")";
     }   //toString
 
     /**

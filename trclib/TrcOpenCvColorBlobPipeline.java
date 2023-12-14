@@ -35,7 +35,6 @@ import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -185,12 +184,13 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US,
-                "minArea=%.1f, minPerimeter=%.1f, width=(%.1f,%.1f), height=(%.1f,%.1f), solidity=(%.1f,%.1f), " +
-                "vertices=(%.0f,%.0f), aspectRatio=(%.1f,%.1f)",
-                minArea, minPerimeter, widthRange[0], widthRange[1], heightRange[0], heightRange[1], solidityRange[0],
-                solidityRange[1], verticesRange[0], verticesRange[1], aspectRatioRange[0], aspectRatioRange[1]);
+            return "minArea=" + minArea +
+                   ", minPerimeter=" + minPerimeter +
+                   ", width=(" + widthRange[0] + "," + widthRange[1] + ")" +
+                   ", height=(" + heightRange[0] + "," + heightRange[1] + ")" +
+                   ", solidity=(" + solidityRange[0] + "," + solidityRange[1] + ")" +
+                   ", vertices=(" + verticesRange[0] + "," + verticesRange[1] + ")" +
+                   ", aspectRatio=(" + aspectRatioRange[0] + "," + aspectRatioRange[1] + ")";
         }   //toString
 
     }   //class FilterContourParams
@@ -200,19 +200,19 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private static final int ANNOTATE_RECT_THICKNESS = 3;
     private static final double ANNOTATE_FONT_SCALE = 0.3;
 
+    private final TrcDbgTrace tracer;
+    private final TrcVisionPerformanceMetrics performanceMetrics;
     private final String instanceName;
     private final Integer colorConversion;
     private double[] colorThresholds;
     private final FilterContourParams filterContourParams;
     private final boolean externalContourOnly;
-    private final TrcDbgTrace tracer;
     private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
     private final Mat morphologyOutput = new Mat();
     private final Mat hierarchy = new Mat();
     private final Mat[] intermediateMats;
 
-    private final TrcVisionPerformanceMetrics performanceMetrics = new TrcVisionPerformanceMetrics();
     private final AtomicReference<DetectedObject[]> detectedObjectsUpdate = new AtomicReference<>();
     private int intermediateStep = 0;
     private boolean annotateEnabled = false;
@@ -233,23 +233,23 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
      * @param filterContourParams specifies the parameters for filtering contours, can be null if not provided.
      * @param externalContourOnly specifies true for finding external contours only, false otherwise (not applicable
      *        if filterContourParams is null).
-     * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvColorBlobPipeline(
         String instanceName, Integer colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
-        boolean externalContourOnly, TrcDbgTrace tracer)
+        boolean externalContourOnly)
     {
         if (colorThresholds == null || colorThresholds.length != 6)
         {
             throw new RuntimeException("colorThresholds must be an array of 6 doubles.");
         }
 
+        this.tracer = new TrcDbgTrace(instanceName);
+        this.performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
         this.instanceName = instanceName;
         this.colorConversion = colorConversion;
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
         this.externalContourOnly = externalContourOnly;
-        this.tracer = tracer;
         intermediateMats = new Mat[4];
         intermediateMats[0] = null;
         intermediateMats[1] = colorConversionOutput;
@@ -267,6 +267,16 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method returns its tracer used for tracing info.
+     *
+     * @return tracer.
+     */
+    public TrcDbgTrace getTracer()
+    {
+        return tracer;
+    }   //getTracer
 
     /**
      * This method returns the color threshold values.
@@ -381,7 +391,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             contoursOutput = filterContoursOutput;
         }
         performanceMetrics.logProcessingTime(startTime);
-        performanceMetrics.printMetrics(tracer);
+        performanceMetrics.printMetrics();
 
         if (contoursOutput.size() > 0)
         {

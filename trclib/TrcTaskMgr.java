@@ -192,7 +192,7 @@ public class TrcTaskMgr
          * @param taskName specifies the instance name of the task.
          * @param task specifies the object that implements the TrcTaskMgr.Task interface.
          */
-        private TaskObject(final String taskName, Task task)
+        private TaskObject(String taskName, Task task)
         {
             this.taskName = taskName;
             this.task = task;
@@ -507,7 +507,7 @@ public class TrcTaskMgr
      * @param task specifies the Task interface for this task.
      * @return created task object.
      */
-    public static TaskObject createTask(final String taskName, Task task)
+    public static TaskObject createTask(String taskName, Task task)
     {
         TaskObject taskObj;
 

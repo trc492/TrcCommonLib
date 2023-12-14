@@ -179,7 +179,7 @@ public class TrcPeriodicThread<T>
      * @param context specifies the task context to be passed to the periodic thread.
      * @param taskPriority specifies the periodic thread priority.
      */
-    public TrcPeriodicThread(final String instanceName, PeriodicTask task, Object context, int taskPriority)
+    public TrcPeriodicThread(String instanceName, PeriodicTask task, Object context, int taskPriority)
     {
         this.instanceName = instanceName;
         this.task = task;
@@ -195,7 +195,7 @@ public class TrcPeriodicThread<T>
      * @param task specifies the periodic task the thread is to execute.
      * @param context specifies the task context to be passed to the periodic thread.
      */
-    public TrcPeriodicThread(final String instanceName, PeriodicTask task, Object context)
+    public TrcPeriodicThread(String instanceName, PeriodicTask task, Object context)
     {
         this(instanceName, task, context, Thread.NORM_PRIORITY);
     }   //TrcPeriodicThread

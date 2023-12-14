@@ -72,7 +72,7 @@ public abstract class TrcGameController
      *                      null.
      */
     public TrcGameController(
-        final String instanceName, final double deadbandThreshold, final ButtonHandler buttonHandler)
+        final String instanceName, double deadbandThreshold, ButtonHandler buttonHandler)
     {
         this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
@@ -94,7 +94,7 @@ public abstract class TrcGameController
      * @param buttonHandler specifies the object that will handle the button events. If none provided, it is set to
      *                      null.
      */
-    public TrcGameController(final String instanceName, final ButtonHandler buttonHandler)
+    public TrcGameController(String instanceName, ButtonHandler buttonHandler)
     {
         this(instanceName, DEF_DEADBAND_THRESHOLD, buttonHandler);
     }   //TrcGameController

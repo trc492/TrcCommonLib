@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class TrcVisionTask<I, O>
 {
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcVisionProcessor<I, O> visionProcessor;
     private final I[] imageBuffers;
@@ -42,7 +43,7 @@ public class TrcVisionTask<I, O>
     private volatile boolean taskEnabled = false;
     private int imageIndex = 0;
 
-    private volatile TrcDbgTrace tracer = null;
+    private boolean perfReportEnabled = false;
     private double totalTime = 0.0;
     private long totalFrames = 0;
     private double taskStartTime = 0.0;
@@ -57,6 +58,7 @@ public class TrcVisionTask<I, O>
     public TrcVisionTask(
         String instanceName, TrcVisionProcessor<I, O> visionProcessor, I[] imageBuffers)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.visionProcessor = visionProcessor;
         this.imageBuffers = imageBuffers;
@@ -75,13 +77,23 @@ public class TrcVisionTask<I, O>
     }   //toString
 
     /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+    {
+        tracer.setTraceMessageLevel(msgLevel);
+    }   //setTraceLevel
+
+    /**
      * This method enables/disables vision processing performance report.
      *
-     * @param tracer specifies a tracer to enable performance report, null to disable.
+     * @param enabled specifies true to enable perf report, false to disable.
      */
-    public synchronized void setPerfReportEnabled(TrcDbgTrace tracer)
+    public synchronized void setPerfReportEnabled(boolean enabled)
     {
-        this.tracer = tracer;
+        perfReportEnabled = enabled;
     }   //setPerfReportEnabled
 
     /**
@@ -159,8 +171,6 @@ public class TrcVisionTask<I, O>
     private void visionTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "visionTask";
-
         if (visionProcessor.getFrame(imageBuffers[imageIndex]))
         {
             double startTime = TrcTimer.getCurrentTime();
@@ -173,12 +183,10 @@ public class TrcVisionTask<I, O>
             double elapsedTime = TrcTimer.getCurrentTime() - startTime;
             totalTime += elapsedTime;
             totalFrames++;
-            if (tracer != null)
-            {
-                tracer.traceInfo(
-                    funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
-                    totalTime/totalFrames, totalFrames/(TrcTimer.getCurrentTime() - taskStartTime));
-            }
+            tracer.traceDebug(
+                instanceName,
+                "AvgProcessTime=" + totalTime/totalFrames +
+                ", FrameRate=" + (totalFrames/(TrcTimer.getCurrentTime() - taskStartTime)));
 
             I output = visionProcessor.getSelectedOutput();
             if (output != null)

@@ -31,9 +31,6 @@ import java.util.Arrays;
  */
 public abstract class TrcI2cLEDPanel
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     private static final int I2C_BUFF_LEN = 32;
 
     /**
@@ -43,6 +40,7 @@ public abstract class TrcI2cLEDPanel
      */
     public abstract void asyncWriteData(byte[] data);
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
 
     /**
@@ -50,8 +48,9 @@ public abstract class TrcI2cLEDPanel
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcI2cLEDPanel(final String instanceName)
+    public TrcI2cLEDPanel(String instanceName)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
     }   //TrcI2cLEDPanel
 
@@ -144,20 +143,14 @@ public abstract class TrcI2cLEDPanel
         command += "~";
         int cmdLen = command.length();
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "sendCommand(%s)=%d", command, command.length());
-        }
+        tracer.traceDebug(instanceName, "sendCommand(" + command + ")=" + command.length());
         for (int i = 0; i < cmdLen; )
         {
             int len = Math.min(cmdLen - i, I2C_BUFF_LEN);
             if (len > 0)
             {
                 byte[] data = command.substring(i, i + len).getBytes();
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "asyncWrite%s=%d", Arrays.toString(data), data.length);
-                }
+                tracer.traceDebug(instanceName, "asyncWrite" + Arrays.toString(data) + "=" + data.length);
                 asyncWriteData(data);
                 i += len;
             }

@@ -48,7 +48,7 @@ public class TrcSongPlayer
      * @param instanceName specifies the instance name.
      * @param tone specifies the Tone player.
      */
-    public TrcSongPlayer(final String instanceName, final TrcTone tone)
+    public TrcSongPlayer(String instanceName, TrcTone tone)
     {
         this.instanceName = instanceName;
         this.tone = tone;

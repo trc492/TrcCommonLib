@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
-
 /**
  * This interface provides the definitions and methods for a sensor to be an odometry sensor. An odometry sensor
  * will report odometry data which contains both timestamp, position, velocity and acceleration information.
@@ -97,16 +95,21 @@ public interface TrcOdometrySensor
         {
             if (VERBOSE)
             {
-                return String.format(
-                    Locale.US, "(sensor=%s,prevTime=%.6f,currTime=%.6f,prevPos=%.0f,currPos=%.0f,vel=%.0f,accel=%.0f)",
-                    sensor, TrcTimer.getModeElapsedTime(prevTimestamp), TrcTimer.getModeElapsedTime(currTimestamp),
-                    prevPos, currPos, velocity, acceleration);
+                return "(sensor=" + sensor +
+                       ",prevTime=" + TrcTimer.getModeElapsedTime(prevTimestamp) +
+                       ",currTime=" + TrcTimer.getModeElapsedTime(currTimestamp) +
+                       ",prevPos=" + prevPos +
+                       ",currPos=" + currPos +
+                       ",vel=" + velocity +
+                       ",accel=" + acceleration + ")";
             }
             else
             {
-                return String.format(
-                    Locale.US, "(sensor=%s,timeStamp=%.6f,pos=%.0f,vel=%.0f,accel=%.0f)",
-                    sensor, TrcTimer.getModeElapsedTime(currTimestamp), currPos, velocity, acceleration);
+                return "(sensor=" + sensor +
+                       ",currTime=" + TrcTimer.getModeElapsedTime(currTimestamp) +
+                       ",currPos=" + currPos +
+                       ",vel=" + velocity +
+                       ",accel=" + acceleration + ")";
             }
         }   //toString
 

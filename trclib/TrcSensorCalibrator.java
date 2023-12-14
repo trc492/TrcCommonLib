@@ -44,7 +44,7 @@ public class TrcSensorCalibrator<D>
      * @param numAxes specifies the number of axes needs to be calibrated.
      * @param dataType specifies the sensor data type to be calibrated.
      */
-    public TrcSensorCalibrator(final String instanceName, TrcSensor<D> sensor, int numAxes, D dataType)
+    public TrcSensorCalibrator(String instanceName, TrcSensor<D> sensor, int numAxes, D dataType)
     {
         this.instanceName = instanceName;
         this.sensor = sensor;

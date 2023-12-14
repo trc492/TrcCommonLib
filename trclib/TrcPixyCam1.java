@@ -113,7 +113,7 @@ public abstract class TrcPixyCam1
      * @param instanceName specifies the instance name.
      * @param msbFirst specifies true if a word has MSB first.
      */
-    public TrcPixyCam1(final String instanceName, boolean msbFirst)
+    public TrcPixyCam1(String instanceName, boolean msbFirst)
     {
         this.instanceName = instanceName;
         this.msbFirst = msbFirst;

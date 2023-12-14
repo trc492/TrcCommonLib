@@ -39,6 +39,14 @@ public abstract class TrcDashboard
     public abstract void refreshDisplay();
 
     /**
+     * This method displays a message in the specified display line on the Driver Station.
+     *
+     * @param lineNum specifies the line number on the display.
+     * @param msg specifies the message string.
+     */
+    public abstract void displayPrintf(int lineNum, String msg);
+
+    /**
      * This method displays a formatted message in the specified display line on the Driver Station.
      *
      * @param lineNum specifies the line number on the display.

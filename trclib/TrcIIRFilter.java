@@ -55,7 +55,7 @@ public class TrcIIRFilter extends TrcFilter
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcIIRFilter(final String instanceName)
+    public TrcIIRFilter(String instanceName)
     {
         this(instanceName, DEF_WEIGHT);
     }   //TrcIIRFilter

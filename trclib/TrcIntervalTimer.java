@@ -40,7 +40,7 @@ public class TrcIntervalTimer
      * @param instanceName specifies the name to identify this instance of the timer.
      * @param interval specifies the interval of the timer in seconds.
      */
-    public TrcIntervalTimer(final String instanceName, final double interval)
+    public TrcIntervalTimer(String instanceName, double interval)
     {
         this.instanceName = instanceName;
         this.interval = interval;

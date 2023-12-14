@@ -43,7 +43,7 @@ public class TrcKalmanFilter extends TrcFilter
      * @param kQ specifies the KQ constant.
      * @param kR specifies the KR constant.
      */
-    public TrcKalmanFilter(final String instanceName, double kQ, double kR)
+    public TrcKalmanFilter(String instanceName, double kQ, double kR)
     {
         super(instanceName);
 
@@ -57,7 +57,7 @@ public class TrcKalmanFilter extends TrcFilter
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcKalmanFilter(final String instanceName)
+    public TrcKalmanFilter(String instanceName)
     {
         this(instanceName, DEF_KQ, DEF_KR);
     }   //TrcKalmanFilter

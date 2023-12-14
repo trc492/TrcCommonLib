@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 
 /**
  * This class implements a platform independent Emic2 text to speech device that is connected to a Serial Port.
@@ -133,7 +132,7 @@ public abstract class TrcEmic2TextToSpeech
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcEmic2TextToSpeech(final String instanceName)
+    public TrcEmic2TextToSpeech(String instanceName)
     {
         tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
@@ -176,7 +175,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void playDemoMessage(DemoMsg msg)
     {
-        asyncWriteString(String.format(Locale.US, "D%d\n", msg.value), false);
+        asyncWriteString("D" + msg.value + "\n", false);
         asyncReadString(RequestId.PROMPT);
     }   //playDemoMessage
 
@@ -203,7 +202,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void selectVoice(Voice voice)
     {
-        asyncWriteString(String.format(Locale.US, "N%d\n", voice.value), false);
+        asyncWriteString("N" + voice.value + "\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
     }   //selectVoice
@@ -224,7 +223,7 @@ public abstract class TrcEmic2TextToSpeech
             vol = MAX_VOLUME;
         }
 
-        asyncWriteString(String.format(Locale.US, "V%d\n", vol), false);
+        asyncWriteString("V" + vol + "\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
     }   //setVolume
@@ -252,7 +251,7 @@ public abstract class TrcEmic2TextToSpeech
             throw new IllegalArgumentException("Invalid speaking rate, must be between 75 to 600 words/min.");
         }
 
-        asyncWriteString(String.format(Locale.US, "W%d\n", rate), false);
+        asyncWriteString("W" + rate + "\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
     }   //setSpeakingRate
@@ -264,7 +263,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void setLanguage(Language lang)
     {
-        asyncWriteString(String.format(Locale.US, "L%d\n", lang.value), false);
+        asyncWriteString("L" + lang.value + "\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
     }   //setLanguage
@@ -276,7 +275,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public void selectParser(Parser parser)
     {
-        asyncWriteString(String.format(Locale.US, "P%d\n", parser.value), false);
+        asyncWriteString("P" + parser.value + "\n", false);
         asyncReadString(RequestId.PROMPT);
         configMsg = null;
     }   //selectParser

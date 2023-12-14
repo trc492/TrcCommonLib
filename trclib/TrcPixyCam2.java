@@ -377,7 +377,7 @@ public abstract class TrcPixyCam2
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcPixyCam2(final String instanceName)
+    public TrcPixyCam2(String instanceName)
     {
         this.instanceName = instanceName;
     }   //TrcPixyCam2

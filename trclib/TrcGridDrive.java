@@ -219,7 +219,10 @@ public class TrcGridDrive
         // Do not change the heading, use original robot pose heading. We are resetting just the position.
         cellCenterPose.angle = robotPose.angle;
         driveBase.setFieldPosition(cellCenterPose);
-        tracer.traceDebug(moduleName, "robotPose=%s, cellCenterPose=%s", robotPose, cellCenterPose);
+        tracer.traceDebug(
+            moduleName,
+            "robotPose=" + robotPose +
+            ", cellCenterPose=" + cellCenterPose);
     }   //resetGridCellCenter
 
     /**
@@ -265,7 +268,10 @@ public class TrcGridDrive
         if (xGridCells != 0 && yGridCells == 0 || yGridCells != 0 && xGridCells == 0)
         {
             gridDriveQueue.add(new TrcPose2D(xGridCells, yGridCells, 0.0));
-            tracer.traceDebug(moduleName, "CellUnits=%d/%d (QSize=%d)", xGridCells, yGridCells, gridDriveQueue.size());
+            tracer.traceDebug(
+                moduleName,
+                "CellUnits=" + xGridCells + "/" + yGridCells +
+                " (QSize=" + gridDriveQueue.size() + ")");
             setTaskEnabled(true);
         }
     }   //setRelativeGridTarget
@@ -313,7 +319,7 @@ public class TrcGridDrive
 
             pathBuilder.append(gridCellToPose(endGridCell)).append(endPoint);
             TrcPath path = pathBuilder.toRelativeStartPath();
-            tracer.traceDebug(moduleName, "EndPoint=%s, DrivePath=%s", endPoint, path);
+            tracer.traceDebug(moduleName, "EndPoint=" + endPoint + ", DrivePath=" + path);
             callbackEvent.setCallback(this::driveDone, null);
             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
@@ -358,8 +364,10 @@ public class TrcGridDrive
             // The first point of the path is center of the grid cell the robot is on.
             TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(startGridPose);
             tracer.traceVerbose(
-                moduleName, "##### robotPose=%s, startGridPose=%s, QSize=%d",
-                robotPose, startGridPose, gridDriveQueue.size());
+                moduleName,
+                "##### robotPose=" + robotPose +
+                ", startGridPose=" + startGridPose +
+                ", QSize=" + gridDriveQueue.size());
 
             boolean deferSegment = false;
             while (gridDriveQueue.size() > 0)
@@ -367,7 +375,9 @@ public class TrcGridDrive
                 TrcPose2D nextSegment = gridDriveQueue.get(0);
 
                 tracer.traceVerbose(
-                    moduleName, "Adjacent Segments: prevSegment=%s, nextSegment=%s", prevSegment, nextSegment);
+                    moduleName,
+                    "Adjacent Segments: prevSegment=" + prevSegment +
+                    ", nextSegment=" + nextSegment);
                 if (!willTurn(prevSegment, nextSegment))
                 {
                     // Not turning, can coalesce the nextSegment to the prevSegment.
@@ -375,8 +385,9 @@ public class TrcGridDrive
                     prevSegment.y += nextSegment.y;
                     gridDriveQueue.remove(nextSegment);
                     tracer.traceVerbose(
-                        moduleName, "Coalesced compatible segments: prevSegment=%s (QSize=%d)",
-                        prevSegment, gridDriveQueue.size());
+                        moduleName,
+                        "Coalesced compatible segments: prevSegment=" + prevSegment +
+                        " (QSize=" + gridDriveQueue.size() + ")");
                     deferSegment = true;
                 }
                 else
@@ -483,8 +494,10 @@ public class TrcGridDrive
                     gridDriveQueue.remove(nextSegment);
                     tracer.traceVerbose(
                         moduleName,
-                        "Turn Adjustments: prevEndPoint=%s, nextStartPoint=%s, nextSegPoint=%s (QSize=%d)",
-                        prevEndPoint, nextStartPoint, nextSegmentPoint, gridDriveQueue.size());
+                        "Turn Adjustments: prevEndPoint=" + prevEndPoint +
+                        ", nextStartPoint=" + nextStartPoint +
+                        ", nextSegPoint=" + nextSegmentPoint +
+                        " (QSize=" + gridDriveQueue.size() + ")");
                     prevSegment = nextSegmentPoint;
                     deferSegment = false;
                 }

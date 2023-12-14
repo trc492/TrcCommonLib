@@ -27,7 +27,6 @@ import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.Stack;
 
 /**
@@ -122,7 +121,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format("(pos=%s,vel=%s)", position, velocity);
+            return "(pos=" + position + ",vel=" + velocity + ")";
         }   //toString
 
         /**
@@ -169,7 +168,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
         public String toString()
         {
-            return String.format(Locale.US, "odometry%s", Arrays.toString(currMotorOdometries));
+            return "odometry" + Arrays.toString(currMotorOdometries);
         }   //toString
 
     }   //class MotorsState
@@ -236,7 +235,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     private String driveOwner = null;
     protected double stallStartTime = 0.0;
     protected double stallVelThreshold = 0.0;
-    private TrcOdometryWheel driveBaseOdometry = null;
+    private TrcOdometryWheels driveBaseOdometry = null;
     protected MotorPowerMapper motorPowerMapper = null;
     private double sensitivity = DEF_SENSITIVITY;
 
@@ -881,7 +880,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      *
      * @param driveBaseOdometry specifies the drive base odometry device.
      */
-    public void setDriveBaseOdometry(TrcOdometryWheel driveBaseOdometry)
+    public void setDriveBaseOdometry(TrcOdometryWheels driveBaseOdometry)
     {
         synchronized (odometry)
         {

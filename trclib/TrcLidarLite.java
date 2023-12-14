@@ -29,9 +29,6 @@ import java.util.Arrays;
  */
 public class TrcLidarLite
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     public enum RequestId
     {
         READ_DISTANCE,
@@ -127,6 +124,7 @@ public class TrcLidarLite
 //    private static final byte PWRCTRL_DISABLE_RECEIVER  = (byte)0x01;//Disable receiver circuit
 //    private static final byte PWRCTRL_DEVICE_SLEEP      = (byte)0x04;//Device Sleep, wakes upon I2C transaction
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcSerialBusDevice device;
     private final TrcEvent notifyEvent;
@@ -163,6 +161,7 @@ public class TrcLidarLite
      */
     public TrcLidarLite(String instanceName, TrcSerialBusDevice device)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.device = device;
         notifyEvent = new TrcEvent(instanceName + ".notifyEvent");
@@ -175,10 +174,7 @@ public class TrcLidarLite
     {
         if (!started)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Starting Lidar");
-            }
+            tracer.traceDebug(instanceName, "Starting Lidar.");
             started = true;
             writeAcquisitionCommand(ACQCMD_DISTANCE_WITH_BIAS);
         }
@@ -207,11 +203,7 @@ public class TrcLidarLite
              requestId = null;
              break;
      }
-
-     if (debugEnabled)
-     {
-         globalTracer.traceInfo(instanceName, "Id=%s,data=%s", requestId, Arrays.toString(data));
-     }
+     tracer.traceDebug(instanceName, "Id=" + requestId + ",data=" + Arrays.toString(data));
      notifyEvent.setCallback(this::notify, null);
      device.asyncWrite(requestId, REG_ACQ_COMMAND, data, data.length, notifyEvent);
  }   //writeAcquistionCommand
@@ -449,7 +441,7 @@ public class TrcLidarLite
 //                //
 //                // We should never come here. Let's throw an exception to catch this unlikely scenario.
 //                //
-//                throw new IllegalStateException(String.format("Unexpected request ID %s.", requestId));
+//                throw new IllegalStateException("Unexpected request ID " + requestId));
 //        }
 //    }   //processData
 

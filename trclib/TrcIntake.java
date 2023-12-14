@@ -22,8 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
-
 /**
  * This class implements a platform independent auto-assist intake subsystem. It contains a motor or a continuous
  * servo and a sensor that detects if the intake has captured objects. It provides the autoAssist method that allows
@@ -40,9 +38,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public static class Parameters
     {
-        public TrcDbgTrace msgTracer = null;
         public Double analogThreshold = null;
         public boolean analogTriggerInverted = false;
+        public TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
 
         /**
          * This method returns the string form of all the parameters.
@@ -52,21 +50,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "analogThreshold=%s,analogTriggerInverted=%s", analogThreshold, analogTriggerInverted);
+            return "analogThreshold=" + analogThreshold +
+                   ", analogTriggerInverted=" + analogTriggerInverted +
+                   ", msgLevel=" + msgLevel;
         }   //toString
-
-        /**
-         * This method sets the message tracer for logging trace messages.
-         *
-         * @param tracer specifies the tracer for logging messages.
-         * @return this parameter object.
-         */
-        public Parameters setMsgTracer(TrcDbgTrace tracer)
-        {
-            this.msgTracer = tracer;
-            return this;
-        }   //setMsgTracer
 
         /**
          * This method sets the anlog sensor threshold value.
@@ -82,6 +69,18 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.analogTriggerInverted = triggerInverted;
             return this;
         }   //setAnalogThreshold
+
+        /**
+         * This method sets the message tracer for logging trace messages.
+         *
+         * @param msgLevel specifies the message level.
+         * @return this parameter object.
+         */
+        public Parameters setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+        {
+            this.msgLevel = msgLevel;
+            return this;
+        }   //setTraceLevel
 
     }   //class Parameters
 
@@ -112,13 +111,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "intake=%s,intakePower=%.1f,retainPower=%.1f,finishDelay=%.3f,event=%s,timeout=%.3f",
-                intake, intakePower, retainPower, finishDelay, event, timeout);
+            return "intake=" + intake +
+                   ", intakePower=" + intakePower +
+                   ", retainPower=" + retainPower +
+                   ", finishDelay=" + finishDelay +
+                   ", event=" + event +
+                   ", timeout=" + timeout;
         }   //toString
 
     }   //class ActionParams
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcMotor motor;
     private final Parameters params;
@@ -143,11 +146,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
         String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
         TrcEvent.Callback eventCallback)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.motor = motor;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.eventCallback = eventCallback;
+        tracer.setTraceMessageLevel(params.msgLevel);
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcIntake
@@ -172,9 +177,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
     @Override
     public String toString()
     {
-        return String.format(
-            Locale.US, "%s: pwr=%.3f, current=%.3f, autoAssistActive=%s, hasObject=%s",
-            instanceName, getPower(), motor.getMotorCurrent(), isAutoAssistActive(), hasObject());
+        return instanceName +
+               ": pwr=" + getPower() +
+               ", current=" + motor.getMotorCurrent() +
+               ", autoAssistActive=" + isAutoAssistActive() +
+               ", hasObject=" + hasObject();
     }   //toString
 
     /**
@@ -275,18 +282,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void finishAutoAssist(boolean canceled)
     {
-        final String funcName = "finishAutoAssist";
-
         if (isAutoAssistActive())
         {
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(
-                    funcName, "[%.3f] canceled=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
-                    TrcTimer.getModeElapsedTime(), canceled, timerEvent.isSignaled(), hasObject(),
-                    actionParams.finishDelay);
-            }
-
+            tracer.traceDebug(
+                instanceName,
+                "canceled=" + canceled +
+                ", autoAssistTimedOut=" + timerEvent.isSignaled() +
+                ", hasObject=" + hasObject() +
+                ", finishDelay=" + actionParams.finishDelay);
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
@@ -322,20 +325,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void performAutoAssist(Object context)
     {
-        final String funcName = "performAutoAssist";
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
 
         if (actionParams.intake ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or dumping object and we still have one.
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(
-                    funcName, "[%.3f] AutoAssist: %s, hasObject=%s",
-                    TrcTimer.getModeElapsedTime(), actionParams, objCaptured);
-            }
-
+            tracer.traceDebug(instanceName, "AutoAssist: " + actionParams + ", hasObject=" + objCaptured);
             motor.setPower(actionParams.intakePower);
             sensorTrigger.enableTrigger(this::triggerCallback);
 
@@ -348,11 +344,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         else
         {
             // Picking up object but we already have one, or dumping object but there isn't any.
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(funcName, "Already done: hasObject=%s", objCaptured);
-            }
-
+            tracer.traceDebug(instanceName, "Already done: hasObject=" + objCaptured);
             finishAutoAssist(false);
         }
     }   //performAutoAssist

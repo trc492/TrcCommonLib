@@ -166,7 +166,7 @@ public abstract class TrcRGBLight
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcRGBLight(final String instanceName)
+    public TrcRGBLight(String instanceName)
     {
         this.instanceName = instanceName;
         rgbLightTaskObj = TrcTaskMgr.createTask(instanceName + ".rgbLightTask", this::rgbLightTask);

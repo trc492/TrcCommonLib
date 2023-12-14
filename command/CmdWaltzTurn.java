@@ -38,16 +38,15 @@ import TrcCommonLib.trclib.TrcStateMachine;
  */
 public class CmdWaltzTurn implements TrcRobot.RobotCommand
 {
+    private static final String moduleName = CmdWaltzTurn.class.getSimpleName();
     private static enum State
     {
         WALTZ_TURN,
         DONE
     }   //enum State
 
-    private static final String moduleName = "CmdWaltzTurn";
-
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
     private final TrcDriveBase driveBase;
     private final TrcPidDrive pidDrive;
     private final TrcEvent event;
@@ -157,7 +156,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
                     break;
             }
 
-            globalTracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
+            tracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
         }
 
         return !sm.isEnabled();
