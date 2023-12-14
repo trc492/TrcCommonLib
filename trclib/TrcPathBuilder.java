@@ -28,7 +28,7 @@ import java.util.ArrayList;
  * This class builds a TrcPath for path following drive. The path can be built from two types of waypoints:
  * INCREMENTAL_PATH - points in the path are relative to their previous points.
  * REFERENCE_FRAME_PATH - points in the path are in the same reference frame as the starting pose.
- *
+ * <p>
  * For example, in traditional PID drive:
  * If the robot starts at the absolute field position of (x=48.0, y=12.0, heading=0.0) and we would want to
  * specify a path with 3 segments of relative movement:
@@ -36,12 +36,13 @@ import java.util.ArrayList;
  * 2. turn left 90 degrees.
  * 3. strafe right 36 inches.
  * At the end, the robot will be at (x=48.0, y=72.0, heading=-90.0).
- *
+ * </p>
+ * <p>
  * In INCREMENTAL_PATH mode, we would do:
  * TrcPathBuilder pathBuilder = new TrcPathBuilder(driveBase.getFieldPosition(), true)
  *                                  .append(new TrcPose2D(0.0, 24.0, -90.0))
  *                                  .append(new TrcPose2D(36.0, 0.0, 0.0));
- *
+ * </p>
  * In REFERENCE_FRAME_PATH mode, we would do:
  * TrcPathBuilder pathBuilder = new TrcPathBuilder(driveBase.getFieldPosition(), false)
  *                                  .append(driveBase.getFieldPosition())

@@ -45,7 +45,7 @@ public class TrcPath
         return new TrcPath(inDegrees, TrcWaypoint.loadPointsFromCsv(path, loadFromResources));
     }   //loadPathFromCsv
 
-    private TrcWaypoint[] waypoints;
+    private final TrcWaypoint[] waypoints;
     private boolean inDegrees;
 
     /**
@@ -85,7 +85,7 @@ public class TrcPath
     @Override
     public String toString()
     {
-        return String.format("TrcPath(degrees=%b, %s)", isInDegrees(), Arrays.toString(waypoints));
+        return "TrcPath(degrees=" + isInDegrees() + ", " + Arrays.toString(waypoints) + ")";
     }   //toString
 
     /**

@@ -33,8 +33,8 @@ import java.util.HashMap;
  */
 public class TrcOwnershipMgr
 {
-    private static TrcOwnershipMgr instance = new TrcOwnershipMgr();
-    private HashMap<TrcExclusiveSubsystem, String> ownershipMap;
+    private final static TrcOwnershipMgr instance = new TrcOwnershipMgr();
+    private final HashMap<TrcExclusiveSubsystem, String> ownershipMap;
 
     /**
      * This method is called to get the instance of the Ownership manager.
@@ -103,9 +103,8 @@ public class TrcOwnershipMgr
         if (!success && owner != null)
         {
             throw new IllegalStateException(
-                String.format(
-                    "%s does not have exclusive ownership of the subsystem %s (owner=%s).",
-                    owner, subsystem, getOwner(subsystem)));
+                owner + " does not have exclusive ownership of the subsystem " + subsystem +
+                " (owner=" + getOwner(subsystem) + ").");
         }
 
         return success;

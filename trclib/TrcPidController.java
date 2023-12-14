@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.EmptyStackException;
-import java.util.Locale;
 import java.util.Stack;
 
 /**
@@ -32,8 +31,6 @@ import java.util.Stack;
  */
 public class TrcPidController
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-
     public static final double DEF_SETTLING_TIME = 0.2;
     private static final double DEF_STALL_DETECTION_DELAY = 0.5;
     private static final double DEF_STALL_DETECTION_TIMEOUT = 0.2;
@@ -120,7 +117,7 @@ public class TrcPidController
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "(PIDFiZone:%f,%f,%f,%f,%f)", kP, kI, kD, kF, iZone);
+            return "(PIDFiZone:" + kP + "," + kI + "," + kD + "," + kF + "," + iZone + ")";
         }   //toString
 
         /**
@@ -273,8 +270,7 @@ public class TrcPidController
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "pidCoeff=%s,tolerance=%.3f,settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
+            return "pidCoeff=" + pidCoeff + ",tolerance=" + tolerance + ",settlingTime=" + settlingTime;
         }   //toString
 
     }   //class PidParameters
@@ -318,10 +314,9 @@ public class TrcPidController
         double stallDetectionTimeout = 0.0;
         double stallErrorRateThreshold = 0.0;
         Double stallDetectionStartTime = null;
-        // Tracing.
-        boolean infoEnabled = false;
-        boolean debugEnabled = false;
-        boolean verboseTrace = false;
+        // Tracing Config.
+        boolean verbosePidInfo = false;
+        TrcRobotBattery battery = null;
 
         /**
          * This method resets the PID controller state.
@@ -348,14 +343,13 @@ public class TrcPidController
     }   //class PidCtrlState
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final PidParameters pidParams;
 
     private boolean inverted = false;
     private boolean absSetPoint = false;
     private boolean noOscillation = false;
-    private double minTarget = 0.0;
-    private double maxTarget = 0.0;
     private double minOutput = -1.0;
     private double maxOutput = 1.0;
     private double outputLimit = 1.0;
@@ -371,6 +365,7 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidParameters pidParams)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.pidParams = pidParams;
     }   //TrcPidController
@@ -419,6 +414,44 @@ public class TrcPidController
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel, boolean verbosePidInfo, TrcRobotBattery battery)
+    {
+        synchronized (pidCtrlState)
+        {
+            tracer.setTraceMessageLevel(msgLevel);
+            pidCtrlState.verbosePidInfo = verbosePidInfo;
+            pidCtrlState.battery = battery;
+        }
+    }   //setTraceLevel
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel, boolean verbosePidInfo)
+    {
+        setTraceLevel(msgLevel, verbosePidInfo, null);
+    }   //setTraceLevel
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+    {
+        setTraceLevel(msgLevel, false, null);
+    }   //setTraceLevel
 
     /**
      * This method returns the PID parameters.
@@ -786,20 +819,6 @@ public class TrcPidController
             {
                 error *= -1.0;
             }
-            //
-            // If there is a valid target range, limit the set point to this range.
-            //
-            if (maxTarget > minTarget)
-            {
-                if (pidCtrlState.setPoint > maxTarget)
-                {
-                    pidCtrlState.setPoint = maxTarget;
-                }
-                else if (pidCtrlState.setPoint < minTarget)
-                {
-                    pidCtrlState.setPoint = minTarget;
-                }
-            }
 
             if (resetError)
             {
@@ -892,10 +911,7 @@ public class TrcPidController
                     stalled = currTime > pidCtrlState.stallDetectionStartTime + pidCtrlState.stallDetectionTimeout;
                     if (stalled)
                     {
-                        if (pidCtrlState.infoEnabled)
-                        {
-                            globalTracer.traceInfo(instanceName, "PID stalled.");
-                        }
+                        tracer.traceInfo(instanceName, "PID stalled.");
                     }
                 }
             }
@@ -940,23 +956,19 @@ public class TrcPidController
             else if (absErr > pidParams.tolerance)
             {
                 pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
-
-                if (pidCtrlState.debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        instanceName, "InProgress: err=%.3f, errRate=%.3f, tolerance=%.1f",
-                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
-                }
+                tracer.traceDebug(
+                    instanceName,
+                    "InProgress: err=" + pidCtrlState.currError +
+                    ", errRate=" + pidCtrlState.errorRate +
+                    ", tolerance=" + pidParams.tolerance);
             }
             else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
             {
-                if (pidCtrlState.debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        instanceName, "OnTarget: err=%.3f, errRate=%.3f, tolerance=%.1f",
-                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
-                }
-
+                tracer.traceDebug(
+                    instanceName,
+                    "OnTarget: err=" + pidCtrlState.currError +
+                    ", errRate=" + pidCtrlState.errorRate +
+                    ", tolerance=" + pidParams.tolerance);
                 onTarget = true;
             }
         }
@@ -1048,9 +1060,9 @@ public class TrcPidController
 
             pidCtrlState.output = output;
 
-            if (pidCtrlState.debugEnabled)
+            if (tracer.getTraceMessageLevel() == TrcDbgTrace.MsgLevel.DEBUG)
             {
-                printPidInfo(globalTracer, pidCtrlState.verboseTrace);
+                printPidInfo(tracer, pidCtrlState.verbosePidInfo, pidCtrlState.battery);
             }
 
             return pidCtrlState.output;
@@ -1080,72 +1092,44 @@ public class TrcPidController
      * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
      * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
      *
-     * @param tracer specifies the tracer object to print the PID info to.
+     * @param msgTracer specifies the tracer object to print the PID info to.
      * @param verbose specifies true to print verbose info, false to print summary info.
      * @param battery specifies the battery object to get battery info, can be null if not provided.
      */
-    public void printPidInfo(TrcDbgTrace tracer, boolean verbose, TrcRobotBattery battery)
+    public void printPidInfo(TrcDbgTrace msgTracer, boolean verbose, TrcRobotBattery battery)
     {
-        if (tracer == null)
+        StringBuilder sb = new StringBuilder();
+
+        if (msgTracer == null)
         {
-            tracer = globalTracer;
+            msgTracer = tracer;
         }
-        //
-        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device.
-        // Therefore, the following code does only one format call to minimize the performance impact.
-        //
-        if (tracer != null)
+
+        synchronized (pidCtrlState)
         {
-            synchronized (pidCtrlState)
+            sb.append("Target=").append(pidCtrlState.setPoint)
+              .append(", Input=").append(pidCtrlState.input)
+              .append(", dT=").append(pidCtrlState.deltaTime)
+              .append(", CurrErr=").append(pidCtrlState.currError)
+              .append(", ErrRate=").append(pidCtrlState.errorRate)
+              .append(", Output=").append(pidCtrlState.output)
+              .append("(").append(minOutput).append("/").append(maxOutput).append(")");
+
+            if (verbose)
             {
-                if (verbose)
-                {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            instanceName,
-                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
-                            "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, Volt=%.1f(%.1f)",
-                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
-                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, pidCtrlState.pTerm,
-                            pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm, battery.getVoltage(),
-                            battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            instanceName,
-                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
-                            "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
-                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
-                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, pidCtrlState.pTerm,
-                            pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
-                    }
-                }
-                else
-                {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            instanceName,
-                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
-                            "Output=%6.3f(%6.3f/%6.3f), Volt=%.1f(%.1f)",
-                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
-                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput, battery.getVoltage(),
-                            battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            instanceName,
-                            "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
-                            "Output=%6.3f(%6.3f/%6.3f)",
-                            pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
-                            pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput);
-                    }
-                }
+                sb.append(", PIDFTerms=").append(pidCtrlState.pTerm)
+                  .append("/").append(pidCtrlState.iTerm)
+                  .append("/").append(pidCtrlState.dTerm)
+                  .append("/").append(pidCtrlState.fTerm);
+            }
+
+            if (battery != null)
+            {
+                sb.append(", Volt=").append(battery.getVoltage())
+                  .append("(").append(battery.getLowestVoltage()).append(")");
             }
         }
+        msgTracer.traceInfo(instanceName, sb.toString());
     }   //printPidInfo
 
     /**
@@ -1178,23 +1162,5 @@ public class TrcPidController
     {
         printPidInfo(null, false, null);
     }   //printPidInfo
-
-    /**
-     * This method allows the caller to dynamically enable/disable tracing of various PID states. It is very useful
-     * for debugging or tuning PID control.
-     *
-     * @param infoEnabled specifies true to enable info tracing, false to disable.
-     * @param debugEnabled specifies true to enable debug tracing, false to disable.
-     * @param verbose specifies true to enable verbose trace mode, false to disable.
-     */
-    public void setTraceEnabled(boolean infoEnabled, boolean debugEnabled, boolean verbose)
-    {
-        synchronized (pidCtrlState)
-        {
-            pidCtrlState.infoEnabled = infoEnabled;
-            pidCtrlState.debugEnabled = debugEnabled;
-            pidCtrlState.verboseTrace = verbose;
-        }
-    }   //setTraceEnabled
 
 }   //class TrcPidController
