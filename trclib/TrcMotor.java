@@ -46,7 +46,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * controlling linear actuators. To make PID controller works for non-linear actuators, we need to add power
      * compensation that counteracts the non-linear component of the load so that PID only deals with the resulting
      * linear load. However, a generic PID controller doesn't understand the actuator and has no way to come up
-     * with the compensation. Therefore, it is up to the user of the TrcPIDMotor to provide this interface for
+     * with the compensation. Therefore, it is up to the user of the TrcMotor to provide this interface for
      * computing the output compensation.
      */
     public interface PowerCompensation
