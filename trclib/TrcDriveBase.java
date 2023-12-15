@@ -698,7 +698,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public void setOdometryScales(double xScale, double yScale, double angleScale)
     {
-        tracer.traceDebug(moduleName, "xScale=%f,yScale=%f,angleScale=%f", xScale, yScale, angleScale);
+        tracer.traceDebug(moduleName, "xScale=" + xScale + ",yScale=" + yScale + ",angleScale=" + angleScale);
         synchronized (odometry)
         {
             this.xScale = xScale;
@@ -813,8 +813,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     public void resetOdometry(boolean resetPositionOdometry, boolean resetHeadingOdometry, boolean resetHardware)
     {
         tracer.traceDebug(
-            moduleName, "resetPosOd=%s, resetHeadingOd=%s, resetHardware=%s",
-            resetPositionOdometry, resetHeadingOdometry, resetHardware);
+            moduleName,
+            "resetPosOd=" + resetPositionOdometry +
+            ", resetHeadingOd=" + resetHeadingOdometry +
+            ", resetHardware=" + resetHardware);
         synchronized (odometry)
         {
             clearReferenceOdometry();
@@ -1260,8 +1262,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         double rightOutput;
 
         tracer.traceDebug(
-            moduleName, "owner=%s,mag=%f,curve=%f,inverted=%s,driveTime=%.1f,event=%s",
-            owner, magnitude, curve, inverted, driveTime, event);
+            moduleName,
+            "owner=" + owner +
+            ",mag=" + magnitude +
+            ",curve=" + curve +
+            ",inverted=" + inverted +
+            ",driveTime=" + driveTime +
+            ",event=" + event);
         if (validateOwnership(owner))
         {
             if (curve < 0.0)
@@ -1379,8 +1386,13 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         double rightPower;
 
         tracer.traceDebug(
-            moduleName, "owner=%s,drivePower=%f,turnPower=%f,inverted=%s,driveTime=%.1f,event=%s",
-            owner, drivePower, turnPower, inverted, driveTime, event);
+            moduleName,
+            "owner=" + owner +
+            ",drivePower=" + drivePower +
+            ",turnPower=" + turnPower +
+            ",inverted=" + inverted +
+            ",driveTime=" + driveTime +
+            ",event=" + event);
         if (validateOwnership(owner))
         {
             drivePower = TrcUtil.clipRange(drivePower);
@@ -1881,14 +1893,18 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
                     if (SYNC_GYRO_DATA)
                     {
                         tracer.traceDebug(
-                            moduleName, "Gyro Before: timestamp=%.3f, pos=%.1f, vel=%.1f",
-                            gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
+                            moduleName,
+                            "Gyro Before: timestamp=" + gyroOdometry.currTimestamp +
+                            ", pos=" + gyroOdometry.currPos +
+                            ", vel=" + gyroOdometry.velocity);
                         double refTimestamp = motorsState.currMotorOdometries[0].currTimestamp;
                         gyroOdometry.currPos -= gyroOdometry.velocity * (gyroOdometry.currTimestamp - refTimestamp);
                         gyroOdometry.currTimestamp = refTimestamp;
                         tracer.traceDebug(
-                            moduleName, "Gyro After: timestamp=%.3f, pos=%.1f, vel=%.1f",
-                            gyroOdometry.currTimestamp, gyroOdometry.currPos, gyroOdometry.velocity);
+                            moduleName,
+                            "Gyro After: timestamp=" + gyroOdometry.currTimestamp +
+                            ", pos=" + gyroOdometry.currPos +
+                            ", vel=" + gyroOdometry.velocity);
                     }
                     // Overwrite the angle/turnrate values if gyro present, since that's more accurate
                     odometryDelta.position.angle = gyroOdometry.currPos - gyroOdometry.prevPos;
@@ -1897,7 +1913,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
                 updateOdometry(odometryDelta, odometry.position.angle);
                 tracer.traceDebug(
-                    moduleName, "motorsState=%s, delta=%s, odometry=%s", motorsState, odometryDelta, odometry);
+                    moduleName,
+                    "motorsState=" + motorsState +
+                    ", delta=" + odometryDelta +
+                    ", odometry=" + odometry);
             }
         }
     }   //odometryTask
@@ -1932,20 +1951,29 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
         for (int i = 0; i < lastIndex; i++)
         {
             tracer.traceDebug(
-                moduleName, "[%d] Before: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-                i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
-                odometries[i].velocity);
+                moduleName,
+                "[" + i +
+                "] Before: name=" + odometries[i].sensor +
+                ", timestamp=" + odometries[i].currTimestamp +
+                ", pos=" + odometries[i].currPos +
+                ", vel=" + odometries[i].velocity);
             odometries[i].currPos -= odometries[i].velocity * (odometries[i].currTimestamp - refTimestamp);
             odometries[i].currTimestamp = refTimestamp;
             tracer.traceDebug(
-                moduleName, "[%d] After: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-                i, odometries[i].sensor, odometries[i].currTimestamp, odometries[i].currPos,
-                odometries[i].velocity);
+                moduleName,
+                "[" + i +
+                "] After: name=" + odometries[i].sensor +
+                ", timestamp=" + odometries[i].currTimestamp +
+                ", pos=" + odometries[i].currPos +
+                ", vel=" + odometries[i].velocity);
         }
         tracer.traceDebug(
-            moduleName, "[%d] Reference: name=%s, timestamp=%.3f, pos=%.1f, vel=%.1f",
-            lastIndex, odometries[lastIndex].sensor, odometries[lastIndex].currTimestamp,
-            odometries[lastIndex].currPos, odometries[lastIndex].velocity);
+            moduleName,
+            "[" + lastIndex +
+            "] Reference: name=" + odometries[lastIndex].sensor +
+            ", timestamp=" + odometries[lastIndex].currTimestamp +
+            ", pos=" + odometries[lastIndex].currPos +
+            ", vel=" + odometries[lastIndex].velocity);
     }   //synchronizeOdometries
 
     /**

@@ -430,8 +430,13 @@ public class TrcPidDrive
         double xError = 0.0, yError = 0.0, turnError = 0.0;
 
         tracer.traceDebug(
-            instanceName, "x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
-            xTarget, yTarget, turnTarget, holdTarget, event.toString(), timeout);
+            instanceName,
+            "x=" + xTarget +
+            ",y=" + yTarget +
+            ",turn=" + turnTarget +
+            ",hold=" + holdTarget +
+            ",event=" + event +
+            ",timeout=" + timeout);
         if (xPidCtrl != null && yPidCtrl != null &&
             xPidCtrl.hasAbsoluteSetPoint() != yPidCtrl.hasAbsoluteSetPoint())
         {
@@ -589,8 +594,12 @@ public class TrcPidDrive
             double xTarget, yTarget, turnTarget;
 
             tracer.traceDebug(
-                instanceName, "owner=%s,xDelta=%.1f,yDelta=%.1f,turnDelta=%.1f,CurrPose:%s",
-                owner, xDelta, yDelta, turnDelta, absTargetPose);
+                instanceName,
+                "owner=" + owner +
+                ",xDelta=" + xDelta +
+                ",yDelta=" + yDelta +
+                ",turnDelta=" + turnDelta +
+                ",CurrPose=" + absTargetPose);
             if (absTargetModeEnabled)
             {
                 if (xDelta == 0.0 && yDelta == 0.0 && turnDelta != 0.0)
@@ -649,8 +658,11 @@ public class TrcPidDrive
             }
 
             tracer.traceDebug(
-                instanceName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                xTarget, yTarget, turnTarget, newTargetPose);
+                instanceName,
+                "xTarget=" + xTarget +
+                ", yTarget=" + yTarget +
+                ", turnTarget=" + turnTarget +
+                ", NewPose=" + newTargetPose);
             // The new target pose will become the updated absolute target pose.
             absTargetPose = newTargetPose;
             setTarget(xTarget, yTarget, turnTarget, holdTarget, event, timeout);
@@ -855,11 +867,19 @@ public class TrcPidDrive
                     newTargetPose.angle : newTargetPose.angle - currRobotPose.angle;
 
             tracer.traceDebug(
-                instanceName, "owner=%s,absX=%.1f,absY=%.1f,absHeading=%.1f,CurrPose:%s,absTargetPose=%s",
-                owner, absX, absY, absHeading, currRobotPose, absTargetPose);
+                instanceName,
+                "owner=" + owner +
+                ",absX=" + absX +
+                ",absY=" + absY +
+                ",absHeading=" + absHeading +
+                ",CurrPose=" + currRobotPose +
+                ",absTargetPose=" + absTargetPose);
             tracer.traceDebug(
-                instanceName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                relativePose.x, relativePose.y, turnTarget, newTargetPose);
+                instanceName,
+                "xTarget=" + relativePose.x +
+                ", yTarget=" + relativePose.y +
+                ", turnTarget=" + turnTarget +
+                ", NewPose=" + newTargetPose);
             if (noOscillation)
             {
                 //
@@ -1335,7 +1355,7 @@ public class TrcPidDrive
             {
                 beepDevice.playTone(beepFrequency, beepDuration);
             }
-            tracer.traceInfo(instanceName, "%s: Stalled=%s, Expired=%s", instanceName, stalled, expired);
+            tracer.traceInfo(instanceName, "Stalled=" + stalled + ", Expired=" + expired);
         }
 
         if (maintainHeading && driveBase.supportsHolonomicDrive())
@@ -1428,7 +1448,8 @@ public class TrcPidDrive
 
         if (logRobotPoseEvents)
         {
-            tracer.logEvent(instanceName, "RobotPose", "pose=\"%s\"", driveBase.getFieldPosition());
+            tracer.logEvent(
+                instanceName, "RobotPose", "pose=\"" + driveBase.getFieldPosition() + "\"");
         }
 
         if (tracePidInfo)

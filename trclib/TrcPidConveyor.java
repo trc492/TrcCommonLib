@@ -52,7 +52,7 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         {
             return "objDist=" + objectDistance +
                    ", movePower=" + movePower +
-                   ", maxCap=%d" + maxCapacity;
+                   ", maxCap=" + maxCapacity;
         }   //toString
 
         /**

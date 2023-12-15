@@ -223,7 +223,7 @@ public abstract class TrcI2cDevice
      */
     public synchronized void read(int regAddress, int length, CompletionHandler handler, double timeout)
     {
-        tracer.traceDebug(instanceName, "addr=%x,len=%d", regAddress, length);
+        tracer.traceDebug(instanceName, "addr=" + Integer.toHexString(regAddress) + ",len=" + length);
         requestQueue.add(new Request(regAddress, length, null, handler, timeout));
         //
         // If the PortCommand state machine is not already active, start it.
@@ -266,9 +266,10 @@ public abstract class TrcI2cDevice
      * @param handler specifies the completion handler to call when done. Can be null if none needed.
      * @param timeout specifies the timeout for the operation in seconds.
      */
-    public synchronized void write(int regAddress, int length, byte[] writeBuffer, CompletionHandler handler, double timeout)
+    public synchronized void write(
+        int regAddress, int length, byte[] writeBuffer, CompletionHandler handler, double timeout)
     {
-        tracer.traceDebug(instanceName, "addr=%x,len=%d", regAddress, length);
+        tracer.traceDebug(instanceName, "addr=" + Integer.toHexString(regAddress) + ",len=" + length);
         requestQueue.add(new Request(regAddress, length, writeBuffer, handler, timeout));
         //
         // If the PortCommand state machine is not already active, start it.
@@ -317,7 +318,7 @@ public abstract class TrcI2cDevice
 
         data[0] = command;
         write(regAddress, 1, data);
-        tracer.traceDebug(instanceName, "command=%x", command);
+        tracer.traceDebug(instanceName, "command=" + Integer.toHexString(command));
     }   //sendByteCommand
 
     /**
@@ -333,7 +334,7 @@ public abstract class TrcI2cDevice
         data[0] = (byte)(command & 0xff);
         data[1] = (byte)(command >> 8);
         write(regAddress, 2, data);
-        tracer.traceInfo(instanceName, "command=%x", command);
+        tracer.traceDebug(instanceName, "command=" + Integer.toHexString(command));
     }   //sendWordCommand
 
     /**
@@ -387,9 +388,10 @@ public abstract class TrcI2cDevice
                     if (isPortReady())
                     {
                         tracer.traceDebug(
-                            instanceName, "%s: Request(addr=%x,len=%d,%s)",
-                            state.toString(), currRequest.regAddress, currRequest.length,
-                            currRequest.writeBuffer == null? "read": "write");
+                            instanceName,
+                            state + ": Request(addr=" + Integer.toHexString(currRequest.regAddress) +
+                            ",len=" + currRequest.length +
+                            "," + (currRequest.writeBuffer == null? "read": "write") + ")");
                         dataRead = null;
                         if (currRequest.writeBuffer == null)
                         {

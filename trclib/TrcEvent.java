@@ -196,7 +196,7 @@ public class TrcEvent
                     // Callback handler is not already in the callback list, add it.
                     callbackEventList.eventList.add(this);
                     tracer.traceDebug(
-                        instanceName, "Adding event to the callback list for thread %s.", thread.getName());
+                        instanceName, "Adding event to the callback list for thread " + thread.getName() + ".");
                 }
                 else if (callback == null && inList)
                 {
@@ -204,13 +204,13 @@ public class TrcEvent
                     callbackEventList.eventList.remove(this);
                     this.callbackContext = null;
                     tracer.traceDebug(
-                        instanceName, "Removing event from the callback list for thread %s.", thread.getName());
+                        instanceName, "Removing event from the callback list for thread " + thread.getName() + ".");
                 }
             }
         }
         else
         {
-            tracer.traceWarn(instanceName, "Thread %s is not registered.", thread.getName());
+            tracer.traceWarn(instanceName, "Thread " + thread.getName() + " is not registered.");
             TrcDbgTrace.printThreadStack();
         }
     }   //setCallback
@@ -263,11 +263,12 @@ public class TrcEvent
             if (!alreadyRegistered)
             {
                 callbackEventListMap.put(thread, new CallbackEventList());
-                TrcDbgTrace.globalTraceDebug(moduleName, "Registering thread %s for event callback.", thread.getName());
+                TrcDbgTrace.globalTraceDebug(
+                    moduleName, "Registering thread " + thread.getName() + " for event callback.");
             }
             else
             {
-                TrcDbgTrace.globalTraceWarn(moduleName, "Thread %s is already registered.", thread.getName());
+                TrcDbgTrace.globalTraceWarn(moduleName, "Thread " + thread.getName() + " is already registered.");
                 TrcDbgTrace.printThreadStack();
             }
         }
@@ -293,12 +294,13 @@ public class TrcEvent
 
         if (callbackEventList == null)
         {
-            TrcDbgTrace.globalTraceWarn(moduleName, "Thread %s was never registered.", thread.getName());
+            TrcDbgTrace.globalTraceWarn(moduleName, "Thread " + thread.getName() + " was never registered.");
             TrcDbgTrace.printThreadStack();
         }
         else
         {
-            TrcDbgTrace.globalTraceDebug(moduleName, "Unregistering thread %s for event callback.", thread.getName());
+            TrcDbgTrace.globalTraceDebug(
+                moduleName, "Unregistering thread " + thread.getName() + " for event callback.");
         }
 
         return callbackEventList != null;
@@ -344,7 +346,7 @@ public class TrcEvent
             for (TrcEvent event: callbackList)
             {
                 TrcDbgTrace.globalTraceDebug(
-                    moduleName, "Doing event callback for %s on thread %s.", event, thread.getName());
+                    moduleName, "Doing event callback for " + event + " on thread " + thread.getName() + ".");
                 Callback callback = event.callback;
                 Object context = event.callbackContext;
                 // Clear the callback stuff before doing the callback since the callback may reuse and chain to
@@ -356,7 +358,7 @@ public class TrcEvent
         }
         else
         {
-            TrcDbgTrace.globalTraceWarn(moduleName, "%s was never registered.", thread.getName());
+            TrcDbgTrace.globalTraceWarn(moduleName, thread.getName() + " was never registered.");
             TrcDbgTrace.printThreadStack();
         }
     }   //performEventCallback

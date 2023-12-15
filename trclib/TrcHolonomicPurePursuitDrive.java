@@ -689,8 +689,14 @@ public class TrcHolonomicPurePursuitDrive
         double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
         tracer.traceDebug(
-            instanceName, "RobotPose=%s,RobotVel:%.2f,TargetPose=%s,TargetVel:%.2f,pathIndex=%d,r=%.2f,theta=%.1f",
-            pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
+            instanceName,
+            "RobotPose=" + pose +
+            ",RobotVel=" + velocity +
+            ",TargetPose=" + point.pose +
+            ",TargetVel=" + point.velocity +
+            ",pathIndex=" + pathIndex +
+            ",r=" + r +
+            ",theta=" + theta);
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = dist <= posTolerance;

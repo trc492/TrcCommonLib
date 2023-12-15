@@ -250,7 +250,7 @@ public abstract class TrcGameController
                     //
                     // Button is pressed.
                     //
-                    tracer.traceDebug(instanceName, "Button %x pressed", buttonMask);
+                    tracer.traceDebug(instanceName, "Button " +  Integer.toHexString(buttonMask)+ " pressed.");
                     buttonHandler.buttonEvent(this, buttonMask, true);
                 }
                 else
@@ -258,7 +258,7 @@ public abstract class TrcGameController
                     //
                     // Button is released.
                     //
-                    tracer.traceDebug(instanceName, "Button %x released", buttonMask);
+                    tracer.traceDebug(instanceName, "Button " +  Integer.toHexString(buttonMask)+ " released.");
                     buttonHandler.buttonEvent(this, buttonMask, false);
                 }
                 //

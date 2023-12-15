@@ -513,7 +513,7 @@ public class TrcGridDrive
             }
 
             TrcPath path = pathBuilder.toRelativeStartPath();
-            tracer.traceVerbose(moduleName, "GridDrivePath=%s", path);
+            tracer.traceVerbose(moduleName, "GridDrivePath=" + path);
             callbackEvent.setCallback(this::driveDone, null);
             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
