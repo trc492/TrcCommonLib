@@ -85,7 +85,7 @@ public class TrcGridDrive
      */
     public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
     {
-        tracer.setTraceMessageLevel(msgLevel);
+        tracer.setTraceLevel(msgLevel);
     }   //setTraceLevel
 
     /**

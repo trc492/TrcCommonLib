@@ -197,7 +197,7 @@ public class TrcPidDrive
         TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo,
         TrcRobotBattery battery)
     {
-        tracer.setTraceMessageLevel(msgLevel);
+        tracer.setTraceLevel(msgLevel);
         this.logRobotPoseEvents = logRobotPoseEvents;
         this.tracePidInfo = tracePidInfo;
         this.verbosePidInfo = verbosePidInfo;

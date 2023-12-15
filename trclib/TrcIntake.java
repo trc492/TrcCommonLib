@@ -152,7 +152,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.eventCallback = eventCallback;
-        tracer.setTraceMessageLevel(params.msgLevel);
+        tracer.setTraceLevel(params.msgLevel);
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcIntake

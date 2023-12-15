@@ -32,186 +32,6 @@ public class TrcDbgTrace
 {
     private static final String moduleName = TrcDbgTrace.class.getSimpleName();
 
-    //
-    // Deprecated: starts here
-    //
-    /**
-     * This enum specifies the different debug tracing levels. They are used in the traceEnter and traceExit methods.
-     */
-    public enum TraceLevel
-    {
-        QUIET(0),
-        INIT(1),
-        API(2),
-        CALLBK(3),
-        EVENT(4),
-        FUNC(5),
-        TASK(6),
-        UTIL(7),
-        HIFREQ(8);
-
-        private final int value;
-
-        TraceLevel(int value)
-        {
-            this.value = value;
-        }   //TraceLevel
-
-        public int getValue()
-        {
-            return this.value;
-        }   //getValue
-
-    }   //enum TraceLevel
-
-    private static int indentLevel = 0;
-    private boolean traceEnabled = false;
-    private TraceLevel traceLevel = TraceLevel.FUNC;
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param traceEnabled specifies true to enable debug tracing, false to disable.
-     * @param traceLevel specifies the trace level.
-     * @param msgLevel specifies the message level.
-     */
-    // Deprecated
-    public TrcDbgTrace(String instanceName, boolean traceEnabled, TraceLevel traceLevel, MsgLevel msgLevel)
-    {
-        this(null, instanceName, null);
-        setDbgTraceConfig(traceEnabled, msgLevel);
-    }   //TrcDbgTrace
-
-    /**
-     * This method sets the global tracer configuration. The OpMode trace object was created with default
-     * configuration of disabled method tracing, method tracing level is set to API and message trace level
-     * set to INFO. Call this method if you want to change the configuration.
-     *
-     * @param traceEnabled specifies true if enabling method tracing.
-     * @param msgLevel specifies the message level.
-     */
-    // Deprecated
-    public static void setGlobalTracerConfig(boolean traceEnabled, TrcDbgTrace.MsgLevel msgLevel)
-    {
-        globalTracer.setDbgTraceConfig(traceEnabled, msgLevel);
-    }   //setGlobalTracerConfig
-
-    /**
-     * This method sets the trace level, message level of the debug tracer. It can also enables/disables function
-     * tracing.
-     *
-     * @param traceEnabled specifies true to enable function tracing, false to disable.
-     * @param msgLevel specifies the message level.
-     */
-    public void setDbgTraceConfig(boolean traceEnabled, MsgLevel msgLevel)
-    {
-        this.traceEnabled = traceEnabled;
-        this.msgLevel = msgLevel;
-    }   //setDbgTraceConfig
-
-    /**
-     * This method is typically called at the beginning of a method to trace the entry parameters of the method.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param funcLevel specifies the trace level.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceEnter(String callerName, TraceLevel funcLevel, String format, Object... args)
-    {
-        if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
-        {
-            dbgLog.traceMsg(tracePrefix(callerName, true, false) + String.format(format, args) + ")\n");
-        }
-    }   //traceEnter
-
-    /**
-     * This method is typically called at the beginning of a method.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param funcLevel specifies the trace level.
-     */
-    public void traceEnter(String callerName, TraceLevel funcLevel)
-    {
-        if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
-        {
-            dbgLog.traceMsg(tracePrefix(callerName, true, true));
-        }
-    }   //traceEnter
-
-    /**
-     * This method is typically called at the end of a method to trace the return value of the method.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param funcLevel specifies the trace level.
-     * @param format specifies the format string of the message.
-     * @param args specifies the message arguments.
-     */
-    public void traceExit(String callerName, TraceLevel funcLevel, String format, Object... args)
-    {
-        if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
-        {
-            dbgLog.traceMsg(tracePrefix(callerName, false, false) + String.format(format, args) + "\n");
-        }
-    }   //traceExitMsg
-
-    /**
-     * This method is typically called at the end of a method.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param funcLevel specifies the trace level.
-     */
-    public void traceExit(String callerName, TraceLevel funcLevel)
-    {
-        if (traceEnabled && funcLevel.getValue() <= traceLevel.getValue())
-        {
-            dbgLog.traceMsg(tracePrefix(callerName, false, true));
-        }
-    }   //traceExit
-
-    /**
-     * This method returns a trace prefix string. The trace prefix includes the indentation, the instance name and
-     * calling method name.
-     *
-     * @param callerName specifies the name to identify the caller.
-     * @param enter specifies true if it is a traceEnter call, false if it is a traceExit call.
-     * @param newline specifies true if it should print a newline, false otherwise.
-     * @return trace prefix string.
-     */
-    private String tracePrefix(String callerName, boolean enter, boolean newline)
-    {
-        StringBuilder prefix = new StringBuilder();
-
-        if (enter)
-        {
-            indentLevel++;
-        }
-
-        for (int i = 0; i < indentLevel; i++)
-        {
-            prefix.append("| ");
-        }
-
-        String methodName = new Throwable().getStackTrace()[2].getMethodName();
-        prefix.append(callerName).append(".").append(methodName);
-
-        if (enter)
-        {
-            prefix.append(newline ? "()\n" : "(");
-        }
-        else
-        {
-            prefix.append(newline ? "!\n" : "");
-            indentLevel--;
-        }
-
-        return prefix.toString();
-    }   //tracePrefix
-    //
-    // Deprecated: ends here
-    //
-
     /**
      * This enum specifies the different debug message levels. They are used in the traceMsg methods.
      */
@@ -250,18 +70,7 @@ public class TrcDbgTrace
          * @param msg specifies the message.
          */
         void msg(MsgLevel level, String msg);
-        //
-        // Deprecated: starts here
-        //
-        /**
-         * This method is called to print a message to the debug console.
-         *
-         * @param msg specifies the message.
-         */
-        void traceMsg(String msg);
-        //
-        // Deprecated: ends here
-        //
+
     }   //interface DbgLog
 
     private static DbgLog dbgLog = null;
@@ -318,20 +127,20 @@ public class TrcDbgTrace
      *
      * @param msgLevel specifies the message level.
      */
-    public void setTraceMessageLevel(MsgLevel msgLevel)
+    public void setTraceLevel(MsgLevel msgLevel)
     {
         this.msgLevel = msgLevel;
-    }   //setTraceMessageLevel
+    }   //setTraceLevel
 
     /**
      * This method returns the trace message level.
      *
      * @return trace message level.
      */
-    public MsgLevel getTraceMessageLevel()
+    public MsgLevel getTraceLevel()
     {
         return msgLevel;
-    }   //getTraceMessageLevel
+    }   //getTraceLevel
 
     /**
      * This method returns a global debug trace object for tracing OpMode code. If it doesn't exist yet, one is

@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -107,9 +106,13 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "action=%s,power=%f,currPos=%f,targetPos=%f,currStepRate=%f,event=%s,timeout=%.3f",
-                actionType, power, currPosition, targetPosition, currStepRate, completionEvent, timeout);
+            return "action=" + actionType +
+                   ",power=" + power +
+                   ",currPos=" + currPosition +
+                   ",targetPos=" + targetPosition +
+                   ",currStepRate=" + currStepRate +
+                   ",event=" + completionEvent +
+                   ",timeout=" + timeout;
         }   //toString
     }   //class ActionParams
 
@@ -169,7 +172,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
     {
-        tracer.setTraceMessageLevel(msgLevel);
+        tracer.setTraceLevel(msgLevel);
     }   //setTraceLevel
 
     /**
@@ -247,7 +250,11 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setStepModeParams(double maxStepRate, double minPos, double maxPos)
     {
-        tracer.traceDebug(instanceName, "maxStepRate=%f,minPos=%f,maxPos=%f", maxStepRate, minPos, maxPos);
+        tracer.traceDebug(
+            instanceName,
+            "maxStepRate=" + maxStepRate +
+            ", minPos=" + minPos +
+            ", maxPos=" + maxPos);
         this.maxStepRate = maxStepRate;
         this.minPos = minPos;
         this.maxPos = maxPos;
@@ -296,8 +303,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
 
         tracer.traceDebug(
             instanceName,
-            "owner=" + owner + ", canceled=" + canceled + ", actionParams=(" + actionParams + "), taskEnabled=" +
-            isTaskEnabled());
+            "owner=" + owner +
+            ", canceled=" + canceled +
+            ", actionParams=(" + actionParams +
+            "), taskEnabled=" + isTaskEnabled());
         if (actionParams != null && validateOwnership(owner))
         {
             synchronized (actionParams)
@@ -373,7 +382,10 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
                 toLogicalPosition(actionParams.actionType == ActionType.SetPosition ?
                                       actionParams.targetPosition : actionParams.currPosition);
 
-            tracer.traceDebug(instanceName, "actionParams=(" + actionParams + "), logicalPos=" + logicalPos);
+            tracer.traceDebug(
+                instanceName,
+                "actionParams=(" + actionParams +
+                "), logicalPos=" + logicalPos);
             setLogicalPosition(logicalPos);
             synchronized (followers)
             {
@@ -422,8 +434,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         String owner, double delay, double position, TrcEvent completionEvent, double timeout)
     {
         tracer.traceDebug(
-            instanceName, "owner=%s,delay=%.3f,pos=%f,event=%s,timeout=%.3f",
-            owner, delay, position, completionEvent, timeout);
+            instanceName,
+            "owner=" + owner +
+            ", delay=" + delay +
+            ", pos=" + position +
+            ", event=" + completionEvent +
+            ", timeout=f" + timeout);
         if (completionEvent != null)
         {
             completionEvent.clear();
@@ -549,8 +565,12 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
         String owner, double delay, double position, double stepRate, TrcEvent completionEvent)
     {
         tracer.traceDebug(
-            instanceName, "owner=%s,delay=%.3f,position=%f,stepRate=%f,event=%s",
-            owner, delay, position, stepRate, completionEvent);
+            instanceName,
+            "owner=" + owner +
+            ", delay=" + delay +
+            ", position=" + position +
+            ", stepRate=" + stepRate +
+            ",event=" + completionEvent);
         if (completionEvent != null)
         {
             completionEvent.clear();
@@ -667,7 +687,11 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public void setPower(String owner, double delay, double power)
     {
-        tracer.traceDebug(instanceName, "owner=%s,delay=%.3f,power=%f", owner, delay, power);
+        tracer.traceDebug(
+            instanceName,
+            "owner=" + owner +
+            ", delay=" + delay +
+            ", power=" + power);
         if (validateOwnership(owner))
         {
             ActionParams actionParams = new ActionParams();
@@ -1066,13 +1090,13 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
     /**
      * This method prints the elapsed time info.
      *
-     * @param tracer specifies the tracer to be used to print the info.
+     * @param msgTracer specifies the tracer to be used to print the info.
      */
-    public static void printElapsedTime(TrcDbgTrace tracer)
+    public static void printElapsedTime(TrcDbgTrace msgTracer)
     {
         if (servoSetPosElapsedTimer != null)
         {
-            servoSetPosElapsedTimer.printElapsedTime(tracer);
+            servoSetPosElapsedTimer.printElapsedTime(msgTracer);
         }
     }   //printElapsedTime
 

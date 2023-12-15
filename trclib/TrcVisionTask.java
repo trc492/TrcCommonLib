@@ -83,7 +83,7 @@ public class TrcVisionTask<I, O>
      */
     public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
     {
-        tracer.setTraceMessageLevel(msgLevel);
+        tracer.setTraceLevel(msgLevel);
     }   //setTraceLevel
 
     /**

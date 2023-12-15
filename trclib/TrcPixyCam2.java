@@ -34,9 +34,6 @@ import java.util.Locale;
  */
 public abstract class TrcPixyCam2
 {
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     private static final short PIXY2_SEND_SYNC                  = (short)0xc1ae;
     private static final short PIXY2_RECV_SYNC                  = (short)0xc1af;
 
@@ -105,6 +102,15 @@ public abstract class TrcPixyCam2
      */
     public abstract byte[] syncReadResponse();
 
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
+
+    private int hardwareVersion = 0;
+    private int firmwareVersion = 0;
+    private byte firmwareType = 0;
+    private int resolutionWidth = 0;
+    private int resolutionHeight = 0;
+
     /**
      * This class implements the detected object block.
      */
@@ -138,9 +144,14 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "sig=%d, centerX=%3d, centerY=%3d, width=%3d, height=%3d, angle=%3d, index=%d, age=%d",
-                signature, centerX, centerY, width, height, angle, trackingIndex, age);
+            return "sig=" + signature +
+                   ", centerX=" + centerX +
+                   ", centerY=" + centerY +
+                   ", width=" + width +
+                   ", height=" + height +
+                   ", angle=" + angle +
+                   ", index=" + trackingIndex +
+                   ", age=" + age;
         }   //toString
 
     }   //class Block
@@ -167,8 +178,12 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "x0=%d, y0=%d, x1=%d, y1=%d, index=%d, flags=0x%x",
-                x0, y0, x1, y1, index, flags);
+            return "x0=" + x0 +
+                   ", y0=" + y0 +
+                   ", x1=" + x1 +
+                   ", y1=" + y1 +
+                   ", index=" + index + "," +
+                   " flags=" + Integer.toHexString(flags);
         }   //toString
 
     }   //class Vector
@@ -189,7 +204,9 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "index=%d, reserved=%d, angle=%d", index, reserved, angle);
+            return "index=" + index +
+                   ", reserved=" + reserved +
+                   ", angle=" + angle;
         }   //toString
 
     }   //class IntersectionLine
@@ -217,12 +234,18 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            String s = String.format(Locale.US, "x=%d, y=%d, n=%d, reserved=%d, lines:", x, y, n, reserved);
+            StringBuilder sb = new StringBuilder()
+                .append("x=").append(x)
+                .append(", y=").append(y)
+                .append(", n=").append(n)
+                .append(", reserved=").append(n)
+                .append(", lines:");
             for (int i = 0; i < n; i++)
             {
-                s += "\n\t" + intersectionLines[i].toString();
+                sb.append("\n\t").append(intersectionLines[i]);
             }
-            return s;
+
+            return sb.toString();
         }   //toString
 
     }   //class Intersection
@@ -245,7 +268,10 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "x=%d, y=%d, flags=0x%x, code=0x%x", x, y, flags, code);
+            return "x=" + x +
+                   ", y=" + y +
+                   ", flags=" + Integer.toHexString(flags) +
+                   ", code=" + Integer.toHexString(code);
         }   //toString
 
     }   //class Barcode
@@ -268,35 +294,27 @@ public abstract class TrcPixyCam2
         public FeatureVectors(byte[] data, int startIndex)
         {
             super(data[startIndex]);
-            final String funcName = "FeatureVectors";
             vectors = new Vector[data[startIndex + 1]/6];
-
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "data=%s, startIndex=%d", Arrays.toString(data), startIndex);
-            }
+            tracer.traceDebug(instanceName, "data=" + Arrays.toString(data) + ", startIndex=" + startIndex);
 
             for (int i = 0, index = startIndex + 2; i < vectors.length; i++, index += 6)
             {
                 vectors[i] = new Vector(data, index);
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "[%d]: %s", i, vectors[i]);
-                }
+                tracer.traceDebug(instanceName, "[" + i + "]: " + vectors[i]);
             }
         }   //FeatureVectors
 
         @Override
         public String toString()
         {
-            String feature = "Vectors: ";
+            StringBuilder feature = new StringBuilder("Vectors: ");
 
             for (int i = 0; i < vectors.length; i++)
             {
-                feature += vectors[i].toString() + "; ";
+                feature.append(vectors[i]).append( "; ");
             }
 
-            return feature;
+            return feature.toString();
         }   //toString
 
     }   //class FeatureVectors
@@ -324,14 +342,14 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            String feature = "Intersections: ";
+            StringBuilder feature = new StringBuilder("Intersections: ");
 
             for (int i = 0; i < intersections.length; i++)
             {
-                feature += intersections[i].toString() + "; ";
+                feature.append(intersections[i]).append("; ");
             }
 
-            return feature;
+            return feature.toString();
         }   //toString
 
     }   //class FeatureIntersections
@@ -353,24 +371,17 @@ public abstract class TrcPixyCam2
         @Override
         public String toString()
         {
-            String feature = "Barcodes: ";
+            StringBuilder feature = new StringBuilder("Barcodes: ");
 
             for (int i = 0; i < barcodes.length; i++)
             {
-                feature += barcodes[i].toString() + "; ";
+                feature.append(barcodes[i]).append("; ");
             }
 
-            return feature;
+            return feature.toString();
         }   //toString
 
     }   //class FeatureBarcodes
-
-    protected final String instanceName;
-    private int hardwareVersion = 0;
-    private int firmwareVersion = 0;
-    private byte firmwareType = 0;
-    private int resolutionWidth = 0;
-    private int resolutionHeight = 0;
 
     /**
      * Constructor: Create an instance of the object.
@@ -379,6 +390,7 @@ public abstract class TrcPixyCam2
      */
     public TrcPixyCam2(String instanceName)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
     }   //TrcPixyCam2
 
@@ -428,7 +440,6 @@ public abstract class TrcPixyCam2
      */
     private byte[] sendRequest(byte requestType, byte[] data, byte expectedResponseType)
     {
-        final String funcName = "SendRequest";
         int dataLen = data == null ? 0 : data.length;
         byte[] request = new byte[4 + dataLen];
 
@@ -440,12 +451,8 @@ public abstract class TrcPixyCam2
         System.arraycopy(data, 0, request, 4, dataLen);
         syncWriteRequest(request);
         byte[] response = syncReadResponse();
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "Request%s => Response%s", Arrays.toString(request), Arrays.toString(response));
-        }
+        tracer.traceDebug(
+            instanceName, "Request" + Arrays.toString(request) + "=> Response" + Arrays.toString(response));
 
         if ((short) TrcUtil.bytesToInt(response[0], response[1]) == PIXY2_RECV_SYNC &&
             response[2] == expectedResponseType && validateChecksum(response))

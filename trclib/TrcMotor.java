@@ -259,7 +259,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     public void setTraceLevel(
         TrcDbgTrace.MsgLevel msgLevel, boolean tracePidInfo, boolean verbosePidInfo, TrcRobotBattery battery)
     {
-        tracer.setTraceMessageLevel(msgLevel);
+        tracer.setTraceLevel(msgLevel);
         this.tracePidInfo = tracePidInfo;
         this.verbosePidInfo = verbosePidInfo;
         this.battery = battery;

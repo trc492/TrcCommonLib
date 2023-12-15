@@ -57,7 +57,7 @@ public abstract class TrcGameController
     private static final double DEF_DEADBAND_THRESHOLD = 0.15;
 
     protected final TrcDbgTrace tracer;
-    private final String instanceName;
+    protected final String instanceName;
     private final double deadbandThreshold;
     private final ButtonHandler buttonHandler;
     private int prevButtons;

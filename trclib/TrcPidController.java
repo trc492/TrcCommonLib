@@ -426,7 +426,7 @@ public class TrcPidController
     {
         synchronized (pidCtrlState)
         {
-            tracer.setTraceMessageLevel(msgLevel);
+            tracer.setTraceLevel(msgLevel);
             pidCtrlState.verbosePidInfo = verbosePidInfo;
             pidCtrlState.battery = battery;
         }
@@ -1060,7 +1060,7 @@ public class TrcPidController
 
             pidCtrlState.output = output;
 
-            if (tracer.getTraceMessageLevel() == TrcDbgTrace.MsgLevel.DEBUG)
+            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
             {
                 printPidInfo(tracer, pidCtrlState.verbosePidInfo, pidCtrlState.battery);
             }
