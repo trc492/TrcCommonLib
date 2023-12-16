@@ -22,9 +22,10 @@
 
 package TrcCommonLib.trclib;
 
-import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -114,7 +115,7 @@ public abstract class TrcPriorityIndicator<T>
     private final HashMap<String, T> namedPatternMap = new HashMap<>();
     private final String instanceName;
     private final TrcTaskMgr.TaskObject indicatorTaskObj;
-    private PatternState[] patternPriorities = null;
+    private List<PatternState> patternPriorities = null;
     private boolean taskEnabled = false;
     private double nextTaskRunTime;
 
@@ -214,20 +215,20 @@ public abstract class TrcPriorityIndicator<T>
 
         if (index != -1)
         {
-            patternPriorities[index].enabled = enabled;
+            patternPriorities.get(index).enabled = enabled;
             if (enabled)
             {
-                patternPriorities[index].on = true;
-                patternPriorities[index].onDuration = onDuration;
-                patternPriorities[index].offDuration = onDuration > 0.0? offDuration: 0.0;
-                patternPriorities[index].expiredTime = onDuration > 0.0? TrcTimer.getCurrentTime() + onDuration: 0.0;
+                patternPriorities.get(index).on = true;
+                patternPriorities.get(index).onDuration = onDuration;
+                patternPriorities.get(index).offDuration = onDuration > 0.0? offDuration: 0.0;
+                patternPriorities.get(index).expiredTime = onDuration > 0.0? TrcTimer.getCurrentTime() + onDuration: 0.0;
             }
             else
             {
-                patternPriorities[index].on = false;
-                patternPriorities[index].onDuration = 0.0;
-                patternPriorities[index].offDuration = 0.0;
-                patternPriorities[index].expiredTime = 0.0;
+                patternPriorities.get(index).on = false;
+                patternPriorities.get(index).onDuration = 0.0;
+                patternPriorities.get(index).offDuration = 0.0;
+                patternPriorities.get(index).expiredTime = 0.0;
             }
         }
     }   //setPatternState
@@ -310,7 +311,7 @@ public abstract class TrcPriorityIndicator<T>
 
         if (index != -1)
         {
-            state = patternPriorities[index].enabled;
+            state = patternPriorities.get(index).enabled;
         }
 
         if (debugEnabled)
@@ -368,9 +369,9 @@ public abstract class TrcPriorityIndicator<T>
 
         if (patternPriorities != null)
         {
-            for (int i = 0; i < patternPriorities.length; i++)
+            for (int i = 0; i < patternPriorities.size(); i++)
             {
-                if (pattern == patternPriorities[i].pattern)
+                if (pattern == patternPriorities.get(i).pattern)
                 {
                     priority = i;
                     break;
@@ -404,14 +405,15 @@ public abstract class TrcPriorityIndicator<T>
 
         if (priorities != null)
         {
-            PatternState[] oldPriorities = patternPriorities;
-            patternPriorities = (PatternState[]) Array.newInstance(PatternState.class, priorities.length);
+            List<PatternState> oldPriorities = patternPriorities;
+            patternPriorities = new ArrayList<>();
 
             namedPatternMap.clear();
-            for (int i = 0; i < patternPriorities.length; i++)
+            for (int i = 0; i < priorities.length; i++)
             {
-                patternPriorities[i] = new PatternState(priorities[i]);
-                namedPatternMap.put(patternPriorities[i].pattern.toString(), patternPriorities[i].pattern);
+                PatternState patternState = new PatternState(priorities[i]);
+                patternPriorities.add(patternState);
+                namedPatternMap.put(patternState.pattern.toString(), patternState.pattern);
             }
 
             // If we had a previous priority list, make sure patterns persist
