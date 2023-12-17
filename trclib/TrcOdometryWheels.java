@@ -23,6 +23,7 @@
 package TrcCommonLib.trclib;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * This class implements a platform independent drive base odometry device. A drive base odometry device generally
@@ -141,10 +142,9 @@ public class TrcOdometryWheels
         @Override
         public String toString()
         {
-            return "(" + sensor +
-                   ":axisOffset=" + axisOffset +
-                   ",angleOffset=" + angleOffset +
-                   ",odometry=" + odometry;
+            return String.format(
+                Locale.US, "(%s: axisOffset=%f, angleOffset=%f, odometry=%s",
+                sensor, axisOffset, angleOffset, odometry);
         }   //toString
 
     }   //class AxisSensor
@@ -398,14 +398,9 @@ public class TrcOdometryWheels
         odometryDelta.velocity.y = avgYVel*yScale;
         odometryDelta.velocity.angle = angleOdometry.velocity*angleScale;
         tracer.traceDebug(
-            moduleName,
-            "x=" + Arrays.toString(xSensors) +
-            ",y=" + Arrays.toString(ySensors) +
-            ",avgX=" + avgXPos +
-            ",avgY=" + avgYPos +
-            ",deltaX=" + odometryDelta.position.x +
-            ",deltaY=" + odometryDelta.position.y +
-            ",deltaAngle=" + odometryDelta.position.angle);
+            moduleName, "x=%s, y=%s, avgX=%f, avgY=%f, deltaX=%f, deltaY=%f, deltaAngle=%f",
+            Arrays.toString(xSensors), Arrays.toString(ySensors), avgXPos, avgYPos, odometryDelta.position.x,
+            odometryDelta.position.y, odometryDelta.position.angle);
         prevAvgXPos = avgXPos;
         prevAvgYPos = avgYPos;
 
@@ -474,13 +469,9 @@ public class TrcOdometryWheels
             if (position)
             {
                 tracer.traceDebug(
-                    moduleName,
-                    s.sensor.getName() + ".Pos[" + i + "]" +
-                    " timestamp=" + TrcTimer.getModeElapsedTime(s.odometry.currTimestamp) +
-                    ", heading=" + angleOdometry.currPos +
-                    ", pos=" + s.odometry.currPos +
-                    ", currData=" + currData +
-                    ", avgData=" + sum/(i + 1));
+                    moduleName, "%s.Pos[%d] timestamp=%.6f, heading=%f, pos=%f, currData=%f, avgData=%f",
+                    s.sensor.getName(), i, TrcTimer.getModeElapsedTime(s.odometry.currTimestamp),
+                    angleOdometry.currPos, s.odometry.currPos, currData, sum/(i + 1));
             }
         }
 

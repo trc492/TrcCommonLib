@@ -35,6 +35,7 @@ import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -184,13 +185,12 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         @Override
         public String toString()
         {
-            return "minArea=" + minArea +
-                   ", minPerimeter=" + minPerimeter +
-                   ", width=(" + widthRange[0] + "," + widthRange[1] + ")" +
-                   ", height=(" + heightRange[0] + "," + heightRange[1] + ")" +
-                   ", solidity=(" + solidityRange[0] + "," + solidityRange[1] + ")" +
-                   ", vertices=(" + verticesRange[0] + "," + verticesRange[1] + ")" +
-                   ", aspectRatio=(" + aspectRatioRange[0] + "," + aspectRatioRange[1] + ")";
+            return String.format(
+                Locale.US,
+                "minArea=%f,minPerim=%f,width=(%f,%f),height=(%f,%f),solidity=(%f,%f),vertices=(%f,%f)," +
+                "aspectRatio=(%f,%f)",
+                minArea, minPerimeter, widthRange[0], widthRange[1], heightRange[0], heightRange[1], solidityRange[0],
+                solidityRange[1], verticesRange[0], verticesRange[1], aspectRatioRange[0], aspectRatioRange[1]);
         }   //toString
 
     }   //class FilterContourParams

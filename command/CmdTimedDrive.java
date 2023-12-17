@@ -72,12 +72,8 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
         double xDrivePower, double yDrivePower, double turnPower)
     {
         tracer.traceInfo(
-            moduleName,
-            "delay=" + delay +
-            ", time=" + driveTime +
-            ", xPower=" + xDrivePower +
-            ", yPower=" + yDrivePower +
-            ", turnPower=" + turnPower);
+            moduleName, "delay=%.3f, time=%.1f, xPower=%.1f, yPower=%.1f, turnPower=%.1f",
+            delay, driveTime, xDrivePower, yDrivePower, turnPower);
         this.driveBase = driveBase;
         this.delay = delay;
         this.driveTime = driveTime;
@@ -132,7 +128,7 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
         }
         else
         {
-            dashboard.displayPrintf(1, "State: %s", state);
+            dashboard.displayPrintf(1, "State: " + state);
 
             switch (state)
             {

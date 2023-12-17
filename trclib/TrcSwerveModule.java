@@ -29,9 +29,7 @@ package TrcCommonLib.trclib;
  */
 public class TrcSwerveModule
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     public final TrcMotor driveMotor;
     public final TrcMotor steerMotor;
@@ -54,6 +52,7 @@ public class TrcSwerveModule
     private TrcSwerveModule(
             String instanceName, TrcMotor driveMotor, TrcMotor steerMotor, TrcServo steerServo)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.driveMotor = driveMotor;
         this.steerMotor = steerMotor;
@@ -163,11 +162,7 @@ public class TrcSwerveModule
         double angleDelta = angle - prevSteerAngle;
         double newAngle = angle;
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "angle=%f,optimize=%s,hold=%s", angle, optimize, hold);
-        }
-
+        tracer.traceDebug(instanceName, "angle=%f, optimize=%s, hold=%s", angle, optimize, hold);
         // If we are not optimizing, reset wheel direction back to normal.
         optimizedWheelDir = 1.0;
         if (optimize && Math.abs(angleDelta) > 90.0)
@@ -206,13 +201,10 @@ public class TrcSwerveModule
             steerServo.setPosition(newAngle);
         }
 
-        if (debugEnabled)
+        if (optimize)
         {
-            if (optimize)
-            {
-                globalTracer.traceInfo(
-                    instanceName, "Optimizing steer angle: %.1f -> %.1f (%.0f)", angle, newAngle, optimizedWheelDir);
-            }
+            tracer.traceDebug(
+                instanceName, "Optimizing steer angle: %f->%f (wheelDir=%d)", angle, newAngle, optimizedWheelDir);
         }
     }   //setSteerAngle
 

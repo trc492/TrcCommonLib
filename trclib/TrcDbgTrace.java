@@ -795,7 +795,7 @@ public class TrcDbgTrace
             if (battery != null)
             {
                 msg.append(String.format(
-                    Locale.US, " volt=\"%.2fV(%.2fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
+                    Locale.US, " volt=\"%.3fV(%.3fV)\"", battery.getVoltage(), battery.getLowestVoltage()));
             }
 
             logEventInternal(name, 4, "StateInfo", msg.toString());

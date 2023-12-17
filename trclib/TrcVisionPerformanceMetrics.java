@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
- package TrcCommonLib.trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements Performance Metrics for Vision. It keeps track of the average time for vision to process a
@@ -72,10 +72,9 @@ public class TrcVisionPerformanceMetrics
      */
     public void printMetrics()
     {
-        tracer.traceDebug(
-            instanceName,
-            "AvgProcessTime=" + totalProcessedTime/totalProcessedFrames +
-            ", FrameRate=" + totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
+        tracer.traceInfo(
+            instanceName, "AvgProcessTime=%.6f, FrameRate=%f",
+            totalProcessedTime/totalProcessedFrames, totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
     }   //printMetrics
 
 }   //class TrcVisionPerformanceMetrics

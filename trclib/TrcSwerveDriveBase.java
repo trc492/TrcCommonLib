@@ -174,7 +174,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void setSteerAngle(String owner, double angle, boolean optimize)
     {
-        tracer.traceDebug(moduleName, "owner=%s,angle=%f,optimize=%s", owner, angle, optimize);
+        tracer.traceDebug(moduleName, "owner=%s, angle=%f, optimize=%s", owner, angle, optimize);
         if (validateOwnership(owner))
         {
             lfModule.setSteerAngle(angle, optimize);
@@ -215,8 +215,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     {
         if (velocities.length != getNumMotors())
         {
-            throw new IllegalArgumentException(
-                String.format("Invalid velocities parameter: %s", Arrays.deepToString(velocities)));
+            throw new IllegalArgumentException("Invalid velocities parameter: " + Arrays.deepToString(velocities));
         }
 
         TrcSwerveModule[] modules = {lfModule, rfModule, lbModule, rbModule};
@@ -237,7 +236,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void stop(String owner, boolean resetSteer)
     {
-        tracer.traceDebug(moduleName, "owner=%s,steerNeutral=%s", owner, resetSteer);
+        tracer.traceDebug(moduleName, "owner=" + owner + ",resetSteer=" + resetSteer);
         if (validateOwnership(owner))
         {
             super.stop(owner);
@@ -312,8 +311,8 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         TrcEvent event)
     {
         tracer.traceDebug(
-            moduleName, "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
-            owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
+            moduleName, "owner=%s, x=%f, y=%f, rot=%f, inverted=%s, angle=%f, driveTime=%f, event=%s",
+            owner, x, y, rotation, inverted, gyroAngle, driveTime, event);
         if (validateOwnership(owner))
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)

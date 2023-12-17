@@ -616,7 +616,7 @@ public class TrcPurePursuitDrive
             resetError = true;
             driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
 
-            tracer.traceInfo(instanceName, "Path=%s", path.toAbsolute(referencePose));
+            tracer.traceInfo(instanceName, "Path=" + path.toAbsolute(referencePose));
         }
     }   //start
 
@@ -1025,8 +1025,11 @@ public class TrcPurePursuitDrive
         turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
 
         tracer.traceDebug(
-            instanceName, "[%d] RobotPose=%s,TargetPose=%s,relPose=%s",
-            pathIndex, robotPose, targetPoint.pose, relativeTargetPose);
+            instanceName,
+            "[" + pathIndex +
+            "] RobotPose=" + robotPose +
+            ",TargetPose=" + targetPoint.pose +
+            ",relPose=" + relativeTargetPose);
         tracer.traceDebug(
             instanceName,
             "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
@@ -1056,9 +1059,12 @@ public class TrcPurePursuitDrive
         {
             tracer.traceInfo(
                 instanceName,
-                "Done: index=%d/%d, stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s, robotPose=%s",
-                pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget,
-                driveBase.getFieldPosition());
+                "Done: index=" + pathIndex + "/" + path.getSize() +
+                ", stalled=" + stalled +
+                ", timeout=" + timedOut +
+                ", posOnTarget=" + posOnTarget +
+                ",headingOnTarget=" + headingOnTarget +
+                ",robotPose=" + driveBase.getFieldPosition());
             if (tracePidInfo)
             {
                 if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
@@ -1071,7 +1077,7 @@ public class TrcPurePursuitDrive
 
             if (onFinishedEvent != null)
             {
-                tracer.traceInfo(instanceName, "Signal completion event %s.", onFinishedEvent);
+                tracer.traceInfo(instanceName, "Signal completion event " + onFinishedEvent + ".");
                 onFinishedEvent.signal();
                 onFinishedEvent = null;
             }
@@ -1092,8 +1098,10 @@ public class TrcPurePursuitDrive
         if (logRobotPoseEvents)
         {
             tracer.logEvent(
-                instanceName, "RobotPose", "AbsPose=\"%s\" AbsTarget=\"%s\" Delta=\"%s\"",
-                driveBase.getFieldPosition(), referencePose.addRelativePose(targetPoint.pose), relativeTargetPose);
+                instanceName, "RobotPose",
+                "AbsPose=\"" + driveBase.getFieldPosition() +
+                "\" AbsTarget=\"" + referencePose.addRelativePose(targetPoint.pose) +
+                "\" Delta=\"" + relativeTargetPose + "\"");
         }
 
         if (tracePidInfo)
@@ -1205,8 +1213,10 @@ public class TrcPurePursuitDrive
         if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
             tracer.traceDebug(
-                instanceName, "pathIndex=%d, startPose=%s, endPose=%s",
-                pathIndex, startWaypoint.getPositionPose(), endWaypoint.getPositionPose());
+                instanceName,
+                "pathIndex=" + pathIndex +
+                ", startPose=" + startWaypoint.getPositionPose() +
+                ", endPose=" + endWaypoint.getPositionPose());
             return interpolate(
                 startWaypoint, endWaypoint, 1.0, !incrementalTurn? robotPose: null);
         }
@@ -1270,8 +1280,10 @@ public class TrcPurePursuitDrive
                     interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
 
                 tracer.traceDebug(
-                    instanceName, "startPoint=%s, endPoint=%s, interpolatedPoint=%s",
-                    startWaypoint.getPositionPose(), endWaypoint.getPositionPose(), interpolated.getPositionPose());
+                    instanceName,
+                    "startPoint=" + startWaypoint.getPositionPose() +
+                    ", endPoint=" + endWaypoint.getPositionPose() +
+                    ", interpolatedPoint=" + interpolated.getPositionPose());
 
                 return interpolated;
             }
@@ -1309,15 +1321,20 @@ public class TrcPurePursuitDrive
                     }
 
                     tracer.traceDebug(
-                        instanceName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
-                        i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
+                        instanceName,
+                        "Segment[" + (i - 1) +
+                        ":" + segmentStart +
+                        "->" + i +
+                        ":" + segmentEnd +
+                        "] PrevIndex=" + pathIndex +
+                        ", Target=" + interpolated);
                     pathIndex = i;
                 }
                 return interpolated;
             }
             else if (stalled)
             {
-                tracer.traceInfo(instanceName, "Segment %d is stalled, moving to the next segment.", i);
+                tracer.traceInfo(instanceName, "Segment " + i + " is stalled, moving to the next segment.");
                 pathIndex = i;
             }
         }

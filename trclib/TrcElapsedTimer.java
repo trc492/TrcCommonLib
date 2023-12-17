@@ -23,6 +23,7 @@
 package TrcCommonLib.trclib;
 
 import java.util.LinkedList;
+import java.util.Locale;
 import java.util.Queue;
 
 /**
@@ -64,10 +65,9 @@ public class TrcElapsedTimer
     @Override
     public String toString()
     {
-        return instanceName +
-               ": avgElapsed=" + getAverageElapsedTime() +
-               ", minElapsed=" + getMinElapsedTime() +
-               ", maxElapsed=" + getMaxElapsedTime();
+        return String.format(
+            Locale.US, "%s: avgElapsed=%.6f, minElapsed=%.6f, maxElapsed=%.6f",
+            instanceName, getAverageElapsedTime(), getMinElapsedTime(), getMaxElapsedTime());
     }   //toString
 
     /**
@@ -184,7 +184,7 @@ public class TrcElapsedTimer
     }   //getMaxElapsedTime
 
     /**
-     * This method prints the elapsed time info.
+     * This method prints the elapsed time info using the given tracer.
      *
      * @param tracer specifies the tracer to be used to print the info.
      */

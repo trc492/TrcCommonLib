@@ -430,13 +430,8 @@ public class TrcPidDrive
         double xError = 0.0, yError = 0.0, turnError = 0.0;
 
         tracer.traceDebug(
-            instanceName,
-            "x=" + xTarget +
-            ",y=" + yTarget +
-            ",turn=" + turnTarget +
-            ",hold=" + holdTarget +
-            ",event=" + event +
-            ",timeout=" + timeout);
+            instanceName, "x=%f, y=%f, turn=%f, hold=%s, event=%s, timeout=%f",
+            xTarget, yTarget, turnTarget, holdTarget, event, timeout);
         if (xPidCtrl != null && yPidCtrl != null &&
             xPidCtrl.hasAbsoluteSetPoint() != yPidCtrl.hasAbsoluteSetPoint())
         {
@@ -594,12 +589,8 @@ public class TrcPidDrive
             double xTarget, yTarget, turnTarget;
 
             tracer.traceDebug(
-                instanceName,
-                "owner=" + owner +
-                ",xDelta=" + xDelta +
-                ",yDelta=" + yDelta +
-                ",turnDelta=" + turnDelta +
-                ",CurrPose=" + absTargetPose);
+                instanceName, "owner=%s, xDelta=%f, yDelta=%f, turnDelta=%f, currPose=%s",
+                owner, xDelta, yDelta, turnDelta, absTargetPose);
             if (absTargetModeEnabled)
             {
                 if (xDelta == 0.0 && yDelta == 0.0 && turnDelta != 0.0)
@@ -658,11 +649,8 @@ public class TrcPidDrive
             }
 
             tracer.traceDebug(
-                instanceName,
-                "xTarget=" + xTarget +
-                ", yTarget=" + yTarget +
-                ", turnTarget=" + turnTarget +
-                ", NewPose=" + newTargetPose);
+                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newPose=%s",
+                xTarget, yTarget, turnTarget, newTargetPose);
             // The new target pose will become the updated absolute target pose.
             absTargetPose = newTargetPose;
             setTarget(xTarget, yTarget, turnTarget, holdTarget, event, timeout);
@@ -867,19 +855,11 @@ public class TrcPidDrive
                     newTargetPose.angle : newTargetPose.angle - currRobotPose.angle;
 
             tracer.traceDebug(
-                instanceName,
-                "owner=" + owner +
-                ",absX=" + absX +
-                ",absY=" + absY +
-                ",absHeading=" + absHeading +
-                ",CurrPose=" + currRobotPose +
-                ",absTargetPose=" + absTargetPose);
+                instanceName, "owner=%s, absX=%f, absY=%f, absHeading=%f, currPose=%s, absTargetPose=%s",
+                owner, absX, absY, absHeading, currRobotPose, absTargetPose);
             tracer.traceDebug(
-                instanceName,
-                "xTarget=" + relativePose.x +
-                ", yTarget=" + relativePose.y +
-                ", turnTarget=" + turnTarget +
-                ", NewPose=" + newTargetPose);
+                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newPose=%s",
+                relativePose.x, relativePose.y, turnTarget, newTargetPose);
             if (noOscillation)
             {
                 //

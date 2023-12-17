@@ -29,9 +29,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcTone
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This enum type specifies the sound waveform to be used in playing a note.
      */
@@ -68,6 +65,7 @@ public abstract class TrcTone
      */
     public abstract boolean isPlaying();
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final Waveform defWaveform;
 
@@ -79,6 +77,7 @@ public abstract class TrcTone
      */
     public TrcTone(String instanceName, Waveform defWaveform)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.defWaveform = defWaveform;
     }   //TrcTone
@@ -186,10 +185,7 @@ public abstract class TrcTone
         if (index < buffer.length)
         {
             length = Math.min((int)(sampleRate*attack), buffer.length - index);
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Attack=%.3f,index=%d,len=%d", attack, index, length);
-            }
+            tracer.traceDebug(instanceName, "Attack=%.3f,index=%d,len=%d", attack, index, length);
             scaleData(buffer, index, length, 1.0/length, 0.0);
         }
         //
@@ -199,10 +195,7 @@ public abstract class TrcTone
         if (index < buffer.length)
         {
             length = Math.min((int)(sampleRate*decay), buffer.length - index);
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Decay=%.3f,index=%d,len=%d", decay, index, length);
-            }
+            tracer.traceDebug(instanceName, "Decay=%.3f,index=%d,len=%d", decay, index, length);
             scaleData(buffer, index, length, (sustain - 1.0)/length, 1.0);
         }
         //
@@ -214,10 +207,7 @@ public abstract class TrcTone
             length = buffer.length - index - (int)(sampleRate*release);
             if (length < 0) length = 0;
             length = Math.min(length, buffer.length - index);
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Sustain=%.3f,index=%d,len=%d", sustain, index, length);
-            }
+            tracer.traceDebug(instanceName, "Sustain=%.3f,index=%d,len=%d", sustain, index, length);
             scaleData(buffer, index, length, 0.0, sustain);
         }
         //
@@ -227,10 +217,7 @@ public abstract class TrcTone
         if (index < buffer.length)
         {
             length = buffer.length - index;
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Release=%.3f,index=%d,len=%d", release, index, length);
-            }
+            tracer.traceDebug(instanceName, "Release=%.3f,index=%d,len=%d", release, index, length);
             scaleData(buffer, index, length, -sustain/length, sustain);
         }
     }   //applySoundEnvelope

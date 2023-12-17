@@ -29,8 +29,8 @@ import java.util.Arrays;
  */
 public class TrcTankMotionProfile
 {
-    private TrcPath leftPath;
-    private TrcPath rightPath;
+    private final TrcPath leftPath;
+    private final TrcPath rightPath;
 
     /**
      * Constructor: Create an instance of the object.

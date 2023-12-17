@@ -144,8 +144,7 @@ public abstract class TrcSensor<D>
         //
         if (filters.length != numAxes)
         {
-            throw new IllegalArgumentException(
-                    String.format(Locale.US, "filters must be an array of %d elements.", numAxes));
+            throw new IllegalArgumentException("Filters must be an array of " + numAxes + " elements.");
         }
 
         this.tracer = new TrcDbgTrace(instanceName);
@@ -290,26 +289,23 @@ public abstract class TrcSensor<D>
         {
             double value = data.value;
 
-            tracer.traceDebug(instanceName, "raw=" + value);
+            tracer.traceDebug(instanceName, "raw=%f", value);
             if (filters[index] != null)
             {
                 value = filters[index].filterData(value);
-                tracer.traceDebug(instanceName, "filtered=" + value);
+                tracer.traceDebug(instanceName, "filtered=%f", value);
             }
 
             if (calibrator != null)
             {
                 value = calibrator.getCalibratedData(index, value);
-                tracer.traceDebug(instanceName, "calibrated=" + value);
+                tracer.traceDebug(instanceName, "calibrated=%f", value);
             }
 
             value = signs[index] * (value - offsets[index]) * scales[index];
             tracer.traceDebug(
-                instanceName,
-                "scaledValue=" + value +
-                "(sign=" + signs[index] +
-                ",scale=" + scales[index] +
-                ",offset=" + offsets[index] + ")");
+                instanceName, "scaledValue=%f, (sign=%d,scale=%f,offset=%f)",
+                value, signs[index], scales[index], offsets[index]);
             data.value = value;
         }
 

@@ -22,6 +22,7 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -50,9 +51,8 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return "objDist=" + objectDistance +
-                   ", movePower=" + movePower +
-                   ", maxCap=" + maxCapacity;
+            return String.format(
+                Locale.US, "objDistance=%f, movePower=%f, maxCap=%d", objectDistance, movePower, maxCapacity);
         }   //toString
 
         /**

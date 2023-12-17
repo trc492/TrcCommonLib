@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -35,9 +34,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class TrcRequestQueue<R>
 {
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     /**
      * This class implements a request entry. Typically, an entry will be put into a FIFO request queue so that each
      * entry will be processed in the order they came in.
@@ -92,11 +88,12 @@ public class TrcRequestQueue<R>
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "request=%s, repeat=%s, canceled=%s", request, repeat, canceled);
+            return "request=" + request + ", repeat=" + repeat + ", canceled=" + canceled;
         }   //toString
 
     }   //class RequestEntry
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final LinkedBlockingQueue<RequestEntry> requestQueue;
     private volatile Thread requestThread = null;
@@ -113,6 +110,7 @@ public class TrcRequestQueue<R>
      */
     public TrcRequestQueue(String instanceName)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         requestQueue = new LinkedBlockingQueue<>();
     }   //TrcRequestQueue
@@ -196,11 +194,7 @@ public class TrcRequestQueue<R>
      */
     public RequestEntry add(R request, TrcEvent event, boolean repeat)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "request=%s,repeat=%s", request, repeat);
-        }
-
+        tracer.traceDebug(instanceName, "request=" + request + ",repeat=" + repeat);
         RequestEntry entry = null;
         if (isEnabled())
         {
@@ -225,11 +219,7 @@ public class TrcRequestQueue<R>
     {
         RequestEntry entry = null;
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "request=%s", request);
-        }
-
+        tracer.traceDebug(instanceName, "request=" + request);
         if (priorityRequest == null)
         {
             entry = new RequestEntry(request, event, false);
@@ -247,12 +237,9 @@ public class TrcRequestQueue<R>
      */
     public synchronized boolean cancelRequest(RequestEntry entry)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "entry=%s", entry);
-        }
-
         boolean foundEntry;
+
+        tracer.traceDebug(instanceName, "entry=" + entry);
         if (entry == priorityRequest)
         {
             priorityRequest = null;
@@ -282,11 +269,7 @@ public class TrcRequestQueue<R>
     {
         RequestEntry entry;
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "RequestQueue starting...");
-        }
-
+        tracer.traceDebug(instanceName, "RequestQueue starting...");
         while (!Thread.currentThread().isInterrupted())
         {
             synchronized (this)
@@ -308,11 +291,7 @@ public class TrcRequestQueue<R>
                 {
                     entry = requestQueue.take();
                 }
-
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "processing request %s", entry);
-                }
+                tracer.traceDebug(instanceName, "processing request " + entry);
 
                 long startNanoTime = TrcTimer.getNanoTime();
                 entry.notifyEvent.signal();
@@ -323,9 +302,9 @@ public class TrcRequestQueue<R>
         
                 if (perfTracingEnabled)
                 {
-                    globalTracer.traceInfo(
-                        instanceName, "Average request process time = %.6f sec",
-                        totalNanoTime/totalRequests/1000000000.0);
+                    tracer.traceInfo(
+                        instanceName,
+                        "Average request process time=%.6f sec", totalNanoTime/totalRequests/1000000000.0);
                 }
         
                 if (entry.repeat)
@@ -338,10 +317,7 @@ public class TrcRequestQueue<R>
             }
             catch (InterruptedException e)
             {
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "Terminating RequestQueue");
-                }
+                tracer.traceDebug(instanceName, "Terminating RequestQueue.");
                 break;
             }
         }
@@ -353,20 +329,13 @@ public class TrcRequestQueue<R>
         {
             while ((entry = requestQueue.poll()) != null)
             {
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(instanceName, "Canceling request %s", entry);
-                }
+                tracer.traceDebug(instanceName, "Canceling request " + entry);
                 cancelRequest(entry);
             }
 
             requestThread = null;
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "RequestQueue is terminated");
-        }
+        tracer.traceDebug(instanceName, "RequestQueue is terminated.");
     }   //requestTask
 
 }   //class TrcRequestQueue

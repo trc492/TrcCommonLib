@@ -101,12 +101,8 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
 
         tracer.traceInfo(
             moduleName,
-            "pidDrive=" + pidDrive +
-            ", delay=" + delay +
-            ", powerLimit=" + drivePowerLimit +
-            ", useSensorOdometry=" + useSensorOdometry +
-            ", tunePidCoeff=" + tunePidCoeff +
-            ", path=" + Arrays.toString(pathPoints));
+            "pidDrive=%s,delay=%.3f,powerLimit=%.1f,useSensorOdometry=%s,tunePidCoeff=%s,path=%s",
+            pidDrive, delay, drivePowerLimit, useSensorOdometry, tunePidCoeff, Arrays.toString(pathPoints));
         this.driveBase = driveBase;
         this.pidDrive = pidDrive;
         this.delay = delay;
@@ -247,7 +243,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
         }
         else
         {
-            dashboard.displayPrintf(1, "State: %s", state);
+            dashboard.displayPrintf(1, "State: " + state);
 
             switch (state)
             {

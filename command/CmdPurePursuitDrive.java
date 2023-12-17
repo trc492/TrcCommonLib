@@ -64,7 +64,7 @@ public class CmdPurePursuitDrive implements TrcRobot.RobotCommand
         purePursuitDrive = new TrcPurePursuitDrive(
             moduleName, driveBase, followingDistance, posTolerance, turnTolerance,
             xPosPidCoeff, yPosPidCoeff, turnPidCoeff, velPidCoeff);
-        event = new TrcEvent("event");
+        event = new TrcEvent(moduleName);
     }   //CmdPurePursuitDrive
 
     /**

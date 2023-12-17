@@ -82,7 +82,7 @@ public abstract class TrcDigitalOutput
     }   //setElapsedTimerEnabled
 
     /**
-     * This method prints the elapsed time info.
+     * This method prints the elapsed time info using the given tracer.
      *
      * @param tracer specifies the tracer to be used to print the info.
      */

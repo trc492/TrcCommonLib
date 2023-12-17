@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+
 /**
  * This class implements a performance timer to record elapsed time and interval time of a periodic task. It is a
  * performance monitoring tool. It is especially important for PID controlled loops that the loops are executed at
@@ -60,13 +62,12 @@ public class TrcPerformanceTimer
     @Override
     public String toString()
     {
-        return instanceName +
-               ": avgElapsed=" + getAverageElapsedTime() +
-               ", minElapsed=" + getMinElapsedTime() +
-               ", maxElapsed=" + getMaxElapsedTime() +
-               ", avgInterval=" + getAverageIntervalTime() +
-               ", minInterval=" + getMinIntervalTime() +
-               ", maxInterval=" + getMaxIntervalTime();
+        return String.format(
+            Locale.US,
+            "%s: avgElapsed=.6f, minElapsed=%.6f, maxElapsed=%.6f, avgInterval=%.6f, minInterval=%.6f, " +
+            "maxInterval=%.6f",
+            instanceName, getAverageElapsedTime(), getMinElapsedTime(), getMaxElapsedTime(), getAverageIntervalTime(),
+            getMinIntervalTime(), getMaxIntervalTime());
     }   //toString
 
     /**

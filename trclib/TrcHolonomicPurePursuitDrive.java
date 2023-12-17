@@ -180,7 +180,7 @@ public class TrcHolonomicPurePursuitDrive
     }   //toString
 
     /**
-     * This method sets the message tracer for logging trace messages.
+     * This method sets the trace level for logging trace messages.
      *
      * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
@@ -200,7 +200,7 @@ public class TrcHolonomicPurePursuitDrive
     }   //setTraceLevel
 
     /**
-     * This method sets the message tracer for logging trace messages.
+     * This method sets the trace level for logging trace messages.
      *
      * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
@@ -689,14 +689,8 @@ public class TrcHolonomicPurePursuitDrive
         double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
         tracer.traceDebug(
-            instanceName,
-            "RobotPose=" + pose +
-            ",RobotVel=" + velocity +
-            ",TargetPose=" + point.pose +
-            ",TargetVel=" + point.velocity +
-            ",pathIndex=" + pathIndex +
-            ",r=" + r +
-            ",theta=" + theta);
+            instanceName, "RobotPose=%s, RobotVel=%f, TargetPose=%s, TargetVel=%f, pathIndex=%d, r=%f, theta=%f",
+            pose, velocity, point.pose, point.velocity, pathIndex, r, theta);
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = dist <= posTolerance;

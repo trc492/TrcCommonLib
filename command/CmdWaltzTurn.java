@@ -39,6 +39,7 @@ import TrcCommonLib.trclib.TrcStateMachine;
 public class CmdWaltzTurn implements TrcRobot.RobotCommand
 {
     private static final String moduleName = CmdWaltzTurn.class.getSimpleName();
+
     private static enum State
     {
         WALTZ_TURN,
@@ -131,7 +132,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
         {
             double turnTarget = 0.0;
 
-            dashboard.displayPrintf(1, "State: %s", state);
+            dashboard.displayPrintf(1, "State: " + state);
 
             switch (state)
             {

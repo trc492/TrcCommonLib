@@ -35,9 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class TrcTriggerThresholdRange implements TrcTrigger
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     private static final int DEF_CACHE_SIZE = 10;
     /**
      * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
@@ -58,13 +55,14 @@ public class TrcTriggerThresholdRange implements TrcTrigger
         {
             return String.format(
                 Locale.US,
-                "(lowerThreshold=%.3f,upperThreshold=%.3f,settling=%.3f,active=%s,startTime=%.3f,enabled=%s,data=%s)",
+                "(lowerThreshold=%f,upperThreshold=%f,settling=%f,active=%s,startTime=%.6f,enabled=%s,data=%s)",
                 lowerThreshold, upperThreshold, settlingPeriod, triggerActive, startTime, triggerEnabled,
                 cachedData != null? Arrays.toString(cachedData.getBufferedData()): "null");
         }   //toString
 
     }   //class TriggerState
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcValueSource<Double> valueSource;
     private final TriggerState triggerState;
@@ -87,6 +85,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
             throw new IllegalArgumentException("ValueSource cannot be null.");
         }
 
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.valueSource = valueSource;
         triggerState = new TriggerState();
@@ -106,7 +105,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
 
         synchronized (triggerState)
         {
-            str = String.format(Locale.US, "%s=%s", instanceName, triggerState);
+            str = instanceName + "=" + triggerState;
         }
 
         return str;
@@ -148,11 +147,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
             }
             triggerState.triggerActive = false;
             triggerState.triggerEnabled = enabled;
-
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "enabled=%s (state=%s)", enabled, triggerState);
-            }
+            tracer.traceDebug(instanceName, "enabled=" + enabled + " (state=" + triggerState + ")");
         }
     }   //setEnabled
 
@@ -244,13 +239,9 @@ public class TrcTriggerThresholdRange implements TrcTrigger
      */
     public void setTrigger(double lowerThreshold, double upperThreshold, double settlingPeriod, int maxCachedSize)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "lowerThreshold=%f, upperThreshold=%f, settingPeriod=%.3f, maxCachedSize=%d",
-                lowerThreshold, upperThreshold, settlingPeriod, maxCachedSize);
-        }
-
+        tracer.traceDebug(
+            instanceName, "lowerThreshold=%f, upperThreshold=%f, settingPeriod=%f, maxCachedSize=%d",
+            lowerThreshold, upperThreshold, settlingPeriod, maxCachedSize);
         synchronized (triggerState)
         {
             triggerState.lowerThreshold = lowerThreshold;
@@ -404,11 +395,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
 
         if (triggered)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "Triggered (state=%s)", active);
-            }
-
+            tracer.traceDebug(instanceName, "Triggered (state=" + active + ")");
             if (triggerCallback != null)
             {
                 callbackContext.set(active);

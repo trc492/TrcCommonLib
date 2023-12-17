@@ -25,6 +25,7 @@ package TrcCommonLib.trclib;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 
 /**
  * This class implements a priority indicator device that supports priority list. A priority list specifies a list of
@@ -101,7 +102,8 @@ public abstract class TrcPriorityIndicator<T>
         @Override
         public String toString()
         {
-            return pattern + ": enabled=" + enabled + ", on=" + on + ", expiredTime=" + expiredTime;
+            return String.format(
+                Locale.US, "%s: enabled=%s, on=%s, expiredTime=%.3f", pattern, enabled, on, expiredTime);
         }   //toString
 
     }   //class PatternState
@@ -208,12 +210,8 @@ public abstract class TrcPriorityIndicator<T>
         int index = getPatternPriority(pattern);
 
         tracer.traceDebug(
-            instanceName,
-            "[" + index +
-            "] pattern=" + pattern +
-            ",enabled=" + enabled +
-            ",onDuration=" + onDuration +
-            ",offDuration=" + offDuration);
+            instanceName, "[%d] pattern=%s, enabled=%s, onDuration=%.3f, offDuration=%.3f",
+            index, pattern, enabled, onDuration, offDuration);
         if (index != -1)
         {
             patternPriorities[index].enabled = enabled;
@@ -373,7 +371,7 @@ public abstract class TrcPriorityIndicator<T>
                 }
             }
         }
-        tracer.traceInfo(instanceName, "pattern=" + pattern + ",priority=" + priority);
+        tracer.traceDebug(instanceName, "pattern=" + pattern + ",priority=" + priority);
 
         return priority;
     }   //getPatternPriority

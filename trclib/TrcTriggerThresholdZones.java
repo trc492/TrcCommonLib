@@ -32,9 +32,6 @@ import java.util.Locale;
  */
 public class TrcTriggerThresholdZones implements TrcTrigger
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
      * synchronized).
@@ -58,7 +55,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         public String toString()
         {
             return String.format(
-                Locale.US, "(value=%.3f,Zone=%d,prevZone=%d,Enabled=%s)",
+                Locale.US, "(value=%f,Zone=%d,prevZone=%d,Enabled=%s)",
                 sensorValue, sensorZone, prevZone, triggerEnabled);
         }   //toString
 
@@ -76,11 +73,12 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         @Override
         public String toString()
         {
-            return "(value=" + sensorValue + ", prevZone=" + prevZone + ", currZone=" + currZone + ")";
+            return String.format(Locale.US, "(value-%f,prevZone=%d,currZone=%d)", sensorValue, prevZone, currZone);
         }   //toString
 
     }   //class CallbackContext
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcValueSource<Double> valueSource;
     private final TriggerState triggerState;
@@ -108,6 +106,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
             throw new IllegalArgumentException("ValueSource cannot be null.");
         }
 
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.valueSource = valueSource;
         if (dataIsTrigger)
@@ -137,7 +136,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
         synchronized (triggerState)
         {
-            str = String.format(Locale.US, "%s=%s", instanceName, triggerState);
+            str = instanceName + "=" + triggerState;
         }
 
         return str;
@@ -173,11 +172,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                 triggerEvent = null;
             }
             triggerState.triggerEnabled = enabled;
-
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "enabled=%s (state=%s)", enabled, triggerState);
-            }
+            tracer.traceDebug(instanceName, "enabled=" + enabled + " (state=" + triggerState + ")");
         }
     }   //setEnabled
 
@@ -307,11 +302,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                 zone = thresholds.length;
             }
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "value=%f, zone=%d", value, zone);
-        }
+        tracer.traceDebug(instanceName, "value=%f, zone=%d", value, zone);
 
         return zone;
     }   //getValueZone
@@ -334,13 +325,10 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         {
             thresholds[i] = (triggerPoints[i] + triggerPoints[i + 1])/2.0;
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "triggerPts=%s, thresholds=%s",
-                Arrays.toString(triggerPoints), Arrays.toString(thresholds));
-        }
+        tracer.traceDebug(
+            instanceName,
+            "triggerPts=" + Arrays.toString(triggerPoints) +
+            ", thresholds=" + Arrays.toString(thresholds));
     }   //setTriggerPoints
 
     /**
@@ -356,11 +344,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         }
 
         this.thresholds = Arrays.copyOf(thresholds, thresholds.length);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "thresholds=%s", Arrays.toString(thresholds));
-        }
+        tracer.traceDebug(instanceName, "thresholds=" + Arrays.toString(thresholds));
     }   //setThresholds
 
     /**
@@ -396,11 +380,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
 
         if (triggered)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(instanceName, "crossing zones %d->%d (value=%f)", prevZone, currZone, currValue);
-            }
-
+            tracer.traceDebug(instanceName, "Crossing zones %d->%d (value=%f)", prevZone, currZone, currValue);
             if (triggerCallback != null)
             {
                 synchronized (callbackContext)

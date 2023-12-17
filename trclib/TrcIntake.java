@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+
 /**
  * This class implements a platform independent auto-assist intake subsystem. It contains a motor or a continuous
  * servo and a sensor that detects if the intake has captured objects. It provides the autoAssist method that allows
@@ -40,7 +42,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         public Double analogThreshold = null;
         public boolean analogTriggerInverted = false;
-        public TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
 
         /**
          * This method returns the string form of all the parameters.
@@ -51,8 +52,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return "analogThreshold=" + analogThreshold +
-                   ", analogTriggerInverted=" + analogTriggerInverted +
-                   ", msgLevel=" + msgLevel;
+                   ", analogTriggerInverted=" + analogTriggerInverted;
         }   //toString
 
         /**
@@ -69,18 +69,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.analogTriggerInverted = triggerInverted;
             return this;
         }   //setAnalogThreshold
-
-        /**
-         * This method sets the message tracer for logging trace messages.
-         *
-         * @param msgLevel specifies the message level.
-         * @return this parameter object.
-         */
-        public Parameters setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
-        {
-            this.msgLevel = msgLevel;
-            return this;
-        }   //setTraceLevel
 
     }   //class Parameters
 
@@ -152,7 +140,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.eventCallback = eventCallback;
-        tracer.setTraceLevel(params.msgLevel);
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcIntake
@@ -177,12 +164,20 @@ public class TrcIntake implements TrcExclusiveSubsystem
     @Override
     public String toString()
     {
-        return instanceName +
-               ": pwr=" + getPower() +
-               ", current=" + motor.getMotorCurrent() +
-               ", autoAssistActive=" + isAutoAssistActive() +
-               ", hasObject=" + hasObject();
+        return String.format(
+            Locale.US, "%s: pwr=%.3f, current=%.3f, autoAssistActive=%s, hasObject=%s",
+            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, isAutoAssistActive(), hasObject());
     }   //toString
+
+    /**
+     * This method sets the trace level for logging trace messages.
+     *
+     * @param msgLevel specifies the message level.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+    {
+        tracer.setTraceLevel(msgLevel);
+    }   //setTraceLevel
 
     /**
      * This method returns the current motor power.
@@ -285,11 +280,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         if (isAutoAssistActive())
         {
             tracer.traceDebug(
-                instanceName,
-                "canceled=" + canceled +
-                ", autoAssistTimedOut=" + timerEvent.isSignaled() +
-                ", hasObject=" + hasObject() +
-                ", finishDelay=" + actionParams.finishDelay);
+                instanceName, "canceled=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
+                canceled, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();

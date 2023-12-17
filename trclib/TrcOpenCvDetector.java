@@ -27,6 +27,7 @@ import org.opencv.core.Mat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Locale;
 
 /**
  * This class implements a generic OpenCV detector. Typically, it is extended by a specific detector that provides
@@ -63,7 +64,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         @Override
         public String toString()
         {
-            return "label=" + label + ",Rect=" + getRect() + ",area=" + getArea();
+            return String.format(Locale.US, "label=%s, Rect=%s, area=%f", label, getRect(), getArea());
         }   //toString
 
     }   //class DetectedObject

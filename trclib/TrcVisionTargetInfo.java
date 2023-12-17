@@ -161,7 +161,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     public String toString()
     {
         return String.format(
-            Locale.US, "Obj=%s rect=%s area=%.3f pose=%s width=%.2f depth=%.2f",
+            Locale.US, "(Obj=%s,rect=%s,area=%f,pose=%s,width=%f,depth=%f)",
             detectedObj, rect, area, objPose, objWidth != null? objWidth: 0.0, objDepth != null? objDepth: 0.0);
     }   //toString
 

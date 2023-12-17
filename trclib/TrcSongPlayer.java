@@ -30,9 +30,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcSongPlayer
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcTone tone;
     private final TrcTaskMgr.TaskObject playerTaskObj;
@@ -50,6 +48,7 @@ public class TrcSongPlayer
      */
     public TrcSongPlayer(String instanceName, TrcTone tone)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         this.tone = tone;
         playerTaskObj = TrcTaskMgr.createTask(instanceName + ".playerTask", this::playerTask);
@@ -135,16 +134,8 @@ public class TrcSongPlayer
     private synchronized void playSongWorker(
         TrcSong song, double barDuration, boolean repeat, boolean pause, TrcEvent event)
     {
-        final String funcName = "playSongWorker";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s",
-                song.toString(), barDuration, Boolean.toString(repeat), Boolean.toString(pause),
-                event == null? "null": event);
-        }
-
+        tracer.traceDebug(
+            instanceName, "song=%s,barDur=%.2f,repeat=%s,pause=%s,event=%s", song, barDuration, repeat, pause, event);
         this.song = song;
         this.barDuration = barDuration;
         this.repeat = repeat;
@@ -218,15 +209,9 @@ public class TrcSongPlayer
      */
     private void playNote(String note, double barDuration, double volume)
     {
-        final String funcName = "playNote";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "note=%s,barDur=%.3f,vol=%.1f", note, barDuration, volume);
-        }
-
         int dotIndex = note.indexOf('.');
 
+        tracer.traceDebug(instanceName, "note=%s, barDuration=%f, volume=%f", note, barDuration, volume);
         if (dotIndex != -1)
         {
             double noteFreq = parseFrequency(note.substring(0, dotIndex));

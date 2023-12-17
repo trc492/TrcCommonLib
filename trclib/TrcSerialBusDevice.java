@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * This class implements a platform independent serial bus device. This class is intended to be inherited by a
@@ -34,9 +33,6 @@ import java.util.Locale;
  */
 public abstract class TrcSerialBusDevice
 {
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     /**
      * This method is called to read data from the device synchronously with the specified length.
      *
@@ -101,13 +97,17 @@ public abstract class TrcSerialBusDevice
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "%s: %s, addr=%d, buff=%s, len=%d, event=%s, canceled=%s",
-                requestId != null? requestId: "null", readRequest? "Read": "Write", address,
-                buffer == null? "null": Arrays.toString(buffer), length, completionEvent, canceled);
+            return (requestId != null? requestId: "null") + ": " + (readRequest? "Read": "Write") +
+                   ", addr=" + address +
+                   ", buff=" + (buffer == null? "null": Arrays.toString(buffer)) +
+                   ", len=" + length +
+                   ", event=" + completionEvent +
+                   ", canceled=" + canceled;
         }   //toString
 
     }   //class Request
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcRequestQueue<Request> requestQueue;
     private final TrcEvent processRequestEvent;
@@ -119,6 +119,7 @@ public abstract class TrcSerialBusDevice
      */
     public TrcSerialBusDevice(String instanceName, boolean useRequestQueue)
     {
+        this.tracer = new TrcDbgTrace(instanceName);
         this.instanceName = instanceName;
         requestQueue = useRequestQueue ? new TrcRequestQueue<>(instanceName) : null;
         processRequestEvent = new TrcEvent(instanceName + ".processRequestEvent");
@@ -195,12 +196,11 @@ public abstract class TrcSerialBusDevice
         {
             data = readData(address, length);
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "address=0x%x, len=%d, data=%s", address, length, Arrays.toString(data));
-        }
+        tracer.traceDebug(
+            instanceName,
+            "address=0x" + Integer.toHexString(address) +
+            ", len=" + length +
+            ", data=" + Arrays.toString(data));
 
         return data;
     }   //syncRead
@@ -253,12 +253,11 @@ public abstract class TrcSerialBusDevice
         {
             bytesWritten = writeData(address, data, length);
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "address=0x%x, len=%d, data=%s", address, length, Arrays.toString(data));
-        }
+        tracer.traceDebug(
+            instanceName,
+            "address=0x" + Integer.toHexString(address) +
+            ", len=" + length +
+            ", data=" + Arrays.toString(data));
 
         return bytesWritten;
     }   //syncWrite
@@ -288,13 +287,13 @@ public abstract class TrcSerialBusDevice
      */
     public void asyncRead(Object requestId, int address, int length, boolean repeat, TrcEvent completionEvent)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "reqId=%s, address=0x%x, len=%d, repeat=%s, event=%s",
-                requestId, address, length, repeat, completionEvent);
-        }
-
+        tracer.traceDebug(
+            instanceName,
+            "reqId=" + requestId +
+            ", address=0x" + Integer.toHexString(address) +
+            ", len=" + length +
+            ", repeat=" + repeat +
+            ", event=" + completionEvent);
         if (requestQueue != null)
         {
             Request request = new Request(requestId, true, address, null, length, completionEvent);
@@ -385,13 +384,13 @@ public abstract class TrcSerialBusDevice
      */
     public void asyncWrite(Object requestId, int address, byte[] data, int length, TrcEvent completionEvent)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "reqId=%s, address=0x%x, data=%s, len=%d, event=%s",
-                requestId, address, Arrays.toString(data), length, completionEvent);
-        }
-
+        tracer.traceDebug(
+            instanceName,
+            "reqId=" + requestId +
+            ", address=0x" + Integer.toHexString(address) +
+            ", data=" + Arrays.toString(data) +
+            ", len=" + length +
+            ", event=" + completionEvent);
         if (requestQueue != null)
         {
             Request request = new Request(requestId, false, address, data, length, completionEvent);
@@ -451,12 +450,11 @@ public abstract class TrcSerialBusDevice
      */
     public synchronized void preemptiveWrite(int address, byte[] data, int length)
     {
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                instanceName, "address=0x%x, data=%s, len=%d", address, Arrays.toString(data), length);
-        }
-
+        tracer.traceDebug(
+            instanceName,
+            "address=0x" + Integer.toHexString(address) +
+            ", data=" + Arrays.toString(data) +
+            ", len=" + length);
         if (requestQueue != null)
         {
             TrcRequestQueue<Request>.RequestEntry entry = requestQueue.addPriorityRequest(
@@ -536,14 +534,13 @@ public abstract class TrcSerialBusDevice
             if (request.readRequest)
             {
                 request.buffer = readData(request.address, request.length);
-                if (debugEnabled)
+                if (request.buffer != null)
                 {
-                    if (request.buffer != null)
-                    {
-                        globalTracer.traceInfo(
-                            instanceName, "readData(addr=0x%x,len=%d)=%s",
-                            request.address, request.length, Arrays.toString(request.buffer));
-                    }
+                    tracer.traceDebug(
+                        instanceName,
+                        "readData(addr=0x" + Integer.toHexString(request.address) +
+                        ",len=" + request.length +
+                        ")=" + Arrays.toString(request.buffer));
                 }
             }
             else
@@ -557,11 +554,7 @@ public abstract class TrcSerialBusDevice
             request.completionEvent.setCallbackContext(request);
             request.completionEvent.signal();
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(instanceName, "request=%s", request);
-        }
+        tracer.traceDebug(instanceName, "request=" + request);
     }   //requestHandler
 
 }   //class TrcSerialBusDevice

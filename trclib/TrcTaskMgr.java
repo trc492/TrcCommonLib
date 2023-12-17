@@ -34,8 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class TrcTaskMgr
 {
     private static final String moduleName = TrcTaskMgr.class.getSimpleName();
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
+    private static final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
 
     public static final long PERIODIC_INTERVAL_MS = 20;         // in msec
     public static final long IO_INTERVAL_MS = 10;               // in msec
@@ -453,17 +452,17 @@ public class TrcTaskMgr
             taskTotalElapsedTimes[taskType.value] += elapsedTime;
             taskTimeSlotCounts[taskType.value]++;
 
-            if (debugEnabled)
+            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
             {
-                globalTracer.traceVerbose(
-                    moduleName, "%s.%s: start=%.6f, elapsed=%.6f",
-                    taskName, taskType, startTime/1000000000.0, elapsedTime/1000000000.0);
+                tracer.traceVerbose(
+                    moduleName, "%s.%s: start=.6f, elapsed=%.6f",
+                    taskName, taskType, (startTime/1000000000.0), elapsedTime/1000000000.0);
                 long timeThreshold = getTaskInterval()*1000000; //convert to nanoseconds.
                 if (timeThreshold == 0) timeThreshold = TASKTIME_THRESHOLD_MS * 1000000L;
                 if (timeThreshold > 0 && elapsedTime > timeThreshold)
                 {
-                    globalTracer.traceWarn(
-                        moduleName, "%s.%s takes too long (%s:%.3f)", taskName, taskType, elapsedTime/1000000000.0);
+                    tracer.traceWarn(
+                        moduleName, "%s.%s takes too long (%.3f)", taskName, taskType, elapsedTime/1000000000.0);
                 }
             }
         }   //recordElapsedTime
@@ -513,11 +512,7 @@ public class TrcTaskMgr
 
         taskObj = new TaskObject(taskName, task);
         taskList.add(taskObj);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(moduleName, "taskName=%s, taskObj=%s", taskName, taskObj);
-        }
+        tracer.traceDebug(moduleName, "taskName=" + taskName + ", taskObj=" + taskObj);
 
         return taskObj;
     }   //createTask
@@ -623,7 +618,7 @@ public class TrcTaskMgr
     {
         for (TaskObject taskObj: taskList)
         {
-            StringBuilder msg = new StringBuilder(taskObj.taskName + ":");
+            StringBuilder msg = new StringBuilder(taskObj.taskName).append(":");
             int taskTypeCounter = 0;
 
             for (TaskType taskType : TaskType.values())
@@ -640,7 +635,7 @@ public class TrcTaskMgr
 
             if (taskTypeCounter > 0)
             {
-                globalTracer.traceInfo(moduleName, msg.toString());
+                tracer.traceInfo(moduleName, msg.toString());
             }
         }
     }   //printTaskPerformanceMetrics
@@ -659,8 +654,7 @@ public class TrcTaskMgr
                 msg.append(" ");
                 msg.append(type);
             }
-
-            globalTracer.traceInfo(moduleName, taskObj + ": " + msg);
+            tracer.traceInfo(moduleName, taskObj + ": " + msg);
         }
     }   //printAllRegisteredTask
 

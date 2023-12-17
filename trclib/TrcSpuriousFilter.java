@@ -69,7 +69,7 @@ public class TrcSpuriousFilter extends TrcFilter
     {
         if (prevData != null && Math.abs(data - prevData) >= distanceThreshold)
         {
-            tracer.traceWarn(instanceName, "Spurious data detected (data=" + data + ", prev=" + prevData + ")");
+            tracer.traceWarn(instanceName, "Spurious data detected (data=%f, prev=%f)", data, prevData);
             data = prevData;
         }
         else

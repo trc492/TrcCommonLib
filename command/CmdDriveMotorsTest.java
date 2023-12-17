@@ -22,6 +22,8 @@
 
 package TrcCommonLib.command;
 
+import java.util.Locale;
+
 import TrcCommonLib.trclib.TrcDashboard;
 import TrcCommonLib.trclib.TrcDbgTrace;
 import TrcCommonLib.trclib.TrcEvent;
@@ -119,10 +121,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
 
             for (TrcMotor motor : motors)
             {
-                if (motor != null)
-                {
-                    msg.append(" ").append(motor).append("=").append(motor.getPosition());
-                }
+                msg.append(String.format(Locale.US, " %s=%6.2f", motor, motor.getPosition()));
             }
             dashboard.displayPrintf(1, "Motors Test: state=" + state + ", index=" + motorIndex);
             dashboard.displayPrintf(2, msg.toString());

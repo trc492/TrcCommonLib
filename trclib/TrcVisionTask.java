@@ -43,7 +43,6 @@ public class TrcVisionTask<I, O>
     private volatile boolean taskEnabled = false;
     private int imageIndex = 0;
 
-    private boolean perfReportEnabled = false;
     private double totalTime = 0.0;
     private long totalFrames = 0;
     private double taskStartTime = 0.0;
@@ -85,16 +84,6 @@ public class TrcVisionTask<I, O>
     {
         tracer.setTraceLevel(msgLevel);
     }   //setTraceLevel
-
-    /**
-     * This method enables/disables vision processing performance report.
-     *
-     * @param enabled specifies true to enable perf report, false to disable.
-     */
-    public synchronized void setPerfReportEnabled(boolean enabled)
-    {
-        perfReportEnabled = enabled;
-    }   //setPerfReportEnabled
 
     /**
      * This method enables/disables the vision task. As long as the task is enabled, it will continue to
@@ -184,9 +173,8 @@ public class TrcVisionTask<I, O>
             totalTime += elapsedTime;
             totalFrames++;
             tracer.traceDebug(
-                instanceName,
-                "AvgProcessTime=" + totalTime/totalFrames +
-                ", FrameRate=" + (totalFrames/(TrcTimer.getCurrentTime() - taskStartTime)));
+                instanceName, "AvgProcessTime=%.6f, FrameRate=%f",
+                totalTime/totalFrames, totalFrames/(TrcTimer.getCurrentTime() - taskStartTime));
 
             I output = visionProcessor.getSelectedOutput();
             if (output != null)

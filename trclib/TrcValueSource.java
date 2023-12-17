@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
- package TrcCommonLib.trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This interface implements the method to read the value from a value source.

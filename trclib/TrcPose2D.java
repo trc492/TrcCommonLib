@@ -111,7 +111,7 @@ public class TrcPose2D
 
         if (!path.endsWith(".csv"))
         {
-            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+            throw new IllegalArgumentException(path + " is not a csv file!");
         }
 
         try

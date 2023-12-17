@@ -24,7 +24,6 @@ package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * This class implements a platform independent pixy camera 2. This class is intended to be extended by a platform
@@ -183,7 +182,7 @@ public abstract class TrcPixyCam2
                    ", x1=" + x1 +
                    ", y1=" + y1 +
                    ", index=" + index + "," +
-                   " flags=" + Integer.toHexString(flags);
+                   " flags=0x" + Integer.toHexString(flags);
         }   //toString
 
     }   //class Vector
@@ -270,8 +269,8 @@ public abstract class TrcPixyCam2
         {
             return "x=" + x +
                    ", y=" + y +
-                   ", flags=" + Integer.toHexString(flags) +
-                   ", code=" + Integer.toHexString(code);
+                   ", flags=0x" + Integer.toHexString(flags) +
+                   ", code=0x" + Integer.toHexString(code);
         }   //toString
 
     }   //class Barcode

@@ -77,8 +77,8 @@ public abstract class TrcPixyCam1
         @Override
         public String toString()
         {
-            return "sync=" + Integer.toHexString(sync) +
-                   ", chksum=" + Integer.toHexString(checksum) +
+            return "sync=0x" + Integer.toHexString(sync) +
+                   ", chksum=0x" + Integer.toHexString(checksum) +
                    ", sig=" + signature +
                    ", centerX=" + centerX +
                    ", centerY=" + centerY +
@@ -307,7 +307,7 @@ public abstract class TrcPixyCam1
                         {
                             tracer.traceDebug(
                                 instanceName,
-                                "Unexpected word " + Integer.toHexString(word) +
+                                "Unexpected word 0x" + Integer.toHexString(word) +
                                 " read in " + requestId + ".");
                         }
                     }
@@ -338,7 +338,7 @@ public abstract class TrcPixyCam1
                     asyncReadData(RequestId.SYNC, 2);
                     tracer.traceDebug(
                         instanceName,
-                        "Unexpected data byte " + Integer.toHexString(data[0]) +
+                        "Unexpected data byte 0x" + Integer.toHexString(data[0]) +
                         " in " + requestId + ".");
                 }
                 break;
@@ -404,7 +404,7 @@ public abstract class TrcPixyCam1
                             // We should never come here. Let's throw an exception to catch this unlikely scenario.
                             //
                             throw new IllegalStateException(
-                                "Unexpected sync word " + Integer.toHexString(currBlock.sync) +
+                                "Unexpected sync word 0x" + Integer.toHexString(currBlock.sync) +
                                 " in " + requestId + ".");
                         }
                     }

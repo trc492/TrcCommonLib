@@ -22,6 +22,8 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.Locale;
+
 /**
  * This class provides high precision time with nanosecond precision but not necessarily nanosecond resolution
  * (that is, how frequently the value changes). There is no guarantee except that the resolution is at least as
@@ -52,7 +54,8 @@ public class TrcHighPrecisionTime
     @Override
     public String toString()
     {
-        return instanceName + ": nanoTime=" + timestampNano + ", epochTime=" + timestampEpoch;
+        return String.format(
+            Locale.US, "%s: nanoTime=%d, epochTime=%.6f", instanceName, timestampNano, timestampEpoch);
     }   //toString
 
     /**
