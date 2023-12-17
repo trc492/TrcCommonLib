@@ -261,6 +261,23 @@ public class TrcDbgTrace
     }   //isTraceLogEnabled
 
     /**
+     * This method prints the exception stack to the global tracer.
+     *
+     * @param e specifies the exception.
+     */
+    public static void printExceptionStack(Exception e)
+    {
+        StackTraceElement[] stackTraceElements = e.getStackTrace();
+        StringBuilder sb = new StringBuilder("Stack Trace (depth=").append(stackTraceElements.length).append("):");
+
+        for (StackTraceElement ste : stackTraceElements)
+        {
+            sb.append("\n").append(ste);
+        }
+        globalTracer.traceMsgWorker(moduleName, 2, MsgLevel.ERR, sb.toString());
+    }   //printExceptionStack
+
+    /**
      * This method prints the stack of the given thread to the trace log.
      *
      * @param thread specifies the thread to print its stack.

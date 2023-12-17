@@ -38,10 +38,10 @@ public class TrcElapsedTimer
     private final String instanceName;
     private final long averageWindow;
     private final Queue<Long> elapsedTimeQueue;
-    private long minElapsedTime;
-    private long maxElapsedTime;
-    private long totalElapsedTime;
-    private long startTime;
+    private Long minElapsedTime = null;
+    private Long maxElapsedTime = null;
+    private long totalElapsedTime = 0L;
+    private long startTime = 0L;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -76,8 +76,8 @@ public class TrcElapsedTimer
     public synchronized void reset()
     {
         elapsedTimeQueue.clear();
-        minElapsedTime = Long.MAX_VALUE;
-        maxElapsedTime = 0L;
+        minElapsedTime = null;
+        maxElapsedTime = null;
         totalElapsedTime = 0L;
         startTime = 0L;
     }   //reset
@@ -100,15 +100,16 @@ public class TrcElapsedTimer
         // ElapsedTimer could have been enabled after the recordStartTime call, so it will miss recording startTime.
         // In this case, skip recordEndTime since we don't have a valid startTime.
         //
-        if (startTime != 0L)
+        if (startTime > 0L)
         {
             long elapsedTime = TrcTimer.getNanoTime() - startTime;
 
-            if (elapsedTime < minElapsedTime)
+            if (minElapsedTime == null || elapsedTime < minElapsedTime)
             {
                 minElapsedTime = elapsedTime;
             }
-            else if (elapsedTime > maxElapsedTime)
+
+            if (maxElapsedTime == null || elapsedTime > maxElapsedTime)
             {
                 maxElapsedTime = elapsedTime;
             }
@@ -129,7 +130,7 @@ public class TrcElapsedTimer
      */
     public synchronized void recordPeriodTime()
     {
-        if (startTime != 0L)
+        if (startTime > 0L)
         {
             recordEndTime();
         }
@@ -170,7 +171,7 @@ public class TrcElapsedTimer
      */
     public synchronized double getMinElapsedTime()
     {
-        return minElapsedTime/1000000000.0;
+        return minElapsedTime != null? minElapsedTime/1000000000.0: 0.0;
     }   //getMinElapsedTime
 
     /**
@@ -180,7 +181,7 @@ public class TrcElapsedTimer
      */
     public synchronized double getMaxElapsedTime()
     {
-        return maxElapsedTime/1000000000.0;
+        return maxElapsedTime != null? maxElapsedTime/1000000000.0: 0.0;
     }   //getMaxElapsedTime
 
     /**
