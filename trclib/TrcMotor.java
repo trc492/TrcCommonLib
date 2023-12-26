@@ -710,6 +710,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPositionSensorScaleAndOffset
 
     /**
+     * This method sets the position sensor scale and offset for translating sensor units to real world units.
+     *
+     * @param scale specifies scale factor to multiply the position sensor reading.
+     * @param offset specifies offset added to the scaled sensor reading.
+     */
+    public void setPositionSensorScaleAndOffset(double scale, double offset)
+    {
+        setPositionSensorScaleAndOffset(scale, offset, 0.0);
+    }   //setPositionSensorScaleAndOffset
+
+    /**
      * This method returns the normalized raw position of the external encoder if one is provided.
      *
      * @return external encoder normalized raw position.
