@@ -107,8 +107,8 @@ public abstract class TrcSerialBusDevice
 
     }   //class Request
 
-    private final TrcDbgTrace tracer;
-    private final String instanceName;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final TrcRequestQueue<Request> requestQueue;
     private final TrcEvent processRequestEvent;
 
@@ -119,7 +119,7 @@ public abstract class TrcSerialBusDevice
      */
     public TrcSerialBusDevice(String instanceName, boolean useRequestQueue)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         requestQueue = useRequestQueue ? new TrcRequestQueue<>(instanceName) : null;
         processRequestEvent = new TrcEvent(instanceName + ".processRequestEvent");

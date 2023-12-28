@@ -57,7 +57,7 @@ public class TrcVisionTask<I, O>
     public TrcVisionTask(
         String instanceName, TrcVisionProcessor<I, O> visionProcessor, I[] imageBuffers)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.visionProcessor = visionProcessor;
         this.imageBuffers = imageBuffers;

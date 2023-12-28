@@ -76,7 +76,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
             throw new IllegalArgumentException("Sensor cannot be null.");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.sensor = sensor;
 

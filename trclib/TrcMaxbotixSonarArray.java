@@ -62,7 +62,7 @@ public class TrcMaxbotixSonarArray
      */
     public TrcMaxbotixSonarArray(String instanceName, TrcAnalogInput[] sensors, TrcDigitalOutput rx, boolean loopConfig)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.sensors = sensors;
         this.rx = rx;

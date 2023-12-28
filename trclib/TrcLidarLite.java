@@ -161,7 +161,7 @@ public class TrcLidarLite
      */
     public TrcLidarLite(String instanceName, TrcSerialBusDevice device)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.device = device;
         notifyEvent = new TrcEvent(instanceName + ".notifyEvent");

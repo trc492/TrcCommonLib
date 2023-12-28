@@ -59,9 +59,9 @@ public class TrcHolonomicPurePursuitDriveV2
     private boolean tracePidInfo = false;
     private boolean verbosePidInfo = false;
     private TrcRobotBattery battery = null;
-    private volatile double velTolerance; // TODO: create setter
-    private volatile double posTolerance; // Volatile so it can be changed at runtime
-    private volatile double proximityRadius; // Volatile so it can be changed at runtime
+    private volatile double velTolerance;
+    private volatile double posTolerance;   // Volatile so it can be changed at runtime
+    private volatile double proximityRadius;// Volatile so it can be changed at runtime
     private TrcPath path;
     private int pathIndex = 1;
     private TrcEvent onFinishedEvent;
@@ -101,7 +101,7 @@ public class TrcHolonomicPurePursuitDriveV2
                 "Only holonomic drive bases supported for this pure pursuit implementation!");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.accelFF = accelFF;
         this.velTolerance = velTolerance;

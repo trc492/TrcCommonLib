@@ -57,7 +57,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
     private static final String moduleName = CmdPidDrive.class.getSimpleName();
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
+    private final TrcDbgTrace tracer = new TrcDbgTrace();
     private final TrcDriveBase driveBase;
     private final TrcPidDrive pidDrive;
     private final double delay;

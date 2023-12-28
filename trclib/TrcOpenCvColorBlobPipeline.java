@@ -243,7 +243,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             throw new RuntimeException("colorThresholds must be an array of 6 doubles.");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
         this.instanceName = instanceName;
         this.colorConversion = colorConversion;

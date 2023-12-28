@@ -389,7 +389,7 @@ public abstract class TrcPixyCam2
      */
     public TrcPixyCam2(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcPixyCam2
 

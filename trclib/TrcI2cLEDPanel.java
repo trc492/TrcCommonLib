@@ -50,7 +50,7 @@ public abstract class TrcI2cLEDPanel
      */
     public TrcI2cLEDPanel(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcI2cLEDPanel
 

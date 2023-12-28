@@ -116,7 +116,7 @@ public abstract class TrcPixyCam1
      */
     public TrcPixyCam1(String instanceName, boolean msbFirst)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.msbFirst = msbFirst;
     }   //TrcPixyCam1

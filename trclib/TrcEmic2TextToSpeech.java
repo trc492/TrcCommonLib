@@ -134,7 +134,7 @@ public abstract class TrcEmic2TextToSpeech
      */
     public TrcEmic2TextToSpeech(String instanceName)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcEmic2TextToSpeech
 

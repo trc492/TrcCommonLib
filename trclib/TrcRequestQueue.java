@@ -110,7 +110,7 @@ public class TrcRequestQueue<R>
      */
     public TrcRequestQueue(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         requestQueue = new LinkedBlockingQueue<>();
     }   //TrcRequestQueue

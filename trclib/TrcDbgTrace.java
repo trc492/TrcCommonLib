@@ -77,7 +77,6 @@ public class TrcDbgTrace
     private static TrcDbgTrace globalTracer = null;
     private static TrcTraceLogger traceLogger = null;
 
-    private final String instanceName;
     private MsgLevel msgLevel = MsgLevel.INFO;
 
     /**
@@ -85,13 +84,10 @@ public class TrcDbgTrace
      * the global tracer. For creating other tracers, use the constructor with just instanceName.
      *
      * @param callerName specifies the module name of the caller.
-     * @param instanceName specifies the instance name.
      * @param dbgLog specifies the dbgLog object to be set.
      */
-    public TrcDbgTrace(String callerName, String instanceName, DbgLog dbgLog)
+    public TrcDbgTrace(String callerName, DbgLog dbgLog)
     {
-        this.instanceName = instanceName;
-
         if (callerName != null && dbgLog != null)
         {
             if (TrcDbgTrace.dbgLog == null && callerName.equals("FrcRobotBase") || callerName.equals("FtcOpMode"))
@@ -114,12 +110,10 @@ public class TrcDbgTrace
 
     /**
      * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
      */
-    public TrcDbgTrace(String instanceName)
+    public TrcDbgTrace()
     {
-        this(null, instanceName, null);
+        this(null, null);
     }   //TrcDbgTrace
 
     /**

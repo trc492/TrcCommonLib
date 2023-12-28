@@ -124,7 +124,7 @@ public abstract class TrcPriorityIndicator<T>
      */
     public TrcPriorityIndicator(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         indicatorTaskObj = TrcTaskMgr.createTask(instanceName, this::indicatorTask);
     }   //TrcPriorityIndicator

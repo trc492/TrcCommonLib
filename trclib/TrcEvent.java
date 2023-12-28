@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TrcEvent
 {
     private static final String moduleName = TrcEvent.class.getSimpleName();
-    private static final TrcDbgTrace staticTracer = new TrcDbgTrace(moduleName);
+    private static final TrcDbgTrace staticTracer = new TrcDbgTrace();
 
     /**
      * An event has three possible states:
@@ -61,7 +61,7 @@ public class TrcEvent
      */
     public TrcEvent(String instanceName, EventState state)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         eventState.set(state);
     }   //TrcEvent

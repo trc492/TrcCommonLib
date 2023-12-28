@@ -130,7 +130,7 @@ public class TrcHolonomicPurePursuitDrive
                 "Only holonomic drive bases supported for this pure pursuit implementation!");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);

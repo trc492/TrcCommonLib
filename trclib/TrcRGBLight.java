@@ -166,7 +166,7 @@ public abstract class TrcRGBLight
      */
     public TrcRGBLight(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         rgbLightTaskObj = TrcTaskMgr.createTask(instanceName + ".rgbLightTask", this::rgbLightTask);
         sm = new TrcStateMachine<>(instanceName);

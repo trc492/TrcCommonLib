@@ -95,7 +95,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         String instanceName, int numImageBuffers, TrcHomographyMapper.Rectangle cameraRect,
         TrcHomographyMapper.Rectangle worldRect)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         if (cameraRect != null && worldRect != null)
         {

@@ -47,7 +47,7 @@ public class TrcTraceLogger
      */
     public TrcTraceLogger(String traceLogName)
     {
-        this.tracer = new TrcDbgTrace(traceLogName);
+        this.tracer = new TrcDbgTrace();
         this.traceLogName = traceLogName;
         msgQueue = new LinkedBlockingQueue<>();
     }   //TrcTraceLogger

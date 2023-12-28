@@ -180,7 +180,7 @@ public class TrcPeriodicThread<T>
      */
     public TrcPeriodicThread(String instanceName, PeriodicTask task, Object context, int taskPriority)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.task = task;
         this.context = context;

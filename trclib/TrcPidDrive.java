@@ -117,7 +117,7 @@ public class TrcPidDrive
         String instanceName, TrcDriveBase driveBase, TrcPidController.PidParameters xPidParams,
         TrcPidController.PidParameters yPidParams, TrcPidController.PidParameters turnPidParams)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.driveBase = driveBase;
         this.xPidCtrl = xPidParams != null?

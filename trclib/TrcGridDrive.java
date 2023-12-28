@@ -56,7 +56,7 @@ public class TrcGridDrive
         TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
         double turnEndAdj)
     {
-        this.tracer = new TrcDbgTrace(moduleName);
+        this.tracer = new TrcDbgTrace();
         this.driveBase = driveBase;
         this.purePursuitDrive = purePursuitDrive;
         this.gridCellSize = Math.abs(gridCellSize);

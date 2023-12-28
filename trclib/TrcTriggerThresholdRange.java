@@ -85,7 +85,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
             throw new IllegalArgumentException("ValueSource cannot be null.");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.valueSource = valueSource;
         triggerState = new TriggerState();

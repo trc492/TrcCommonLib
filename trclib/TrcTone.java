@@ -77,7 +77,7 @@ public abstract class TrcTone
      */
     public TrcTone(String instanceName, Waveform defWaveform)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.defWaveform = defWaveform;
     }   //TrcTone

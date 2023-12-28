@@ -46,7 +46,7 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
     }   //enum State
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
+    private final TrcDbgTrace tracer = new TrcDbgTrace();
     private final TrcDriveBase driveBase;
     private final double delay;
     private final double driveTime;

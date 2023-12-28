@@ -196,7 +196,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     public TrcMotor(
         String instanceName, TrcDigitalInput lowerLimitSwitch, TrcDigitalInput upperLimitSwitch, TrcEncoder encoder)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.lowerLimitSwitch = lowerLimitSwitch;
         this.upperLimitSwitch = upperLimitSwitch;

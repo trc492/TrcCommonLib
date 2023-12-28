@@ -38,7 +38,7 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
 public class TrcWatchdogMgr
 {
     public static final String moduleName = TrcWatchdogMgr.class.getSimpleName();
-    private static final TrcDbgTrace staticTracer = new TrcDbgTrace(moduleName);
+    private static final TrcDbgTrace staticTracer = new TrcDbgTrace();
 
     private static final double DEF_TASK_INTERVAL = 1.0;        // in seconds.
     private static final double DEF_HEARTBEAT_THRESHOLD = 1.0;  // in seconds.

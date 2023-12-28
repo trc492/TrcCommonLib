@@ -47,7 +47,7 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
     private static final String moduleName = CmdDriveMotorsTest.class.getSimpleName();
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
+    private final TrcDbgTrace tracer = new TrcDbgTrace();
     private final TrcMotor[] motors;
     private final double driveTime;
     private final double drivePower;

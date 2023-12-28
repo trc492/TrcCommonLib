@@ -147,7 +147,7 @@ public abstract class TrcSensor<D>
             throw new IllegalArgumentException("Filters must be an array of " + numAxes + " elements.");
         }
 
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.numAxes = numAxes;
         this.filters = filters;

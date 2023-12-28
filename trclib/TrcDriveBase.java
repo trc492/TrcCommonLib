@@ -262,7 +262,7 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
      */
     public TrcDriveBase(TrcMotor[] motors, TrcGyro gyro)
     {
-        this.tracer = new TrcDbgTrace(moduleName);
+        this.tracer = new TrcDbgTrace();
         this.motors = motors;
         this.gyro = gyro;
 

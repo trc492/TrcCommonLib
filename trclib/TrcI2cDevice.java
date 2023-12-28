@@ -177,7 +177,7 @@ public abstract class TrcI2cDevice
      */
     public TrcI2cDevice(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         i2cDeviceTaskObj = TrcTaskMgr.createTask(instanceName + ".i2cDeviceTask", this::i2cDeviceTask);
         portCommandSM = new TrcStateMachine<>(instanceName);

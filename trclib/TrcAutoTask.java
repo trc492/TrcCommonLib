@@ -80,7 +80,7 @@ public abstract class TrcAutoTask<T>
      */
     protected TrcAutoTask(String instanceName, String owner, TrcTaskMgr.TaskType taskType)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.owner = owner;
         this.taskType = taskType;

@@ -206,7 +206,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         String instanceName, TrcServo servo1, TrcServo servo2, Parameters params, TrcTrigger sensorTrigger,
         TrcEvent.Callback triggerCallback)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.servo = servo1;
         this.params = params;

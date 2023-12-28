@@ -144,7 +144,7 @@ public abstract class TrcServo implements TrcExclusiveSubsystem
      */
     public TrcServo(String instanceName)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         timer = new TrcTimer(instanceName);
         servoTaskObj = TrcTaskMgr.createTask(instanceName + ".servoTask", this::servoTask);

@@ -137,7 +137,7 @@ public class TrcPurePursuitDrive
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
         TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
 
         if (xPosPidCoeff == null || driveBase.supportsHolonomicDrive())

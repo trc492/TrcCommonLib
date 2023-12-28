@@ -34,7 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class TrcTaskMgr
 {
     private static final String moduleName = TrcTaskMgr.class.getSimpleName();
-    private static final TrcDbgTrace tracer = new TrcDbgTrace(moduleName);
+    private static final TrcDbgTrace tracer = new TrcDbgTrace();
 
     public static final long PERIODIC_INTERVAL_MS = 20;         // in msec
     public static final long IO_INTERVAL_MS = 10;               // in msec

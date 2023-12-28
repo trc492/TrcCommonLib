@@ -74,7 +74,7 @@ public abstract class TrcGameController
     public TrcGameController(
         final String instanceName, double deadbandThreshold, ButtonHandler buttonHandler)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.deadbandThreshold = deadbandThreshold;
         this.buttonHandler = buttonHandler;

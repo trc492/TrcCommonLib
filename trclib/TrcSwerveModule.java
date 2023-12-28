@@ -52,7 +52,7 @@ public class TrcSwerveModule
     private TrcSwerveModule(
             String instanceName, TrcMotor driveMotor, TrcMotor steerMotor, TrcServo steerServo)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.driveMotor = driveMotor;
         this.steerMotor = steerMotor;

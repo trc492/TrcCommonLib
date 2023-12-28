@@ -134,7 +134,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
         TrcEvent.Callback eventCallback)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.motor = motor;
         this.params = params;

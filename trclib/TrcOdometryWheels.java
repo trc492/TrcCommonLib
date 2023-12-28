@@ -173,7 +173,7 @@ public class TrcOdometryWheels
             throw new IllegalArgumentException("Must have at least one Y and an angle sensor.");
         }
 
-        this.tracer = new TrcDbgTrace(moduleName);
+        this.tracer = new TrcDbgTrace();
         this.xSensors = xSensors;
         this.ySensors = ySensors;
         this.angleSensor = angleSensor;

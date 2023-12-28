@@ -367,7 +367,7 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidParameters pidParams)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.pidParams = pidParams;
     }   //TrcPidController

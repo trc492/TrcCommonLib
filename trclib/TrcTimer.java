@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class TrcTimer
 {
     private static final String moduleName = TrcTimer.class.getSimpleName();
-    private static final TrcDbgTrace staticTracer = new TrcDbgTrace(moduleName);
+    private static final TrcDbgTrace staticTracer = new TrcDbgTrace();
 
     /**
      * This class encapsulates the state of a timer that must be updated atomically. Therefore, when accessing this
@@ -71,7 +71,7 @@ public class TrcTimer
      */
     public TrcTimer(String instanceName)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcTimer
 

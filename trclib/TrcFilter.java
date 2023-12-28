@@ -51,7 +51,7 @@ public abstract class TrcFilter
      */
     protected TrcFilter(String instanceName)
     {
-        tracer = new TrcDbgTrace(instanceName);
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcFilter
 

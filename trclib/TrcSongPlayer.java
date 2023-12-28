@@ -48,7 +48,7 @@ public class TrcSongPlayer
      */
     public TrcSongPlayer(String instanceName, TrcTone tone)
     {
-        this.tracer = new TrcDbgTrace(instanceName);
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.tone = tone;
         playerTaskObj = TrcTaskMgr.createTask(instanceName + ".playerTask", this::playerTask);
@@ -75,7 +75,7 @@ public class TrcSongPlayer
     {
         if (enabled)
         {
-            playerTaskObj.registerTask(TaskType.OUTPUT_TASK);   //TODO: should use OUTPUT_TASK
+            playerTaskObj.registerTask(TaskType.OUTPUT_TASK);
             stopTaskObj.registerTask(TrcTaskMgr.TaskType.STOP_TASK);
         }
         else
