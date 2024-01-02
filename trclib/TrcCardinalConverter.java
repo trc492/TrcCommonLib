@@ -22,6 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This class converts cardinal data to cartesian data for sensors such as gyro or compass. It can handle sensors
  * that have one or more axes. Some value sensors such as the Modern Robotics gyro returns cardinal heading values
@@ -45,7 +48,7 @@ public class TrcCardinalConverter<D>
     private final TrcTaskMgr.TaskObject converterTaskObj;
     private final double[] cardinalRangeLows;
     private final double[] cardinalRangeHighs;
-    private final TrcSensor.SensorData<Double>[] prevData;
+    private final List<TrcSensor.SensorData<Double>> prevData;
     private final int[] numCrossovers;
     private boolean enabled = false;
 
@@ -71,14 +74,14 @@ public class TrcCardinalConverter<D>
 
         cardinalRangeLows = new double[numAxes];
         cardinalRangeHighs = new double[numAxes];
-        prevData = new TrcSensor.SensorData[numAxes];
+        prevData = new ArrayList<>();
         numCrossovers = new int[numAxes];
 
         for (int i = 0; i < numAxes; i++)
         {
             cardinalRangeLows[i] = 0.0;
             cardinalRangeHighs[i] = 0.0;
-            prevData[i] = new TrcSensor.SensorData<>(0.0, 0.0);
+            prevData.add(new TrcSensor.SensorData<>(0.0, 0.0));
             numCrossovers[i] = 0;
         }
     }   //TrcCardinalConverter
@@ -132,7 +135,7 @@ public class TrcCardinalConverter<D>
      */
     public synchronized void reset(int index)
     {
-        prevData[index] = sensor.getProcessedData(index, dataType);
+        prevData.set(index, sensor.getProcessedData(index, dataType));
         numCrossovers[index] = 0;
     }   //reset
 
@@ -201,9 +204,9 @@ public class TrcCardinalConverter<D>
 
             if (data != null)
             {
-                if (Math.abs(data.value - prevData[i].value) > (cardinalRangeHighs[i] - cardinalRangeLows[i])/2.0)
+                if (Math.abs(data.value - prevData.get(i).value) > (cardinalRangeHighs[i] - cardinalRangeLows[i])/2.0)
                 {
-                    if (data.value > prevData[i].value)
+                    if (data.value > prevData.get(i).value)
                     {
                         numCrossovers[i]--;
                     }
@@ -212,7 +215,7 @@ public class TrcCardinalConverter<D>
                         numCrossovers[i]++;
                     }
                 }
-                prevData[i] = data;
+                prevData.set(i, data);
             }
         }
     }   //converterTask

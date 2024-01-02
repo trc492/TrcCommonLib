@@ -22,6 +22,9 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This class does data integration for sensors that have one or more axes. Some value sensors such as gyros and
  * accelerometers may need to integrate their data to provide heading from gyro rotation rate, and velocity or
@@ -34,9 +37,9 @@ public class TrcDataIntegrator<D>
     private final TrcSensor<D> sensor;
     private final D dataType;
     private final TrcTaskMgr.TaskObject integratorTaskObj;
-    private final TrcSensor.SensorData<Double>[] inputData;
-    private final TrcSensor.SensorData<Double>[] integratedData;
-    private final TrcSensor.SensorData<Double>[] doubleIntegratedData;
+    private final List<TrcSensor.SensorData<Double>> inputData;
+    private final List<TrcSensor.SensorData<Double>> integratedData;
+    private final List<TrcSensor.SensorData<Double>> doubleIntegratedData;
     private final double[] prevTimes;
 
     /**
@@ -61,17 +64,19 @@ public class TrcDataIntegrator<D>
         this.dataType = dataType;
         integratorTaskObj = TrcTaskMgr.createTask(instanceName + ".integratorTask", this::integratorTask);
 
-        inputData = new TrcSensor.SensorData[numAxes];
-        integratedData = new TrcSensor.SensorData[numAxes];
-        doubleIntegratedData = doubleIntegration? new TrcSensor.SensorData[numAxes]: null;
+        inputData = new ArrayList<>();
+        integratedData = new ArrayList<>();
+        doubleIntegratedData = doubleIntegration? new ArrayList<>(): null;
         prevTimes = new double[numAxes];
 
         for (int i = 0; i < numAxes; i++)
         {
-            integratedData[i] = new TrcSensor.SensorData<>(0.0, 0.0);
+            integratedData.add(new TrcSensor.SensorData<>(0.0, 0.0));
             if (doubleIntegratedData != null)
             {
-                doubleIntegratedData[i] = new TrcSensor.SensorData<>(0.0, 0.0);
+                doubleIntegratedData.add(new TrcSensor.SensorData<>(0.0, 0.0));
+            } else {
+                doubleIntegratedData.add(null);
             }
             prevTimes[i] = 0.0;
         }
@@ -127,10 +132,10 @@ public class TrcDataIntegrator<D>
     public synchronized void reset(int index)
     {
         prevTimes[index] = TrcTimer.getCurrentTime();
-        integratedData[index].value = 0.0;
+        integratedData.get(index).value = 0.0;
         if (doubleIntegratedData != null)
         {
-            doubleIntegratedData[index].value = 0.0;
+            doubleIntegratedData.get(index).value = 0.0;
         }
     }   //reset
 
@@ -139,7 +144,7 @@ public class TrcDataIntegrator<D>
      */
     public synchronized void reset()
     {
-        for (int i = 0; i < integratedData.length; i++)
+        for (int i = 0; i < integratedData.size(); i++)
         {
             reset(i);
         }
@@ -190,24 +195,24 @@ public class TrcDataIntegrator<D>
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
         boolean allZeroAxis = true;
-        double[] deltaTime = new double[inputData.length];
-        for (int i = 0; i < inputData.length; i++)
+        double[] deltaTime = new double[inputData.size()];
+        for (int i = 0; i < inputData.size(); i++)
         {
             //
             // Get sensor data.
             //
-            inputData[i] = sensor.getProcessedData(i, dataType);
-            deltaTime[i] = inputData[i].timestamp - prevTimes[i];
-            if (inputData[i].value != 0.0)
+            inputData.set(i, sensor.getProcessedData(i, dataType));
+            deltaTime[i] = inputData.get(i).timestamp - prevTimes[i];
+            if (inputData.get(i).value != 0.0)
             {
                 allZeroAxis = false;
             }
             //
             // Do integration.
             //
-            integratedData[i].timestamp = inputData[i].timestamp;
-            integratedData[i].value = integratedData[i].value + inputData[i].value*deltaTime[i];
-            prevTimes[i] = inputData[i].timestamp;
+            integratedData.get(i).timestamp = inputData.get(i).timestamp;
+            integratedData.get(i).value = integratedData.get(i).value + inputData.get(i).value*deltaTime[i];
+            prevTimes[i] = inputData.get(i).timestamp;
         }
 
         //
@@ -215,17 +220,17 @@ public class TrcDataIntegrator<D>
         //
         if (doubleIntegratedData != null)
         {
-            for (int i = 0; i < inputData.length; i++)
+            for (int i = 0; i < inputData.size(); i++)
             {
-                doubleIntegratedData[i].timestamp = inputData[i].timestamp;
+                doubleIntegratedData.get(i).timestamp = inputData.get(i).timestamp;
                 if (allZeroAxis)
                 {
-                    integratedData[i].value = 0.0;
+                    integratedData.get(i).value = 0.0;
                 }
                 else
                 {
-                    doubleIntegratedData[i].value =
-                            doubleIntegratedData[i].value + integratedData[i].value*deltaTime[i];
+                    doubleIntegratedData.get(i).value =
+                            doubleIntegratedData.get(i).value + integratedData.get(i).value*deltaTime[i];
                 }
             }
         }
