@@ -33,8 +33,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataType>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
     //
     // Accelerometer data types.
     //
@@ -101,7 +99,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *                filter will be used on that axis, the corresponding element in the array should be set to null.
      *                If no filter is used at all, filters can be set to null.
      */
-    public TrcAccelerometer(final String instanceName, int numAxes, int options, TrcFilter[] filters)
+    public TrcAccelerometer(String instanceName, int numAxes, int options, TrcFilter[] filters)
     {
         super(instanceName, numAxes, filters);
         //
@@ -155,7 +153,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *                ACCEL_INTEGRATE - do integration on all axes to get velocities.
      *                ACCEL_DOUBLE_INTEGRATE - do double integration on all axes to get distances.
      */
-    public TrcAccelerometer(final String instanceName, int numAxes, int options)
+    public TrcAccelerometer(String instanceName, int numAxes, int options)
     {
         this(instanceName, numAxes, options, null);
     }   //TrcAccelerometer
@@ -215,7 +213,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
     /**
      * This method prints the elapsed time info using the given tracer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @param tracer specifies the tracer to be used to print the info.
      */
     public void printElapsedTime(TrcDbgTrace tracer)
     {
@@ -295,15 +293,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getXAcceleration()
     {
-        final String funcName = "getXAcceleration";
-        SensorData<Double> data = getProcessedData(xIndex, DataType.ACCELERATION);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return getProcessedData(xIndex, DataType.ACCELERATION);
     }   //getXAcceleration
 
     /**
@@ -313,15 +303,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getYAcceleration()
     {
-        final String funcName = "getYAcceleration";
-        SensorData<Double> data = getProcessedData(yIndex, DataType.ACCELERATION);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return getProcessedData(yIndex, DataType.ACCELERATION);
     }   //getYAcceleration
 
     /**
@@ -331,15 +313,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getZAcceleration()
     {
-        final String funcName = "getZAcceleration";
-        SensorData<Double> data = getProcessedData(zIndex, DataType.ACCELERATION);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return getProcessedData(zIndex, DataType.ACCELERATION);
     }   //getZAcceleration
 
     /**
@@ -350,24 +324,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getXVelocity()
     {
-        final String funcName = "getXVelocity";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getIntegratedData(xIndex);
-        }
-        else
-        {
-            data = getRawXData(DataType.VELOCITY);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getIntegratedData(xIndex) : getRawXData(DataType.VELOCITY);
     }   //getXVelocity
 
     /**
@@ -378,24 +335,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getYVelocity()
     {
-        final String funcName = "getYVelocity";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getIntegratedData(yIndex);
-        }
-        else
-        {
-            data = getRawYData(DataType.VELOCITY);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getIntegratedData(yIndex) : getRawYData(DataType.VELOCITY);
     }   //getYVelocity
 
     /**
@@ -406,24 +346,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getZVelocity()
     {
-        final String funcName = "getZVelocity";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getIntegratedData(zIndex);
-        }
-        else
-        {
-            data = getRawZData(DataType.VELOCITY);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getIntegratedData(zIndex) : getRawZData(DataType.VELOCITY);
     }   //getZVelocity
 
     /**
@@ -434,24 +357,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getXDistance()
     {
-        final String funcName = "getXDistance";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getDoubleIntegratedData(xIndex);
-        }
-        else
-        {
-            data = getRawXData(DataType.DISTANCE);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(xIndex) : getRawXData(DataType.DISTANCE);
     }   //getXDistance
 
     /**
@@ -462,24 +368,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getYDistance()
     {
-        final String funcName = "getYDistance";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getDoubleIntegratedData(yIndex);
-        }
-        else
-        {
-            data = getRawYData(DataType.DISTANCE);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(yIndex) : getRawYData(DataType.DISTANCE);
     }   //getYDistance
 
     /**
@@ -490,24 +379,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      */
     public SensorData<Double> getZDistance()
     {
-        final String funcName = "getZDistance";
-        SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getDoubleIntegratedData(zIndex);
-        }
-        else
-        {
-            data = getRawZData(DataType.DISTANCE);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(zIndex) : getRawZData(DataType.DISTANCE);
     }   //getZDistance
 
     //
@@ -561,7 +433,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
     @Override
     public SensorData<Double> getRawData(int index, DataType dataType)
     {
-        final String funcName = "getRawData";
         SensorData<Double> data = null;
 
         if (getDataElapsedTimer != null) getDataElapsedTimer.recordStartTime();
@@ -578,11 +449,6 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
             data = getRawZData(dataType);
         }
         if (getDataElapsedTimer != null) getDataElapsedTimer.recordEndTime();
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "[%d] type=%s, data=%s", index, dataType, data);
-        }
 
         return data;
     }   //getRawData

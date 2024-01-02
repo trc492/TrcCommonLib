@@ -51,8 +51,8 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String .format(
-                Locale.US, "objDist=%.1f, movePower=%.1f, maxCap=%d", objectDistance, movePower, maxCapacity);
+            return String.format(
+                Locale.US, "objDistance=%f, movePower=%f, maxCap=%d", objectDistance, movePower, maxCapacity);
         }   //toString
 
         /**

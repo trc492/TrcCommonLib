@@ -58,14 +58,30 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
          *
          * @return pose of the detected object relative to camera.
          */
-        TrcPose3D getPose();
+        TrcPose3D getObjectPose();
+
+        /**
+         * This method returns the objects real world width.
+         *
+         * @return object real world width, null if not supported.
+         */
+        Double getObjectWidth();
+
+        /**
+         * This method returns the objects real world depth.
+         *
+         * @return object real world depth, null if not supported.
+         */
+        Double getObjectDepth();
 
     }   //interface ObjectInfo
 
     public O detectedObj;
     public Rect rect;
     public double area;
-    public TrcPose3D pose;
+    public TrcPose3D objPose;
+    public Double objWidth;
+    public Double objDepth;
 
     /**
      * Constructor: Create an instance of the object.
@@ -87,12 +103,17 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
 
         if (homographyMapper == null)
         {
-            // Caller did not provide homography mapper, it means the caller is doing pose calculation itself.
-            this.pose = detectedObj.getPose();
+            // Caller did not provide homography mapper, it means the caller is doing pose/width/depth calculation
+            // itself.
+            objPose = detectedObj.getObjectPose();
+            objWidth = detectedObj.getObjectWidth();
+            objDepth = detectedObj.getObjectDepth();
         }
         else
         {
             // Call provided homography mapper, we will use it to calculate the detected object pose.
+            Point topLeft = homographyMapper.mapPoint(new Point(rect.x, rect.y));
+            Point topRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y));
             Point bottomLeft = homographyMapper.mapPoint(new Point(rect.x, rect.y + rect.height));
             Point bottomRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y + rect.height));
             double xDistanceFromCamera = (bottomLeft.x + bottomRight.x)/2.0;
@@ -114,7 +135,10 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
                 yDistanceFromCamera -= adjustment * Math.cos(horiAngleRadian);
             }
             // Don't have enough info to determine pitch and roll.
-            pose = new TrcPose3D(xDistanceFromCamera, yDistanceFromCamera, objHeightOffset, horizontalAngle, 0.0, 0.0);
+            objPose = new TrcPose3D(xDistanceFromCamera, yDistanceFromCamera, objHeightOffset, horizontalAngle, 0.0,
+                                   0.0);
+            objWidth = bottomRight.x - bottomLeft.x;
+            objDepth = ((topLeft.y + topRight.y) - (bottomLeft.y + bottomRight.y))/2.0;
         }
     }   //TrcVisionTargetInfo
 
@@ -136,7 +160,9 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     @Override
     public String toString()
     {
-        return String.format(Locale.US, "Obj=%s rect=%s area=%.3f pose=%s", detectedObj, rect, area, pose);
+        return String.format(
+            Locale.US, "(Obj=%s,rect=%s,area=%f,pose=%s,width=%f,depth=%f)",
+            detectedObj, rect, area, objPose, objWidth != null? objWidth: 0.0, objDepth != null? objDepth: 0.0);
     }   //toString
 
 }   //class TrcVisionTargetInfo

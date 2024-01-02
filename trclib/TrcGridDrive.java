@@ -31,8 +31,9 @@ import java.util.ArrayList;
  */
 public class TrcGridDrive
 {
-    private static final String moduleName = "TrcGridDrive";
+    private static final String moduleName = TrcGridDrive.class.getSimpleName();
 
+    private final TrcDbgTrace tracer;
     private final TrcDriveBase driveBase;
     private final TrcPurePursuitDrive purePursuitDrive;
     private final double gridCellSize;
@@ -41,7 +42,6 @@ public class TrcGridDrive
     private final TrcTaskMgr.TaskObject gridDriveTaskObj;
     private final TrcEvent callbackEvent;
     private final ArrayList<TrcPose2D> gridDriveQueue = new ArrayList<>();
-    private TrcDbgTrace msgTracer = null;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -56,6 +56,7 @@ public class TrcGridDrive
         TrcDriveBase driveBase, TrcPurePursuitDrive purePursuitDrive, double gridCellSize, double turnStartAdj,
         double turnEndAdj)
     {
+        this.tracer = new TrcDbgTrace();
         this.driveBase = driveBase;
         this.purePursuitDrive = purePursuitDrive;
         this.gridCellSize = Math.abs(gridCellSize);
@@ -78,27 +79,22 @@ public class TrcGridDrive
     }   //TrcGridDrive
 
     /**
-     * This method enables/disables tracing for the auto-assist task.
+     * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer to use for logging events.
+     * @param msgLevel specifies the message level.
      */
-    public void setMsgTracer(TrcDbgTrace tracer)
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
     {
-        msgTracer = tracer;
-    }   //setMsgTracer
+        tracer.setTraceLevel(msgLevel);
+    }   //setTraceLevel
 
     /**
      * This method cancels Grid Drive if one is in progress.
      */
     public void cancel()
     {
-        final String funcName = "cancel";
-
-        if (msgTracer != null)
-        {
-            msgTracer.traceInfo(funcName, "Canceling Grid Drive.");
-        }
         // Note: this is a cooperative multi-task, so don't need to be thread-safe.
+        tracer.traceDebug(moduleName, "Canceling Grid Drive.");
         setTaskEnabled(false);
         gridDriveQueue.clear();
         purePursuitDrive.cancel();
@@ -125,24 +121,17 @@ public class TrcGridDrive
      */
     private void setTaskEnabled(boolean enabled)
     {
-        final String funcName = "setTaskEnabled";
         boolean taskActive = isGridDriveActive();
 
         if (!taskActive && enabled)
         {
             gridDriveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "Enabling task.");
-            }
+            tracer.traceDebug(moduleName, "Enabling task.");
         }
         else if (taskActive && !enabled)
         {
             gridDriveTaskObj.unregisterTask();
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "Disabling task.");
-            }
+            tracer.traceDebug(moduleName, "Disabling task.");
         }
     }   //setTaskEnabled
 
@@ -225,18 +214,15 @@ public class TrcGridDrive
      */
     public void resetGridCellCenter()
     {
-        final String funcName = "resetGridCellCenter";
         TrcPose2D robotPose = driveBase.getFieldPosition();
         TrcPose2D cellCenterPose = adjustPoseToGridCellCenter(robotPose);
         // Do not change the heading, use original robot pose heading. We are resetting just the position.
         cellCenterPose.angle = robotPose.angle;
-
-        if (msgTracer != null)
-        {
-            msgTracer.traceInfo(funcName, "robotPose=%s, cellCenterPose=%s", robotPose, cellCenterPose);
-        }
-
         driveBase.setFieldPosition(cellCenterPose);
+        tracer.traceDebug(
+            moduleName,
+            "robotPose=" + robotPose +
+            ", cellCenterPose=" + cellCenterPose);
     }   //resetGridCellCenter
 
     /**
@@ -279,16 +265,13 @@ public class TrcGridDrive
      */
     private void setRelativeGridTarget(int xGridCells, int yGridCells)
     {
-        final String funcName = "setRelativeGridTarget";
-
         if (xGridCells != 0 && yGridCells == 0 || yGridCells != 0 && xGridCells == 0)
         {
             gridDriveQueue.add(new TrcPose2D(xGridCells, yGridCells, 0.0));
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(
-                    funcName, "CellUnits=%d/%d (QSize=%d)", xGridCells, yGridCells, gridDriveQueue.size());
-            }
+            tracer.traceDebug(
+                moduleName,
+                "CellUnits=" + xGridCells + "/" + yGridCells +
+                " (QSize=" + gridDriveQueue.size() + ")");
             setTaskEnabled(true);
         }
     }   //setRelativeGridTarget
@@ -321,8 +304,6 @@ public class TrcGridDrive
      */
     public void driveToEndPoint(TrcPose2D endPoint)
     {
-        final String funcName = "driveToEndPoint";
-
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
             TrcPose2D robotPose = driveBase.getFieldPosition();
@@ -338,12 +319,7 @@ public class TrcGridDrive
 
             pathBuilder.append(gridCellToPose(endGridCell)).append(endPoint);
             TrcPath path = pathBuilder.toRelativeStartPath();
-
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "EndPoint=%s, DrivePath=%s", endPoint, path);
-            }
-
+            tracer.traceDebug(moduleName, "EndPoint=" + endPoint + ", DrivePath=" + path);
             callbackEvent.setCallback(this::driveDone, null);
             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }
@@ -380,8 +356,6 @@ public class TrcGridDrive
      */
     private void startGridDrive()
     {
-        final String funcName = "startGridDrive";
-
         if (driveBase.acquireExclusiveAccess(moduleName))
         {
             TrcPose2D robotPose = driveBase.getFieldPosition();
@@ -389,38 +363,31 @@ public class TrcGridDrive
             TrcPose2D prevSegment = new TrcPose2D(0.0, 0.0, startGridPose.angle);
             // The first point of the path is center of the grid cell the robot is on.
             TrcPathBuilder pathBuilder = new TrcPathBuilder(robotPose, false).append(startGridPose);
-
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(
-                    funcName, "##### robotPose=%s, startGridPose=%s, QSize=%d",
-                    robotPose, startGridPose, gridDriveQueue.size());
-            }
+            tracer.traceVerbose(
+                moduleName,
+                "##### robotPose=" + robotPose +
+                ", startGridPose=" + startGridPose +
+                ", QSize=" + gridDriveQueue.size());
 
             boolean deferSegment = false;
             while (gridDriveQueue.size() > 0)
             {
                 TrcPose2D nextSegment = gridDriveQueue.get(0);
 
-                if (msgTracer != null)
-                {
-                    msgTracer.traceInfo(
-                        funcName, "Adjacent Segments: prevSegment=%s, nextSegment=%s", prevSegment, nextSegment);
-                }
-
+                tracer.traceVerbose(
+                    moduleName,
+                    "Adjacent Segments: prevSegment=" + prevSegment +
+                    ", nextSegment=" + nextSegment);
                 if (!willTurn(prevSegment, nextSegment))
                 {
                     // Not turning, can coalesce the nextSegment to the prevSegment.
                     prevSegment.x += nextSegment.x;
                     prevSegment.y += nextSegment.y;
                     gridDriveQueue.remove(nextSegment);
-
-                    if (msgTracer != null)
-                    {
-                        msgTracer.traceInfo(
-                            funcName, "Coalesced compatible segments: prevSegment=%s (QSize=%d)",
-                            prevSegment, gridDriveQueue.size());
-                    }
+                    tracer.traceVerbose(
+                        moduleName,
+                        "Coalesced compatible segments: prevSegment=" + prevSegment +
+                        " (QSize=" + gridDriveQueue.size() + ")");
                     deferSegment = true;
                 }
                 else
@@ -525,15 +492,12 @@ public class TrcGridDrive
                                       nextSegmentPoint.angle));
 
                     gridDriveQueue.remove(nextSegment);
-
-                    if (msgTracer != null)
-                    {
-                        msgTracer.traceInfo(
-                            funcName,
-                            "Turn Adjustments: prevEndPoint=%s, nextStartPoint=%s, nextSegPoint=%s (QSize=%d)",
-                            prevEndPoint, nextStartPoint, nextSegmentPoint, gridDriveQueue.size());
-                    }
-
+                    tracer.traceVerbose(
+                        moduleName,
+                        "Turn Adjustments: prevEndPoint=" + prevEndPoint +
+                        ", nextStartPoint=" + nextStartPoint +
+                        ", nextSegPoint=" + nextSegmentPoint +
+                        " (QSize=" + gridDriveQueue.size() + ")");
                     prevSegment = nextSegmentPoint;
                     deferSegment = false;
                 }
@@ -549,11 +513,7 @@ public class TrcGridDrive
             }
 
             TrcPath path = pathBuilder.toRelativeStartPath();
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "GridDrivePath=%s", path);
-            }
-
+            tracer.traceVerbose(moduleName, "GridDrivePath=" + path);
             callbackEvent.setCallback(this::driveDone, null);
             purePursuitDrive.start(moduleName, path, callbackEvent, 0.0);
         }

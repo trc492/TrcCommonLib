@@ -31,19 +31,11 @@ import java.util.ArrayList;
  */
 public class TrcSong
 {
-    private static final String moduleName = "TrcSong";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     /**
      * This class implements a notated section that contains a section name, an array of notes and keeps track of
      * the next note of the section and provides a getNextNote() method to retrieve the next note to play.
      */
-    private class Section
+    private static class Section
     {
         private final String name;
         private final String[] notes;
@@ -69,14 +61,6 @@ public class TrcSong
          */
         public String getName()
         {
-            final String funcName = "section.toString";
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", name);
-            }
-
             return name;
         }   //toString
 
@@ -87,16 +71,7 @@ public class TrcSong
          */
         public boolean hasNextNote()
         {
-            final String funcName = "section.hasNextNote";
-            boolean hasNote = noteIndex < notes.length;
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(hasNote));
-            }
-
-            return hasNote;
+            return noteIndex < notes.length;
         }   //hasNextNote
 
         /**
@@ -106,14 +81,7 @@ public class TrcSong
          */
         public String getNextNote()
         {
-            final String funcName = "section.getNextNote";
             String note = null;
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            }
-
             //
             // Make sure it is not an empty string. If it is, skip it and get the next note.
             //
@@ -127,11 +95,6 @@ public class TrcSong
                 note = notes[noteIndex++];
             }
 
-            if (debugEnabled)
-            {
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", note == null? "null": note);
-            }
-
             return note;
         }   //getNextNote
 
@@ -140,14 +103,6 @@ public class TrcSong
          */
         public void rewind()
         {
-            final String funcName = "section.rewind";
-
-            if (debugEnabled)
-            {
-                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-            }
-
             noteIndex = 0;
         }   //rewind
 
@@ -155,7 +110,7 @@ public class TrcSong
 
     private final String songName;
     private double startVolume;
-    private ArrayList<Section> sections = new ArrayList<>();
+    private final ArrayList<Section> sections = new ArrayList<>();
     private String[] sequence = null;
     private int sequenceIndex = 0;
     private Section currSection = null;
@@ -167,15 +122,8 @@ public class TrcSong
      * @param name specifies the name of the song.
      * @param startVolume specifies the starting volume.
      */
-    public TrcSong(final String name, double startVolume)
+    public TrcSong(String name, double startVolume)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + name, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.songName = name;
         this.startVolume = startVolume;
     }   //TrcSong
@@ -248,19 +196,7 @@ public class TrcSong
      */
     public void addSection(String name, String section)
     {
-        final String funcName = "addSection";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "name=%s,section=<%s>", name, section);
-        }
-
         sections.add(new Section(name, section));
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //addSection
 
     /**
@@ -270,14 +206,6 @@ public class TrcSong
      */
     public void setSequence(String sequence)
     {
-        final String funcName = "setSequence";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "sequence=%s", sequence);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         this.sequence = sequence.split("[, \t\n]");
         sequenceIndex = 0;
     }   //setSequence
@@ -289,14 +217,7 @@ public class TrcSong
      */
     public String getNextNote()
     {
-        final String funcName = "getNextNote";
         String note = null;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // Either we just started the song or the current section has no more note.
         //
@@ -340,11 +261,6 @@ public class TrcSong
             note = currSection.getNextNote();
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", note == null? "null": note);
-        }
-
         return note;
     }   //getNextNote
 
@@ -355,14 +271,6 @@ public class TrcSong
      */
     public double getCurrentVolume()
     {
-        final String funcName = "getCurrentVolume";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%.1f", currVolume);
-        }
-
         return currVolume;
     }   //getCurrentVolume
 
@@ -373,14 +281,6 @@ public class TrcSong
      */
     public void setCurrentVolume(double vol)
     {
-        final String funcName = "setCurrentVolume";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "vol=%f", vol);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         currVolume = vol;
     }   //setCurrentVolume
 
@@ -391,14 +291,6 @@ public class TrcSong
      */
     public void setStartVolume(double vol)
     {
-        final String funcName = "setStartVolume";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "vol=%f", vol);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         startVolume = vol;
     }   //setStartVolume
 
@@ -407,14 +299,6 @@ public class TrcSong
      */
     public void rewind()
     {
-        final String funcName = "rewind";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         sequenceIndex = 0;
         currSection = null;
         currVolume = startVolume;
@@ -428,13 +312,7 @@ public class TrcSong
      */
     private Section findSection(String sectionName)
     {
-        final String funcName = "findSection";
         Section section = null;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "name=%s", sectionName);
-        }
 
         for (Section s: sections)
         {
@@ -443,12 +321,6 @@ public class TrcSong
                 section = s;
                 break;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC, "=%s",
-                               section == null? "null": section.getName());
         }
 
         return section;

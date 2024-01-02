@@ -55,7 +55,7 @@ public class TrcHighPrecisionTime
     public String toString()
     {
         return String.format(
-                Locale.US, "%s: nanoTime=%d, epochTime=%.6f", instanceName, timestampNano, timestampEpoch);
+            Locale.US, "%s: nanoTime=%d, epochTime=%.6f", instanceName, timestampNano, timestampEpoch);
     }   //toString
 
     /**

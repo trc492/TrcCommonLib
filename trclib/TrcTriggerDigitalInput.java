@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -31,10 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class TrcTriggerDigitalInput implements TrcTrigger
 {
-    private static final String moduleName = "TrcTriggerDigitInput";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This class encapsulates the trigger state. Access to this object must be thread safe (i.e. needs to be
      * synchronized).
@@ -53,11 +48,12 @@ public class TrcTriggerDigitalInput implements TrcTrigger
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "(state=%s,enabled=%s)", sensorState, triggerEnabled);
+            return "(state=" + sensorState + ",enabled=" + triggerEnabled + ")";
         }   //toString
 
     }   //class TriggerState
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcDigitalInput sensor;
     private final TriggerState triggerState;
@@ -80,6 +76,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
             throw new IllegalArgumentException("Sensor cannot be null.");
         }
 
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.sensor = sensor;
 
@@ -100,7 +97,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
 
         synchronized (triggerState)
         {
-            str = String.format(Locale.US, "%s.%s=%s", moduleName, instanceName, triggerState);
+            str = instanceName + "=" + triggerState;
         }
 
         return str;
@@ -118,8 +115,6 @@ public class TrcTriggerDigitalInput implements TrcTrigger
      */
     private void setEnabled(boolean enabled, TrcEvent event)
     {
-        final String funcName = "setEnabled";
-
         synchronized (triggerState)
         {
             if (enabled)
@@ -136,12 +131,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
                 triggerEvent = null;
             }
             triggerState.triggerEnabled = enabled;
-
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "%s.%s: enabled=%s (state=%s)", moduleName, instanceName, enabled, triggerState);
-            }
+            tracer.traceDebug(instanceName, "enabled=" + enabled + " (state=" + triggerState + ")");
         }
     }   //setEnabled
 
@@ -202,7 +192,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
     /**
      * This method reads the current analog sensor value (not supported).
      *
-     * @return current sensor value, null if it failed to read the sensor.
+     * @return current sensor value.
      */
     @Override
     public double getSensorValue()
@@ -232,7 +222,6 @@ public class TrcTriggerDigitalInput implements TrcTrigger
      */
     private void triggerTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "triggerTask";
         boolean currState = getSensorState();
         boolean triggered = false;
         boolean prevState = false;
@@ -249,12 +238,7 @@ public class TrcTriggerDigitalInput implements TrcTrigger
 
         if (triggered)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "%s.%s: changes state %s->%s", moduleName, instanceName, prevState, currState);
-            }
-
+            tracer.traceDebug(instanceName, "changes state " + prevState + "->" + currState);
             if (triggerCallback != null)
             {
                 callbackContext.set(currState);

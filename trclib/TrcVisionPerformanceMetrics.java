@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
- package TrcCommonLib.trclib;
+package TrcCommonLib.trclib;
 
 /**
  * This class implements Performance Metrics for Vision. It keeps track of the average time for vision to process a
@@ -28,9 +28,23 @@
  */
 public class TrcVisionPerformanceMetrics
 {
+    private final String instanceName;
+    private final TrcDbgTrace tracer;
     private double startTime = 0.0;
     private double totalProcessedTime = 0.0;
     private long totalProcessedFrames = 0;
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param tracer specifies the tracer to be used to print performance info.
+     */
+    public TrcVisionPerformanceMetrics(String instanceName, TrcDbgTrace tracer)
+    {
+        this.instanceName = instanceName;
+        this.tracer = tracer;
+    }   //TrcVisionPerformanceMetrics
 
     /**
      * This method resets the pipeline performance metrics. It is typically called before enabling the pipeline.
@@ -56,17 +70,11 @@ public class TrcVisionPerformanceMetrics
     /**
      * This method prints the pipeline performance metrics using the given tracer.
      */
-    public void printMetrics(TrcDbgTrace tracer)
+    public void printMetrics()
     {
-        final String funcName = "printMetrics";
-
-        if (tracer != null)
-        {
-            tracer.traceInfo(
-                funcName, "AvgProcessTime=%.3f sec, FrameRate=%.1f",
-                totalProcessedTime/totalProcessedFrames,
-                totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
-        }
+        tracer.traceInfo(
+            instanceName, "AvgProcessTime=%.6f, FrameRate=%f",
+            totalProcessedTime/totalProcessedFrames, totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
     }   //printMetrics
 
 }   //class TrcVisionPerformanceMetrics

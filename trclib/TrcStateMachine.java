@@ -33,14 +33,6 @@ import java.util.ArrayList;
  */
 public class TrcStateMachine<T>
 {
-    private static final String moduleName = "TrcStateMachine";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     private final String instanceName;
     private final ArrayList<TrcEvent> eventList = new ArrayList<>();
     private T currState = null;
@@ -56,13 +48,8 @@ public class TrcStateMachine<T>
      *
      * @param instanceName specifies the instance name of the state machine.
      */
-    public TrcStateMachine(final String instanceName)
+    public TrcStateMachine(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcStateMachine
 
@@ -84,15 +71,6 @@ public class TrcStateMachine<T>
      */
     public void start(T state)
     {
-        final String funcName = "start";
-
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         eventList.clear();
         currState = state;
         nextState = state;
@@ -101,11 +79,6 @@ public class TrcStateMachine<T>
         expired = false;
         expiredTime = 0.0;
         waitForAllEvents = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //start
 
     /**
@@ -113,13 +86,6 @@ public class TrcStateMachine<T>
      */
     public void stop()
     {
-        final String funcName = "stop";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         eventList.clear();
         currState = null;
         nextState = null;
@@ -128,11 +94,6 @@ public class TrcStateMachine<T>
         expired = false;
         expiredTime = 0.0;
         waitForAllEvents = false;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //stop
 
     /**
@@ -142,14 +103,6 @@ public class TrcStateMachine<T>
      */
     public T getState()
     {
-        final String funcName = "getState";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", currState);
-        }
-
         return currState;
     }   //getState
 
@@ -160,14 +113,6 @@ public class TrcStateMachine<T>
      */
     public T getNextState()
     {
-        final String funcName = "getNextState";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", nextState);
-        }
-
         return nextState;
     }   //getNextState
 
@@ -179,22 +124,11 @@ public class TrcStateMachine<T>
      */
     public T checkReadyAndGetState()
     {
-        final String funcName = "checkReadyAndGetState";
         T state = null;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
 
         if (isReady())
         {
             state = getState();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", state == null? "NotReady": state);
         }
 
         return state;
@@ -207,19 +141,7 @@ public class TrcStateMachine<T>
      */
     public void setState(T state)
     {
-        final String funcName = "setState";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "state=%s", state.toString());
-        }
-
         currState = state;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //setState
 
     /**
@@ -229,14 +151,6 @@ public class TrcStateMachine<T>
      */
     public boolean isEnabled()
     {
-        final String funcName = "isEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(enabled));
-        }
-
         return enabled;
     }   //isEnabled
 
@@ -249,13 +163,6 @@ public class TrcStateMachine<T>
      */
     public boolean isReady()
     {
-        final String funcName = "isReady";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // If the state machine is enabled but not ready, check all events if the state machine should be put back
         // in ready mode.
@@ -308,11 +215,6 @@ public class TrcStateMachine<T>
             }
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(enabled && ready));
-        }
-
         return enabled && ready;
     }   //isReady
 
@@ -323,14 +225,6 @@ public class TrcStateMachine<T>
      */
     public boolean isTimedout()
     {
-        final String funcName = "isTimedout";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", Boolean.toString(expired));
-        }
-
         return expired;
     }   //isTimedout
 
@@ -341,13 +235,6 @@ public class TrcStateMachine<T>
      */
     public void addEvent(TrcEvent event)
     {
-        final String funcName = "addEvent";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "event=%s", event.toString());
-        }
-
         //
         // Only add to the list if the given event is not already in the list.
         //
@@ -355,11 +242,6 @@ public class TrcStateMachine<T>
         {
             event.clear();
             eventList.add(event);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //addEvent
 
@@ -377,15 +259,6 @@ public class TrcStateMachine<T>
      */
     public void waitForEvents(T nextState, boolean waitForAllEvents, double timeout)
     {
-        final String funcName = "waitForEvents";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "nextState=%s,waitForAll=%s,timeout=%f",
-                                nextState.toString(), waitForAllEvents, timeout);
-        }
-
         this.nextState = nextState;
         this.expiredTime = timeout;
         if (timeout > 0.0)
@@ -395,11 +268,6 @@ public class TrcStateMachine<T>
         this.waitForAllEvents = waitForAllEvents;
         ready = false;
         clearAllEvents();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //waitForEvents
 
     /**
@@ -455,23 +323,9 @@ public class TrcStateMachine<T>
      */
     public void waitForSingleEvent(TrcEvent event, T nextState, double timeout)
     {
-        final String funcName =  "waitForSingleEvent";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "event=%s,nextState=%s,timeout=%f",
-                                event.toString(), nextState.toString(), timeout);
-        }
-
         eventList.clear();
         addEvent(event);
         waitForEvents(nextState, false, timeout);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //waitForSingleEvent
 
     /**
@@ -493,22 +347,10 @@ public class TrcStateMachine<T>
      */
     private void clearAllEvents()
     {
-        final String funcName =  "clearAllEvents";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.UTIL);
-        }
-
         for (int i = 0; i < eventList.size(); i++)
         {
             TrcEvent event = eventList.get(i);
             event.clear();
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.UTIL);
         }
     }   //clearAllEvents
 

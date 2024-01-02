@@ -27,13 +27,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDigitalOutput
 {
-    protected static final String moduleName = "TrcDigitalOutput";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
+    private static final String moduleName = TrcDigitalOutput.class.getSimpleName();
+    protected static TrcElapsedTimer setOutputElapsedTimer = null;
 
     /**
      * This method is provided by the platform dependent digital output port device to set the state of the output
@@ -43,7 +38,6 @@ public abstract class TrcDigitalOutput
      */
     public abstract void setState(boolean state);
 
-    protected static TrcElapsedTimer setOutputElapsedTimer = null;
     private final String instanceName;
 
     /**
@@ -53,13 +47,6 @@ public abstract class TrcDigitalOutput
      */
     public TrcDigitalOutput(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
     }   //TrcDigitalOutput
 
@@ -85,7 +72,7 @@ public abstract class TrcDigitalOutput
         {
             if (setOutputElapsedTimer == null)
             {
-                setOutputElapsedTimer = new TrcElapsedTimer("TrcDigitalOutput.setOutput", 2.0);
+                setOutputElapsedTimer = new TrcElapsedTimer(moduleName + ".setOutput", 2.0);
             }
         }
         else
@@ -97,7 +84,7 @@ public abstract class TrcDigitalOutput
     /**
      * This method prints the elapsed time info using the given tracer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @param tracer specifies the tracer to be used to print the info.
      */
     public static void printElapsedTime(TrcDbgTrace tracer)
     {

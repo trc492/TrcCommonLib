@@ -36,6 +36,8 @@ import TrcCommonLib.trclib.TrcTimer;
  */
 public class CmdTimedDrive implements TrcRobot.RobotCommand
 {
+    private static final String moduleName = CmdTimedDrive.class.getSimpleName();
+
     private enum State
     {
         DO_DELAY,
@@ -43,10 +45,8 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
         DONE
     }   //enum State
 
-    private static final String moduleName = "CmdTimedDrive";
-
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private final TrcDbgTrace tracer = new TrcDbgTrace();
     private final TrcDriveBase driveBase;
     private final double delay;
     private final double driveTime;
@@ -71,10 +71,9 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
         TrcDriveBase driveBase, double delay, double driveTime,
         double xDrivePower, double yDrivePower, double turnPower)
     {
-        globalTracer.traceInfo(
+        tracer.traceInfo(
             moduleName, "delay=%.3f, time=%.1f, xPower=%.1f, yPower=%.1f, turnPower=%.1f",
             delay, driveTime, xDrivePower, yDrivePower, turnPower);
-
         this.driveBase = driveBase;
         this.delay = delay;
         this.driveTime = driveTime;
@@ -129,7 +128,7 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
         }
         else
         {
-            dashboard.displayPrintf(1, "State: %s", state);
+            dashboard.displayPrintf(1, "State: " + state);
 
             switch (state)
             {
@@ -174,7 +173,7 @@ public class CmdTimedDrive implements TrcRobot.RobotCommand
                     cancel();
                     break;
             }
-            globalTracer.traceStateInfo(sm.toString(), state);
+            tracer.traceStateInfo(sm.toString(), state);
         }
 
         return !sm.isEnabled();

@@ -64,10 +64,10 @@ public class TrcPerformanceTimer
     {
         return String.format(
             Locale.US,
-            "%s: avgElapsed=%.6f, minElapsed=%.6f, maxElapsed=%.6f, " +
-            "avgInterval=%.6f, minInterval=%.6f, maxInterval=%.6f",
-            instanceName, getAverageElapsedTime(), getMinElapsedTime(), getMaxElapsedTime(),
-            getAverageIntervalTime(), getMinIntervalTime(), getMaxIntervalTime());
+            "%s: avgElapsed=.6f, minElapsed=%.6f, maxElapsed=%.6f, avgInterval=%.6f, minInterval=%.6f, " +
+            "maxInterval=%.6f",
+            instanceName, getAverageElapsedTime(), getMinElapsedTime(), getMaxElapsedTime(), getAverageIntervalTime(),
+            getMinIntervalTime(), getMaxIntervalTime());
     }   //toString
 
     /**

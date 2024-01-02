@@ -22,7 +22,6 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -35,14 +34,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class TrcRequestQueue<R>
 {
-    protected static final String moduleName = "TrcRequestQueue";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     /**
      * This class implements a request entry. Typically, an entry will be put into a FIFO request queue so that each
      * entry will be processed in the order they came in.
@@ -97,17 +88,18 @@ public class TrcRequestQueue<R>
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "request=%s, repeat=%s, canceled=%s", request, repeat, canceled);
+            return "request=" + request + ", repeat=" + repeat + ", canceled=" + canceled;
         }   //toString
 
     }   //class RequestEntry
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final LinkedBlockingQueue<RequestEntry> requestQueue;
     private volatile Thread requestThread = null;
     private boolean enabled = false;
     private RequestEntry priorityRequest = null;
-    private TrcDbgTrace perfTracer = null;
+    private boolean perfTracingEnabled = false;
     private double totalNanoTime = 0.0;
     private int totalRequests = 0;
 
@@ -118,13 +110,7 @@ public class TrcRequestQueue<R>
      */
     public TrcRequestQueue(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         requestQueue = new LinkedBlockingQueue<>();
     }   //TrcRequestQueue
@@ -190,13 +176,12 @@ public class TrcRequestQueue<R>
     /**
      * This method enables/disables performance report.
      *
-     * @param tracer specifies the tracer to be used for performance tracing, can be null to disable performance
-     *               tracing.
+     * @param enabled specifies true to enable performance tracing, false to disable.
      */
-    public synchronized void setPerformanceTracer(TrcDbgTrace tracer)
+    public synchronized void setPerformanceTracingEnabled(boolean enabled)
     {
-        perfTracer = tracer;
-    }   //setPerformanceTracer
+        perfTracingEnabled = enabled;
+    }   //setPerformanceTracingEnabled
 
     /**
      * This method queues a request at the end of the request queue to be processed asynchronously on a thread.
@@ -209,23 +194,12 @@ public class TrcRequestQueue<R>
      */
     public RequestEntry add(R request, TrcEvent event, boolean repeat)
     {
-        final String funcName = "add";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "request=%s,repeat=%s", request, repeat);
-        }
-
+        tracer.traceDebug(instanceName, "request=" + request + ",repeat=" + repeat);
         RequestEntry entry = null;
         if (isEnabled())
         {
             entry = new RequestEntry(request, event, repeat);
             requestQueue.add(entry);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", entry);
         }
 
         return entry;
@@ -243,23 +217,13 @@ public class TrcRequestQueue<R>
      */
     public synchronized RequestEntry addPriorityRequest(R request, TrcEvent event)
     {
-        final String funcName = "addPriorityRequest";
         RequestEntry entry = null;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "request=%s", request);
-        }
-
+        tracer.traceDebug(instanceName, "request=" + request);
         if (priorityRequest == null)
         {
             entry = new RequestEntry(request, event, false);
             priorityRequest = entry;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", entry);
         }
 
         return entry;
@@ -273,14 +237,9 @@ public class TrcRequestQueue<R>
      */
     public synchronized boolean cancelRequest(RequestEntry entry)
     {
-        final String funcName = "cancelRequest";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "entry=%s", entry);
-        }
-
         boolean foundEntry;
+
+        tracer.traceDebug(instanceName, "entry=" + entry);
         if (entry == priorityRequest)
         {
             priorityRequest = null;
@@ -297,11 +256,6 @@ public class TrcRequestQueue<R>
             entry.canceled = true;
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%s", foundEntry);
-        }
-
         return foundEntry;
     }   //cancelRequest
 
@@ -313,14 +267,9 @@ public class TrcRequestQueue<R>
      */
     private void requestTask()
     {
-        final String funcName = "requestTask";
         RequestEntry entry;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceInfo(funcName, "RequestQueue %s starting...", instanceName);
-        }
-
+        tracer.traceDebug(instanceName, "RequestQueue starting...");
         while (!Thread.currentThread().isInterrupted())
         {
             synchronized (this)
@@ -342,11 +291,7 @@ public class TrcRequestQueue<R>
                 {
                     entry = requestQueue.take();
                 }
-
-                if (debugEnabled)
-                {
-                    dbgTrace.traceInfo(funcName, "[%.3f] processing request %s", TrcTimer.getCurrentTime(), entry);
-                }
+                tracer.traceDebug(instanceName, "processing request " + entry);
 
                 long startNanoTime = TrcTimer.getNanoTime();
                 entry.notifyEvent.signal();
@@ -355,9 +300,11 @@ public class TrcRequestQueue<R>
                 totalNanoTime += elapsedTime;
                 totalRequests++;
         
-                if (perfTracer != null)
+                if (perfTracingEnabled)
                 {
-                    perfTracer.traceInfo(funcName, "Average request process time = %.6f sec", totalNanoTime/totalRequests/1000000000.0);
+                    tracer.traceInfo(
+                        instanceName,
+                        "Average request process time=%.6f sec", totalNanoTime/totalRequests/1000000000.0);
                 }
         
                 if (entry.repeat)
@@ -370,10 +317,7 @@ public class TrcRequestQueue<R>
             }
             catch (InterruptedException e)
             {
-                if (debugEnabled)
-                {
-                    dbgTrace.traceInfo(funcName, "Terminating RequestQueue %s", instanceName);
-                }
+                tracer.traceDebug(instanceName, "Terminating RequestQueue.");
                 break;
             }
         }
@@ -385,20 +329,13 @@ public class TrcRequestQueue<R>
         {
             while ((entry = requestQueue.poll()) != null)
             {
-                if (debugEnabled)
-                {
-                    dbgTrace.traceInfo(funcName, "[%.3f] Canceling request %s", TrcTimer.getCurrentTime(), entry);
-                }
+                tracer.traceDebug(instanceName, "Canceling request " + entry);
                 cancelRequest(entry);
             }
 
             requestThread = null;
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceInfo(funcName, "RequestQueue %s is terminated", instanceName);
-        }
+        tracer.traceDebug(instanceName, "RequestQueue is terminated.");
     }   //requestTask
 
 }   //class TrcRequestQueue

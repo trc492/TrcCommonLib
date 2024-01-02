@@ -123,6 +123,13 @@ public interface TrcOdometrySensor
     }   //class Odometry
 
     /**
+     * This method returns the instance name of the odometry sensor.
+     *
+     * @return instance name.
+     */
+    String getName();
+
+    /**
      * This method resets the odometry data and sensor.
      *
      * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may

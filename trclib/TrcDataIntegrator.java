@@ -33,9 +33,6 @@ import java.util.List;
  */
 public class TrcDataIntegrator<D>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     private final String instanceName;
     private final TrcSensor<D> sensor;
     private final D dataType;
@@ -53,8 +50,7 @@ public class TrcDataIntegrator<D>
      * @param dataType specifies the data type to be integrated.
      * @param doubleIntegration specifies true to do double integration, false otherwise.
      */
-    public TrcDataIntegrator(
-        final String instanceName, final TrcSensor<D> sensor, final D dataType, final boolean doubleIntegration)
+    public TrcDataIntegrator(String instanceName, TrcSensor<D> sensor, D dataType, boolean doubleIntegration)
     {
         if (sensor == null)
         {
@@ -93,7 +89,7 @@ public class TrcDataIntegrator<D>
      * @param sensor specifies the sensor object that needs integration.
      * @param dataType specifies the data type to be integrated.
      */
-    public TrcDataIntegrator(final String instanceName, TrcSensor<D> sensor, D dataType)
+    public TrcDataIntegrator(String instanceName, TrcSensor<D> sensor, D dataType)
     {
         this(instanceName, sensor, dataType, false);
     }   //TrcDataProcessor
@@ -162,16 +158,7 @@ public class TrcDataIntegrator<D>
      */
     public synchronized TrcSensor.SensorData<Double> getInputData(int index)
     {
-        final String funcName = "getInputData";
-        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-                inputData.get(index).timestamp, inputData.get(index).value);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return new TrcSensor.SensorData<>(inputData[index].timestamp, inputData[index].value);
     }   //getInputData
 
     /**
@@ -182,16 +169,7 @@ public class TrcDataIntegrator<D>
      */
     public synchronized TrcSensor.SensorData<Double> getIntegratedData(int index)
     {
-        final String funcName = "getIntegratedData";
-        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-                integratedData.get(index).timestamp, integratedData.get(index).value);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return new TrcSensor.SensorData<>(integratedData[index].timestamp, integratedData[index].value);
     }   //getIntegratedData
 
     /**
@@ -202,16 +180,7 @@ public class TrcDataIntegrator<D>
      */
     public synchronized TrcSensor.SensorData<Double> getDoubleIntegratedData(int index)
     {
-        final String funcName = "getDoubleIntegratedData";
-        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-                    doubleIntegratedData.get(index).timestamp, doubleIntegratedData.get(index).value);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "data=%s", data);
-        }
-
-        return data;
+        return new TrcSensor.SensorData<>(doubleIntegratedData[index].timestamp, doubleIntegratedData[index].value);
     }   //getDoubleIntegratedData
 
     /**

@@ -131,7 +131,7 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.P
         SolidDarkGray(0.97),
         SolidBlack(0.99);
 
-        public double value;
+        public final double value;
 
         /**
          * Constructor: Creates an enum member.
@@ -197,7 +197,7 @@ public abstract class TrcRevBlinkin extends TrcPriorityIndicator<TrcRevBlinkin.P
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcRevBlinkin(final String instanceName)
+    public TrcRevBlinkin(String instanceName)
     {
         super(instanceName);
     }   //TrcRevBlinkin

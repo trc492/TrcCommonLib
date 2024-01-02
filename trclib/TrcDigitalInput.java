@@ -27,9 +27,8 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcDigitalInput
 {
-    protected static final String moduleName = "TrcDigitalInput";
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
+    private static final String moduleName = TrcDigitalInput.class.getSimpleName();
+    protected static TrcElapsedTimer getInputElapsedTimer = null;
 
     /**
      * This method is provided by the platform dependent digital input device to check the state of the input.
@@ -38,8 +37,7 @@ public abstract class TrcDigitalInput
      */
     public abstract boolean getInputState();
 
-    protected static TrcElapsedTimer getInputElapsedTimer = null;
-    protected String instanceName;
+    protected final String instanceName;
     private boolean inverted = false;
 
     /**
@@ -95,7 +93,7 @@ public abstract class TrcDigitalInput
         {
             if (getInputElapsedTimer == null)
             {
-                getInputElapsedTimer = new TrcElapsedTimer("TrcDigitalInput.getInput", 2.0);
+                getInputElapsedTimer = new TrcElapsedTimer(moduleName + ".getInput", 2.0);
             }
         }
         else
@@ -107,7 +105,7 @@ public abstract class TrcDigitalInput
     /**
      * This method prints the elapsed time info using the given tracer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @param tracer specifies the tracer to be used to print the info.
      */
     public static void printElapsedTime(TrcDbgTrace tracer)
     {

@@ -40,8 +40,8 @@ import org.apache.commons.math3.linear.RealVector;
  * for holonomic robots.
  * <p>
  * A somewhat similar idea is here:
- * https://www.chiefdelphi.com/t/paper-implementation-of-the-adaptive-pure-pursuit-controller/166552 or
- * https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf
+ * <a href="https://www.chiefdelphi.com/t/paper-implementation-of-the-adaptive-pure-pursuit-controller/166552">...</a>
+ * or <a href="https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf">...</a>
  * <p>
  * Note that this paper is for non-holonomic robots. This means that all the turning radius stuff isn't very relevant.
  * Technically, we could impose limits on the turning radius as a function of robot velocity and max rot vel, but that's
@@ -50,11 +50,7 @@ import org.apache.commons.math3.linear.RealVector;
  */
 public class TrcPurePursuitDrive
 {
-    private static final String moduleName = "TrcPurePursuitDrive";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-    private static final boolean verbosePidInfo = false;
-    private static final boolean invertedTarget = false;
+    private static final boolean INVERTED_TARGET = false;
 
     public interface WaypointEventHandler
     {
@@ -85,6 +81,7 @@ public class TrcPurePursuitDrive
 
     }   //enum InterpolationType
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private volatile double proximityRadius;    // Volatile so it can be changed at runtime
@@ -92,11 +89,11 @@ public class TrcPurePursuitDrive
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
-
-    private TrcDbgTrace msgTracer = null;
-    private TrcRobotBattery battery = null;
+    // Tracer config.
     private boolean logRobotPoseEvents = false;
     private boolean tracePidInfo = false;
+    private boolean verbosePidInfo = false;
+    private TrcRobotBattery battery = null;
 
     private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
@@ -104,19 +101,13 @@ public class TrcPurePursuitDrive
     private double beepFrequency = DEF_BEEP_FREQUENCY;
     private double beepDuration = DEF_BEEP_DURATION;
 
-    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
-    private static final double DEF_STALL_TIMEOUT = 0.2;
-    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
-    private double stallDetectionDelay = 0.0;
-    private double stallTimeout = 0.0;
-    private double stallDetectionStartTime = 0.0;
-
     private double moveOutputLimit = Double.POSITIVE_INFINITY;
     private double rotOutputLimit = Double.POSITIVE_INFINITY;
     private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean incrementalTurn;
     private volatile boolean maintainHeading = false;
+    private volatile boolean stalled = false;
 
     private String owner = null;
     private TrcPath path;
@@ -146,6 +137,7 @@ public class TrcPurePursuitDrive
         TrcPidController.PidCoefficients xPosPidCoeff, TrcPidController.PidCoefficients yPosPidCoeff,
         TrcPidController.PidCoefficients turnPidCoeff, TrcPidController.PidCoefficients velPidCoeff)
     {
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
 
         if (xPosPidCoeff == null || driveBase.supportsHolonomicDrive())
@@ -159,7 +151,8 @@ public class TrcPurePursuitDrive
         }
 
         incrementalTurn = xPosPidCoeff != null;
-        if (invertedTarget)
+        // If INVERTED_TARGET is true, use Abhay's way to set target to zero and just keep changing getInput.
+        if (INVERTED_TARGET)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
                 new TrcPidController(
@@ -241,41 +234,36 @@ public class TrcPurePursuitDrive
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      * @param battery specifies the battery object to get battery info for the message.
      */
-    public synchronized void setMsgTracer(
-        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    public synchronized void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo,
+        TrcRobotBattery battery)
     {
-        this.msgTracer = tracer;
+        tracer.setTraceLevel(msgLevel);
         this.logRobotPoseEvents = logRobotPoseEvents;
         this.tracePidInfo = tracePidInfo;
+        this.verbosePidInfo = verbosePidInfo;
         this.battery = battery;
-    }   //setMsgTracer
+    }   //setTraceLevel
 
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      */
-    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
+    public void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo)
     {
-        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer)
-    {
-        setMsgTracer(tracer, false, false, null);
-    }   //setMsgTracer
+        setTraceLevel(msgLevel, logRobotPoseEvents, tracePidInfo, verbosePidInfo, null);
+    }   //setTraceLevel
 
     /**
      * This method sets the beep device and the beep tones so that it can play beeps when motor stalled or if the
@@ -306,17 +294,20 @@ public class TrcPurePursuitDrive
     /**
      * This method enables/disables stall detection.
      *
-     * @param stallDetectionDelay specifies stall detection start delay in seconds.
-     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
-     *        motionless to be considered stalled.
-     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
      */
-    public synchronized void setStallDetectionEnabled(
-        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
+    public void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
     {
-        this.stallDetectionDelay = stallDetectionDelay;
-        this.stallTimeout = stallTimeout;
-        driveBase.setStallVelocityThreshold(stallVelThreshold);
+        if (xPosPidCtrl != null)
+        {
+            xPosPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+        yPosPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        turnPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
     }   //setStallDetectionEnabled
 
     /**
@@ -326,14 +317,12 @@ public class TrcPurePursuitDrive
      */
     public void setStallDetectionEnabled(boolean enabled)
     {
-        if (enabled)
+        if (xPosPidCtrl != null)
         {
-            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
+            xPosPidCtrl.setStallDetectionEnabled(enabled);
         }
-        else
-        {
-            setStallDetectionEnabled(0.0, 0.0, 0.0);
-        }
+        yPosPidCtrl.setStallDetectionEnabled(enabled);
+        turnPidCtrl.setStallDetectionEnabled(enabled);
     }   //setStallDetectionEnabled
 
     public synchronized void setFastModeEnabled(boolean enabled)
@@ -345,7 +334,7 @@ public class TrcPurePursuitDrive
      * This method enables/disables incremental turn when running a path segment. Incremental turn is only
      * applicable for holonomic drive base.
      *
-     * @param  enabled specifies true to enable incremental turn, false to disable.
+     * @param enabled specifies true to enable incremental turn, false to disable.
      */
     public void setIncrementalTurnEnabled(boolean enabled)
     {
@@ -359,7 +348,7 @@ public class TrcPurePursuitDrive
      * Maintain heading during path following, or follow the heading values in the path. If not maintaining heading,
      * remember to set the heading tolerance!
      *
-     * @param maintainHeading If true, maintain heading. If false, use closed loop to control heading.
+     * @param maintainHeading specifies true to maintain heading, otherwise use closed loop to control heading.
      */
     public synchronized void setMaintainHeading(boolean maintainHeading)
     {
@@ -373,7 +362,7 @@ public class TrcPurePursuitDrive
     /**
      * Set both the position tolerance and proximity radius.
      *
-     * @param posTolerance    sepcifies the distance at which the controller will stop itself.
+     * @param posTolerance specifies the distance at which the controller will stop itself.
      * @param proximityRadius specifies the distance between the robot and next following point.
      */
     public synchronized void setPositionToleranceAndProximityRadius(Double posTolerance, Double proximityRadius)
@@ -402,7 +391,7 @@ public class TrcPurePursuitDrive
     /**
      * Set the position tolerance to end the path. Units need to be consistent.
      *
-     * @param posTolerance The distance at which the controller will stop itself.
+     * @param posTolerance specifies the distance at which the controller will stop itself.
      */
     public void setPositionTolerance(double posTolerance)
     {
@@ -422,7 +411,7 @@ public class TrcPurePursuitDrive
     /**
      * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
      *
-     * @param turnTolerance The turn tolerance, in degrees. Should be positive.
+     * @param turnTolerance specifies the turn tolerance, in degrees. Should be positive.
      */
     public synchronized void setTurnTolerance(double turnTolerance)
     {
@@ -432,7 +421,7 @@ public class TrcPurePursuitDrive
     /**
      * Sets the pid coefficients for the X position controller. This will work in the middle of an operation as well.
      *
-     * @param xPidCoefficients The new PID coefficients for the X position controller.
+     * @param xPidCoefficients specifies the new PID coefficients for the X position controller.
      */
     public synchronized void setXPositionPidCoefficients(TrcPidController.PidCoefficients xPidCoefficients)
     {
@@ -445,7 +434,7 @@ public class TrcPurePursuitDrive
     /**
      * Sets the pid coefficients for the Y position controller. This will work in the middle of an operation as well.
      *
-     * @param yPidCoefficients The new PID coefficients for the Y position controller.
+     * @param yPidCoefficients specifies the new PID coefficients for the Y position controller.
      */
     public synchronized void setYPositionPidCoefficients(TrcPidController.PidCoefficients yPidCoefficients)
     {
@@ -456,7 +445,7 @@ public class TrcPurePursuitDrive
      * Sets the pid coefficients for both X and Y position controllers. This will work in the middle of an operation as
      * well.
      *
-     * @param pidCoefficients The new PID coefficients for both X and Y position controllers.
+     * @param pidCoefficients specifies the new PID coefficients for both X and Y position controllers.
      */
     public synchronized void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
@@ -467,7 +456,7 @@ public class TrcPurePursuitDrive
     /**
      * Sets the pid coefficients for the turn controller. This will work in the middle of an operation as well.
      *
-     * @param pidCoefficients The new PID coefficients for the heading controller.
+     * @param pidCoefficients specifies the new PID coefficients for the heading controller.
      */
     public synchronized void setTurnPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
@@ -478,7 +467,7 @@ public class TrcPurePursuitDrive
      * Sets the pid coefficients for the position controller. This will work in the middle of an operation as well.
      * Note that velocity controllers should have an F term as well.
      *
-     * @param pidCoefficients The new PIDF coefficients for the velocity controller.
+     * @param pidCoefficients specifies the new PIDF coefficients for the velocity controller.
      */
     public synchronized void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoefficients)
     {
@@ -549,18 +538,16 @@ public class TrcPurePursuitDrive
      * Start following the supplied path using a pure pursuit controller. The velocity must always be positive, and
      * the path must start at (0,0). Heading is absolute and position is relative in the starting robot reference frame.
      *
-     * @param owner            specifies the ID string of the caller requesting exclusive access.
-     * @param path             The path to follow. Must start at (0,0).
-     * @param event            When finished, signal this event.
-     * @param timeout         Number of seconds after which to cancel this operation. 0.0 for no timeout.
-     * @param maxVel          specifies the maximum velocity if applying trapezoid velocity profile, null if not.
-     * @param maxAccel        specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
+     * @param owner specifies the ID string of the caller requesting exclusive access.
+     * @param path The path to follow. Must start at (0,0).
+     * @param event When finished, signal this event.
+     * @param timeout Number of seconds after which to cancel this operation. 0.0 for no timeout.
+     * @param maxVel specifies the maximum velocity if applying trapezoid velocity profile, null if not.
+     * @param maxAccel specifies the maximum acceleration if applying trapezoid velocity profile, null if not.
      */
     public synchronized void start(
         String owner, TrcPath path, TrcEvent event, double timeout, Double maxVel, Double maxAccel)
     {
-        final String funcName = "start";
-
         if (path == null || path.getSize() == 0)
         {
             throw new IllegalArgumentException("Path cannot be null or empty!");
@@ -586,7 +573,6 @@ public class TrcPurePursuitDrive
 
             double currTime = TrcTimer.getCurrentTime();
             timedOutTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
-            stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
             referencePose = driveBase.getFieldPosition();
             pathIndex = 1;
@@ -594,6 +580,7 @@ public class TrcPurePursuitDrive
             if (xPosPidCtrl != null)
             {
                 xPosPidCtrl.reset();
+                xPosPidCtrl.startStallDetection();
             }
             else
             {
@@ -611,10 +598,12 @@ public class TrcPurePursuitDrive
                 }
             }
             yPosPidCtrl.reset();
+            yPosPidCtrl.startStallDetection();
             turnPidCtrl.reset();
+            turnPidCtrl.startStallDetection();
             velPidCtrl.reset();
 
-            if (invertedTarget)
+            if (INVERTED_TARGET)
             {
                 if (xPosPidCtrl != null)
                 {
@@ -627,10 +616,7 @@ public class TrcPurePursuitDrive
             resetError = true;
             driveTaskObj.registerTask(TrcTaskMgr.TaskType.POST_PERIODIC_TASK);
 
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "Path=%s", path.toAbsolute(referencePose));
-            }
+            tracer.traceInfo(instanceName, "Path=" + path.toAbsolute(referencePose));
         }
     }   //start
 
@@ -959,7 +945,7 @@ public class TrcPurePursuitDrive
     }   //getPath
 
     /**
-     * This method is called by xPosPidCtrl only in invertedTarget mode for getting the X distance to target.
+     * This method is called by xPosPidCtrl only in INVERTED_TARGET mode for getting the X distance to target.
      * @return x distance to target.
      */
     private synchronized double getXPosition()
@@ -968,7 +954,7 @@ public class TrcPurePursuitDrive
     }   //getXPosition
 
     /**
-     * This method is called by yPosPidCtrl only in invertedTarget mode for getting the Y distance to target.
+     * This method is called by yPosPidCtrl only in INVERTED_TARGET mode for getting the Y distance to target.
      * @return y distance to target.
      */
     private synchronized double getYPosition()
@@ -999,12 +985,12 @@ public class TrcPurePursuitDrive
     private synchronized void driveTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = moduleName + ".driveTask";
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
         relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
+        boolean lastSegment = pathIndex == path.getSize() - 1;
 
-        if (!invertedTarget)
+        if (!INVERTED_TARGET)
         {
             //
             // We only initialize the PID controller error state at the beginning. Once the path following has started,
@@ -1038,25 +1024,26 @@ public class TrcPurePursuitDrive
         yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
         turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "[%d:%.6f] RobotPose=%s,TargetPose=%s,relPose=%s",
-                pathIndex, TrcTimer.getModeElapsedTime(), robotPose, targetPoint.pose, relativeTargetPose);
-            globalTracer.traceInfo(
-                funcName,
-                "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
-                "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
-                getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
-                yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
-                xPosPower, yPosPower, turnPower, velPower);
-        }
+        tracer.traceDebug(
+            instanceName,
+            "[" + pathIndex +
+            "] RobotPose=" + robotPose +
+            ",TargetPose=" + targetPoint.pose +
+            ",relPose=" + relativeTargetPose);
+        tracer.traceDebug(
+            instanceName,
+            "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
+            "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
+            getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
+            yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
+            xPosPower, yPosPower, turnPower, velPower);
 
         // If we have timed out or finished, stop the operation.
         double currTime = TrcTimer.getCurrentTime();
         boolean timedOut = currTime >= timedOutTime;
-        boolean stalled =
-            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
+
+        stalled = (xPosPidCtrl == null || xPosPidCtrl.isStalled()) &&
+                  yPosPidCtrl.isStalled() && turnPidCtrl.isStalled();
         boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
         boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget();
 
@@ -1068,30 +1055,36 @@ public class TrcPurePursuitDrive
             }
         }
 
-        if (stalled || timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
+        if (timedOut || lastSegment && (stalled ||posOnTarget && headingOnTarget))
         {
-            if (msgTracer != null)
+            tracer.traceInfo(
+                instanceName,
+                "Done: index=" + pathIndex + "/" + path.getSize() +
+                ", stalled=" + stalled +
+                ", timeout=" + timedOut +
+                ", posOnTarget=" + posOnTarget +
+                ",headingOnTarget=" + headingOnTarget +
+                ",robotPose=" + driveBase.getFieldPosition());
+            if (tracePidInfo)
             {
-                msgTracer.traceInfo(
-                    funcName, "Done [index=%d/%d]: stalled=%s, timeout=%s, posOnTarget=%s, headingOnTarget=%s",
-                    pathIndex, path.getSize(), stalled, timedOut, posOnTarget, headingOnTarget);
-                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-           }
+                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            }
 
             stop();
 
             if (onFinishedEvent != null)
             {
-                if (msgTracer != null)
-                {
-                    msgTracer.traceInfo(funcName, "Signal completion event %s.", onFinishedEvent);
-                }
+                tracer.traceInfo(instanceName, "Signal completion event " + onFinishedEvent + ".");
                 onFinishedEvent.signal();
                 onFinishedEvent = null;
             }
+
+            if (xPosPidCtrl != null) xPosPidCtrl.endStallDetection();
+            yPosPidCtrl.endStallDetection();
+            turnPidCtrl.endStallDetection();
         }
         else if (xPosPidCtrl != null)
         {
@@ -1102,22 +1095,21 @@ public class TrcPurePursuitDrive
             driveBase.arcadeDrive(owner, yPosPower, turnPower, false);
         }
 
-        if (msgTracer != null)
+        if (logRobotPoseEvents)
         {
-            if (logRobotPoseEvents)
-            {
-                msgTracer.logEvent(
-                    funcName, "RobotPose", "AbsPose=\"%s\" AbsTarget=\"%s\" Delta=\"%s\"",
-                    driveBase.getFieldPosition(), referencePose.addRelativePose(targetPoint.pose), relativeTargetPose);
-            }
+            tracer.logEvent(
+                instanceName, "RobotPose",
+                "AbsPose=\"" + driveBase.getFieldPosition() +
+                "\" AbsTarget=\"" + referencePose.addRelativePose(targetPoint.pose) +
+                "\" Delta=\"" + relativeTargetPose + "\"");
+        }
 
-            if (tracePidInfo)
-            {
-                if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                yPosPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                velPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-            }
+        if (tracePidInfo)
+        {
+            if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
     }   //driveTask
 
@@ -1208,7 +1200,7 @@ public class TrcPurePursuitDrive
     /**
      * This method calculates the waypoint on the path segment that intersects the robot's proximity circle that is
      * closest to the end point of the path segment. The algorithm is based on this article:
-     * https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+     * <a href="https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm">...</a>
      *
      * @param startWaypoint specifies the start point of the path segment.
      * @param endWaypoint specifies the end point of the path segment.
@@ -1220,6 +1212,11 @@ public class TrcPurePursuitDrive
     {
         if (fastModeEnabled && robotPose.distanceTo(endWaypoint.getPositionPose()) > proximityRadius)
         {
+            tracer.traceDebug(
+                instanceName,
+                "pathIndex=" + pathIndex +
+                ", startPose=" + startWaypoint.getPositionPose() +
+                ", endPose=" + endWaypoint.getPositionPose());
             return interpolate(
                 startWaypoint, endWaypoint, 1.0, !incrementalTurn? robotPose: null);
         }
@@ -1242,6 +1239,7 @@ public class TrcPurePursuitDrive
             {
                 // No valid intersection or end waypoint has the same location as the start waypoint.
                 // (i.e. same x and y but could have different angles).
+                tracer.traceDebug(instanceName, "No valid intersection.");
                 return null;
             }
 //            else if (a == 0.0)
@@ -1272,10 +1270,22 @@ public class TrcPurePursuitDrive
                     //
                     // The furthest intersection point is not on the line segment, so skip this segment.
                     //
+                    tracer.traceDebug(
+                        instanceName, "Intersection not on line segment t1=%f, t2=%f, t=%f, stalled=%s",
+                        t1, t2, t, stalled);
                     return null;
                 }
 
-                return interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+                TrcWaypoint interpolated =
+                    interpolate(startWaypoint, endWaypoint, t, xPosPidCtrl == null? robotPose: null);
+
+                tracer.traceDebug(
+                    instanceName,
+                    "startPoint=" + startWaypoint.getPositionPose() +
+                    ", endPoint=" + endWaypoint.getPositionPose() +
+                    ", interpolatedPoint=" + interpolated.getPositionPose());
+
+                return interpolated;
             }
         }
     }   //getFollowingPointOnSegment
@@ -1288,7 +1298,6 @@ public class TrcPurePursuitDrive
      */
     private TrcWaypoint getFollowingPoint(TrcPose2D robotPose)
     {
-        final String funcName = "getFollowingPoint";
         //
         // Find the next segment that intersects with the proximity circle of the robot.
         // If there are tiny segments that are completely within the proximity circle, we will skip them all.
@@ -1311,14 +1320,22 @@ public class TrcPurePursuitDrive
                         waypointEventHandler.waypointEvent(i - 1, segmentStart);
                     }
 
-                    if (msgTracer != null)
-                    {
-                        msgTracer.traceInfo(funcName, "Segment[%d:%s->%d:%s] PrevIndex=%d, Target=%s",
-                                            i - 1, segmentStart, i, segmentEnd, pathIndex, interpolated);
-                    }
+                    tracer.traceDebug(
+                        instanceName,
+                        "Segment[" + (i - 1) +
+                        ":" + segmentStart +
+                        "->" + i +
+                        ":" + segmentEnd +
+                        "] PrevIndex=" + pathIndex +
+                        ", Target=" + interpolated);
                     pathIndex = i;
                 }
                 return interpolated;
+            }
+            else if (stalled)
+            {
+                tracer.traceInfo(instanceName, "Segment " + i + " is stalled, moving to the next segment.");
+                pathIndex = i;
             }
         }
         //

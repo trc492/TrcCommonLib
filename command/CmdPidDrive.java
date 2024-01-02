@@ -54,10 +54,10 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
         DONE
     }   //enum State
 
-    private static final String moduleName = "CmdPidDrive";
+    private static final String moduleName = CmdPidDrive.class.getSimpleName();
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
-    private final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
+    private final TrcDbgTrace tracer = new TrcDbgTrace();
     private final TrcDriveBase driveBase;
     private final TrcPidDrive pidDrive;
     private final double delay;
@@ -99,11 +99,10 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
             throw new IllegalArgumentException("pathPoints must contain at least one point.");
         }
 
-        globalTracer.traceInfo(
+        tracer.traceInfo(
             moduleName,
             "pidDrive=%s,delay=%.3f,powerLimit=%.1f,useSensorOdometry=%s,tunePidCoeff=%s,path=%s",
             pidDrive, delay, drivePowerLimit, useSensorOdometry, tunePidCoeff, Arrays.toString(pathPoints));
-
         this.driveBase = driveBase;
         this.pidDrive = pidDrive;
         this.delay = delay;
@@ -244,7 +243,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
         }
         else
         {
-            dashboard.displayPrintf(1, "State: %s", state);
+            dashboard.displayPrintf(1, "State: " + state);
 
             switch (state)
             {
@@ -283,10 +282,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
 
                             tunePidCtrl.setPidCoefficients(tunePidCoeff);
                             tunePidCtrl.setAbsoluteSetPoint(false);
-
-                            globalTracer.traceInfo("PidTuning", "%s: Kp=%f, Ki=%f, Kd=%f, Kf=%f",
-                                                   tunePidCtrl, tunePidCoeff.kP, tunePidCoeff.kI, tunePidCoeff.kD,
-                                                   tunePidCoeff.kF);
+                            tracer.traceInfo(moduleName, tunePidCtrl + ": PidCoeff=" + tunePidCoeff);
                         }
                         //
                         // Do not optimize turning if we are tuning PID.
@@ -341,7 +337,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                     break;
             }
 
-            globalTracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
+            tracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
         }
 
         return !sm.isEnabled();

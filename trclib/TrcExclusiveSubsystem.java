@@ -122,7 +122,6 @@ public interface TrcExclusiveSubsystem
      */
     default TrcEvent acquireOwnership(String owner, TrcEvent completionEvent, TrcDbgTrace msgTracer)
     {
-        final String funcName = "acquireOwnership";
         TrcEvent releaseOwnershipEvent = null;
 
         // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
@@ -130,7 +129,7 @@ public interface TrcExclusiveSubsystem
         {
             if (msgTracer != null)
             {
-                msgTracer.traceInfo(funcName, "%s: Acquired ownership on behalf of the %s.", this, owner);
+                msgTracer.traceInfo(this.toString(), "Acquired ownership on behalf of " + owner);
             }
             releaseOwnershipEvent = new TrcEvent(this + ".releaseOwnership");
             OwnershipParams ownershipParams = new OwnershipParams(
@@ -149,14 +148,13 @@ public interface TrcExclusiveSubsystem
      */
     default void releaseOwnership(Object context)
     {
-        final String funcName = "releaseOwnership";
         OwnershipParams ownershipParams = (OwnershipParams) context;
 
         releaseExclusiveAccess(ownershipParams.owner);
         if (ownershipParams.msgTracer != null)
         {
             ownershipParams.msgTracer.traceInfo(
-                funcName, "%s: Released ownership on behalf of the %s.", this, ownershipParams.owner);
+                this.toString(), "Released ownership on behalf of " + ownershipParams.owner);
         }
 
         if (ownershipParams.completionEvent != null)
@@ -170,6 +168,12 @@ public interface TrcExclusiveSubsystem
             {
                 // Operation was canceled, indicate so in the completion event.
                 ownershipParams.completionEvent.cancel();
+            }
+
+            if (ownershipParams.msgTracer != null)
+            {
+                ownershipParams.msgTracer.traceInfo(
+                    this.toString(), "Signal completion event " + ownershipParams.completionEvent);
             }
         }
     }   //releaseOwnership

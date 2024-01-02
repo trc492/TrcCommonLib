@@ -40,7 +40,6 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public static class Parameters
     {
-        public TrcDbgTrace msgTracer = null;
         public double maxStepRate = 0.0;
         public double minPos = 0.0;
         public double maxPos = 1.0;
@@ -69,18 +68,6 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
                 maxStepRate, minPos, maxPos, servo1Inverted, servo2Inverted, triggerInverted, triggerThreshold,
                 hasObjectThreshold, openPos, openTime, closePos, closeTime);
         }   //toString
-
-        /**
-         * This method sets the message tracer for logging trace messages.
-         *
-         * @param tracer specifies the tracer for logging messages.
-         * @return this parameter object.
-         */
-        public Parameters setMsgTracer(TrcDbgTrace tracer)
-        {
-            this.msgTracer = tracer;
-            return this;
-        }   //setMsgTracer
 
         /**
          * This method sets Step Mode parameters of the servo grabber. Step Mode allows a servo to be speed
@@ -176,11 +163,13 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     private static class ActionParams
     {
+        String owner;
         TrcEvent event;
         double timeout;
 
-        ActionParams(TrcEvent event, double timeout)
+        ActionParams(String owner, TrcEvent event, double timeout)
         {
+            this.owner = owner;
             this.event = event;
             this.timeout = timeout;
         }   //ActionParams
@@ -188,18 +177,18 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(Locale.US, "event=%s,timeout=%.3f", event, timeout);
+            return String.format(Locale.US, "(owner=%s,event=%s,timeout=%.3f)", owner, event, timeout);
         }   //toString
 
     }   //class ActionParams
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcServo servo;
     private final Parameters params;
     private final TrcTrigger sensorTrigger;
     private final TrcEvent.Callback triggerCallback;
     private final TrcTimer timer;
-    private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
     private boolean grabberClosed = false;
 
@@ -217,26 +206,26 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         String instanceName, TrcServo servo1, TrcServo servo2, Parameters params, TrcTrigger sensorTrigger,
         TrcEvent.Callback triggerCallback)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.servo = servo1;
         this.params = params;
         this.sensorTrigger = sensorTrigger;
         this.triggerCallback = triggerCallback;
-        servo1.setInverted(params.servo1Inverted);
 
+        servo1.setInverted(params.servo1Inverted);
         if (servo2 != null)
         {
             servo2.setInverted(params.servo2Inverted);
-            servo1.addFollower(servo2);
+            servo2.follow(servo1);
         }
 
         if (params.maxStepRate != 0.0)
         {
-            servo.setStepMode(params.maxStepRate, params.minPos, params.maxPos);
+            servo.setStepModeParams(params.maxStepRate, params.minPos, params.maxPos);
         }
 
         timer = new TrcTimer(instanceName);
-        timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcServoGrabber
 
     /**
@@ -279,6 +268,16 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
     }   //toString
 
     /**
+     * This method sets the trace level for logging trace messages.
+     *
+     * @param msgLevel specifies the trace level for logging messages.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+    {
+        tracer.setTraceLevel(msgLevel);
+    }   //setTraceLevel
+
+    /**
      * This method returns the current grabber position.
      *
      * @return current grabber servo position.
@@ -297,10 +296,47 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      *                 setPhysicalRange is called with the degree range.
      * @param event specifies an event object to signal when the timeout event has expired.
      * @param timeout specifies a maximum time value the operation should be completed in seconds.
+     * @param cancelAutoAssist specifies true to cancel previous auto-assist operation if any.
+     */
+    private void setPosition(
+        String owner, double delay, double position, TrcEvent event, double timeout, boolean cancelAutoAssist)
+    {
+        if (event != null)
+        {
+            event.clear();
+        }
+
+        tracer.traceDebug(
+            instanceName, "owner=%s, delay=%f, pos=%f, event=%s, timeout=%f, cancelAutoAssist=%s",
+            owner, delay, position, event, timeout ,cancelAutoAssist);
+
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, event, tracer);
+        if (releaseOwnershipEvent != null) event = releaseOwnershipEvent;
+
+        if (validateOwnership(owner))
+        {
+            if (cancelAutoAssist)
+            {
+                cancelAction(null);
+            }
+
+            servo.setPosition(owner, delay, position, event, timeout);
+        }
+    }   //setPosition
+
+    /**
+     * This method sets the grabber position.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param delay specifies the delay in seconds before setting the position of the servo, can be zero if no delay.
+     * @param position specifies the physical position of the servo motor. This value may be in degrees if
+     *                 setPhysicalRange is called with the degree range.
+     * @param event specifies an event object to signal when the timeout event has expired.
+     * @param timeout specifies a maximum time value the operation should be completed in seconds.
      */
     public void setPosition(String owner, double delay, double position, TrcEvent event, double timeout)
     {
-        servo.setPosition(owner, delay, position, event, timeout);
+        setPosition(owner, delay, position, event, timeout, true);
     }   //setPosition
 
     /**
@@ -314,7 +350,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void setPosition(double delay, double position, TrcEvent event, double timeout)
     {
-        setPosition(null, delay, position, event, timeout);
+        setPosition(null, delay, position, event, timeout, true);
     }   //setPosition
 
     /**
@@ -327,7 +363,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void setPosition(double position, TrcEvent event, double timeout)
     {
-        setPosition(null, 0.0, position, event, timeout);
+        setPosition(null, 0.0, position, event, timeout, true);
     }   //setPosition
 
     /**
@@ -338,8 +374,34 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void setPosition(double position)
     {
-        setPosition(null, 0.0, position, null, 0.0);
+        setPosition(null, 0.0, position, null, 0.0, true);
     }   //setPosition
+
+    /**
+     * This method sets the servo grabber to its open position and signals the given event after the open time
+     * has expired. If cancelAutoAssist is true, cancel the pending autoAssist operation if any.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param event specifies the event to be signaled after specified time has expired.
+     * @param cancelAutoAssist specifies true to cancel previous auto-assist operation if any.
+     */
+    public void open(String owner, TrcEvent event, boolean cancelAutoAssist)
+    {
+        setPosition(owner, 0.0, params.openPos, event, params.openTime, cancelAutoAssist);
+        grabberClosed = false;
+    }   //open
+
+    /**
+     * This method sets the servo grabber to its open position and signals the given event after the open time
+     * has expired.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param event specifies the event to be signaled after specified time has expired.
+     */
+    public void open(String owner, TrcEvent event)
+    {
+        open(owner, event, true);
+    }   //open
 
     /**
      * This method sets the servo grabber to its open position and signals the given event after the open time
@@ -349,19 +411,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void open(TrcEvent event)
     {
-        final String funcName = "open";
-
-        if (params.msgTracer != null)
-        {
-            params.msgTracer.traceInfo(funcName, "Opening: event=%s", event);
-        }
-
-        if (event != null)
-        {
-            event.clear();
-        }
-        servo.setPosition(params.openPos, event, params.openTime);
-        grabberClosed = false;
+        open(null, event, true);
     }   //open
 
     /**
@@ -369,9 +419,34 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void open()
     {
-        open(null);
+        open(null, null, true);
     }   //open
 
+    /**
+     * This method sets the servo grabber to its close position and signals the given event after the close time
+     * has expired. If cancelAutoAssist is true, cancel the pending autoAssist operation if any.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param event specifies the event to be signaled after specified time has expired.
+     * @param cancelAutoAssist specifies true to cancel previous auto-assist operation if any.
+     */
+    public void close(String owner, TrcEvent event, boolean cancelAutoAssist)
+    {
+        setPosition(owner, 0.0, params.closePos, event, params.closeTime, cancelAutoAssist);
+        grabberClosed = true;
+    }   //close
+
+    /**
+     * This method sets the servo grabber to its close position and signals the given event after the close time
+     * has expired.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param event specifies the event to be signaled after specified time has expired.
+     */
+    public void close(String owner, TrcEvent event)
+    {
+        close(owner, event, true);
+    }   //close
     /**
      * This method sets the servo grabber to its close position and signals the given event after the close time
      * has expired.
@@ -380,19 +455,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void close(TrcEvent event)
     {
-        final String funcName = "close";
-
-        if (params.msgTracer != null)
-        {
-            params.msgTracer.traceInfo(funcName, "Closing: event=%s", event);
-        }
-
-        if (event != null)
-        {
-            event.clear();
-        }
-        servo.setPosition(params.closePos, event, params.closeTime);
-        grabberClosed = true;
+        close(null, event, true);
     }   //close
 
     /**
@@ -400,7 +463,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void close()
     {
-        close(actionParams != null? actionParams.event: null);
+        close(null, null, true);
     }   //close
 
     /**
@@ -411,40 +474,80 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      *
      * @param context specifies the action parameters.
      */
-    private void enableAutoAssist(Object context)
+    private void enableAction(Object context)
     {
-        final String funcName = "enableAutoAssist";
-        ActionParams actionParams = (ActionParams) context;
+        ActionParams ap = (ActionParams) context;
         boolean inProximity = objectInProximity();
-        boolean grabbingObject = false;
+        boolean grabbedObject = false;
 
-        if (params.msgTracer != null)
-        {
-            params.msgTracer.traceInfo(
-                funcName, "Enabling: grabberClosed=%s, inProximity=%s (params=%s)",
-                grabberClosed, inProximity, actionParams);
-        }
-
+        tracer.traceDebug(
+            instanceName,
+            "EnableAutoAssist: grabberClosed=" + grabberClosed +
+            ", inProximity=" + inProximity +
+            ", params=" + ap);
         if (grabberClosed && !inProximity)
         {
             // Grabber is close but has no object, open it to prepare for grabbing.
-            open();
+            open(ap.owner, null, false);
         }
         else if (!grabberClosed && inProximity)
         {
             // Grabber is open but the object is near by, grab it and signal the event.
-            close(actionParams.event);
-            actionParams.event = null;
-            grabbingObject = true;
+            close(ap.owner, ap.event, false);
+            grabbedObject = true;
         }
         // Arm the sensor trigger as long as AutoAssist is enabled.
         sensorTrigger.enableTrigger(triggerCallback);
-        if (!grabbingObject && actionParams.timeout > 0.0)
+        if (ap.timeout > 0.0)
         {
-            timerEvent.setCallback(this::cancelAutoAssist, actionParams);
-            timer.set(actionParams.timeout, timerEvent);
+            if (grabbedObject)
+            {
+                // User has set a timeout and we grabbed an object already, cancel auto-assist.
+                cancelAction(null);
+            }
+            else
+            {
+                // Set a timeout and cancel auto-assist if timeout has expired.
+                timer.set(ap.timeout, this::cancelAction, null);
+            }
         }
-    }   //enableAutoAssist
+    }   //enableAction
+
+    /**
+     * This method cancels the auto-assist operation and to clean up. It is called by enableAutoAssist to cancel a
+     * previous operation or if the auto-assist has set a timeout and it has expired. Auto-assist will not be canceled
+     * even if the sensor trigger caused it to grab an object. If a timeout is not set, auto-assist remains enabled
+     * and can auto grab an object over and over again until the user calls this method to cancel the operation.
+     *
+     * @param context not used.
+     */
+    private void cancelAction(Object context)
+    {
+        // Do clean up only if auto-assist is enabled.
+        if (actionParams != null)
+        {
+            boolean hasObject = hasObject();
+
+            tracer.traceDebug(
+                instanceName,
+                "CancelAutoAssist: grabberClosed=" + grabberClosed +
+                ", hasObject=" + hasObject +
+                ", params=" + actionParams);
+            if (!hasObject && actionParams.event != null)
+            {
+                actionParams.event.cancel();
+            }
+
+            if (grabberClosed)
+            {
+                open(actionParams.owner, null, false);
+            }
+
+            timer.cancel();
+            sensorTrigger.disableTrigger();
+            actionParams = null;
+        }
+    }   //cancelAction
 
     /**
      * This method enables auto-assist grabbing. It allows the caller to start monitoring the trigger sensor for
@@ -469,58 +572,18 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
         if (validateOwnership(owner))
         {
             // In case there is an existing auto-assist still pending, cancel it first.
-            cancelAutoAssist(null);
-            actionParams = new ActionParams(event, timeout);
+            cancelAction(null);
+            actionParams = new ActionParams(owner, event, timeout);
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::enableAutoAssist, actionParams);
-                timer.set(delay, timerEvent);
+                timer.set(delay, this::enableAction, actionParams);
             }
             else
             {
-                enableAutoAssist(actionParams);
+                enableAction(actionParams);
             }
         }
     }   //enableAutoAssist
-
-    /**
-     * This method cancels the auto-assist operation and to clean up. It is called either by the user for canceling
-     * the operation or if the auto-assist has set a timeout and it has expired. Auto-assist will not be canceled
-     * even if the sensor trigger caused it to grab an object. If a timeout is not set, auto-assist remains enabled
-     * and can auto grab an object over and over again until the user calls this method to cancel the operation.
-     *
-     * @param context specifies the ActionParams object.
-     */
-    public void cancelAutoAssist(Object context)
-    {
-        final String funcName = "cancelAutoAssist";
-        // Do clean up only if auto-assist is enabled.
-        if (actionParams != null)
-        {
-            boolean hasObject = hasObject();
-
-            if (params.msgTracer != null)
-            {
-                params.msgTracer.traceInfo(
-                    funcName, "Canceling: grabberClosed=%s, hasObject=%s, timerEvent=%s",
-                    grabberClosed, hasObject, timerEvent);
-            }
-
-            if (!hasObject && actionParams.event != null)
-            {
-                actionParams.event.cancel();
-            }
-
-            if (grabberClosed)
-            {
-                open((TrcEvent) context);
-            }
-
-            timer.cancel();
-            sensorTrigger.disableTrigger();
-            actionParams = null;
-        }
-    }   //cancelAutoAssist
 
     /**
      * This method cancels the auto-assist operation and to clean up. It is called by the user for canceling the
@@ -528,7 +591,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
      */
     public void cancelAutoAssist()
     {
-        cancelAutoAssist(null);
+        cancelAction(null);
     }   //cancelAutoAssist
 
     /**

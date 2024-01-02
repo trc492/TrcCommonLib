@@ -33,9 +33,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class TrcTaskMgr
 {
-    private static final String moduleName = "TrcTaskMgr";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
+    private static final String moduleName = TrcTaskMgr.class.getSimpleName();
+    private static final TrcDbgTrace tracer = new TrcDbgTrace();
 
     public static final long PERIODIC_INTERVAL_MS = 20;         // in msec
     public static final long IO_INTERVAL_MS = 10;               // in msec
@@ -192,7 +191,7 @@ public class TrcTaskMgr
          * @param taskName specifies the instance name of the task.
          * @param task specifies the object that implements the TrcTaskMgr.Task interface.
          */
-        private TaskObject(final String taskName, Task task)
+        private TaskObject(String taskName, Task task)
         {
             this.taskName = taskName;
             this.task = task;
@@ -446,7 +445,6 @@ public class TrcTaskMgr
          */
         private synchronized void recordElapsedTime(TaskType taskType)
         {
-            final String funcName = "recordElapsedTime";
             long currNanoTime = TrcTimer.getNanoTime();
             long startTime = taskStartTimes[taskType.value];
             long elapsedTime = currNanoTime - startTime;
@@ -454,17 +452,17 @@ public class TrcTaskMgr
             taskTotalElapsedTimes[taskType.value] += elapsedTime;
             taskTimeSlotCounts[taskType.value]++;
 
-            if (debugEnabled)
+            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
             {
-                globalTracer.traceVerbose(
-                    funcName, "Task %s.%s: start=%.6f, elapsed=%.6f",
-                    taskName, taskType, startTime/1000000000.0, elapsedTime/1000000000.0);
+                tracer.traceVerbose(
+                    moduleName, "%s.%s: start=.6f, elapsed=%.6f",
+                    taskName, taskType, (startTime/1000000000.0), elapsedTime/1000000000.0);
                 long timeThreshold = getTaskInterval()*1000000; //convert to nanoseconds.
                 if (timeThreshold == 0) timeThreshold = TASKTIME_THRESHOLD_MS * 1000000L;
                 if (timeThreshold > 0 && elapsedTime > timeThreshold)
                 {
-                    globalTracer.traceWarn(
-                        funcName, "%s.%s takes too long (%.3f)", taskName, taskType, elapsedTime/1000000000.0);
+                    tracer.traceWarn(
+                        moduleName, "%s.%s takes too long (%.3f)", taskName, taskType, elapsedTime/1000000000.0);
                 }
             }
         }   //recordElapsedTime
@@ -478,7 +476,6 @@ public class TrcTaskMgr
         private synchronized double getAverageTaskElapsedTime(TaskType taskType)
         {
             int slotCount = taskTimeSlotCounts[taskType.value];
-
             return slotCount == 0 ? 0.0 : (double)taskTotalElapsedTimes[taskType.value]/slotCount/1000000000.0;
         }   //getAverageTaskElapsedTime
 
@@ -491,7 +488,6 @@ public class TrcTaskMgr
         private synchronized double getAverageTaskInterval(TaskType taskType)
         {
             int slotCount = taskTimeSlotCounts[taskType.value];
-
             return slotCount == 0 ? 0.0 : (double)taskTotalIntervals[taskType.value]/slotCount/1000000000.0;
         }   //getAverageTaskInterval
 
@@ -510,18 +506,13 @@ public class TrcTaskMgr
      * @param task specifies the Task interface for this task.
      * @return created task object.
      */
-    public static TaskObject createTask(final String taskName, Task task)
+    public static TaskObject createTask(String taskName, Task task)
     {
-        final String funcName = "createTask";
         TaskObject taskObj;
 
         taskObj = new TaskObject(taskName, task);
         taskList.add(taskObj);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "taskName=%s, taskObj=%s", taskName, taskObj);
-        }
+        tracer.traceDebug(moduleName, "taskName=" + taskName + ", taskObj=" + taskObj);
 
         return taskObj;
     }   //createTask
@@ -621,15 +612,13 @@ public class TrcTaskMgr
     }   //ioTask
 
     /**
-     * This method prints the performance metrics of all tasks with the given tracer.
-     *
-     * @param tracer specifies the tracer to be used for printing the task performance metrics.
+     * This method prints the performance metrics of all tasks.
      */
-    public static void printTaskPerformanceMetrics(TrcDbgTrace tracer)
+    public static void printTaskPerformanceMetrics()
     {
         for (TaskObject taskObj: taskList)
         {
-            StringBuilder msg = new StringBuilder(taskObj.taskName + ":");
+            StringBuilder msg = new StringBuilder(taskObj.taskName).append(":");
             int taskTypeCounter = 0;
 
             for (TaskType taskType : TaskType.values())
@@ -646,20 +635,16 @@ public class TrcTaskMgr
 
             if (taskTypeCounter > 0)
             {
-                tracer.traceInfo("TaskPerformance", "%s", msg);
+                tracer.traceInfo(moduleName, msg.toString());
             }
         }
     }   //printTaskPerformanceMetrics
 
     /**
-     * This method prints all registered tasks with the given tracer.
-     *
-     * @param tracer specifies the tracer to be used for printing the task performance metrics.
+     * This method prints all registered tasks.
      */
-    public static void printAllRegisteredTasks(TrcDbgTrace tracer)
+    public static void printAllRegisteredTasks()
     {
-        final String funcName = "printAllRegisteredTasks";
-
         for (TaskObject taskObj : taskList)
         {
             StringBuilder msg = new StringBuilder(taskObj.toString() + ":");
@@ -669,8 +654,7 @@ public class TrcTaskMgr
                 msg.append(" ");
                 msg.append(type);
             }
-
-            tracer.traceInfo(funcName, "%s: %s", taskObj, msg);
+            tracer.traceInfo(moduleName, taskObj + ": " + msg);
         }
     }   //printAllRegisteredTask
 

@@ -120,7 +120,7 @@ public class TrcPose3D
 
         if (!path.endsWith(".csv"))
         {
-            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+            throw new IllegalArgumentException(path + " is not a csv file!");
         }
 
         try
@@ -207,6 +207,17 @@ public class TrcPose3D
     {
         return Objects.hash(x, y, z, yaw, pitch, roll);
     }   //hashCode
+
+    /**
+     * This method converts the Pose3D to a Pose2D.
+     *
+     * @return converted Pose2D.
+     */
+    public TrcPose2D toPose2D()
+    {
+        // TrcPose2D has a positive clockwise angle but TrcPose3D has a positive counter clockwise yaw.
+        return new TrcPose2D(x, y, -yaw);
+    }   //toPose2D
 
     /**
      * This method returns the vector form of this pose.

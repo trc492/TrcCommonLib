@@ -32,32 +32,10 @@ import java.util.Stack;
  */
 public class TrcPidController
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     public static final double DEF_SETTLING_TIME = 0.2;
-
-    /**
-     * Some actuators are non-linear. The load may vary depending on the position. For example, raising an arm
-     * against gravity will have the maximum load when the arm is horizontal and zero load when vertical. This
-     * caused problem when applying PID control on this kind of actuator because PID controller is only good at
-     * controlling linear actuators. To make PID controller works for non-linear actuators, we need to add power
-     * compensation that counteracts the non-linear component of the load so that PID only deals with the resulting
-     * linear load. However, a generic PID controller doesn't understand the actuator and has no way to come up
-     * with the compensation. Therefore, it is up to the user of the TrcPIDMotor to provide this interface for
-     * computing the output compensation.
-     */
-    public interface PowerCompensation
-    {
-        /**
-         * This method is called to compute the power compensation to counteract the varying non-linear load.
-         *
-         * @param currPower specifies the current motor power.
-         * @return compensation value of the actuator.
-         */
-        double getCompensation(double currPower);
-
-    }   //interface PowerCompensation
+    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
+    private static final double DEF_STALL_DETECTION_TIMEOUT = 0.2;
+    private static final double DEF_STALL_ERR_RATE_THRESHOLD = 1.0;
 
     /**
      * This class encapsulates all the PID coefficients into a single object and makes it more efficient to pass them
@@ -148,6 +126,7 @@ public class TrcPidController
          *
          * @return a copy of this object.
          */
+        @Override
         public PidCoefficients clone()
         {
             return new PidCoefficients(kP, kI, kD, kF, iZone);
@@ -164,10 +143,7 @@ public class TrcPidController
         public PidCoefficients pidCoeff;
         public double tolerance;
         public final double settlingTime;
-        public double steadyStateError;
-        public double stallErrRateThreshold;
         public PidInput pidInput;
-        public PowerCompensation powerCompensation;
 
         /**
          * Constructor: Create an instance of the object.
@@ -175,68 +151,14 @@ public class TrcPidController
          * @param pidCoeff specifies the PID coefficients for the PID controller.
          * @param tolerance specifies the tolerance.
          * @param settlingTime specifies the minimum on target settling time.
-         * @param steadyStateError specifies the acceptable steady state error.
-         * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
-         * @param pidInput specifies the method to call to get PID sensor input.
-         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
-         *        provided.
-         */
-        public PidParameters(
-            PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-            double stallErrRateThreshold, PidInput pidInput, PowerCompensation powerCompensation)
-        {
-            this.pidCoeff = pidCoeff;
-            this.settlingTime = Math.abs(settlingTime);
-            this.stallErrRateThreshold = stallErrRateThreshold;
-            setErrorTolerances(tolerance, steadyStateError);
-            this.pidInput = pidInput;
-            this.powerCompensation = powerCompensation;
-        }   //PidParameters
-
-        /**
-         * Constructor: Create an instance of the object.
-         *
-         * @param pidCoeff specifies the PID coefficients for the PID controller.
-         * @param tolerance specifies the tolerance.
-         * @param settlingTime specifies the minimum on target settling time.
-         * @param pidInput specifies the method to call to get PID sensor input.
-         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
-         *        provided.
-         */
-        public PidParameters(
-            PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput,
-            PowerCompensation powerCompensation)
-        {
-            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, pidInput, powerCompensation);
-        }   //PidParameters
-
-        /**
-         * Constructor: Create an instance of the object.
-         *
-         * @param pidCoeff specifies the PID coefficients for the PID controller.
-         * @param tolerance specifies the tolerance.
-         * @param settlingTime specifies the minimum on target settling time.
-         *        provided.
          * @param pidInput specifies the method to call to get PID sensor input.
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
         {
-            this(pidCoeff, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
-        }   //PidParameters
-
-        /**
-         * Constructor: Create an instance of the object.
-         *
-         * @param pidCoeff specifies the PID coefficients for the PID controller.
-         * @param tolerance specifies the tolerance.
-         * @param pidInput specifies the method to call to get PID sensor input.
-         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
-         *        provided.
-         */
-        public PidParameters(
-            PidCoefficients pidCoeff, double tolerance, PidInput pidInput, PowerCompensation powerCompensation)
-        {
-            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, powerCompensation);
+            this.pidCoeff = pidCoeff;
+            this.settlingTime = Math.abs(settlingTime);
+            this.pidInput = pidInput;
+            setErrorTolerance(tolerance);
         }   //PidParameters
 
         /**
@@ -248,32 +170,7 @@ public class TrcPidController
          */
         public PidParameters(PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
         {
-            this(pidCoeff, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
-        }   //PidParameters
-
-        /**
-         * Constructor: Create an instance of the object.
-         *
-         * @param kP specifies the Proportional constant.
-         * @param kI specifies the Integral constant.
-         * @param kD specifies the Differential constant.
-         * @param kF specifies the Feed forward constant.
-         * @param iZone specifies the integral zone.
-         * @param tolerance specifies the tolerance.
-         * @param settlingTime specifies the minimum on target settling time.
-         * @param steadyStateError specifies the acceptable steady state error.
-         * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
-         * @param pidInput specifies the method to call to get PID sensor input.
-         * @param powerCompensation specifies the method to call to get power compensation, can be null if not
-         *        provided.
-         */
-        public PidParameters(
-            double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
-            double steadyStateError, double stallErrRateThreshold, PidInput pidInput,
-            PowerCompensation powerCompensation)
-        {
-            this(new PidCoefficients(kP, kI, kD, kF, iZone),
-                 tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput, powerCompensation);
+            this(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
 
         /**
@@ -292,7 +189,7 @@ public class TrcPidController
             double kP, double kI, double kD, double kF, double iZone, double tolerance, double settlingTime,
             PidInput pidInput)
         {
-            this(kP, kI, kD, kF, iZone, tolerance, settlingTime, tolerance, 0.0, pidInput, null);
+            this(new PidCoefficients(kP, kI, kD, kF, iZone), tolerance, settlingTime, pidInput);
         }   //PidParameters
 
         /**
@@ -309,7 +206,7 @@ public class TrcPidController
         public PidParameters(
             double kP, double kI, double kD, double kF, double iZone, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, iZone, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
+            this(kP, kI, kD, kF, iZone, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
 
         /**
@@ -324,7 +221,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double kF, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
+            this(kP, kI, kD, kF, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
 
         /**
@@ -338,7 +235,7 @@ public class TrcPidController
          */
         public PidParameters(double kP, double kI, double kD, double tolerance, PidInput pidInput)
         {
-            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME, tolerance, 0.0, pidInput, null);
+            this(kP, kI, kD, 0.0, 0.0, tolerance, DEF_SETTLING_TIME, pidInput);
         }   //PidParameters
 
         /**
@@ -352,57 +249,19 @@ public class TrcPidController
         }   //setPidInput
 
         /**
-         * This method sets the method to call to get power compensation.
-         *
-         * @param powerCompensation specifies the method to call to get power compensation.
-         */
-        public void setPowerCompensation(PowerCompensation powerCompensation)
-        {
-            this.powerCompensation = powerCompensation;
-        }   //setPowerCompensation
-
-        /**
-         * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
-         * tolerance and steady state error and the error rate is zero, PID control will consider this is a stall
-         * condition (i.e. it won't make it to within tolerance but within acceptable steady state error). By default,
-         * steadyStateError is set to be the same as tolerance so that stall detection is effectively disabled. By
-         * setting steadyStateError larger than tolerance, the error range between tolerance and steadyStateError will
-         * become the stall detection zone in which if the error rate is zero, it will declare PID is stalled. If the
-         * PID controller is in stalled state, it is considered OnTarget even though it is not within tolerance. By
-         * adjusting steadyStateError, one can prevent the PID controller from hanging indefinitely and not reaching
-         * target by declaring OnTarget.
+         * This method sets the target tolerance.
          *
          * @param tolerance specifies the tolerance.
-         * @param steadyStateError specifies the acceptable steady state error.
          */
-        public void setErrorTolerances(double tolerance, double steadyStateError)
+        public void setErrorTolerance(double tolerance)
         {
-            tolerance = Math.abs(tolerance);
-            steadyStateError = Math.abs(steadyStateError);
-
-            if (tolerance > steadyStateError)
-            {
-                throw new IllegalArgumentException("steadyStateError must not be smaller than tolerance.");
-            }
-
             if (pidCoeff.iZone > 0.0 && tolerance >= pidCoeff.iZone)
             {
                 throw new IllegalArgumentException("iZone must be greater than tolerance.");
             }
 
-            this.tolerance = tolerance;
-            this.steadyStateError = steadyStateError;
-        }   //setErrorTolerances
-
-        /**
-         * This method sets the error rate below which we will consider a PID stall.
-         *
-         * @param stallErrRateThreshold specifies the error rate below which we will consider a PID stall.
-         */
-        public void setStallErrRateThreshold(double stallErrRateThreshold)
-        {
-            this.stallErrRateThreshold = Math.abs(stallErrRateThreshold);
-        }   //setStallErrRateThreshold
+            this.tolerance = Math.abs(tolerance);
+        }   //setErrorTolerance
 
         /**
          * This method returns all PID parameters in string form.
@@ -413,7 +272,7 @@ public class TrcPidController
         public String toString()
         {
             return String.format(
-                Locale.US, "pidCoeff=%s,tolerance=%.3f,settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
+                Locale.US, "pidCoeff=%s, tolerance=%f, settlingTime=%.3f", pidCoeff, tolerance, settlingTime);
         }   //toString
 
     }   //class PidParameters
@@ -452,8 +311,14 @@ public class TrcPidController
         double iTerm = 0.0;
         double dTerm = 0.0;
         double fTerm = 0.0;
-        double powerComp = 0.0;
         double output = 0.0;
+        double stallDetectionDelay = 0.0;
+        double stallDetectionTimeout = 0.0;
+        double stallErrorRateThreshold = 0.0;
+        Double stallDetectionStartTime = null;
+        // Tracing Config.
+        boolean verbosePidInfo = false;
+        TrcRobotBattery battery = null;
 
         /**
          * This method resets the PID controller state.
@@ -473,30 +338,26 @@ public class TrcPidController
             iTerm = 0.0;
             dTerm = 0.0;
             fTerm = 0.0;
-            powerComp = 0.0;
             output = 0.0;
+            stallDetectionStartTime = null;
         }   //reset
 
     }   //class PidCtrlState
 
     private final TrcDashboard dashboard = TrcDashboard.getInstance();
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final PidParameters pidParams;
 
     private boolean inverted = false;
     private boolean absSetPoint = false;
     private boolean noOscillation = false;
-    private double minTarget = 0.0;
-    private double maxTarget = 0.0;
     private double minOutput = -1.0;
     private double maxOutput = 1.0;
     private double outputLimit = 1.0;
     private Double rampRate = null;
     private final Stack<Double> outputLimitStack = new Stack<>();
     private final PidCtrlState pidCtrlState = new PidCtrlState();
-
-    private TrcDbgTrace debugTracer = null;
-    private boolean verboseTrace = false;
 
     /**
      * Constructor: Create an instance of the object.
@@ -506,75 +367,9 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidParameters pidParams)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.pidParams = pidParams;
-    }   //TrcPidController
-
-    /**
-     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
-     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
-     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
-     * set the PidInput outside of the super() call.
-     *
-     * @param instanceName specifies the instance name.
-     * @param pidCoeff specifies the PID constants.
-     * @param tolerance specifies the target tolerance.
-     * @param settlingTime specifies the minimum on target settling time.
-     * @param steadyStateError specifies the acceptable steady state error.
-     * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
-     * @param pidInput specifies the input provider.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
-     */
-    public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-        double stallErrRateThreshold, PidInput pidInput, PowerCompensation powerCompensation)
-    {
-        this(instanceName,
-             new PidParameters(
-             pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput, powerCompensation));
-    }   //TrcPidController
-
-    /**
-     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
-     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
-     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
-     * set the PidInput outside of the super() call.
-     *
-     * @param instanceName specifies the instance name.
-     * @param pidCoeff specifies the PID constants.
-     * @param tolerance specifies the target tolerance.
-     * @param settlingTime specifies the minimum on target settling time.
-     * @param steadyStateError specifies the acceptable steady state error.
-     * @param stallErrRateThreshold specifies the error rate below which we would consider PID stalled.
-     * @param pidInput specifies the input provider.
-     */
-    public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, double steadyStateError,
-        double stallErrRateThreshold, PidInput pidInput)
-    {
-        this(instanceName,
-             new PidParameters(pidCoeff, tolerance, settlingTime, steadyStateError, stallErrRateThreshold, pidInput,
-            null));
-    }   //TrcPidController
-
-    /**
-     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
-     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
-     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
-     * set the PidInput outside of the super() call.
-     *
-     * @param instanceName specifies the instance name.
-     * @param pidCoeff specifies the PID constants.
-     * @param tolerance specifies the target tolerance.
-     * @param settlingTime specifies the minimum on target settling time.
-     * @param pidInput specifies the input provider.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
-     */
-    public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime,
-        PidInput pidInput, PowerCompensation powerCompensation)
-    {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, pidInput, powerCompensation));
     }   //TrcPidController
 
     /**
@@ -592,26 +387,7 @@ public class TrcPidController
     public TrcPidController(
         String instanceName, PidCoefficients pidCoeff, double tolerance, double settlingTime, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, pidInput, null));
-    }   //TrcPidController
-
-    /**
-     * Constructor: Create an instance of the object. This constructor is not public. It is only for classes
-     * extending this class (e.g. Cascade PID Controller) that cannot make itself as an input provider in its
-     * constructor (Java won't allow it). Instead, we provide another protected method setPidInput so it can
-     * set the PidInput outside of the super() call.
-     *
-     * @param instanceName specifies the instance name.
-     * @param pidCoeff specifies the PID constants.
-     * @param tolerance specifies the target tolerance.
-     * @param pidInput specifies the input provider.
-     * @param powerCompensation specifies the method to call to get power compensation, can be null if not provided.
-     */
-    public TrcPidController(
-        String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput,
-        PowerCompensation powerCompensation)
-    {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput, powerCompensation));
+        this(instanceName, new PidParameters(pidCoeff, tolerance, settlingTime, pidInput));
     }   //TrcPidController
 
     /**
@@ -627,7 +403,7 @@ public class TrcPidController
      */
     public TrcPidController(String instanceName, PidCoefficients pidCoeff, double tolerance, PidInput pidInput)
     {
-        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput, null));
+        this(instanceName, new PidParameters(pidCoeff, tolerance, DEF_SETTLING_TIME, pidInput));
     }   //TrcPidController
 
     /**
@@ -640,6 +416,44 @@ public class TrcPidController
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel, boolean verbosePidInfo, TrcRobotBattery battery)
+    {
+        synchronized (pidCtrlState)
+        {
+            tracer.setTraceLevel(msgLevel);
+            pidCtrlState.verbosePidInfo = verbosePidInfo;
+            pidCtrlState.battery = battery;
+        }
+    }   //setTraceLevel
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel, boolean verbosePidInfo)
+    {
+        setTraceLevel(msgLevel, verbosePidInfo, null);
+    }   //setTraceLevel
+
+    /**
+     * This method sets the message trace level for the tracer.
+     *
+     * @param msgLevel specifies the message level.
+     */
+    public void setTraceLevel(TrcDbgTrace.MsgLevel msgLevel)
+    {
+        setTraceLevel(msgLevel, false, null);
+    }   //setTraceLevel
 
     /**
      * This method returns the PID parameters.
@@ -721,6 +535,71 @@ public class TrcPidController
     }   //setNoOscillation
 
     /**
+     * This method enables/disables stall detection.
+     *
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
+     */
+    public synchronized void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
+    {
+        synchronized (pidCtrlState)
+        {
+            pidCtrlState.stallDetectionDelay = Math.abs(stallDetectionDelay);
+            pidCtrlState.stallDetectionTimeout = Math.abs(stallDetectionTimeout);
+            pidCtrlState.stallErrorRateThreshold = Math.abs(stallErrorRateThreshold);
+        }
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method enables/disables stall detection.
+     *
+     * @param enabled specifies true to enable stall detection, false to disable.
+     */
+    public void setStallDetectionEnabled(boolean enabled)
+    {
+        if (enabled)
+        {
+            setStallDetectionEnabled(
+                DEF_STALL_DETECTION_DELAY, DEF_STALL_DETECTION_TIMEOUT, DEF_STALL_ERR_RATE_THRESHOLD);
+        }
+        else
+        {
+            setStallDetectionEnabled(0.0, 0.0, 0.0);
+        }
+    }   //setStallDetectionEnabled
+
+    /**
+     * This method starts stall detection.
+     */
+    public void startStallDetection()
+    {
+        synchronized (pidCtrlState)
+        {
+            // Start stall detection only if it's not already started.
+            if (pidCtrlState.stallDetectionStartTime == null)
+            {
+                pidCtrlState.stallDetectionStartTime =
+                    pidCtrlState.stallDetectionTimeout == 0.0 ?
+                        null : TrcTimer.getCurrentTime() + pidCtrlState.stallDetectionDelay;
+            }
+        }
+    }   //startStallDetection
+
+    /**
+     * This method ends stall detection.
+     */
+    public void endStallDetection()
+    {
+        synchronized (pidCtrlState)
+        {
+            pidCtrlState.stallDetectionStartTime = null;
+        }
+    }   //endStallDetection
+
+    /**
      * This method returns the current PID coefficients.
      *
      * @return current PID coefficients.
@@ -759,52 +638,6 @@ public class TrcPidController
     }   //setRampRate
 
     /**
-     * This method sets the target tolerance as well as acceptable steady state error. If the PID error is between
-     * tolerance and steady state error and the error rate is zero, PID control will consider this is a stall
-     * condition (i.e. it won't make it to within tolerance but within acceptable steady state error). By default,
-     * steadyStateError is set to be the same as tolerance so that stall detection is effectively disabled. By
-     * setting steadyStateError larger than tolerance, the error range between tolerance and steadyStateError will
-     * become the stall detection zone in which if the error rate is zero, it will declare PID is stalled. If the
-     * PID controller is in stalled state, it is considered OnTarget even though it is not within tolerance. By
-     * adjusting steadyStateError, one can prevent the PID controller from hanging indefinitely and not reaching
-     * target by declaring OnTarget.
-     *
-     * @param steadyStateError specifies the acceptable steady state error.
-     */
-    public void setErrorTolerances(double tolerance, double steadyStateError)
-    {
-        synchronized (pidCtrlState)
-        {
-            pidParams.setErrorTolerances(tolerance, steadyStateError);
-        }
-    }   //setErrorTolerances
-
-    /**
-     * This method sets a new steady state error to the value of tolerance multiplied by the given multiplier.
-     *
-     * @param multiplier specifies the tolerance multiplier to calculate the new steadyStateError.
-     */
-    public void setSteadyStateErrorByMultiplier(double multiplier)
-    {
-        double tolerance = pidParams.tolerance;
-        double steadyStateError = tolerance * Math.abs(multiplier);
-        setErrorTolerances(tolerance, steadyStateError);
-    }   //setSteadyStateErrorByMultiplier
-
-    /**
-     * This method is called by the subclass to set the stall detection error rate threshold value.
-     *
-     * @param stallErrRateThreshold specifies the stall detection error rate threshold value.
-     */
-    public void setStallErrRateThreshold(double stallErrRateThreshold)
-    {
-        synchronized (pidCtrlState)
-        {
-            pidParams.setStallErrRateThreshold(stallErrRateThreshold);
-        }
-    }   //setStallVelocityThreshold
-
-    /**
      * This method sets a new target tolerance.
      *
      * @param tolerance specifies the new target tolerance.
@@ -816,21 +649,6 @@ public class TrcPidController
             pidParams.tolerance = Math.abs(tolerance);
         }
     }   //setTargetTolerance
-
-    /**
-     * This method sets a range limit on the target set point.
-     *
-     * @param minTarget specifies the target set point lower range limit.
-     * @param maxTarget specifies the target set point higher range limit.
-     */
-    public void setTargetRange(double minTarget, double maxTarget)
-    {
-        synchronized (pidCtrlState)
-        {
-            this.minTarget = minTarget;
-            this.maxTarget = maxTarget;
-        }
-    }   //setTargetRange
 
     /**
      * This method sets a range limit on the calculated output. It is very useful to limit the output range to
@@ -1003,20 +821,6 @@ public class TrcPidController
             {
                 error *= -1.0;
             }
-            //
-            // If there is a valid target range, limit the set point to this range.
-            //
-            if (maxTarget > minTarget)
-            {
-                if (pidCtrlState.setPoint > maxTarget)
-                {
-                    pidCtrlState.setPoint = maxTarget;
-                }
-                else if (pidCtrlState.setPoint < minTarget)
-                {
-                    pidCtrlState.setPoint = minTarget;
-                }
-            }
 
             if (resetError)
             {
@@ -1085,6 +889,40 @@ public class TrcPidController
     }   //reset
 
     /**
+     * This method detects if PID is stalled.
+     *
+     * @return true if PID is stalled, false otherwise.
+     */
+    public boolean isStalled()
+    {
+        boolean stalled = false;
+
+        synchronized (pidCtrlState)
+        {
+            double currTime = TrcTimer.getCurrentTime();
+
+            if (pidCtrlState.stallDetectionStartTime != null && currTime > pidCtrlState.stallDetectionStartTime)
+            {
+                if (Math.abs(pidCtrlState.errorRate) > pidCtrlState.stallErrorRateThreshold)
+                {
+                    // reset stall start time to current time if it has movement.
+                    pidCtrlState.stallDetectionStartTime = currTime;
+                }
+                else
+                {
+                    stalled = currTime > pidCtrlState.stallDetectionStartTime + pidCtrlState.stallDetectionTimeout;
+                    if (stalled)
+                    {
+                        tracer.traceInfo(instanceName, "PID stalled.");
+                    }
+                }
+            }
+        }
+
+        return stalled;
+    }   //isStalled
+
+    /**
      * This method determines if we have reached the set point target. It is considered on target if the previous
      * error is smaller than the tolerance and there is no movement for at least settling time. If NoOscillation mode
      * is set, it is considered on target if we are within tolerance or pass target regardless of setting time.
@@ -1093,7 +931,6 @@ public class TrcPidController
      */
     public boolean isOnTarget()
     {
-        final String funcName = "isOnTarget";
         boolean onTarget = false;
 
         synchronized (pidCtrlState)
@@ -1118,32 +955,18 @@ public class TrcPidController
             //
             // We consider it on-target if error is within tolerance for the settling period.
             //
-            else if (absErr > pidParams.steadyStateError ||
-                     absErr > pidParams.tolerance &&
-                     Math.abs(pidCtrlState.errorRate) > pidParams.stallErrRateThreshold)
+            else if (absErr > pidParams.tolerance)
             {
                 pidCtrlState.settlingStartTime = TrcTimer.getCurrentTime();
-
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        funcName,
-                        "err=%.3f, errRate=%.3f, tolerance=%.1f, steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
-                        pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance,
-                        pidParams.steadyStateError, pidParams.stallErrRateThreshold);
-                }
+                tracer.traceDebug(
+                    instanceName, "InProgress: err=%f, errRate=%f, tolerance=%f",
+                    pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
             }
             else if (currTime >= pidCtrlState.settlingStartTime + pidParams.settlingTime)
             {
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        funcName, "currTime=%.3f, startTime=%.3f, err=%.3f, errRate=%.3f, tolerance=%.1f, " +
-                        "steadyStateErr=%.1f, stallErrRateThreshold=%.1f",
-                        currTime, pidCtrlState.settlingStartTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                        pidParams.tolerance, pidParams.steadyStateError, pidParams.stallErrRateThreshold);
-                }
-
+                tracer.traceDebug(
+                    instanceName, "OnTarget: err=%f, errRate=%f, tolerance=%f",
+                    pidCtrlState.currError, pidCtrlState.errorRate, pidParams.tolerance);
                 onTarget = true;
             }
         }
@@ -1233,16 +1056,11 @@ public class TrcPidController
                 output = pidCtrlState.output + change;
             }
 
-            if (pidParams.powerCompensation != null)
-            {
-                pidCtrlState.powerComp = pidParams.powerCompensation.getCompensation(output);
-                output = TrcUtil.clipRange(output + pidCtrlState.powerComp, minOutput, maxOutput);
-            }
             pidCtrlState.output = output;
 
-            if (debugTracer != null)
+            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
             {
-                printPidInfo(debugTracer, verboseTrace);
+                printPidInfo(tracer, pidCtrlState.verbosePidInfo, pidCtrlState.battery);
             }
 
             return pidCtrlState.output;
@@ -1272,103 +1090,70 @@ public class TrcPidController
      * This method prints the PID information to the tracer console. If no tracer is provided, it will attempt to
      * use the debug tracer in this module but if the debug tracer is not enabled, no output will be produced.
      *
-     * @param tracer specifies the tracer object to print the PID info to.
+     * @param msgTracer specifies the tracer object to print the PID info to.
      * @param verbose specifies true to print verbose info, false to print summary info.
      * @param battery specifies the battery object to get battery info, can be null if not provided.
      */
-    public void printPidInfo(TrcDbgTrace tracer, boolean verbose, TrcRobotBattery battery)
+    public void printPidInfo(TrcDbgTrace msgTracer, boolean verbose, TrcRobotBattery battery)
     {
-        final String funcName = "printPidInfo";
+        StringBuilder sb = new StringBuilder();
 
-        if (tracer == null)
+        if (msgTracer == null)
         {
-            tracer = globalTracer;
+            msgTracer = tracer;
         }
-        //
-        // Apparently, String.format is very expensive. It costs about 5 msec per call for an Android device. In the
-        // worst case, the commented code below makes 3 calls to String.format that costs about 15 msec!
-        //
-        if (tracer != null)
+
+        synchronized (pidCtrlState)
         {
-            synchronized (pidCtrlState)
+            if (verbose)
             {
-                if (verbose)
+                if (battery != null)
                 {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, PowerComp=%6.3f" +
-                            ", Volt=%.1f(%.1f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            pidCtrlState.powerComp, battery.getVoltage(), battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, powerComp=%6.3f",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-                            pidCtrlState.powerComp);
-                    }
+                    msgTracer.traceInfo(
+                        instanceName,
+                        "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                        "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f, Volt=%.1f(%.1f)",
+                        pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                        pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput,
+                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
+                        battery.getVoltage(), battery.getLowestVoltage());
                 }
                 else
                 {
-                    if (battery != null)
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)" +
-                            ", Volt=%.1f(%.1f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput,
-                            battery.getVoltage(), battery.getLowestVoltage());
-                    }
-                    else
-                    {
-                        tracer.traceInfo(
-                            funcName,
-                            "[%.6f] %s: Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f" +
-                            ", Output=%6.3f(%6.3f/%6.3f)",
-                            TrcTimer.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-                            pidCtrlState.deltaTime, pidCtrlState.currError, pidCtrlState.errorRate,
-                            pidCtrlState.output, minOutput, maxOutput);
-                    }
+                    tracer.traceInfo(
+                        instanceName,
+                        "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                        "Output=%6.3f(%6.3f/%6.3f), PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f",
+                        pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                        pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput,
+                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm);
                 }
-//                StringBuilder msg = new StringBuilder();
-//
-//                msg.append(String.format(
-//                    Locale.US, "[%.6f] %s: Target=%6.1f, Input=%6.1f, Error=%6.1f, Output=%6.3f(%6.3f/%5.3f)",
-//                    TrcUtil.getModeElapsedTime(), instanceName, pidCtrlState.setPoint, pidCtrlState.input,
-//                    pidCtrlState.error, pidCtrlState.output, minOutput, maxOutput));
-//
-//                if (verbose)
-//                {
-//                    msg.append(String.format(
-//                        Locale.US, ", PIDFTerms=%6.3f/%6.3f/%6.3f/%6.3f [%.6f/%.6f]",
-//                        pidCtrlState.pTerm, pidCtrlState.iTerm, pidCtrlState.dTerm, pidCtrlState.fTerm,
-//                        pidCtrlState.deltaTime, TrcUtil.getModeElapsedTime(pidCtrlState.timestamp)));
-//                }
-//
-//                if (battery != null)
-//                {
-//                    msg.append(String.format(Locale.US, ", Volt=%.1f(%.1f)",
-//                        battery.getVoltage(), battery.getLowestVoltage()));
-//                }
-//
-//                tracer.traceInfo(funcName, msg.toString());
+            }
+            else
+            {
+                if (battery != null)
+                {
+                    tracer.traceInfo(
+                        instanceName,
+                        "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                        "Output=%6.3f(%6.3f/%6.3f), Volt=%.1f(%.1f)",
+                        pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                        pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput,
+                        battery.getVoltage(), battery.getLowestVoltage());
+                }
+                else
+                {
+                    tracer.traceInfo(
+                        instanceName,
+                        "Target=%6.1f, Input=%6.1f, dT=%.6f, CurrErr=%6.1f, ErrRate=%6.1f, " +
+                        "Output=%6.3f(%6.3f/%6.3f)",
+                        pidCtrlState.setPoint, pidCtrlState.input, pidCtrlState.deltaTime, pidCtrlState.currError,
+                        pidCtrlState.errorRate, pidCtrlState.output, minOutput, maxOutput);
+                }
             }
         }
+
+        msgTracer.traceInfo(instanceName, sb.toString());
     }   //printPidInfo
 
     /**
@@ -1401,34 +1186,5 @@ public class TrcPidController
     {
         printPidInfo(null, false, null);
     }   //printPidInfo
-
-    /**
-     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
-     * very useful for debugging or tuning PID control.
-     *
-     * @param tracer  specifies the tracer to be used for debug tracing.
-     * @param enabled specifies true to enable the debug tracer, false to disable.
-     * @param verbose specifies true to enable verbose trace mode, false to disable.
-     */
-    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled, boolean verbose)
-    {
-        synchronized (pidCtrlState)
-        {
-            debugTracer = enabled ? tracer : null;
-            verboseTrace = enabled && verbose;
-        }
-    }   //setDebugTraceEnabled
-
-    /**
-     * This method allows the caller to dynamically enable/disable debug tracing of the output calculation. It is
-     * very useful for debugging or tuning PID control.
-     *
-     * @param tracer  specifies the tracer to be used for debug tracing.
-     * @param enabled specifies true to enable the debug tracer, false to disable.
-     */
-    public void setDebugTraceEnabled(TrcDbgTrace tracer, boolean enabled)
-    {
-        setDebugTraceEnabled(tracer, enabled, false);
-    }   //setDebugTraceEnabled
 
 }   //class TrcPidController

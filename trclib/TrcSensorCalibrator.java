@@ -29,14 +29,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcSensorCalibrator<D>
 {
-    private static final String moduleName = "TrcSensorCalibrator";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     private final String instanceName;
     private final TrcSensor<D> sensor;
     private final int numAxes;
@@ -52,15 +44,8 @@ public class TrcSensorCalibrator<D>
      * @param numAxes specifies the number of axes needs to be calibrated.
      * @param dataType specifies the sensor data type to be calibrated.
      */
-    public TrcSensorCalibrator(final String instanceName, TrcSensor<D> sensor, int numAxes, D dataType)
+    public TrcSensorCalibrator(String instanceName, TrcSensor<D> sensor, int numAxes, D dataType)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.instanceName = instanceName;
         this.sensor = sensor;
         this.numAxes = numAxes;
@@ -89,16 +74,9 @@ public class TrcSensorCalibrator<D>
      */
     public void calibrate(int numCalSamples, long calInterval)
     {
-        final String funcName = "calibrate";
         double[] minValues = new double[numAxes];
         double[] maxValues = new double[numAxes];
         double[] sums = new double[numAxes];
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                                "numSamples=%d,calInterval=%d", numCalSamples, calInterval);
-        }
 
         for (int i = 0; i < numAxes; i++)
         {
@@ -130,11 +108,6 @@ public class TrcSensorCalibrator<D>
             zeroOffsets[i] = sums[i]/numCalSamples;
             deadbands[i] = maxValues[i] - minValues[i];
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //calibrate
 
     /**
@@ -146,16 +119,7 @@ public class TrcSensorCalibrator<D>
      */
     public double getCalibratedData(int index, double data)
     {
-        final String funcName = "getCalibratedData";
-        double calibratedData = TrcUtil.applyDeadband(data - zeroOffsets[index], deadbands[index]);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d,data=%f", index, data);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%f", calibratedData);
-        }
-
-        return calibratedData;
+        return TrcUtil.applyDeadband(data - zeroOffsets[index], deadbands[index]);
     }   //getCalibratedData
 
 }   //class TrcSensorCalibrator

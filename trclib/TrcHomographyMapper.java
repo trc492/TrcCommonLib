@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.LinkedList;
-import java.util.Locale;
 
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Mat;
@@ -84,8 +83,10 @@ public class TrcHomographyMapper
 
         public String toString()
         {
-            return String.format(Locale.US, "[topLeft%s, topRight%s, bottomLeft%s, bottomRight%s]",
-                topLeft, topRight, bottomLeft, bottomRight);
+            return "[topLeft" + topLeft +
+                   ", topRight" + topRight +
+                   ", bottomLeft" + bottomLeft +
+                   ", bottomRight" + bottomRight + "]";
         }   //toString
 
     }   //class Rectangle

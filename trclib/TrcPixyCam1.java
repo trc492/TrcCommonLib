@@ -24,7 +24,6 @@ package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * This class implements a platform independent pixy camera 1. This class is intended to be extended by a platform
@@ -34,10 +33,6 @@ import java.util.Locale;
  */
 public abstract class TrcPixyCam1
 {
-    protected static final String moduleName = "TrcPixyCam1";
-    protected static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    protected static final boolean debugEnabled = false;
-
     private static final byte PIXY_SYNC_HIGH                    = (byte)0xaa;
     private static final int PIXY_START_WORD                    = 0xaa55;
     private static final int PIXY_START_WORD_CC                 = 0xaa56;
@@ -82,10 +77,14 @@ public abstract class TrcPixyCam1
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "sync=0x%04x, chksum=0x%04x, sig=%d, centerX=%3d, centerY=%3d, width=%3d, height=%3d, " +
-                            "angle=%3d",
-                sync, checksum, signature, centerX, centerY, width, height, angle);
+            return "sync=0x" + Integer.toHexString(sync) +
+                   ", chksum=0x" + Integer.toHexString(checksum) +
+                   ", sig=" + signature +
+                   ", centerX=" + centerX +
+                   ", centerY=" + centerY +
+                   ", width=" + width +
+                   ", height=" + height +
+                   ", angle=" + angle;
         }
     }   //class ObjectBlock
 
@@ -101,6 +100,7 @@ public abstract class TrcPixyCam1
         COLOR_CODE_BLOCK
     }   //enum RequestId
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final boolean msbFirst;
     private final ArrayList<ObjectBlock> objects = new ArrayList<>();
@@ -114,8 +114,9 @@ public abstract class TrcPixyCam1
      * @param instanceName specifies the instance name.
      * @param msbFirst specifies true if a word has MSB first.
      */
-    public TrcPixyCam1(final String instanceName, boolean msbFirst)
+    public TrcPixyCam1(String instanceName, boolean msbFirst)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.msbFirst = msbFirst;
     }   //TrcPixyCam1
@@ -160,9 +161,9 @@ public abstract class TrcPixyCam1
     {
         byte[] byteData = new byte[1];
 
-        for (int i = 0; i < data.length; i++)
+        for (byte value: data)
         {
-            byteData[0] = data[i];
+            byteData[0] = value;
             asyncWriteData(null, byteData);
         }
     }   //asyncWriteBytes
@@ -252,14 +253,9 @@ public abstract class TrcPixyCam1
      */
     private void processData(RequestId requestId, byte[] data, int length)
     {
-        final String funcName = "processData";
         int word;
 
-        if (debugEnabled)
-        {
-            globalTracer.traceVerbose(funcName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
-        }
-
+        tracer.traceVerbose(instanceName, "Id=" + requestId + ",data=" + Arrays.toString(data) + ",len=" + length);
         switch (requestId)
         {
             case SYNC:
@@ -278,10 +274,7 @@ public abstract class TrcPixyCam1
                     // another read for SYNC.
                     //
                     asyncReadData(RequestId.SYNC, 2);
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceWarn(funcName, "Unexpected data length %d in %s", length, requestId);
-                    }
+                    tracer.traceDebug(instanceName, "Unexpected data length " + length + " in " + requestId + ".");
                 }
                 else
                 {
@@ -302,10 +295,7 @@ public abstract class TrcPixyCam1
                         //
                         currBlock.sync = PIXY_START_WORD;
                         asyncReadData(RequestId.ALIGN, 1);
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "Word misaligned, realigning...");
-                        }
+                        tracer.traceDebug(instanceName, "Word misaligned, realigning...");
                     }
                     else
                     {
@@ -313,12 +303,12 @@ public abstract class TrcPixyCam1
                         // We don't find the sync word, throw it away and initiate another read for SYNC.
                         //
                         asyncReadData(RequestId.SYNC, 2);
-                        if (debugEnabled)
+                        if (word != 0)
                         {
-                            if (word != 0)
-                            {
-                                globalTracer.traceWarn(funcName, "Unexpected word 0x%04x read in %s", word, requestId);
-                            }
+                            tracer.traceDebug(
+                                instanceName,
+                                "Unexpected word 0x" + Integer.toHexString(word) +
+                                " read in " + requestId + ".");
                         }
                     }
                 }
@@ -330,8 +320,7 @@ public abstract class TrcPixyCam1
                     //
                     // We should never come here. Let's throw an exception to catch this unlikely scenario.
                     //
-                    throw new IllegalStateException(String.format("Unexpected data length %d in %s.",
-                        length, requestId));
+                    throw new IllegalStateException("Unexpected data length " + length + " in " + requestId + ".");
                 }
                 else if (data[0] == PIXY_SYNC_HIGH)
                 {
@@ -347,10 +336,10 @@ public abstract class TrcPixyCam1
                     // now word aligned again.
                     //
                     asyncReadData(RequestId.SYNC, 2);
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceWarn(funcName, "Unexpected data byte 0x%02x in %s", data[0], requestId);
-                    }
+                    tracer.traceDebug(
+                        instanceName,
+                        "Unexpected data byte 0x" + Integer.toHexString(data[0]) +
+                        " in " + requestId + ".");
                 }
                 break;
 
@@ -360,8 +349,7 @@ public abstract class TrcPixyCam1
                     //
                     // We should never come here. Let's throw an exception to catch this unlikely scenario.
                     //
-                    throw new IllegalStateException(String.format("Unexpected data length %d in %s.",
-                        length, requestId));
+                    throw new IllegalStateException("Unexpected data length " + length + " in " + requestId + ".");
                 }
                 else
                 {
@@ -384,11 +372,11 @@ public abstract class TrcPixyCam1
                                 ObjectBlock[] array = new ObjectBlock[objects.size()];
                                 detectedObjects = objects.toArray(array);
                                 objects.clear();
-                                if (debugEnabled)
+                                if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
                                 {
                                     for (int i = 0; i < detectedObjects.length; i++)
                                     {
-                                        globalTracer.traceInfo(funcName, "[%02d] %s", i, detectedObjects[i].toString());
+                                        tracer.traceDebug(instanceName, "[" + i + "] " + detectedObjects[i].toString());
                                     }
                                 }
                             }
@@ -415,8 +403,9 @@ public abstract class TrcPixyCam1
                             //
                             // We should never come here. Let's throw an exception to catch this unlikely scenario.
                             //
-                            throw new IllegalStateException(String.format("Unexpected sync word 0x%04x in %s.",
-                                currBlock.sync, requestId));
+                            throw new IllegalStateException(
+                                "Unexpected sync word 0x" + Integer.toHexString(currBlock.sync) +
+                                " in " + requestId + ".");
                         }
                     }
                 }
@@ -430,8 +419,7 @@ public abstract class TrcPixyCam1
                     //
                     // We should never come here. Let's throw an exception to catch this unlikely scenario.
                     //
-                    throw new IllegalStateException(String.format("Unexpected data length %d in %s.",
-                        length, requestId));
+                    throw new IllegalStateException("Unexpected data length " + length + " in " + requestId + ".");
                 }
                 else
                 {
@@ -488,17 +476,16 @@ public abstract class TrcPixyCam1
                         //
                         // Checksum is correct, add the object block.
                         //
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "Object(%s)", currBlock);
-                        }
+                        tracer.traceDebug(instanceName, "Object(" + currBlock + ")");
                         objects.add(currBlock);
                         currBlock = null;
                     }
-                    else if (debugEnabled)
+                    else
                     {
-                        globalTracer.traceWarn(funcName, "Incorrect checksum %d (expecting %d).",
-                            runningChecksum, currBlock.checksum);
+                        tracer.traceDebug(
+                            instanceName,
+                            "Incorrect checksum " + runningChecksum +
+                            " (expecting " + currBlock.checksum + ").");
                     }
                     //
                     // Initiate the read for the SYNC word of the next block.
@@ -511,7 +498,7 @@ public abstract class TrcPixyCam1
                 //
                 // We should never come here. Let's throw an exception to catch this unlikely scenario.
                 //
-                throw new IllegalStateException(String.format("Unexpected request ID %s.", requestId));
+                throw new IllegalStateException("Unexpected request ID " + requestId + ".");
         }
     }   //processData
 

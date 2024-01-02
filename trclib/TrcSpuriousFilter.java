@@ -29,7 +29,6 @@ package TrcCommonLib.trclib;
 public class TrcSpuriousFilter extends TrcFilter
 {
     private final double distanceThreshold;
-    private final TrcDbgTrace tracer;
     private Double prevData;
 
     /**
@@ -37,27 +36,13 @@ public class TrcSpuriousFilter extends TrcFilter
      *
      * @param instanceName specifies the instance name.
      * @param distanceThreshold specifies the distance threshold from previous data point to be considered spurious.
-     * @param tracer specifies the optional tracer to be used to log an entry if spurious data is detected.
-     *               Can be null if none provided.
      */
-    public TrcSpuriousFilter(final String instanceName, double distanceThreshold, TrcDbgTrace tracer)
+    public TrcSpuriousFilter(String instanceName, double distanceThreshold)
     {
         super(instanceName);
 
         this.distanceThreshold = distanceThreshold;
-        this.tracer = tracer;
         reset();
-    }   //TrcSpuriousFilter
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param distanceThreshold specifies the distance threshold from previous data point to be considered spurious.
-     */
-    public TrcSpuriousFilter(final String instanceName, double distanceThreshold)
-    {
-        this(instanceName, distanceThreshold, null);
     }   //TrcSpuriousFilter
 
     //
@@ -70,14 +55,6 @@ public class TrcSpuriousFilter extends TrcFilter
     @Override
     public void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         prevData = null;
     }   //reset
 
@@ -90,29 +67,14 @@ public class TrcSpuriousFilter extends TrcFilter
     @Override
     public double filterData(double data)
     {
-        final String funcName = "filterData";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
-        }
-
         if (prevData != null && Math.abs(data - prevData) >= distanceThreshold)
         {
-            if (tracer != null)
-            {
-                tracer.traceWarn(instanceName, "Spurious data detected (data=%f, prev=%f)", data, prevData);
-            }
+            tracer.traceWarn(instanceName, "Spurious data detected (data=%f, prev=%f)", data, prevData);
             data = prevData;
         }
         else
         {
             prevData = data;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "=%f", data);
         }
 
         return data;

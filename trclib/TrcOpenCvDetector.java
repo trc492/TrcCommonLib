@@ -27,6 +27,7 @@ import org.opencv.core.Mat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Locale;
 
 /**
  * This class implements a generic OpenCV detector. Typically, it is extended by a specific detector that provides
@@ -40,15 +41,18 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      */
     public static abstract class DetectedObject<O> implements TrcVisionTargetInfo.ObjectInfo
     {
+        public final String label;
         public final O object;
 
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param object specifies the contour of the object.
          */
-        public DetectedObject(O object)
+        public DetectedObject(String label, O object)
         {
+            this.label = label;
             this.object = object;
         }   //DetectedObject
 
@@ -60,7 +64,7 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         @Override
         public String toString()
         {
-            return "Rect=" + getRect() + ",area=" + getArea();
+            return String.format(Locale.US, "label=%s, Rect=%s, area=%f", label, getRect(), getArea());
         }   //toString
 
     }   //class DetectedObject
@@ -73,8 +77,8 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         boolean validateTarget(DetectedObject<?> object);
     }   //interface FilterTarget
 
-    private final String instanceName;
-    private final TrcDbgTrace tracer;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final TrcHomographyMapper homographyMapper;
     private final TrcVisionTask<Mat, DetectedObject<?>> visionTask;
     private volatile TrcOpenCvPipeline<DetectedObject<?>> openCvPipeline = null;
@@ -86,15 +90,13 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
      * @param numImageBuffers specifies the number of image buffers to allocate.
      * @param cameraRect specifies the camera rectangle for Homography Mapper, can be null if not provided.
      * @param worldRect specifies the world rectangle for Homography Mapper, can be null if not provided.
-     * @param tracer specifies the tracer for trace info, null if none provided.
      */
     public TrcOpenCvDetector(
         String instanceName, int numImageBuffers, TrcHomographyMapper.Rectangle cameraRect,
-        TrcHomographyMapper.Rectangle worldRect, TrcDbgTrace tracer)
+        TrcHomographyMapper.Rectangle worldRect)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
-        this.tracer = tracer;
-
         if (cameraRect != null && worldRect != null)
         {
             homographyMapper = new TrcHomographyMapper(cameraRect, worldRect);
@@ -113,7 +115,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         }
 
         visionTask = new TrcVisionTask<>(instanceName, this, imageBuffers);
-        visionTask.setPerfReportEnabled(tracer);
     }   //TrcOpenCvDetector
 
     /**
@@ -190,7 +191,6 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
         FilterTarget filter, Comparator<? super TrcVisionTargetInfo<DetectedObject<?>>> comparator,
         double objHeightOffset, double cameraHeight)
     {
-        final String funcName = instanceName + ".getDetectedTargetsInfo";
         TrcVisionTargetInfo<DetectedObject<?>>[] detectedTargets = null;
         DetectedObject<?>[] objects = visionTask.getDetectedObjects();
 
@@ -217,11 +217,11 @@ public abstract class TrcOpenCvDetector implements TrcVisionProcessor<Mat, TrcOp
                 }
             }
 
-            if (detectedTargets != null && tracer != null)
+            if (detectedTargets != null)
             {
                 for (int i = 0; i < detectedTargets.length; i++)
                 {
-                    tracer.traceInfo(funcName, "[%d] Target=%s", i, detectedTargets[i]);
+                    tracer.traceDebug(instanceName, "[" + i + "] Target=" + detectedTargets[i]);
                 }
             }
         }

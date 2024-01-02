@@ -35,9 +35,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class TrcTimer
 {
-    private static final String moduleName = "TrcTimer";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
+    private static final String moduleName = TrcTimer.class.getSimpleName();
+    private static final TrcDbgTrace staticTracer = new TrcDbgTrace();
 
     /**
      * This class encapsulates the state of a timer that must be updated atomically. Therefore, when accessing this
@@ -53,14 +52,16 @@ public class TrcTimer
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "(expiredTimeMS=%d,expired=%s,canceled=%s,event=%s)",
-                expiredTimeInMsec.get(), expired.get(), canceled.get(), notifyEvent);
+            return "(expiredTimeMS=" + expiredTimeInMsec.get() +
+                   ",expired=" + expired.get() +
+                   ",canceled=" + canceled.get() +
+                   ",event=" + notifyEvent + ")";
         }   //toString
 
     }   //class State
 
     private final State state = new State();
+    private final TrcDbgTrace tracer;
     private final String instanceName;
 
     /**
@@ -70,6 +71,7 @@ public class TrcTimer
      */
     public TrcTimer(String instanceName)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcTimer
 
@@ -81,7 +83,7 @@ public class TrcTimer
     @Override
     public String toString()
     {
-        return String.format(Locale.US, "%s=%s", instanceName, state);
+        return instanceName + "=" + state;
     }   //toString
 
     /**
@@ -96,8 +98,6 @@ public class TrcTimer
      */
     public void set(double time, TrcEvent event, TrcEvent.Callback callback, Object callbackContext)
     {
-        final String funcName = "set";
-
         if (event == null && callback == null)
         {
             throw new IllegalArgumentException("Either event or callback must not be null.");
@@ -126,13 +126,9 @@ public class TrcTimer
             }
         }
         addTimer(this);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "timer=%s, time=%.3f, event=%s, callback=%s, context=%s",
-                this, time, event, callback != null, callbackContext != null);
-        }
+        tracer.traceDebug(
+            instanceName, "timer=%s, time=%.3f, event=%s, callback=%s, context=%s",
+            this, time, event, callback != null, callbackContext != null);
     }   //set
 
     /**
@@ -180,7 +176,6 @@ public class TrcTimer
      */
     private void cancel(boolean doNotify)
     {
-        final String funcName = "cancel";
         TrcEvent event;
 
         synchronized (state)
@@ -206,11 +201,7 @@ public class TrcTimer
             // If there is a notification callback, it will be done automatically by the event.
             event.cancel();
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "timer=%s, doNotify=%s", this, doNotify);
-        }
+        tracer.traceDebug(instanceName, "state=" + state + ", doNotify=" + doNotify);
     }   //cancel
 
     /**
@@ -273,7 +264,6 @@ public class TrcTimer
      */
     private void setExpired()
     {
-        final String funcName = "setExpired";
         TrcEvent event;
 
         synchronized (state)
@@ -297,11 +287,7 @@ public class TrcTimer
         {
             event.signal();
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "Timer %s has expired.", this);
-        }
+        tracer.traceDebug(instanceName, "Timer has expired (state=" + state + ").");
     }   //setExpired
 
     //
@@ -435,19 +421,13 @@ public class TrcTimer
      */
     private static void addTimer(TrcTimer timer)
     {
-        final String funcName = "addTimer";
         long expiredTimeInMsec = timer.getExpiredTimeInMsec();
 
         synchronized (timerList)
         {
             if (nextTimerToExpire != null && expiredTimeInMsec < nextTimerToExpire.getExpiredTimeInMsec())
             {
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        funcName, "[%d] Adding timer %s preempting %s.",
-                        TrcTimer.getCurrentTimeMillis(), timer, nextTimerToExpire);
-                }
+                staticTracer.traceDebug(moduleName, "Adding timer " + timer + " preempting " + nextTimerToExpire + ".");
                 //
                 // The added new timer expires sooner than the one we are sleeping on. Let's interrupt its sleep and
                 // process this one first.
@@ -469,12 +449,7 @@ public class TrcTimer
                     }
                 }
 
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        funcName, "[%d] Adding timer %s to queue position %d.",
-                        TrcTimer.getCurrentTimeMillis(), timer, position);
-                }
+                staticTracer.traceDebug(moduleName, "Adding timer " + timer + " to queue position " + position + ".");
                 timerList.add(position, timer);
                 //
                 // In case this is the first and only timer in the list, kick start the timer thread.
@@ -498,7 +473,6 @@ public class TrcTimer
      */
     private static void removeTimer(TrcTimer timer)
     {
-        final String funcName = "removeTimer";
         // Only do this if we are not shutting down. If we are shutting down, thread cleanup will take care of
         // the timer list.
         if (!shuttingDown)
@@ -508,24 +482,18 @@ public class TrcTimer
                 if (timer == nextTimerToExpire)
                 {
                     timerThread.interrupt();
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Removing current active timer %s", timer);
-                    }
+                    staticTracer.traceDebug(moduleName, "Removing current active timer " + timer);
                 }
                 else
                 {
-                     boolean success = timerList.remove(timer);
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Removing timer %s in the list=%s", timer, success);
-                    }
+                    boolean success = timerList.remove(timer);
+                    staticTracer.traceDebug(moduleName, "Removing timer " + timer + " in the list=" + success);
                 }
             }
         }
-        else if (debugEnabled)
+        else
         {
-            globalTracer.traceInfo(funcName, "Shutdown in progress, not removing timer %s.", timer);
+            staticTracer.traceDebug(moduleName, "Shutdown in progress, not removing timer " + timer + ".");
         }
     }   //removeTimer
 
@@ -547,14 +515,8 @@ public class TrcTimer
      */
     private static void timerTask()
     {
-        final String funcName = "timerTask";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo("%s thread is starting...", moduleName);
-        }
-
-        TrcWatchdogMgr.Watchdog timerThreadWatchdog = TrcWatchdogMgr.registerWatchdog("TimerThread");
+        staticTracer.traceDebug(moduleName, "Timer Thread is starting...");
+        TrcWatchdogMgr.Watchdog timerThreadWatchdog = TrcWatchdogMgr.registerWatchdog(moduleName);
         while (!shuttingDown)
         {
             // Sending heartbeat will also unpause the watchdog if it was paused.
@@ -568,32 +530,22 @@ public class TrcTimer
                 {
                     if (nextTimerToExpire == null && timerList.isEmpty())
                     {
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "%s: waiting for timer ...", moduleName);
-                        }
+                        staticTracer.traceDebug(moduleName, "Waiting for timer ...");
                         // Must take the timerList lock before calling wait because it will release the ownership
                         // and wait for notification.
                         // We need to pause the watchdog before we wait because we can't send heartbeat while waiting.
                         timerThreadWatchdog.pauseWatch();
                         timerList.wait();
                         timerThreadWatchdog.resumeWatch();
-
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "%s: new timer arrived.", moduleName);
-                        }
+                        staticTracer.traceDebug(moduleName, "New timer arrived.");
                     }
 
                     if (nextTimerToExpire == null)
                     {
                         if (!timerList.isEmpty())
                         {
-                            if (debugEnabled)
-                            {
-                                globalTracer.traceInfo(
-                                    funcName, "Get a timer from the queue (qSize=%d).", timerList.size());
-                            }
+                            staticTracer.traceDebug(
+                                moduleName, "Get a timer from the queue (qSize=" + timerList.size() + ").");
                             // There is no timer in progress, get one from the timer queue.
                             nextTimerToExpire = timerList.remove(0);
                             if (nextTimerToExpire.isCanceled())
@@ -607,7 +559,7 @@ public class TrcTimer
                             // There should be a timer in the queue. If not, somebody has canceled it and taken it
                             // out of the queue before we get to it. It's really not a problem but let's log a
                             // warning and move on.
-                            globalTracer.traceWarn(funcName, "Expecting a timer from the queue but there is none.");
+                            staticTracer.traceWarn(moduleName, "Expecting a timer from the queue but there is none.");
                         }
                     }
                 }
@@ -615,12 +567,8 @@ public class TrcTimer
                 // sleepTimeInMsec is not zero only if we have a pending timer to process.
                 sleepTimeInMsec = nextTimerToExpire != null?
                     nextTimerToExpire.getExpiredTimeInMsec() - TrcTimer.getCurrentTimeMillis(): 0;
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(
-                        funcName, "[%d]: timer=%s, sleepTimeInMsec=%d",
-                        TrcTimer.getCurrentTimeMillis(), nextTimerToExpire, sleepTimeInMsec);
-                }
+                staticTracer.traceDebug(
+                    moduleName, "timer=" + nextTimerToExpire + ", sleepTimeInMsec=" + sleepTimeInMsec);
 
                 if (sleepTimeInMsec > 0)
                 {
@@ -634,11 +582,7 @@ public class TrcTimer
                 if (nextTimerToExpire != null)
                 {
                     // Timer has expired, signal it.
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(
-                            funcName, "[%d]: timer %s expired.", TrcTimer.getCurrentTimeMillis(), nextTimerToExpire);
-                    }
+                    staticTracer.traceDebug(moduleName, "Timer " + nextTimerToExpire + " expired.");
                     nextTimerToExpire.setExpired();
                     nextTimerToExpire = null;
                 }
@@ -663,34 +607,21 @@ public class TrcTimer
                             timerList.add(0, nextTimerToExpire);
                         }
 
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(
-                                funcName, "[%d] Timer %s is preempting %s.",
-                                TrcTimer.getCurrentTimeMillis(), preemptingTimer, nextTimerToExpire);
-                        }
-
+                        staticTracer.traceDebug(
+                            moduleName, "Timer " + preemptingTimer + " is preempting " + nextTimerToExpire + ".");
                         nextTimerToExpire = preemptingTimer;
                         preemptingTimer = null;
                     }
                     else if (nextTimerToExpire != null && nextTimerToExpire.isCanceled())
                     {
                         // Somebody just canceled and removed the current active timer.
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(
-                                funcName, "[%d] timer %s was canceled.",
-                                TrcTimer.getCurrentTimeMillis(), nextTimerToExpire);
-                        }
+                        staticTracer.traceDebug(moduleName, "timer " + nextTimerToExpire + " was canceled.");
                         nextTimerToExpire = null;
                     }
                     else if (shuttingDown)
                     {
                         // Somebody is shutting down the timer thread.
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "Terminating %s thread.", moduleName);
-                        }
+                        staticTracer.traceDebug(moduleName, "Terminating Timer thread.");
                         break;
                     }
                 }
@@ -701,27 +632,16 @@ public class TrcTimer
         //
         synchronized (timerList)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(funcName, "Terminating: canceling %d timers.", timerList.size());
-            }
-
+            staticTracer.traceDebug(moduleName, "Terminating: canceling " + timerList.size() + " timers.");
             for (TrcTimer timer: timerList)
             {
-                if (debugEnabled)
-                {
-                    globalTracer.traceInfo(funcName, "Canceling %s", timer);
-                }
+                staticTracer.traceDebug(moduleName, "Canceling " + timer);
                 timer.cancel();
             }
 
             timerList.clear();
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "%s thread is terminated.", moduleName);
-        }
+        staticTracer.traceDebug(moduleName, "Timer thread is terminated.");
         //
         // The thread is now terminated. Destroy this instance so we will recreate the thread the next time around.
         //

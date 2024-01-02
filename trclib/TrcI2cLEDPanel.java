@@ -31,14 +31,6 @@ import java.util.Arrays;
  */
 public abstract class TrcI2cLEDPanel
 {
-    protected static final String moduleName = "TrcI2cLEDPanel";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     private static final int I2C_BUFF_LEN = 32;
 
     /**
@@ -48,6 +40,7 @@ public abstract class TrcI2cLEDPanel
      */
     public abstract void asyncWriteData(byte[] data);
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
 
     /**
@@ -55,15 +48,9 @@ public abstract class TrcI2cLEDPanel
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcI2cLEDPanel(final String instanceName)
+    public TrcI2cLEDPanel(String instanceName)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
     }   //TrcI2cLEDPanel
 
@@ -141,16 +128,7 @@ public abstract class TrcI2cLEDPanel
      */
     public int color(int red, int green, int blue)
     {
-        final String funcName = "color";
-        int colorValue = ((red & 0xf8) << 8) | ((green & 0xfc) << 3) | (blue >> 3);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "red=%d,green=%d,blue=%d", red, green, blue);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=0x%x", colorValue);
-        }
-
-        return colorValue;
+        return ((red & 0xf8) << 8) | ((green & 0xfc) << 3) | (blue >> 3);
     }   //color
 
     /**
@@ -162,38 +140,20 @@ public abstract class TrcI2cLEDPanel
      */
     private void sendCommand(String command)
     {
-        final String funcName = "sendCommand";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.FUNC, "command=%s", command);
-        }
-
         command += "~";
         int cmdLen = command.length();
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceInfo(funcName, "sendCommand(%s)=%d", command, command.length());
-        }
+        tracer.traceDebug(instanceName, "sendCommand(" + command + ")=" + command.length());
         for (int i = 0; i < cmdLen; )
         {
             int len = Math.min(cmdLen - i, I2C_BUFF_LEN);
             if (len > 0)
             {
                 byte[] data = command.substring(i, i + len).getBytes();
-                if (debugEnabled)
-                {
-                    dbgTrace.traceInfo(funcName, "asyncWrite%s=%d", Arrays.toString(data), data.length);
-                }
+                tracer.traceDebug(instanceName, "asyncWrite" + Arrays.toString(data) + "=" + data.length);
                 asyncWriteData(data);
                 i += len;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.FUNC);
         }
     }   //sendCommand
 

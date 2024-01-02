@@ -33,14 +33,11 @@ import java.util.Locale;
  */
 public abstract class TrcSensor<D>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This class implements the SensorData object that consists of the sensor value as well as a timestamp when the
      * data sample is taken.
      *
-     * @param <T> specifies the sensor value type. It could be integer, double, enum or any type.
+     * @param <T> specifies the sensor value type. It could be integer, double, enum or any complex type.
      */
     public static class SensorData<T>
     {
@@ -108,7 +105,8 @@ public abstract class TrcSensor<D>
     private static final int NUM_CAL_SAMPLES    = 100;
     private static final long CAL_INTERVAL      = 10;   //in msec.
 
-    private final String instanceName;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final int numAxes;
     private final TrcFilter[] filters;
     private final int[] signs;
@@ -124,7 +122,7 @@ public abstract class TrcSensor<D>
      * @param filters specifies an array of filter objects, one for each axis, to filter sensor data.
      *                If no filter is used, this can be set to null.
      */
-    public TrcSensor(final String instanceName, int numAxes, TrcFilter[] filters)
+    public TrcSensor(String instanceName, int numAxes, TrcFilter[] filters)
     {
         //
         // Make sure we have at least one axis.
@@ -146,10 +144,10 @@ public abstract class TrcSensor<D>
         //
         if (filters.length != numAxes)
         {
-            throw new IllegalArgumentException(
-                    String.format(Locale.US, "filters must be an array of %d elements.", numAxes));
+            throw new IllegalArgumentException("Filters must be an array of " + numAxes + " elements.");
         }
 
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.numAxes = numAxes;
         this.filters = filters;
@@ -170,7 +168,7 @@ public abstract class TrcSensor<D>
      * @param instanceName specifies the instance name.
      * @param numAxes specifies the number of axes.
      */
-    public TrcSensor(final String instanceName, int numAxes)
+    public TrcSensor(String instanceName, int numAxes)
     {
         this(instanceName, numAxes, null);
     }   //TrcSensor
@@ -285,33 +283,29 @@ public abstract class TrcSensor<D>
      */
     public SensorData<Double> getProcessedData(int index, D dataType)
     {
-        final String funcName = "getProcessedData";
         SensorData<Double> data = (SensorData<Double>)getRawData(index, dataType);
 
         if (data != null)
         {
             double value = data.value;
 
-            if (debugEnabled) globalTracer.traceInfo(funcName, "raw=%.3f", value);
+            tracer.traceDebug(instanceName, "raw=%f", value);
             if (filters[index] != null)
             {
                 value = filters[index].filterData(value);
-                if (debugEnabled) globalTracer.traceInfo(funcName, "filtered=%.3f", value);
+                tracer.traceDebug(instanceName, "filtered=%f", value);
             }
 
             if (calibrator != null)
             {
                 value = calibrator.getCalibratedData(index, value);
-                if (debugEnabled) globalTracer.traceInfo(funcName, "calibrated=%.3f", value);
+                tracer.traceDebug(instanceName, "calibrated=%f", value);
             }
 
             value = signs[index] * (value - offsets[index]) * scales[index];
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "scaled=%.3f (sign=%.0f,scale=%f,offset=%f)",
-                    value, signs[index], scales[index], offsets[index]);
-            }
+            tracer.traceDebug(
+                instanceName, "scaledValue=%f, (sign=%d,scale=%f,offset=%f)",
+                value, signs[index], scales[index], offsets[index]);
             data.value = value;
         }
 

@@ -39,8 +39,8 @@ import org.apache.commons.math3.linear.RealVector;
  * are set, and it will follow the heading values specified by the path.
  * <p>
  * A somewhat similar idea is here:
- * https://www.chiefdelphi.com/t/paper-implementation-of-the-adaptive-pure-pursuit-controller/166552 or
- * https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf
+ * <a href="https://www.chiefdelphi.com/t/paper-implementation-of-the-adaptive-pure-pursuit-controller/166552">...</a>
+ * or <a href="https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf">...</a>
  * <p>
  * Note that this paper is for non-holonomic robots. This means that all the turning radius stuff isn't very relevant.
  * Technically, we could impose limits on the turning radius as a function of robot velocity and max rot vel, but that's
@@ -49,15 +49,19 @@ import org.apache.commons.math3.linear.RealVector;
  */
 public class TrcHolonomicPurePursuitDriveV2
 {
-    private static final boolean debugEnabled = false;
-
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private final TrcTaskMgr.TaskObject driveTaskObj;
     private final TrcPidController turnPidCtrl, velPidCtrl;
-    private volatile double velTolerance; // TODO: create setter
-    private volatile double posTolerance; // Volatile so it can be changed at runtime
-    private volatile double proximityRadius; // Volatile so it can be changed at runtime
+    // Tracer config.
+    private boolean logRobotPoseEvents = false;
+    private boolean tracePidInfo = false;
+    private boolean verbosePidInfo = false;
+    private TrcRobotBattery battery = null;
+    private volatile double velTolerance;
+    private volatile double posTolerance;   // Volatile so it can be changed at runtime
+    private volatile double proximityRadius;// Volatile so it can be changed at runtime
     private TrcPath path;
     private int pathIndex = 1;
     private TrcEvent onFinishedEvent;
@@ -97,6 +101,7 @@ public class TrcHolonomicPurePursuitDriveV2
                 "Only holonomic drive bases supported for this pure pursuit implementation!");
         }
 
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.accelFF = accelFF;
         this.velTolerance = velTolerance;
@@ -145,6 +150,40 @@ public class TrcHolonomicPurePursuitDriveV2
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method sets the trace level for logging trace messages.
+     *
+     * @param msgLevel specifies the message level.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     * @param battery specifies the battery object to get battery info for the message.
+     */
+    public synchronized void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo,
+        TrcRobotBattery battery)
+    {
+        tracer.setTraceLevel(msgLevel);
+        this.logRobotPoseEvents = logRobotPoseEvents;
+        this.tracePidInfo = tracePidInfo;
+        this.verbosePidInfo = verbosePidInfo;
+        this.battery = battery;
+    }   //setTraceLevel
+
+    /**
+     * This method sets the trace level for logging trace messages.
+     *
+     * @param msgLevel specifies the message level.
+     * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
+     * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
+     */
+    public void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo)
+    {
+        setTraceLevel(msgLevel, logRobotPoseEvents, tracePidInfo, verbosePidInfo, null);
+    }   //setTraceLevel
 
     /**
      * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
@@ -426,20 +465,15 @@ public class TrcHolonomicPurePursuitDriveV2
         double r = velPower + accelFF * targetPoint.acceleration;
         r = TrcUtil.clipRange(r, 0, moveOutputLimit);
         double theta = Math.toDegrees(Math.atan2(followingPoint.pose.x - pose.x, followingPoint.pose.y - pose.y));
-
         double velocity = TrcUtil.magnitude(driveBase.getXVelocity(), driveBase.getYVelocity());
 
-        if (debugEnabled)
-        {
-            TrcDbgTrace.getGlobalTracer().traceInfo("TrcHolonomicPurePursuitDriveV2.driveTask",
-                "[%.3f] pos=%s, followingPoint=%s, targetPoint=%s, vel=%.2f, targetVel=%.2f, " +
-                "targetAccel=%.2f, pathIndex=%d, r=%.2f, theta=%.2f",
-                TrcTimer.getModeElapsedTime(), pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(),
-                velocity, targetVel, targetPoint.acceleration, pathIndex, r, theta);
-        }
+        tracer.traceVerbose(
+            instanceName,
+            "pose=%s,followingPoint=%s,targetPoint=%s,vel=%f,targetVel=%f,targetAccel=%f,pathIndex=%d,r=%f,theta=%f",
+            pose, followingPoint.getPositionPose(), targetPoint.getPositionPose(), velocity, targetVel,
+            targetPoint.acceleration, pathIndex, r, theta);
 
         // If we have timed out or finished, stop the operation.
-
         boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = pose.distanceTo(path.getLastWaypoint().getPositionPose()) <= posTolerance;
         boolean headingOnTarget = turnPidCtrl.isOnTarget();
@@ -455,6 +489,17 @@ public class TrcHolonomicPurePursuitDriveV2
         else
         {
             driveBase.holonomicDrive_Polar(r, theta, turnPower, pose.angle - startHeading);
+        }
+
+        if (logRobotPoseEvents)
+        {
+            tracer.logEvent(instanceName, "RobotPose", "pose=\"" + driveBase.getFieldPosition() + "\"");
+        }
+
+        if (tracePidInfo)
+        {
+            velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
     }   //driveTask
 
@@ -500,7 +545,7 @@ public class TrcHolonomicPurePursuitDriveV2
     /**
      * This method calculates the waypoint on the path segment that intersects the robot's proximity circle that is
      * closest to the end point of the path segment. The algorithm is based on this article:
-     * https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+     * <a href="https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm">...</a>
      *
      * @param prev specifies the start point of the path segment.
      * @param point specifies the end point of the path segment.

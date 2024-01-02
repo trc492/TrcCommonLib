@@ -26,13 +26,10 @@ package TrcCommonLib.trclib;
  * This class implements a platform independent Maxbotix ultrasonic sensor array. The ultrasonic sensors in the array
  * are connected in analog chain mode where only one sensor will ping at a time to eliminate cross talk. This class
  * supports both regular chain config and loop chain config.
- * https://www.maxbotix.com/documents/LV-MaxSonar-EZ_Datasheet.pdf
+ * <a href="https://www.maxbotix.com/documents/LV-MaxSonar-EZ_Datasheet.pdf">...</a>
  */
 public class TrcMaxbotixSonarArray
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     private static final double RANGING_START_PULSE_WIDTH = 0.02;   //in seconds
     private static final double RANGING_PERIOD = 0.05;              //in seconds
 
@@ -43,6 +40,7 @@ public class TrcMaxbotixSonarArray
         DONE
     }   //State
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcAnalogInput[] sensors;
     private final TrcDigitalOutput rx;
@@ -62,10 +60,9 @@ public class TrcMaxbotixSonarArray
      * @param rx specifies the digital output channel the RX pin is connected to.
      * @param loopConfig specifies true if the sensor array is wired in loop configuration, false otherwise.
      */
-    public TrcMaxbotixSonarArray(
-        final String instanceName, final TrcAnalogInput[] sensors, final TrcDigitalOutput rx,
-        final boolean loopConfig)
+    public TrcMaxbotixSonarArray(String instanceName, TrcAnalogInput[] sensors, TrcDigitalOutput rx, boolean loopConfig)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.sensors = sensors;
         this.rx = rx;
@@ -83,7 +80,7 @@ public class TrcMaxbotixSonarArray
      * @param sensors specifies an array of Maxbotix ultrasonic sensors.
      * @param rx specifies the digital output channel the RX pin is connected to.
      */
-    public TrcMaxbotixSonarArray(final String instanceName, final TrcAnalogInput[] sensors, final TrcDigitalOutput rx)
+    public TrcMaxbotixSonarArray(String instanceName, TrcAnalogInput[] sensors, TrcDigitalOutput rx)
     {
         this(instanceName, sensors, rx, false);
     }   //TrcMaxbotixSonarArray
@@ -95,7 +92,7 @@ public class TrcMaxbotixSonarArray
      * @param sensor specifies a single Maxbotix ultrasonic sensor.
      * @param rx specifies the digital output channel the RX pin is connected to.
      */
-    public TrcMaxbotixSonarArray(final String instanceName, final TrcAnalogInput sensor, final TrcDigitalOutput rx)
+    public TrcMaxbotixSonarArray(String instanceName, TrcAnalogInput sensor, TrcDigitalOutput rx)
     {
         this(instanceName, new TrcAnalogInput[] {sensor}, rx, false);
     }   //TrcMaxbotixSonarArray
@@ -207,17 +204,11 @@ public class TrcMaxbotixSonarArray
     private synchronized void rangingTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "rangingTask";
-
         if (sm.isReady())
         {
             State state = sm.getState();
 
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(funcName, "State: %s", state);
-            }
-
+            tracer.traceDebug(instanceName, "State: " + state);
             switch (state)
             {
                 case PULL_RX_HIGH:

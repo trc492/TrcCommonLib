@@ -27,8 +27,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcKalmanFilter extends TrcFilter
 {
-    private static double DEF_KQ = 0.022;
-    private static double DEF_KR = 0.617;
+    private static final double DEF_KQ = 0.022;
+    private static final double DEF_KR = 0.617;
 
     private final double kQ;
     private final double kR;
@@ -43,7 +43,7 @@ public class TrcKalmanFilter extends TrcFilter
      * @param kQ specifies the KQ constant.
      * @param kR specifies the KR constant.
      */
-    public TrcKalmanFilter(final String instanceName, double kQ, double kR)
+    public TrcKalmanFilter(String instanceName, double kQ, double kR)
     {
         super(instanceName);
 
@@ -57,7 +57,7 @@ public class TrcKalmanFilter extends TrcFilter
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcKalmanFilter(final String instanceName)
+    public TrcKalmanFilter(String instanceName)
     {
         this(instanceName, DEF_KQ, DEF_KR);
     }   //TrcKalmanFilter
@@ -72,14 +72,6 @@ public class TrcKalmanFilter extends TrcFilter
     @Override
     public void reset()
     {
-        final String funcName = "reset";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         prevP = 0.0;
         prevXEst = 0.0;
         initialized = false;
@@ -94,13 +86,6 @@ public class TrcKalmanFilter extends TrcFilter
     @Override
     public double filterData(double data)
     {
-        final String funcName = "filterData";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "data=%f", data);
-        }
-
         if (!initialized)
         {
             prevXEst = data;
@@ -113,11 +98,6 @@ public class TrcKalmanFilter extends TrcFilter
 
         prevP = (1 - k)*tempP;
         prevXEst = xEst;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "=%f", prevXEst);
-        }
 
         return prevXEst;
     }   //filterData

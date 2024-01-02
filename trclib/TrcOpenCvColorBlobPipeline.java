@@ -30,6 +30,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -51,11 +52,12 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param contour specifies the contour of the detected object.
          */
-        public DetectedObject(MatOfPoint contour)
+        public DetectedObject(String label, MatOfPoint contour)
         {
-            super(contour);
+            super(label, contour);
         }   //DetectedObject
 
         /**
@@ -88,11 +90,35 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
          * @return pose of the detected object relative to camera.
          */
         @Override
-        public TrcPose3D getPose()
+        public TrcPose3D getObjectPose()
         {
             // ColorBlob detection does not provide detected object pose, let caller use homography to calculate it.
             return null;
-        }   //getPose
+        }   //getObjectPose
+
+        /**
+         * This method returns the real world width of the detected object.
+         *
+         * @return real world width of the detected object.
+         */
+        @Override
+        public Double getObjectWidth()
+        {
+            // ColorBlob detection does not provide detected object width, let caller use homography to calculate it.
+            return null;
+        }   //getObjectWidth
+
+        /**
+         * This method returns the real world depth of the detected object.
+         *
+         * @return real world depth of the detected object.
+         */
+        @Override
+        public Double getObjectDepth()
+        {
+            // ColorBlob detection does not provide detected object depth, let caller use homography to calculate it.
+            return null;
+        }   //getObjectDepth
 
     }   //class DetectedObject
 
@@ -161,8 +187,8 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         {
             return String.format(
                 Locale.US,
-                "minArea=%.1f, minPerimeter=%.1f, width=(%.1f,%.1f), height=(%.1f,%.1f), solidity=(%.1f,%.1f), " +
-                "vertices=(%.0f,%.0f), aspectRatio=(%.1f,%.1f)",
+                "minArea=%f,minPerim=%f,width=(%f,%f),height=(%f,%f),solidity=(%f,%f),vertices=(%f,%f)," +
+                "aspectRatio=(%f,%f)",
                 minArea, minPerimeter, widthRange[0], widthRange[1], heightRange[0], heightRange[1], solidityRange[0],
                 solidityRange[1], verticesRange[0], verticesRange[1], aspectRatioRange[0], aspectRatioRange[1]);
         }   //toString
@@ -172,48 +198,63 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private static final Scalar ANNOTATE_RECT_COLOR = new Scalar(0, 255, 0, 255);
     private static final Scalar ANNOTATE_RECT_WHITE = new Scalar(255, 255, 255, 255);
     private static final int ANNOTATE_RECT_THICKNESS = 3;
+    private static final double ANNOTATE_FONT_SCALE = 0.3;
 
-    private final String instanceName;
-    private final int colorConversion;
-    private final double[] colorThresholds;
-    private final FilterContourParams filterContourParams;
     private final TrcDbgTrace tracer;
+    private final TrcVisionPerformanceMetrics performanceMetrics;
+    private final String instanceName;
+    private final Integer colorConversion;
+    private double[] colorThresholds;
+    private final FilterContourParams filterContourParams;
+    private final boolean externalContourOnly;
+    private final Mat colorConversionOutput = new Mat();
     private final Mat colorThresholdOutput = new Mat();
+    private final Mat morphologyOutput = new Mat();
+    private final Mat hierarchy = new Mat();
     private final Mat[] intermediateMats;
 
-    private final TrcVisionPerformanceMetrics performanceMetrics = new TrcVisionPerformanceMetrics();
     private final AtomicReference<DetectedObject[]> detectedObjectsUpdate = new AtomicReference<>();
     private int intermediateStep = 0;
     private boolean annotateEnabled = false;
+    private int morphOp = Imgproc.MORPH_CLOSE;
+    private Mat kernelMat = null;
 
     /**
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
-     * @param colorThresholds specifies an array of color thresholds. If useHsv is false, the array contains RGB
-     *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If useHsv is true, the array contains
-     *        HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
-     * @param filterContourParams specifies the parameters for filtering contours.
-     * @param tracer specifies the tracer for trace info, null if none provided.
+     * @param colorConversion specifies color space conversion, can be null if no color space conversion.
+     *        Note: FTC ECOV input Mat format is RGBA, so you need to do Imgproc.COLOR_RGBA2xxx or
+     *        Imgproc.COLOR_RGB2xxx conversion. For FRC, the Desktop OpenCV input Mat format is BGRA, so you need to
+     *        do Imgproc.COLOR_BGRAxxx or Imgproc.COLOR_BGR2xxx conversion.
+     * @param colorThresholds specifies an array of color thresholds. If color space is RGB, the array contains RGB
+     *        thresholds (minRed, maxRed, minGreen, maxGreen, minBlue, maxBlue). If color space is HSV, the array
+     *        contains HSV thresholds (minHue, maxHue, minSat, maxSat, minValue, maxValue).
+     * @param filterContourParams specifies the parameters for filtering contours, can be null if not provided.
+     * @param externalContourOnly specifies true for finding external contours only, false otherwise (not applicable
+     *        if filterContourParams is null).
      */
     public TrcOpenCvColorBlobPipeline(
-        String instanceName, int colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
-        TrcDbgTrace tracer)
+        String instanceName, Integer colorConversion, double[] colorThresholds, FilterContourParams filterContourParams,
+        boolean externalContourOnly)
     {
         if (colorThresholds == null || colorThresholds.length != 6)
         {
             throw new RuntimeException("colorThresholds must be an array of 6 doubles.");
         }
 
+        this.tracer = new TrcDbgTrace();
+        this.performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
         this.instanceName = instanceName;
         this.colorConversion = colorConversion;
         this.colorThresholds = colorThresholds;
         this.filterContourParams = filterContourParams;
-        this.tracer = tracer;
-        intermediateMats = new Mat[2];
+        this.externalContourOnly = externalContourOnly;
+        intermediateMats = new Mat[4];
         intermediateMats[0] = null;
-        intermediateMats[1] = colorThresholdOutput;
+        intermediateMats[1] = colorConversionOutput;
+        intermediateMats[2] = colorThresholdOutput;
+        intermediateMats[3] = morphologyOutput;
     }   //TrcOpenCvColorBlobPipeline
 
     /**
@@ -226,6 +267,72 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method returns its tracer used for tracing info.
+     *
+     * @return tracer.
+     */
+    public TrcDbgTrace getTracer()
+    {
+        return tracer;
+    }   //getTracer
+
+    /**
+     * This method returns the color threshold values.
+     *
+     * @return array of color threshold values.
+     */
+    public double[] getColorThresholds()
+    {
+        return colorThresholds;
+    }   //getColorThresholds
+
+    /**
+     * This method sets the color threshold values.
+     *
+     * @param colorThresholds specifies an array of color threshold values.
+     */
+    public void setColorThresholds(double... colorThresholds)
+    {
+        this.colorThresholds = colorThresholds;
+    }   //setColorThresholds
+
+    /**
+     * This method enables Morphology operation in the pipeline with the specifies kernel shape and size.
+     *
+     * @param morphOp specifies the Morphology operation.
+     * @param kernelShape specifies the kernel shape.
+     * @param kernelSize specifies the kernel size.
+     */
+    public void setMorphologyOp(int morphOp, int kernelShape, Size kernelSize)
+    {
+        if (kernelMat != null)
+        {
+            // Release an existing kernel mat if there is one.
+            kernelMat.release();
+        }
+        this.morphOp = morphOp;
+        kernelMat = Imgproc.getStructuringElement(kernelShape, kernelSize);
+    }   //setMorphologyOp
+
+    /**
+     * This method enables Morphology operation in the pipeline with default kernel shape and size.
+     *
+     * @param morphOp specifies the Morphology operation.
+     */
+    public void setMorphologyOp(int morphOp)
+    {
+        setMorphologyOp(morphOp, Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+    }   //setMorphologyOp
+
+    /**
+     * This method enables Morphology operation in the pipeline with default kernel shape and size.
+     */
+    public void setMorphologyOp()
+    {
+        setMorphologyOp(Imgproc.MORPH_CLOSE, Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+    }   //setMorphologyOp
 
     //
     // Implements TrcOpenCvPipeline interface.
@@ -256,29 +363,50 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         double startTime = TrcTimer.getCurrentTime();
 
         intermediateMats[0] = input;
-        filterByColor(input, colorConversion, colorThresholds, colorThresholdOutput);
-        findContours(colorThresholdOutput, false, contoursOutput);
+        // Do color space conversion.
+        if (colorConversion != null)
+        {
+            Imgproc.cvtColor(input, colorConversionOutput, colorConversion);
+            input = colorConversionOutput;
+        }
+        // Do color filtering.
+        Core.inRange(
+            input, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
+            new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), colorThresholdOutput);
+        input = colorThresholdOutput;
+        // Do morphology.
+        if (kernelMat != null)
+        {
+            Imgproc.morphologyEx(input, morphologyOutput, morphOp, kernelMat);
+            input = morphologyOutput;
+        }
+        // Find contours.
+        Imgproc.findContours(
+            input, contoursOutput, hierarchy, externalContourOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
+            Imgproc.CHAIN_APPROX_SIMPLE);
+        // Do contour filtering.
         if (filterContourParams != null)
         {
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
             contoursOutput = filterContoursOutput;
         }
         performanceMetrics.logProcessingTime(startTime);
-        performanceMetrics.printMetrics(tracer);
+        performanceMetrics.printMetrics();
 
         if (contoursOutput.size() > 0)
         {
             detectedObjects = new DetectedObject[contoursOutput.size()];
             for (int i = 0; i < detectedObjects.length; i++)
             {
-                detectedObjects[i] = new DetectedObject(contoursOutput.get(i));
+                detectedObjects[i] = new DetectedObject(instanceName, contoursOutput.get(i));
             }
 
             if (annotateEnabled)
             {
                 Mat output = getIntermediateOutput(intermediateStep);
                 Scalar color = intermediateStep == 0? ANNOTATE_RECT_COLOR: ANNOTATE_RECT_WHITE;
-                annotateFrame(output, detectedObjects, color, ANNOTATE_RECT_THICKNESS);
+                annotateFrame(
+                    output, instanceName, detectedObjects, color, ANNOTATE_RECT_THICKNESS, ANNOTATE_FONT_SCALE);
 //                // This line is for tuning Homography.
 //                Imgproc.line(output, new Point(0, 120), new Point(639, 120), new Scalar(255, 255, 255), 2);
             }
@@ -376,40 +504,6 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return getIntermediateOutput(intermediateStep);
     }   //getSelectedOutput
-
-    /**
-     * This method process the image by filtering with the specified color ranges.
-     *
-     * @param input specifies the input frame.
-     * @param colorConversion specifies color space conversion (Imgproc.COLOR_*).
-     * @param colorThresholds specifies the color ranges (redMin, redMax, greenMin, greenMax, blueMin, blueMax) or
-     *        (hueMin, hueMax, satMin, satMax, valueMin, valueMax) if useHsv is true.
-     * @param out specifies the output frame for the result.
-     */
-    private void filterByColor(Mat input, int colorConversion, double[] colorThresholds, Mat out)
-    {
-        Imgproc.cvtColor(input, out, colorConversion);
-        Core.inRange(
-            out, new Scalar(colorThresholds[0], colorThresholds[2], colorThresholds[4]),
-            new Scalar(colorThresholds[1], colorThresholds[3], colorThresholds[5]), out);
-    }   //filterByColor
-
-    /**
-     * Sets the values of pixels in a binary image to their distance to the nearest black pixel.
-     *
-     * @param input specifies the image from which to find object contours.
-     * @param externalOnly specifies true to use EXTERNAL mode, false to use LIST mode.
-     * @param contours specifies the list to hold the contours found.
-     */
-    private void findContours(Mat input, boolean externalOnly, List<MatOfPoint> contours)
-    {
-        Mat hierarchy = new Mat();
-
-        contours.clear();
-        Imgproc.findContours(
-            input, contours, hierarchy, externalOnly? Imgproc.RETR_EXTERNAL: Imgproc.RETR_LIST,
-            Imgproc.CHAIN_APPROX_SIMPLE);
-    }   //findContours
 
     /**
      * This method filters out contours that do not meet certain criteria.

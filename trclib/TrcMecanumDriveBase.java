@@ -28,6 +28,8 @@ package TrcCommonLib.trclib;
  */
 public class TrcMecanumDriveBase extends TrcSimpleDriveBase
 {
+    private static final String moduleName = TrcMecanumDriveBase.class.getSimpleName();
+
     /**
      * Constructor: Create an instance of the 4-wheel mecanum drive base.
      *
@@ -86,16 +88,9 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
         String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
         TrcEvent event)
     {
-        final String funcName = "holonomicDrive";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(
-                funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
-        }
-
+        tracer.traceDebug(
+            moduleName, "owner=%s,x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
+            owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
         if (validateOwnership(owner))
         {
             x = TrcUtil.clipRange(x);
@@ -180,11 +175,6 @@ public class TrcMecanumDriveBase extends TrcSimpleDriveBase
                 // reset stall start time to zero if drive base is stopped.
                 stallStartTime = 0.0;
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //holonomicDrive
 

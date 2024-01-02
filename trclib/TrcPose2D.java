@@ -39,14 +39,6 @@ import java.util.Objects;
  */
 public class TrcPose2D
 {
-    private static final String moduleName = "TrcPose2D";
-    private static final boolean debugEnabled = false;
-    private static final boolean tracingEnabled = false;
-    private static final boolean useGlobalTracer = false;
-    private static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    private static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    private TrcDbgTrace dbgTrace = null;
-
     public double x;
     public double y;
     public double angle;
@@ -60,13 +52,6 @@ public class TrcPose2D
      */
     public TrcPose2D(double x, double y, double angle)
     {
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer ?
-                TrcDbgTrace.getGlobalTracer() :
-                new TrcDbgTrace(moduleName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         this.x = x;
         this.y = y;
         this.angle = angle;
@@ -126,7 +111,7 @@ public class TrcPose2D
 
         if (!path.endsWith(".csv"))
         {
-            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+            throw new IllegalArgumentException(path + " is not a csv file!");
         }
 
         try
@@ -285,7 +270,6 @@ public class TrcPose2D
      */
     public TrcPose2D translatePose(double xOffset, double yOffset)
     {
-        final String funcName = "translatePose";
         TrcPose2D newPose = clone();
         double angleRadians = Math.toRadians(newPose.angle);
         double cosAngle = Math.cos(angleRadians);
@@ -294,17 +278,11 @@ public class TrcPose2D
         newPose.x += xOffset * cosAngle + yOffset * sinAngle;
         newPose.y += -xOffset * sinAngle + yOffset * cosAngle;
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceInfo(funcName, "xOffset=%.1f, yOffset=%.1f, Pose:%s, newPose:%s",
-                xOffset, yOffset, this, newPose);
-        }
-
         return newPose;
     }   //translatePose
 
     /**
-     * This method adds a relative pose to the this pose and return the resulting pose. The relative pose has a
+     * This method adds a relative pose to this pose and return the resulting pose. The relative pose has a
      * relative vector and relative angle from this pose.
      *
      * @param relativePose specifies the pose relative to the previous pose.
@@ -312,9 +290,24 @@ public class TrcPose2D
      */
     public TrcPose2D addRelativePose(TrcPose2D relativePose)
     {
-        RealVector vec = TrcUtil.createVector(this.x, this.y).add(
-                TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+        RealVector vec =
+            TrcUtil.createVector(this.x, this.y).add(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
         return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle + relativePose.angle);
     }   //addRelativePose
+
+    /**
+     * This method subtracts a relative pose from this pose and return the resulting pose. The relative pose has a
+     * relative vector and relative angle from the resulting pose to this pose. In other words, adding the relative
+     * pose to the resulting pose would yield this pose.
+     *
+     * @param relativePose specifies the relative pose from the resulting pose.
+     * @return resulting pose.
+     */
+    public TrcPose2D subtractRelativePose(TrcPose2D relativePose)
+    {
+        RealVector vec =
+            TrcUtil.createVector(this.x, this.y).subtract(TrcUtil.rotateCW(relativePose.toPosVector(), this.angle));
+        return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle - relativePose.angle);
+    }   //subtractRelativePose
 
 }   //class TrcPose2D

@@ -40,9 +40,6 @@ import java.util.Locale;
  */
 public abstract class TrcPriorityIndicator<T>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This method gets the current set pattern.
      *
@@ -113,7 +110,9 @@ public abstract class TrcPriorityIndicator<T>
     }   //class PatternState
 
     private final HashMap<String, T> namedPatternMap = new HashMap<>();
-    private final String instanceName;
+
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final TrcTaskMgr.TaskObject indicatorTaskObj;
     private List<PatternState> patternPriorities = null;
     private boolean taskEnabled = false;
@@ -126,6 +125,7 @@ public abstract class TrcPriorityIndicator<T>
      */
     public TrcPriorityIndicator(String instanceName)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         indicatorTaskObj = TrcTaskMgr.createTask(instanceName, this::indicatorTask);
     }   //TrcPriorityIndicator
@@ -166,21 +166,26 @@ public abstract class TrcPriorityIndicator<T>
     /**
      * This method prints the Pattern Priority table to the given trace output for debugging purpose.
      *
-     * @param tracer specifies the tracer object to use to print the info.
+     * @param msgTracer specifies the tracer object to use to print the info.
      */
-    public synchronized void printPatternPriorityTable(TrcDbgTrace tracer)
+    public synchronized void printPatternPriorityTable(TrcDbgTrace msgTracer)
     {
-        final String funcName = "printPatternPriorityTable";
-        StringBuilder msg = new StringBuilder("PatternPriorities=");
-
         if (patternPriorities != null)
         {
+            StringBuilder msg = new StringBuilder("PatternPriorities=");
+
             for (PatternState state: patternPriorities)
             {
                 msg.append("\n\t");
                 msg.append(state);
             }
-            tracer.traceInfo(funcName, msg.toString());
+
+            if (msgTracer == null)
+            {
+                msgTracer = this.tracer;
+            }
+
+            msgTracer.traceInfo(instanceName, msg.toString());
         }
     }   //printPatternPriorityTable
 
@@ -203,16 +208,11 @@ public abstract class TrcPriorityIndicator<T>
      */
     public synchronized void setPatternState(T pattern, boolean enabled, double onDuration, double offDuration)
     {
-        final String funcName = "setPatternState";
         int index = getPatternPriority(pattern);
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "[%d] pattern=%s,enabled=%s,onDuration=%.3f,offDuration=%.3f",
-                index, pattern, enabled, onDuration, offDuration);
-        }
-
+        tracer.traceDebug(
+            instanceName, "[%d] pattern=%s, enabled=%s, onDuration=%.3f, offDuration=%.3f",
+            index, pattern, enabled, onDuration, offDuration);
         if (index != -1)
         {
             patternPriorities.get(index).enabled = enabled;
@@ -305,7 +305,6 @@ public abstract class TrcPriorityIndicator<T>
      */
     public synchronized boolean getPatternState(T pattern)
     {
-        final String funcName = "getPatternState";
         boolean state = false;
         int index = getPatternPriority(pattern);
 
@@ -313,11 +312,7 @@ public abstract class TrcPriorityIndicator<T>
         {
             state = patternPriorities.get(index).enabled;
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "pattern=%s,index=%d,state=%s", pattern, index, state);
-        }
+        tracer.traceDebug(instanceName, "pattern=" + pattern + ",index=" + index + ",state=" + state);
 
         return state;
     }   //getPatternState
@@ -364,7 +359,6 @@ public abstract class TrcPriorityIndicator<T>
      */
     public synchronized int getPatternPriority(T pattern)
     {
-        final String funcName = "getPatternPriority";
         int priority = -1;
 
         if (patternPriorities != null)
@@ -378,11 +372,7 @@ public abstract class TrcPriorityIndicator<T>
                 }
             }
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "pattern=%s,priority=%d", pattern, priority);
-        }
+        tracer.traceDebug(instanceName, "pattern=" + pattern + ",priority=" + priority);
 
         return priority;
     }   //getPatternPriority
@@ -395,14 +385,8 @@ public abstract class TrcPriorityIndicator<T>
      */
     public synchronized void setPatternPriorities(T[] priorities)
     {
-        final String funcName = "setPatternPriorities";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "priorityList=%s", priorities == null ? "null" : Arrays.toString(priorities));
-        }
-
+        tracer.traceDebug(
+            instanceName, "priorityList=" + (priorities == null ? "null" : Arrays.toString(priorities)));
         if (priorities != null)
         {
             List<PatternState> oldPriorities = patternPriorities;
@@ -447,7 +431,6 @@ public abstract class TrcPriorityIndicator<T>
      */
     private synchronized void updateIndicator()
     {
-        final String funcName = "updateIndicator";
         double currTime = TrcTimer.getCurrentTime();
         boolean gotPattern = false;
         T pattern = null;
@@ -463,10 +446,7 @@ public abstract class TrcPriorityIndicator<T>
                     if (patternState.on)
                     {
                         // ON has expired.
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "Pattern %s ON has expired.", patternState.pattern);
-                        }
+                        tracer.traceDebug(instanceName, "Pattern " + patternState.pattern + " ON has expired.");
                         patternState.on = false;
                         if (patternState.offDuration > 0.0)
                         {
@@ -480,10 +460,7 @@ public abstract class TrcPriorityIndicator<T>
                     else if (patternState.onDuration > 0.0)
                     {
                         // OFF has expired.
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "Pattern %s OFF has expired.", patternState.pattern);
-                        }
+                        tracer.traceDebug(instanceName, "Pattern " + patternState.pattern + " OFF has expired.");
                         patternState.on = true;
                         patternState.expiredTime = currTime + patternState.onDuration;
                     }
@@ -504,11 +481,7 @@ public abstract class TrcPriorityIndicator<T>
         {
             setPattern(pattern);
         }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "pattern=%s", pattern);
-        }
+        tracer.traceDebug(instanceName, "pattern=" + pattern);
     }   //updateIndicator
 
     /**

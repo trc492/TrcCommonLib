@@ -32,8 +32,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
     //
     // AnalogInput data type.
     //
@@ -54,7 +52,6 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @return raw data with the specified type.
      */
     public abstract SensorData<Double> getRawData(int index, DataType dataType);
-
     //
     // AnalogInput options.
     //
@@ -76,11 +73,10 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param filters specifies an array of filter objects, one for each axis, to filter sensor data. If no filter
      *                is used, this can be set to null.
      */
-    public TrcAnalogInput(final String instanceName, int numAxes, int options, TrcFilter[] filters)
+    public TrcAnalogInput(String instanceName, int numAxes, int options, TrcFilter[] filters)
     {
         super(instanceName, numAxes, filters);
         this.instanceName = instanceName;
-
         //
         // Create the data integrator. Data integrator needs data providers to provide processed data from the sensor.
         //
@@ -100,7 +96,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      *                ANALOGINPUT_INTEGRATE - do integration on sensor data.
      *                ANALOGINPUT_DOUBLE_INTEGRATE - do double integration on sensor data.
      */
-    public TrcAnalogInput(final String instanceName, int numAxes, int options)
+    public TrcAnalogInput(String instanceName, int numAxes, int options)
     {
         this(instanceName, numAxes, options, null);
     }   //TrcAnalogInput
@@ -111,7 +107,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param instanceName specifies the instance name.
      * @param numAxes specifies the number of axes supporting by the analog input device.
      */
-    public TrcAnalogInput(final String instanceName, int numAxes)
+    public TrcAnalogInput(String instanceName, int numAxes)
     {
         this(instanceName, numAxes, 0, null);
     }   //TrcAnalogInput
@@ -171,7 +167,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
     /**
      * This method prints the elapsed time info using the given tracer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @param tracer specifies the tracer to be used to print the info.
      */
     public static void printElapsedTime(TrcDbgTrace tracer)
     {
@@ -221,15 +217,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public TrcSensor.SensorData<Double> getData(int index)
     {
-        final String funcName = "getData";
-        TrcSensor.SensorData<Double> data = getProcessedData(index, DataType.INPUT_DATA);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
-        }
-
-        return data;
+        return getProcessedData(index, DataType.INPUT_DATA);
     }   //getData
 
     /**
@@ -240,15 +228,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public TrcSensor.SensorData<Double> getNormalizedData(int index)
     {
-        final String funcName = "getNormalizedData";
-        TrcSensor.SensorData<Double> data = getProcessedData(index, DataType.NORMALIZED_DATA);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
-        }
-
-        return data;
+        return getProcessedData(index, DataType.NORMALIZED_DATA);
     }   //getNormalizedData
 
     /**
@@ -259,24 +239,8 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public TrcSensor.SensorData<Double> getIntegratedData(int index)
     {
-        final String funcName = "getIntegratedData";
-        TrcSensor.SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getIntegratedData(index);
-        }
-        else
-        {
-            data = getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getIntegratedData(index) :
+                                        getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
     }   //getIntegratedData
 
     /**
@@ -287,24 +251,8 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      */
     public TrcSensor.SensorData<Double> getDoubleIntegratedData(int index)
     {
-        final String funcName = "getDoubleIntegratedData";
-        TrcSensor.SensorData<Double> data;
-
-        if (dataIntegrator != null)
-        {
-            data = dataIntegrator.getDoubleIntegratedData(index);
-        }
-        else
-        {
-            data = getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
-        }
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "[%d] data=%s", index, data);
-        }
-
-        return data;
+        return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(index) :
+                                        getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
     }   //getDoubleIntegratedData
 
     //

@@ -35,9 +35,6 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public class TrcPidDrive
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-    private static final boolean verbosePidInfo = false;
 //    /**
 //     * This interface provides a stuck wheel notification handler. It is useful for detecting drive base motor
 //     * malfunctions. A stuck wheel could happen if the motor is malfunctioning, the motor power wire is unplugged,
@@ -69,13 +66,7 @@ public class TrcPidDrive
     private static final double DEF_BEEP_FREQUENCY = 880.0; //in Hz
     private static final double DEF_BEEP_DURATION = 0.2;    //in seconds
 
-    private static final double DEF_STALL_DETECTION_DELAY = 0.5;
-    private static final double DEF_STALL_TIMEOUT = 0.2;
-    private static final double DEF_STALL_VEL_THRESHOLD = 1.0;
-    private double stallDetectionDelay = 0.0;
-    private double stallTimeout = 0.0;
-    private double stallDetectionStartTime = 0.0;
-
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcDriveBase driveBase;
     private final TrcPidController xPidCtrl;
@@ -83,10 +74,12 @@ public class TrcPidDrive
     private final TrcPidController turnPidCtrl;
     private final TrcTaskMgr.TaskObject driveTaskObj;
     private final TrcTaskMgr.TaskObject stopTaskObj;
-    private TrcDbgTrace msgTracer = null;
-    private TrcRobotBattery battery = null;
+    // Tracer config.
     private boolean logRobotPoseEvents = false;
     private boolean tracePidInfo = false;
+    private boolean verbosePidInfo = false;
+    private TrcRobotBattery battery = null;
+
     private boolean savedReferencePose = false;
     private TrcWarpSpace warpSpace = null;
     private boolean warpSpaceEnabled = true;
@@ -124,6 +117,7 @@ public class TrcPidDrive
         String instanceName, TrcDriveBase driveBase, TrcPidController.PidParameters xPidParams,
         TrcPidController.PidParameters yPidParams, TrcPidController.PidParameters turnPidParams)
     {
+        tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.driveBase = driveBase;
         this.xPidCtrl = xPidParams != null?
@@ -193,41 +187,36 @@ public class TrcPidDrive
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      * @param battery specifies the battery object to get battery info for the message.
      */
-    public synchronized void setMsgTracer(
-        TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo, TrcRobotBattery battery)
+    public synchronized void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo,
+        TrcRobotBattery battery)
     {
-        this.msgTracer = tracer;
+        tracer.setTraceLevel(msgLevel);
         this.logRobotPoseEvents = logRobotPoseEvents;
         this.tracePidInfo = tracePidInfo;
+        this.verbosePidInfo = verbosePidInfo;
         this.battery = battery;
-    }   //setMsgTracer
+    }   //setTraceLevel
 
     /**
      * This method sets the message tracer for logging trace messages.
      *
-     * @param tracer specifies the tracer for logging messages.
+     * @param msgLevel specifies the message level.
      * @param logRobotPoseEvents specifies true to log robot pose events, false otherwise.
      * @param tracePidInfo specifies true to enable tracing of PID info, false otherwise.
+     * @param verbosePidInfo specifies true to trace verbose PID info, false otherwise.
      */
-    public void setMsgTracer(TrcDbgTrace tracer, boolean logRobotPoseEvents, boolean tracePidInfo)
+    public void setTraceLevel(
+        TrcDbgTrace.MsgLevel msgLevel, boolean logRobotPoseEvents, boolean tracePidInfo, boolean verbosePidInfo)
     {
-        setMsgTracer(tracer, logRobotPoseEvents, tracePidInfo, null);
-    }   //setMsgTracer
-
-    /**
-     * This method sets the message tracer for logging trace messages.
-     *
-     * @param tracer specifies the tracer for logging messages.
-     */
-    public void setMsgTracer(TrcDbgTrace tracer)
-    {
-        setMsgTracer(tracer, false, false, null);
-    }   //setMsgTracer
+        setTraceLevel(msgLevel, logRobotPoseEvents, tracePidInfo, verbosePidInfo, null);
+    }   //setTraceLevel
 
     /**
      * This method checks if warpspace processing is enabled in a PID controlled turn.
@@ -392,17 +381,20 @@ public class TrcPidDrive
     /**
      * This method enables/disables stall detection.
      *
-     * @param stallDetectionDelay specifies stall detection start delay in seconds.
-     * @param stallTimeout specifies stall timeout in seconds which is the minimum elapsed time for the wheels to be
-     *        motionless to be considered stalled.
-     * @param stallVelThreshold specifies the velocity threshold below which it will consider stalling.
+     * @param stallDetectionDelay specifies stall detection start delay in seconds, zero to disable stall detection.
+     * @param stallDetectionTimeout specifies stall timeout in seconds which is the minimum elapsed time for the
+     *        motor to be motionless to be considered stalled.
+     * @param stallErrorRateThreshold specifies the error rate threshold below which it will consider stalling.
      */
-    public synchronized void setStallDetectionEnabled(
-        double stallDetectionDelay, double stallTimeout, double stallVelThreshold)
+    public void setStallDetectionEnabled(
+        double stallDetectionDelay, double stallDetectionTimeout, double stallErrorRateThreshold)
     {
-        this.stallDetectionDelay = stallDetectionDelay;
-        this.stallTimeout = stallTimeout;
-        driveBase.setStallVelocityThreshold(stallVelThreshold);
+        if (xPidCtrl != null)
+        {
+            xPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+        yPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        turnPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
     }   //setStallDetectionEnabled
 
     /**
@@ -412,14 +404,12 @@ public class TrcPidDrive
      */
     public void setStallDetectionEnabled(boolean enabled)
     {
-        if (enabled)
+        if (xPidCtrl != null)
         {
-            setStallDetectionEnabled(DEF_STALL_DETECTION_DELAY, DEF_STALL_TIMEOUT, DEF_STALL_VEL_THRESHOLD);
+            xPidCtrl.setStallDetectionEnabled(enabled);
         }
-        else
-        {
-            setStallDetectionEnabled(0.0, 0.0, 0.0);
-        }
+        yPidCtrl.setStallDetectionEnabled(enabled);
+        turnPidCtrl.setStallDetectionEnabled(enabled);
     }   //setStallDetectionEnabled
 
     /**
@@ -437,17 +427,11 @@ public class TrcPidDrive
     private void setTarget(
         double xTarget, double yTarget, double turnTarget, boolean holdTarget, TrcEvent event, double timeout)
     {
-        final String funcName = "setTarget";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "x=%f,y=%f,turn=%f,hold=%s,event=%s,timeout=%.3f",
-                xTarget, yTarget, turnTarget, holdTarget, event.toString(), timeout);
-        }
-
         double xError = 0.0, yError = 0.0, turnError = 0.0;
 
+        tracer.traceDebug(
+            instanceName, "x=%f, y=%f, turn=%f, hold=%s, event=%s, timeout=%f",
+            xTarget, yTarget, turnTarget, holdTarget, event, timeout);
         if (xPidCtrl != null && yPidCtrl != null &&
             xPidCtrl.hasAbsoluteSetPoint() != yPidCtrl.hasAbsoluteSetPoint())
         {
@@ -463,18 +447,21 @@ public class TrcPidDrive
         if (xPidCtrl != null)
         {
             xPidCtrl.setTarget(xTarget);
+            xPidCtrl.startStallDetection();
             xError = xPidCtrl.getError();
         }
 
         if (yPidCtrl != null)
         {
             yPidCtrl.setTarget(yTarget);
+            yPidCtrl.startStallDetection();
             yError = yPidCtrl.getError();
         }
 
         if (turnPidCtrl != null)
         {
             turnPidCtrl.setTarget(turnTarget, warpSpaceEnabled? warpSpace: null);
+            turnPidCtrl.startStallDetection();
             turnError = turnPidCtrl.getError();
         }
 
@@ -486,7 +473,6 @@ public class TrcPidDrive
 
         double currTime = TrcTimer.getCurrentTime();
         expiredTime = timeout == 0.0 ? Double.POSITIVE_INFINITY : currTime + timeout;
-        stallDetectionStartTime = stallTimeout == 0.0? Double.POSITIVE_INFINITY: currTime + stallDetectionDelay;
 
         this.holdTarget = holdTarget;
         this.turnOnly = xError == 0.0 && yError == 0.0 && turnError != 0.0;
@@ -593,8 +579,6 @@ public class TrcPidDrive
         String owner, double xDelta, double yDelta, double turnDelta,
         boolean holdTarget, TrcEvent event, double timeout)
     {
-        final String funcName = "setRelativeTarget";
-
         if (driveBase.validateOwnership(owner))
         {
             this.owner = owner;
@@ -604,13 +588,9 @@ public class TrcPidDrive
             newTargetPose.angle += turnDelta;
             double xTarget, yTarget, turnTarget;
 
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "owner=%s,xDelta=%.1f,yDelta=%.1f,turnDelta=%.1f,CurrPose:%s",
-                    owner, xDelta, yDelta, turnDelta, absTargetPose);
-            }
-
+            tracer.traceDebug(
+                instanceName, "owner=%s, xDelta=%f, yDelta=%f, turnDelta=%f, currPose=%s",
+                owner, xDelta, yDelta, turnDelta, absTargetPose);
             if (absTargetModeEnabled)
             {
                 if (xDelta == 0.0 && yDelta == 0.0 && turnDelta != 0.0)
@@ -668,12 +648,9 @@ public class TrcPidDrive
                 turnPidCtrl.setNoOscillation(turnDelta != 0.0);
             }
 
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                    xTarget, yTarget, turnTarget, newTargetPose);
-            }
+            tracer.traceDebug(
+                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newPose=%s",
+                xTarget, yTarget, turnTarget, newTargetPose);
             // The new target pose will become the updated absolute target pose.
             absTargetPose = newTargetPose;
             setTarget(xTarget, yTarget, turnTarget, holdTarget, event, timeout);
@@ -858,8 +835,6 @@ public class TrcPidDrive
     public synchronized void setAbsoluteTarget(
         String owner, double absX, double absY, double absHeading, boolean holdTarget, TrcEvent event, double timeout)
     {
-        final String funcName = "setAbsoluteTarget";
-
         if (driveBase.validateOwnership(owner))
         {
             this.owner = owner;
@@ -879,16 +854,12 @@ public class TrcPidDrive
             double turnTarget = turnPidCtrl.hasAbsoluteSetPoint()?
                     newTargetPose.angle : newTargetPose.angle - currRobotPose.angle;
 
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(
-                    funcName, "owner=%s,absX=%.1f,absY=%.1f,absHeading=%.1f,CurrPose:%s,absTargetPose=%s",
-                    owner, absX, absY, absHeading, currRobotPose, absTargetPose);
-                globalTracer.traceInfo(
-                    funcName, "xTarget=%.1f, yTarget=%.1f, turnTarget=%.1f, NewPose:%s",
-                    relativePose.x, relativePose.y, turnTarget, newTargetPose);
-            }
-
+            tracer.traceDebug(
+                instanceName, "owner=%s, absX=%f, absY=%f, absHeading=%f, currPose=%s, absTargetPose=%s",
+                owner, absX, absY, absHeading, currRobotPose, absTargetPose);
+            tracer.traceDebug(
+                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newPose=%s",
+                relativePose.x, relativePose.y, turnTarget, newTargetPose);
             if (noOscillation)
             {
                 //
@@ -1183,6 +1154,7 @@ public class TrcPidDrive
                 if (turnPidCtrl != null)
                 {
                     turnPidCtrl.setTarget(headingTarget);
+                    turnPidCtrl.startStallDetection();
                 }
                 maintainHeading = true;
                 setTaskEnabled(true);
@@ -1219,13 +1191,7 @@ public class TrcPidDrive
      */
     public synchronized void cancel(String owner)
     {
-        final String funcName = "cancel";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "Canceling PID drive.");
-        }
-
+        tracer.traceDebug(instanceName, "Canceling PID drive.");
         if (active && driveBase.validateOwnership(owner))
         {
             stopPid(owner);
@@ -1274,13 +1240,7 @@ public class TrcPidDrive
      */
     private synchronized void stopPid(String owner)
     {
-        final String funcName = "stopPid";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "Stopping PID.");
-        }
-
+        tracer.traceDebug(instanceName, "Stopping PID.");
         setTaskEnabled(false);
         driveBase.stop(owner);
 
@@ -1344,19 +1304,19 @@ public class TrcPidDrive
     private synchronized void driveTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "driveTask";
         double xPower = turnOnly || xPidCtrl == null? 0.0: xPidCtrl.getOutput();
         double yPower = turnOnly || yPidCtrl == null? 0.0: yPidCtrl.getOutput();
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
 
         double currTime = TrcTimer.getCurrentTime();
         boolean expired = currTime >= expiredTime;
-        boolean stalled =
-            stallTimeout != 0.0 && currTime >= stallDetectionStartTime && driveBase.isStalled(stallTimeout);
         boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();
         boolean yOnTarget = yPidCtrl == null || yPidCtrl.isOnTarget();
         boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget();
         boolean onTarget = turnOnTarget && (turnOnly || xOnTarget && yOnTarget);
+        boolean stalled = (xPidCtrl == null || xPidCtrl.isStalled()) &&
+                          (yPidCtrl == null || yPidCtrl.isStalled()) &&
+                          (turnPidCtrl == null || turnPidCtrl.isStalled());
 
 //        if (stuckWheelHandler != null)
 //        {
@@ -1375,11 +1335,7 @@ public class TrcPidDrive
             {
                 beepDevice.playTone(beepFrequency, beepDuration);
             }
-
-            if (msgTracer != null)
-            {
-                msgTracer.traceInfo(funcName, "%s: Stalled=%s, Expired=%s", instanceName, stalled, expired);
-            }
+            tracer.traceInfo(instanceName, "Stalled=" + stalled + ", Expired=" + expired);
         }
 
         if (maintainHeading && driveBase.supportsHolonomicDrive())
@@ -1418,6 +1374,10 @@ public class TrcPidDrive
                 notifyEvent.signal();
                 notifyEvent = null;
             }
+
+            if (xPidCtrl != null) xPidCtrl.endStallDetection();
+            if (yPidCtrl != null) yPidCtrl.endStallDetection();
+            if (turnPidCtrl != null) turnPidCtrl.endStallDetection();
         }
         // If we come here, we are not on target yet, keep driving.
         else if (xPidCtrl != null && driveBase.supportsHolonomicDrive())
@@ -1466,19 +1426,17 @@ public class TrcPidDrive
             driveBase.curveDrive(owner, yPower, turnPower, false);
         }
 
-        if (msgTracer != null)
+        if (logRobotPoseEvents)
         {
-            if (logRobotPoseEvents)
-            {
-                msgTracer.logEvent(instanceName, "RobotPose", "pose=\"%s\"", driveBase.getFieldPosition());
-            }
+            tracer.logEvent(
+                instanceName, "RobotPose", "pose=\"" + driveBase.getFieldPosition() + "\"");
+        }
 
-            if (tracePidInfo)
-            {
-                if (xPidCtrl != null) xPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (yPidCtrl != null) yPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-                if (turnPidCtrl != null) turnPidCtrl.printPidInfo(msgTracer, verbosePidInfo, battery);
-            }
+        if (tracePidInfo)
+        {
+            if (xPidCtrl != null) xPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            if (yPidCtrl != null) yPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+            if (turnPidCtrl != null) turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
     }   //driveTask
 

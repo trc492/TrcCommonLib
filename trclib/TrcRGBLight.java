@@ -32,9 +32,6 @@ import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
  */
 public abstract class TrcRGBLight
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This method returns the state of the RED light.
      *
@@ -150,6 +147,7 @@ public abstract class TrcRGBLight
         DONE
     }   //enum State
 
+    private final TrcDbgTrace tracer;
     private final String instanceName;
     private final TrcTaskMgr.TaskObject rgbLightTaskObj;
     private final TrcStateMachine<State> sm;
@@ -166,8 +164,9 @@ public abstract class TrcRGBLight
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcRGBLight(final String instanceName)
+    public TrcRGBLight(String instanceName)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         rgbLightTaskObj = TrcTaskMgr.createTask(instanceName + ".rgbLightTask", this::rgbLightTask);
         sm = new TrcStateMachine<>(instanceName);
@@ -210,17 +209,13 @@ public abstract class TrcRGBLight
      */
     private int getColorValue()
     {
-        final String funcName = "getColorValue";
         int colorValue = 0;
 
         if (getRed()) colorValue |= COLOR_RED;
         if (getGreen()) colorValue |= COLOR_GREEN;
         if (getBlue()) colorValue |= COLOR_BLUE;
 
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=0x%x", colorValue);
-        }
+        tracer.traceDebug(instanceName, "color=0x" + Integer.toHexString(colorValue));
 
         return colorValue;
     }   //getColorValue
@@ -232,15 +227,10 @@ public abstract class TrcRGBLight
      */
     public RGBColor getColor()
     {
-        final String funcName = "getColor";
         RGBColor color;
  
         color = RGBColor.getColor(getColorValue());
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=%s", color);
-        }
+        tracer.traceDebug(instanceName, "color=" + color);
 
         return color;
     }   //getColor
@@ -253,13 +243,7 @@ public abstract class TrcRGBLight
      */
     private void setColorValue(int colorValue)
     {
-        final String funcName = "setColorValue";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=0x%x", colorValue);
-        }
-
+        tracer.traceDebug(instanceName, "color=0x" + Integer.toHexString(colorValue));
         setRed((colorValue & COLOR_RED) != 0);
         setGreen((colorValue & COLOR_GREEN) != 0);
         setBlue((colorValue & COLOR_BLUE) != 0);
@@ -273,13 +257,7 @@ public abstract class TrcRGBLight
      */
     public synchronized void setColor(RGBColor color)
     {
-        final String funcName = "setColor";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=%s", color);
-        }
-
+        tracer.traceDebug(instanceName, "color=" + color);
         if (sm.isEnabled())
         {
             timer.cancel();
@@ -298,13 +276,7 @@ public abstract class TrcRGBLight
      */
     public synchronized void setColor(RGBColor color, double onPeriod, double offPeriod)
     {
-        final String funcName = "setColor";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "color=%s,onPeriod=%f,offPeriod=%f", color, onPeriod, offPeriod);
-        }
-
+        tracer.traceDebug(instanceName, "color=%s,onPeriod=%f,offPeriod=%f", color, onPeriod, offPeriod);
         setColor(RGBColor.RGB_BLACK);
         this.color = color;
         this.onPeriod = onPeriod;

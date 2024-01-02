@@ -33,8 +33,6 @@ package TrcCommonLib.trclib;
  */
 public class TrcCascadePidController extends TrcPidController
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
     public TrcPidController secondaryCtrl;
 
     /**
@@ -51,16 +49,15 @@ public class TrcCascadePidController extends TrcPidController
      * @param secondaryInput specifies the supplier of the secondary PID input.
      */
     public TrcCascadePidController(
-            final String instanceName,
-            PidCoefficients primaryPidCoefficients, double primaryTolerance, double primarySettlingTime,
-            PidCoefficients secondaryPidCoefficients, double secondaryTolerance, double secondarySettlingTime,
-            PidInput primaryInput, PidInput secondaryInput)
+        String instanceName,
+        PidCoefficients primaryPidCoefficients, double primaryTolerance, double primarySettlingTime,
+        PidCoefficients secondaryPidCoefficients, double secondaryTolerance, double secondarySettlingTime,
+        PidInput primaryInput, PidInput secondaryInput)
     {
-        super(instanceName + ".primary",
-              primaryPidCoefficients, primaryTolerance, primarySettlingTime, primaryInput);
+        super(instanceName + ".primary", primaryPidCoefficients, primaryTolerance, primarySettlingTime, primaryInput);
         secondaryCtrl = new TrcPidController(
-                instanceName + ".secondary", secondaryPidCoefficients, secondaryTolerance, secondarySettlingTime,
-                secondaryInput);
+            instanceName + ".secondary", secondaryPidCoefficients, secondaryTolerance, secondarySettlingTime,
+            secondaryInput);
     }   //TrcCascadePidController
 
     /**
@@ -75,10 +72,10 @@ public class TrcCascadePidController extends TrcPidController
      * @param secondaryInput specifies the supplier of the secondary PID input.
      */
     public TrcCascadePidController(
-            final String instanceName,
-            PidCoefficients primaryPidCoefficients, double primaryTolerance,
-            PidCoefficients secondaryPidCoefficients, double secondaryTolerance,
-            PidInput primaryInput, PidInput secondaryInput)
+        String instanceName,
+        PidCoefficients primaryPidCoefficients, double primaryTolerance,
+        PidCoefficients secondaryPidCoefficients, double secondaryTolerance,
+        PidInput primaryInput, PidInput secondaryInput)
     {
         this(instanceName,
              primaryPidCoefficients, primaryTolerance, DEF_SETTLING_TIME,
@@ -105,19 +102,8 @@ public class TrcCascadePidController extends TrcPidController
     @Override
     public synchronized double getOutput()
     {
-        final String funcName = "getOutput";
-
-        double primaryOutput = super.getOutput();
-        secondaryCtrl.setTarget(primaryOutput);
-        double secondaryOutput = secondaryCtrl.getOutput();
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(
-                funcName, "primary:%f,secondary:%f", primaryOutput, secondaryOutput);
-        }
-
-        return secondaryOutput;
+        secondaryCtrl.setTarget(super.getOutput());
+        return secondaryCtrl.getOutput();
     }   //getOutput
 
 }   //class TrcCascadePidController

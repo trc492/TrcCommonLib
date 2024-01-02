@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 /**
  * This class implements a waypoint. A waypoint specifies a point on a path that consists of a relative time step
@@ -128,7 +130,7 @@ public class TrcWaypoint
     /**
      * This method returns the string containing the information of the waypoint.
      *
-     * return waypoint string.
+     * @return waypoint string.
      */
     @Override
     public String toString()
@@ -136,12 +138,12 @@ public class TrcWaypoint
         if (!simpleWaypoint)
         {
             return String.format(
-                    "TrcWaypoint(simple=%s,timestep=%.3f,pose=%s,vel=%.2f,encPos=%.1f,accel=%.2f,jerk=%.2f)",
-                    simpleWaypoint, timeStep, pose, velocity, encoderPosition, acceleration, jerk);
+                Locale.US, "TrcWaypoint(simple=%s,timestep=%.3f,pose=%s,vel=%f,encPos=%f,accel=%f,jerk=%f)",
+                simpleWaypoint, timeStep, pose, velocity, encoderPosition, acceleration, jerk);
         }
         else
         {
-            return String.format("TrcWaypoint(pose=%s,vel=%.2f)", pose, velocity);
+            return String.format(Locale.US, "TrcWaypoint(pose=%s,vel=%f)", pose, velocity);
         }
     }   //toString
 
@@ -164,14 +166,15 @@ public class TrcWaypoint
 
         if (!path.endsWith(".csv"))
         {
-            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+            throw new IllegalArgumentException(path + " is not a csv file!");
         }
 
         try
         {
             BufferedReader in = new BufferedReader(
                 loadFromResources?
-                    new InputStreamReader(TrcWaypoint.class.getClassLoader().getResourceAsStream(path)):
+                    new InputStreamReader(
+                        Objects.requireNonNull(TrcWaypoint.class.getClassLoader()).getResourceAsStream(path)):
                     new FileReader(path));
             List<TrcWaypoint> pointList = new ArrayList<>();
             String line;

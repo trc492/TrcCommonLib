@@ -29,10 +29,6 @@ import java.util.Arrays;
  */
 public class TrcLidarLite
 {
-    private static final String moduleName = "TrcLidarLite";
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     public enum RequestId
     {
         READ_DISTANCE,
@@ -128,6 +124,8 @@ public class TrcLidarLite
 //    private static final byte PWRCTRL_DISABLE_RECEIVER  = (byte)0x01;//Disable receiver circuit
 //    private static final byte PWRCTRL_DEVICE_SLEEP      = (byte)0x04;//Device Sleep, wakes upon I2C transaction
 
+    private final TrcDbgTrace tracer;
+    private final String instanceName;
     private final TrcSerialBusDevice device;
     private final TrcEvent notifyEvent;
     private boolean started = false;
@@ -163,8 +161,10 @@ public class TrcLidarLite
      */
     public TrcLidarLite(String instanceName, TrcSerialBusDevice device)
     {
+        this.tracer = new TrcDbgTrace();
+        this.instanceName = instanceName;
         this.device = device;
-        notifyEvent = new TrcEvent(moduleName + ".notifyEvent");
+        notifyEvent = new TrcEvent(instanceName + ".notifyEvent");
     }   //TrcLidarLite
 
     /**
@@ -172,14 +172,9 @@ public class TrcLidarLite
      */
     public void start()
     {
-        final String funcName = "start";
-
         if (!started)
         {
-            if (debugEnabled)
-            {
-                globalTracer.traceInfo(funcName, "Starting Lidar");
-            }
+            tracer.traceDebug(instanceName, "Starting Lidar.");
             started = true;
             writeAcquisitionCommand(ACQCMD_DISTANCE_WITH_BIAS);
         }
@@ -192,8 +187,6 @@ public class TrcLidarLite
   */
  private void writeAcquisitionCommand(byte command)
  {
-     final String funcName = "writeAcquisitionCommand";
-
      RequestId requestId;
      byte[] data = new byte[1];
      data[0] = command;
@@ -210,11 +203,7 @@ public class TrcLidarLite
              requestId = null;
              break;
      }
-
-     if (debugEnabled)
-     {
-         globalTracer.traceInfo(funcName, "Id=%s,data=%s", requestId, Arrays.toString(data));
-     }
+     tracer.traceDebug(instanceName, "Id=" + requestId + ",data=" + Arrays.toString(data));
      notifyEvent.setCallback(this::notify, null);
      device.asyncWrite(requestId, REG_ACQ_COMMAND, data, data.length, notifyEvent);
  }   //writeAcquistionCommand
@@ -261,7 +250,6 @@ public class TrcLidarLite
 //     */
 //    public int getStatus()
 //    {
-//        final String funcName = "getStatus";
 //        long currTagId = FtcOpMode.getLoopCounter();
 //
 //        if (currTagId != dataTagId)
@@ -298,13 +286,6 @@ public class TrcLidarLite
 //                rightRangingData.timestamp = getDataTimestamp(rrngReaderId);
 //                rightRangingData.value = (double)TrcUtil.bytesToInt(data[0]);
 //            }
-//
-//            if (debugEnabled)
-//            {
-//                dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//                dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%x", deviceStatus);
-//            }
-//
 //            dataTagId = currTagId;
 //        }
 //
@@ -318,18 +299,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Gesture> getGesture()
 //    {
-//        final String funcName = "getGesture";
 //        getStatus();
-//        TrcSensor.SensorData<Gesture> data = new TrcSensor.SensorData<>(gesture.timestamp, gesture.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%s)", data.timestamp, data.value.toString());
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(gesture.timestamp, gesture.value);
 //    }   //getGesture
 //
 //    /**
@@ -339,18 +310,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Double> getGestureSpeed()
 //    {
-//        final String funcName = "getGestureSpeed";
 //        getStatus();
-//        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(gestureSpeed.timestamp, gestureSpeed.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(gestureSpeed.timestamp, gestureSpeed.value);
 //    }   //getGestureSpeed
 //
 //    /**
@@ -360,18 +321,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Double> getX()
 //    {
-//        final String funcName = "getX";
 //        getStatus();
-//        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(xPos.timestamp, xPos.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(xPos.timestamp, xPos.value);
 //    }   //getX
 //
 //    /**
@@ -381,18 +332,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Double> getZ()
 //    {
-//        final String funcName = "getZ";
 //        getStatus();
-//        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(zPos.timestamp, zPos.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(zPos.timestamp, zPos.value);
 //    }   //getZ
 //
 //    /**
@@ -402,19 +343,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Double> getLeftRangingData()
 //    {
-//        final String funcName = "getLeftRangingData";
 //        getStatus();
-//        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-//                leftRangingData.timestamp, leftRangingData.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(leftRangingData.timestamp, leftRangingData.value);
 //    }   //getLeftRangingData
 //
 //    /**
@@ -424,19 +354,8 @@ public class TrcLidarLite
 //     */
 //    public TrcSensor.SensorData<Double> getRightRangingData()
 //    {
-//        final String funcName = "getRightRangingData";
 //        getStatus();
-//        TrcSensor.SensorData<Double> data = new TrcSensor.SensorData<>(
-//                rightRangingData.timestamp, rightRangingData.value);
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(timestamp=%.3f,value=%.0f)", data.timestamp, data.value);
-//        }
-//
-//        return data;
+//        return new TrcSensor.SensorData<>(rightRangingData.timestamp, rightRangingData.value);
 //    }   //getRightRangingData
 //
 //    /**
@@ -446,14 +365,6 @@ public class TrcLidarLite
 //     */
 //    public int getRegMapVersion()
 //    {
-//        final String funcName = "getRegMapVersion";
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%x", regMapVersion);
-//        }
-//
 //        return regMapVersion;
 //    }   //getRegMapVersion
 //
@@ -464,14 +375,6 @@ public class TrcLidarLite
 //     */
 //    public int getModelVersion()
 //    {
-//        final String funcName = "getModelVersion";
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API, "=%x", modelVersion);
-//        }
-//
 //        return modelVersion;
 //    }   //getModelVersion
 //
@@ -489,7 +392,6 @@ public class TrcLidarLite
 //    @Override
 //    public TrcSensor.SensorData getRawData(int index, DataType dataType)
 //    {
-//        final String funcName = "getRawData";
 //        TrcSensor.SensorData data = null;
 //
 //        switch (dataType)
@@ -519,13 +421,6 @@ public class TrcLidarLite
 //                break;
 //        }
 //
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "index=%d", index);
-//            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-//                               "=(time=%.3f,value=%s)", data.timestamp, data.value.toString());
-//        }
-//
 //        return data;
 //    }   //getRawData
 //    /**
@@ -537,14 +432,6 @@ public class TrcLidarLite
 //     */
 //    private void processData(RequestId requestId, byte[] data, int length)
 //    {
-//        final String funcName = "processData";
-//        int word;
-//
-//        if (debugEnabled)
-//        {
-//            dbgTrace.traceVerbose(funcName, "Id=%s,data=%s,len=%d", requestId, Arrays.toString(data), length);
-//        }
-//
 //        switch (requestId)
 //        {
 //            case STATUS:
@@ -554,7 +441,7 @@ public class TrcLidarLite
 //                //
 //                // We should never come here. Let's throw an exception to catch this unlikely scenario.
 //                //
-//                throw new IllegalStateException(String.format("Unexpected request ID %s.", requestId));
+//                throw new IllegalStateException("Unexpected request ID " + requestId));
 //        }
 //    }   //processData
 

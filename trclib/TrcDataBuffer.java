@@ -24,7 +24,6 @@ package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * This class implements a thread-safe data buffer for recording double values. It provides methods to access data
@@ -32,8 +31,6 @@ import java.util.Locale;
  */
 public class TrcDataBuffer
 {
-    private static final String moduleName = "TrcDataBuffer";
-
     private final String instanceName;
     private final int bufferSize;
     private final ArrayList<Double> bufferedData = new ArrayList<>();
@@ -62,9 +59,7 @@ public class TrcDataBuffer
 
         synchronized (bufferedData)
         {
-            str = String.format(
-                Locale.US, "%s.%s[%d]=%s",
-                moduleName, instanceName, bufferSize, Arrays.toString(bufferedData.toArray()));
+            str = instanceName + "[" + bufferSize + "]=" + Arrays.toString(bufferedData.toArray());
         }
 
         return str;

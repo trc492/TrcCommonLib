@@ -33,14 +33,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements TrcOdometrySensor
 {
-    protected static final String moduleName = "TrcGyro";
-    protected static final boolean debugEnabled = false;
-    protected static final boolean tracingEnabled = false;
-    protected static final boolean useGlobalTracer = false;
-    protected static final TrcDbgTrace.TraceLevel traceLevel = TrcDbgTrace.TraceLevel.API;
-    protected static final TrcDbgTrace.MsgLevel msgLevel = TrcDbgTrace.MsgLevel.INFO;
-    protected TrcDbgTrace dbgTrace = null;
-
     public interface GyroData
     {
         /**
@@ -173,7 +165,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     public static final int GYRO_INTEGRATE              = (1 << 3);
     public static final int GYRO_CONVERT_TO_CARTESIAN   = (1 << 4);
 
-    protected final String instanceName;
     private final Odometry odometry;
     private TrcDataIntegrator<DataType> integrator = null;
     private TrcCardinalConverter<DataType> cardinalConverter = null;
@@ -199,17 +190,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      *                filter will be used on that axis, the corresponding element in the array should be set to null.
      *                If no filter is used at all, filters can be set to null.
      */
-    public TrcGyro(final String instanceName, int numAxes, int options, TrcFilter[] filters)
+    public TrcGyro(String instanceName, int numAxes, int options, TrcFilter[] filters)
     {
         super(instanceName, numAxes, filters);
-
-        if (debugEnabled)
-        {
-            dbgTrace = useGlobalTracer?
-                TrcDbgTrace.getGlobalTracer():
-                new TrcDbgTrace(moduleName + "." + instanceName, tracingEnabled, traceLevel, msgLevel);
-        }
-
         odometry = new Odometry(this);
         //
         // Count the number of axes and set up the indices for each axis.
@@ -247,9 +230,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
         {
             throw new IllegalArgumentException("Options Integrator and CardinalConverter cannot coexist.");
         }
-
-        this.instanceName = instanceName;
-
         //
         // Create the data integrator.
         //
@@ -279,7 +259,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      *                GYRO_INTEGRATE - do integration on all axes to get headings.
      *                GYRO_CONVERT_TO_CARTESIAN - converts the Cardinal heading to Cartesian heading.
      */
-    public TrcGyro(final String instanceName, int numAxes, int options)
+    public TrcGyro(String instanceName, int numAxes, int options)
     {
         this(instanceName, numAxes, options, null);
     }   //TrcGyro
@@ -307,14 +287,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setEnabled(boolean enabled)
     {
-        final String funcName = "setEnabled";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "enabled=%s", Boolean.toString(enabled));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         //
         // Enable/disable Integrator.
         //
@@ -355,7 +327,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     /**
      * This method prints the elapsed time info using the given tracer.
      *
-     * @param tracer specifies the tracer to use for printing elapsed time info.
+     * @param tracer specifies the tracer to be used to print the info.
      */
     public void printElapsedTime(TrcDbgTrace tracer)
     {
@@ -373,14 +345,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setXInverted(boolean inverted)
     {
-        final String funcName = "setXInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(xIndex, inverted);
     }   //setXInverted
 
@@ -392,14 +356,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setYInverted(boolean inverted)
     {
-        final String funcName = "setYInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(yIndex, inverted);
     }   //setYInverted
 
@@ -411,14 +367,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setZInverted(boolean inverted)
     {
-        final String funcName = "setZInverted";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "inverted=%s", Boolean.toString(inverted));
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setInverted(zIndex, inverted);
     }   //setZInverted
 
@@ -429,14 +377,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setXScale(double scale)
     {
-        final String funcName = "setXScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(xIndex, scale);
     }   //setXScale
 
@@ -447,14 +387,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setYScale(double scale)
     {
-        final String funcName = "setYScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(yIndex, scale);
     }   //setYScale
 
@@ -465,14 +397,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setZScale(double scale)
     {
-        final String funcName = "setZScale";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "scale=%f", scale);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         setScale(zIndex, scale);
     }   //setZScale
 
@@ -485,14 +409,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setXValueRange(double valueRangeLow, double valueRangeHigh)
     {
-        final String funcName = "setXValueRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "low=%f,high=%f", valueRangeLow, valueRangeHigh);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (cardinalConverter != null)
         {
             cardinalConverter.setCardinalRange(xIndex, valueRangeLow, valueRangeHigh);
@@ -508,14 +424,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setYValueRange(double valueRangeLow, double valueRangeHigh)
     {
-        final String funcName = "setYValueRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "low=%f,high=%f", valueRangeLow, valueRangeHigh);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (cardinalConverter != null)
         {
             cardinalConverter.setCardinalRange(yIndex, valueRangeLow, valueRangeHigh);
@@ -531,14 +439,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void setZValueRange(double valueRangeLow, double valueRangeHigh)
     {
-        final String funcName = "setZValueRange";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "low=%f,high=%f", valueRangeLow, valueRangeHigh);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
         if (cardinalConverter != null)
         {
             cardinalConverter.setCardinalRange(zIndex, valueRangeLow, valueRangeHigh);
@@ -550,17 +450,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetXCardinalConverter()
     {
-        final String funcName = "resetXCardinalConverter";
-
         if (cardinalConverter != null)
         {
             cardinalConverter.reset(xIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetXCardinalConverter
 
@@ -569,17 +461,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetYCardinalConverter()
     {
-        final String funcName = "resetYCardinalConverter";
-
         if (cardinalConverter != null)
         {
             cardinalConverter.reset(yIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetYCardinalConverter
 
@@ -588,17 +472,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetZCardinalConverter()
     {
-        final String funcName = "resetZCardinalConverter";
-
         if (cardinalConverter != null)
         {
             cardinalConverter.reset(zIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetZCardinalConverter
 
@@ -609,17 +485,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getXRotationRate()
     {
-        final String funcName = "getXRotationRate";
-        SensorData<Double> data = getProcessedData(xIndex, DataType.ROTATION_RATE);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
-        return data;
+        return getProcessedData(xIndex, DataType.ROTATION_RATE);
     }   //getXRotationRate
 
     /**
@@ -629,17 +495,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getYRotationRate()
     {
-        final String funcName = "getYRotationRate";
-        SensorData<Double> data = getProcessedData(yIndex, DataType.ROTATION_RATE);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
-        return data;
+        return getProcessedData(yIndex, DataType.ROTATION_RATE);
     }   //getYRotationRate
 
     /**
@@ -649,17 +505,7 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getZRotationRate()
     {
-        final String funcName = "getZRotationRate";
-        SensorData<Double> data = getProcessedData(zIndex, DataType.ROTATION_RATE);
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
-        return data;
+        return getProcessedData(zIndex, DataType.ROTATION_RATE);
     }   //getZRotationRate
 
     /**
@@ -671,7 +517,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getXHeading()
     {
-        final String funcName = "getXHeading";
         SensorData<Double> data;
 
         if (integrator != null)
@@ -687,13 +532,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             data = getRawXData(DataType.HEADING);
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
         return data;
     }   //getXHeading
 
@@ -706,7 +544,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getYHeading()
     {
-        final String funcName = "getYHeading";
         SensorData<Double> data;
 
         if (integrator != null)
@@ -722,13 +559,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             data = getRawYData(DataType.HEADING);
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
         return data;
     }   //getYHeading
 
@@ -741,7 +571,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public SensorData<Double> getZHeading()
     {
-        final String funcName = "getZHeading";
         SensorData<Double> data;
 
         if (integrator != null)
@@ -757,13 +586,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             data = getRawZData(DataType.HEADING);
         }
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API,
-                               "=(timestamp=%.3f,value=%f)", data.timestamp, data.value);
-        }
-
         return data;
     }   //getZHeading
 
@@ -776,17 +598,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetXIntegrator()
     {
-        final String funcName = "resetXIntegrator";
-
         if (integrator != null)
         {
             integrator.reset(xIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetXIntegrator
 
@@ -795,17 +609,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetYIntegrator()
     {
-        final String funcName = "resetYIntegrator";
-
         if (integrator != null)
         {
             integrator.reset(yIndex);
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetYIntegrator
 
@@ -814,22 +620,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
      */
     public void resetZIntegrator()
     {
-        final String funcName = "resetZIntegrator";
-
         if (integrator != null)
         {
             integrator.reset(zIndex);
-        }
-        else
-        {
-            SensorData<Double> data = getProcessedData(zIndex, DataType.HEADING);
-            zZeroPos = data.value;
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //resetZIntegrator
 
@@ -847,7 +640,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     @Override
     public SensorData<Double> getRawData(int index, DataType dataType)
     {
-        final String funcName = "getRawData";
         SensorData<Double> data = null;
 
         if (getDataElapsedTimer != null) getDataElapsedTimer.recordStartTime();
@@ -864,15 +656,6 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             data = getRawZData(dataType);
         }
         if (getDataElapsedTimer != null) getDataElapsedTimer.recordEndTime();
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.CALLBK, "index=%d", index);
-            dbgTrace.traceExit(
-                    funcName, TrcDbgTrace.TraceLevel.CALLBK,
-                    "=(timestamp=%.3f,value=%f",
-                    data != null? data.timestamp: 0.0, data != null? data.value: 0.0);
-        }
 
         return data;
     }   //getRawData
@@ -900,6 +683,17 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
     //
 
     /**
+     * This method returns the instance name.
+     *
+     * @return instance name.
+     */
+    @Override
+    public String getName()
+    {
+        return instanceName;
+    }   //getName
+
+    /**
      * This method resets the odometry data and sensor. TODO: need to support multiple axes.
      *
      * @param resetHardware specifies true to do a hardware reset, false to do a software reset. Hardware reset may
@@ -914,6 +708,9 @@ public abstract class TrcGyro extends TrcSensor<TrcGyro.DataType> implements Trc
             {
                 resetZIntegrator();
             }
+
+            SensorData<Double> data = getProcessedData(zIndex, DataType.HEADING);
+            zZeroPos = data.value;
 
             updateOdometry();
             odometry.prevTimestamp = odometry.currTimestamp;

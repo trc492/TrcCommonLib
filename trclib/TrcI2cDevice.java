@@ -32,9 +32,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public abstract class TrcI2cDevice
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This method checks if the I2C port is ready for bus transaction.
      *
@@ -164,7 +161,8 @@ public abstract class TrcI2cDevice
 
     }   //class Request
 
-    private final String instanceName;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final TrcTaskMgr.TaskObject i2cDeviceTaskObj;
     private final TrcStateMachine<PortCommandState> portCommandSM;
     private final ConcurrentLinkedQueue<Request> requestQueue = new ConcurrentLinkedQueue<>();
@@ -177,8 +175,9 @@ public abstract class TrcI2cDevice
      *
      * @param instanceName specifies the instance name.
      */
-    public TrcI2cDevice(final String instanceName)
+    public TrcI2cDevice(String instanceName)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         i2cDeviceTaskObj = TrcTaskMgr.createTask(instanceName + ".i2cDeviceTask", this::i2cDeviceTask);
         portCommandSM = new TrcStateMachine<>(instanceName);
@@ -224,13 +223,7 @@ public abstract class TrcI2cDevice
      */
     public synchronized void read(int regAddress, int length, CompletionHandler handler, double timeout)
     {
-        final String funcName = "read";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "addr=%x,len=%d", regAddress, length);
-        }
-
+        tracer.traceDebug(instanceName, "addr=" + Integer.toHexString(regAddress) + ",len=" + length);
         requestQueue.add(new Request(regAddress, length, null, handler, timeout));
         //
         // If the PortCommand state machine is not already active, start it.
@@ -273,15 +266,10 @@ public abstract class TrcI2cDevice
      * @param handler specifies the completion handler to call when done. Can be null if none needed.
      * @param timeout specifies the timeout for the operation in seconds.
      */
-    public synchronized void write(int regAddress, int length, byte[] writeBuffer, CompletionHandler handler, double timeout)
+    public synchronized void write(
+        int regAddress, int length, byte[] writeBuffer, CompletionHandler handler, double timeout)
     {
-        final String funcName = "write";
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "addr=%x,len=%d", regAddress, length);
-        }
-
+        tracer.traceDebug(instanceName, "addr=" + Integer.toHexString(regAddress) + ",len=" + length);
         requestQueue.add(new Request(regAddress, length, writeBuffer, handler, timeout));
         //
         // If the PortCommand state machine is not already active, start it.
@@ -326,16 +314,11 @@ public abstract class TrcI2cDevice
      */
     public void sendByteCommand(int regAddress, byte command)
     {
-        final String funcName = "sendByteCommand";
         byte[] data = new byte[1];
 
         data[0] = command;
         write(regAddress, 1, data);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "command=%x", command);
-        }
+        tracer.traceDebug(instanceName, "command=" + Integer.toHexString(command));
     }   //sendByteCommand
 
     /**
@@ -346,17 +329,12 @@ public abstract class TrcI2cDevice
      */
     public void sendWordCommand(int regAddress, short command)
     {
-        final String funcName = "sendWordCommand";
         byte[] data = new byte[2];
 
         data[0] = (byte)(command & 0xff);
         data[1] = (byte)(command >> 8);
         write(regAddress, 2, data);
-
-        if (debugEnabled)
-        {
-            globalTracer.traceInfo(funcName, "command=%x", command);
-        }
+        tracer.traceDebug(instanceName, "command=" + Integer.toHexString(command));
     }   //sendWordCommand
 
     /**
@@ -370,8 +348,6 @@ public abstract class TrcI2cDevice
     private synchronized void i2cDeviceTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "i2cDeviceTask";
-
         if (portCommandSM.isReady())
         {
             PortCommandState state = portCommandSM.getState();
@@ -392,10 +368,7 @@ public abstract class TrcI2cDevice
                     }
                     else
                     {
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "%s", state);
-                        }
+                        tracer.traceDebug(instanceName, state.toString());
                         expiredTime = currRequest.timeout;
                         if (expiredTime != 0.0)
                         {
@@ -414,14 +387,11 @@ public abstract class TrcI2cDevice
                     //
                     if (isPortReady())
                     {
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(
-                                funcName, "%s: Request(addr=%x,len=%d,%s)",
-                                state.toString(), currRequest.regAddress, currRequest.length,
-                                currRequest.writeBuffer == null? "read": "write");
-                        }
-
+                        tracer.traceDebug(
+                            instanceName,
+                            state + ": Request(addr=" + Integer.toHexString(currRequest.regAddress) +
+                            ",len=" + currRequest.length +
+                            "," + (currRequest.writeBuffer == null? "read": "write") + ")");
                         dataRead = null;
                         if (currRequest.writeBuffer == null)
                         {
@@ -443,10 +413,7 @@ public abstract class TrcI2cDevice
                     {
                         currRequest.expired = true;
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "%s: Port timed out, busy with another request.", state);
-                        }
+                        tracer.traceDebug(instanceName, state + ": Port timed out, busy with another request.");
                     }
                     break;
 
@@ -462,10 +429,7 @@ public abstract class TrcI2cDevice
                             // It is a write request, the request is completed.
                             //
                             portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
-                            if (debugEnabled)
-                            {
-                                globalTracer.traceInfo(funcName, "%s: write command completed.", state);
-                            }
+                            tracer.traceDebug(instanceName, state + ": write command completed.");
                         }
                         else
                         {
@@ -481,20 +445,14 @@ public abstract class TrcI2cDevice
                                 // We have valid data, the request is completed.
                                 //
                                 portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
-                                if (debugEnabled)
-                                {
-                                    globalTracer.traceInfo(
-                                        funcName, "%s: read command completed. %s", state, Arrays.toString(dataRead));
-                                }
+                                tracer.traceDebug(
+                                    instanceName, state + ": read command completed. " + Arrays.toString(dataRead));
                             }
                             else if (expiredTime != 0.0 && TrcTimer.getCurrentTime() > expiredTime)
                             {
                                 currRequest.expired = true;
                                 portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
-                                if (debugEnabled)
-                                {
-                                    globalTracer.traceInfo(funcName, "%s: Port command timed out.", state);
-                                }
+                                tracer.traceDebug(instanceName, state + ": Port command timed out.");
                             }
                         }
                     }
@@ -502,10 +460,7 @@ public abstract class TrcI2cDevice
                     {
                         currRequest.expired = true;
                         portCommandSM.setState(PortCommandState.PORT_COMMAND_COMPLETED);
-                        if (debugEnabled)
-                        {
-                            globalTracer.traceInfo(funcName, "%s: Port command timed out.", state);
-                        }
+                        tracer.traceDebug(instanceName, state + ": Port command timed out.");
                     }
                     break;
 
@@ -513,12 +468,8 @@ public abstract class TrcI2cDevice
                     //
                     // The port command is complete, call completion handler if any.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(
-                            funcName, "%s: Command completed (timeout=%s).", state, currRequest.expired);
-                    }
-
+                    tracer.traceInfo(
+                        instanceName, state + ": Command completed (timeout=" + currRequest.expired + ").");
                     if (currRequest.handler != null)
                     {
                         if (currRequest.writeBuffer == null)
@@ -547,10 +498,7 @@ public abstract class TrcI2cDevice
                     //
                     // There is no more request in the queue, stop the state machine.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "%s", state);
-                    }
+                    tracer.traceDebug(instanceName, state.toString());
                     setTaskEnabled(false);
                     break;
             }

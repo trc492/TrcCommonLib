@@ -41,6 +41,7 @@ public class TrcUtil
     public static final double INCHES_PER_CM = 10.0 / MM_PER_INCH;
     public static final double INCHES_PER_METER = 1000.0 / MM_PER_INCH;
     public static final double EARTH_GRAVITATIONAL_CONSTANT = 9.807;    //in m/s2
+    public static final double BATTERY_NOMINAL_VOLTAGE = 12.0;          //in volts
 
     /**
      * This interface provides the method to get data of the specified type. This is to replaced the Supplier
@@ -71,7 +72,7 @@ public class TrcUtil
 //
 //        if (!path.endsWith(".csv"))
 //        {
-//            throw new IllegalArgumentException(String.format("%s is not a csv file!", path));
+//            throw new IllegalArgumentException(path + " is not a csv file!");
 //        }
 //
 //        try

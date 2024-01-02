@@ -32,11 +32,13 @@ import java.util.Arrays;
  * each of which consists of a driving motor and a PID controlled steering motor. It extends the TrcSimpleDriveBase
  * class so it inherits all the SimpleDriveBase methods and features
  * <p>
- * The implementation of swerve algorithm is based on Ether's white paper:
- * http://www.chiefdelphi.com/media/papers/download/3028
+ * The implementation of swerve algorithm is based on
+ * <a href="http://www.chiefdelphi.com/media/papers/download/3028">Ether's white paper</a>
  */
 public class TrcSwerveDriveBase extends TrcSimpleDriveBase
 {
+    private static final String moduleName = TrcSwerveDriveBase.class.getSimpleName();
+
     private final TrcSwerveModule lfModule, rfModule, lbModule, rbModule;
     private final double wheelBaseWidth, wheelBaseLength, wheelBaseDiagonal;
     private final TrcHashMap<TrcMotor, TrcSwerveModule> driveMotorToModuleMap = new TrcHashMap<>();
@@ -172,15 +174,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void setSteerAngle(String owner, double angle, boolean optimize)
     {
-        final String funcName = "setSteerAngle";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s,angle=%f,optimize=%s", owner, angle, optimize);
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
-
+        tracer.traceDebug(moduleName, "owner=%s, angle=%f, optimize=%s", owner, angle, optimize);
         if (validateOwnership(owner))
         {
             lfModule.setSteerAngle(angle, optimize);
@@ -221,8 +215,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     {
         if (velocities.length != getNumMotors())
         {
-            throw new IllegalArgumentException(
-                String.format("Invalid velocities parameter: %s", Arrays.deepToString(velocities)));
+            throw new IllegalArgumentException("Invalid velocities parameter: " + Arrays.deepToString(velocities));
         }
 
         TrcSwerveModule[] modules = {lfModule, rfModule, lbModule, rbModule};
@@ -243,13 +236,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void stop(String owner, boolean resetSteer)
     {
-        final String funcName = "stop";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API, "owner=%s,steerNeutral=%s", owner, resetSteer);
-        }
-
+        tracer.traceDebug(moduleName, "owner=" + owner + ",resetSteer=" + resetSteer);
         if (validateOwnership(owner))
         {
             super.stop(owner);
@@ -258,11 +245,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
             {
                 setSteerAngle(0.0, false);
             }
-        }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
         }
     }   //stop
 
@@ -328,15 +310,9 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         String owner, double x, double y, double rotation, boolean inverted, double gyroAngle, double driveTime,
         TrcEvent event)
     {
-        final String funcName = "holonomicDrive";
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.API,
-                "owner=%s, x=%f,y=%f,rot=%f,inverted=%s,angle=%f,driveTime=%.1f,event=%s",
-                owner, x, y, rotation, Boolean.toString(inverted), gyroAngle, driveTime, event);
-        }
-
+        tracer.traceDebug(
+            moduleName, "owner=%s, x=%f, y=%f, rot=%f, inverted=%s, angle=%f, driveTime=%f, event=%s",
+            owner, x, y, rotation, inverted, gyroAngle, driveTime, event);
         if (validateOwnership(owner))
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)
@@ -367,8 +343,8 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 {
                     if (inverted)
                     {
-                        globalTracer.traceWarn(funcName,
-                            "You should not be using inverted and field reference frame at the same time!");
+                        tracer.traceWarn(
+                            moduleName, "You should not be using inverted and field reference frame at the same time!");
                     }
 
                     double gyroRadians = Math.toRadians(gyroAngle);
@@ -439,11 +415,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
             }
             setDriveTime(owner, driveTime, event);
         }
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.API);
-        }
     }   //holonomicDrive
 
     /**
@@ -497,13 +468,8 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     protected Odometry getOdometryDelta(TrcOdometrySensor.Odometry[] prevOdometries,
         TrcOdometrySensor.Odometry[] currOdometries)
     {
-        final String funcName = "getOdometryDelta";
         Odometry delta = new Odometry();
 
-        if (debugEnabled)
-        {
-            dbgTrace.traceEnter(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
         //
         // Average the posDelta vectors and velocity vectors of all four wheels:
         //  (sum posDelta vectors of all wheels)/num_of_wheels
@@ -564,11 +530,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         rotVel /= 4 * Math.pow(wheelBaseDiagonal, 2);
         rotVel = Math.toDegrees(rotVel);
         delta.velocity.angle = rotVel;
-
-        if (debugEnabled)
-        {
-            dbgTrace.traceExit(funcName, TrcDbgTrace.TraceLevel.TASK);
-        }
 
         return delta;
     }   //getOdometryDelta

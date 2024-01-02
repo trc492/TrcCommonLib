@@ -30,9 +30,6 @@ package TrcCommonLib.trclib;
  */
 public abstract class TrcGameController
 {
-    private static final TrcDbgTrace globalTracer = TrcDbgTrace.getGlobalTracer();
-    private static final boolean debugEnabled = false;
-
     /**
      * This interface, if provided, will allow this class to do a notification callback when there are button
      * activities.
@@ -59,7 +56,8 @@ public abstract class TrcGameController
 
     private static final double DEF_DEADBAND_THRESHOLD = 0.15;
 
-    private final String instanceName;
+    protected final TrcDbgTrace tracer;
+    protected final String instanceName;
     private final double deadbandThreshold;
     private final ButtonHandler buttonHandler;
     private int prevButtons;
@@ -74,8 +72,9 @@ public abstract class TrcGameController
      *                      null.
      */
     public TrcGameController(
-        final String instanceName, final double deadbandThreshold, final ButtonHandler buttonHandler)
+        final String instanceName, double deadbandThreshold, ButtonHandler buttonHandler)
     {
+        this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.deadbandThreshold = deadbandThreshold;
         this.buttonHandler = buttonHandler;
@@ -95,7 +94,7 @@ public abstract class TrcGameController
      * @param buttonHandler specifies the object that will handle the button events. If none provided, it is set to
      *                      null.
      */
-    public TrcGameController(final String instanceName, final ButtonHandler buttonHandler)
+    public TrcGameController(String instanceName, ButtonHandler buttonHandler)
     {
         this(instanceName, DEF_DEADBAND_THRESHOLD, buttonHandler);
     }   //TrcGameController
@@ -233,8 +232,6 @@ public abstract class TrcGameController
      */
     private void buttonEventTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        final String funcName = "buttonEventTask";
-
         if (slowPeriodicLoop)
         {
             // Button events are human input. They are slow so don't need to run in a fast loop.
@@ -253,10 +250,7 @@ public abstract class TrcGameController
                     //
                     // Button is pressed.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Button %x pressed", buttonMask);
-                    }
+                    tracer.traceDebug(instanceName, "Button " +  Integer.toHexString(buttonMask)+ " pressed.");
                     buttonHandler.buttonEvent(this, buttonMask, true);
                 }
                 else
@@ -264,10 +258,7 @@ public abstract class TrcGameController
                     //
                     // Button is released.
                     //
-                    if (debugEnabled)
-                    {
-                        globalTracer.traceInfo(funcName, "Button %x released", buttonMask);
-                    }
+                    tracer.traceDebug(instanceName, "Button " +  Integer.toHexString(buttonMask)+ " released.");
                     buttonHandler.buttonEvent(this, buttonMask, false);
                 }
                 //

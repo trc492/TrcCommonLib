@@ -41,11 +41,12 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
         /**
          * Constructor: Creates an instance of the object.
          *
+         * @param label specifies the object label.
          * @param rect specifies the rect of the detected object.
          */
-        public DetectedObject(Rect rect)
+        public DetectedObject(String label, Rect rect)
         {
-            super(rect);
+            super(label, rect);
         }   //DetectedObject
 
         /**
@@ -76,11 +77,35 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
          * @return pose of the detected object relative to camera.
          */
         @Override
-        public TrcPose3D getPose()
+        public TrcPose3D getObjectPose()
         {
             // Face detection does not provide detected object pose, let caller use homography to calculate it.
             return null;
-        }   //getPose
+        }   //getObjectPose
+
+        /**
+         * This method returns the real world width of the detected object.
+         *
+         * @return real world width of the detected object.
+         */
+        @Override
+        public Double getObjectWidth()
+        {
+            // OpenCvFace detection does not provide detected object width, let caller use homography to calculate it.
+            return null;
+        }   //getObjectWidth
+
+        /**
+         * This method returns the real world depth of the detected object.
+         *
+         * @return real world depth of the detected object.
+         */
+        @Override
+        public Double getObjectDepth()
+        {
+            // OpenCvFace detection does not provide detected object depth, let caller use homography to calculate it.
+            return null;
+        }   //getObjectDepth
 
     }   //class DetectedObject
 
@@ -93,12 +118,10 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
      * @param instanceName specifies the instance name.
      * @param classifierPath specifies the file path for the classifier.
      * @param numImageBuffers specifies the number of image buffers to allocate.
-     * @param tracer specifies the tracer for trace info, null if none provided.
      */
-    public TrcOpenCvFaceDetector(
-        String instanceName, String classifierPath, int numImageBuffers, TrcDbgTrace tracer)
+    public TrcOpenCvFaceDetector(String instanceName, String classifierPath, int numImageBuffers)
     {
-        super(instanceName, numImageBuffers, null, null, tracer);
+        super(instanceName, numImageBuffers, null, null);
         faceDetector = new CascadeClassifier(classifierPath);
         if (faceDetector.empty())
         {
@@ -132,7 +155,7 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
             targets = new DetectedObject[faceRects.length];
             for (int i = 0; i < targets.length; i++)
             {
-                targets[i] = new DetectedObject(faceRects[i]);
+                targets[i] = new DetectedObject(instanceName, faceRects[i]);
             }
         }
 
