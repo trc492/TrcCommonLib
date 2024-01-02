@@ -23,7 +23,6 @@
 package TrcCommonLib.trclib;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * This class converts cardinal data to cartesian data for sensors such as gyro or compass. It can handle sensors
@@ -48,7 +47,7 @@ public class TrcCardinalConverter<D>
     private final TrcTaskMgr.TaskObject converterTaskObj;
     private final double[] cardinalRangeLows;
     private final double[] cardinalRangeHighs;
-    private final List<TrcSensor.SensorData<Double>> prevData;
+    private final ArrayList<TrcSensor.SensorData<Double>> prevData;
     private final int[] numCrossovers;
     private boolean enabled = false;
 
@@ -204,9 +203,11 @@ public class TrcCardinalConverter<D>
 
             if (data != null)
             {
-                if (Math.abs(data.value - prevData.get(i).value) > (cardinalRangeHighs[i] - cardinalRangeLows[i])/2.0)
+                double prevValue = prevData.get(i).value;
+
+                if (Math.abs(data.value - prevValue) > (cardinalRangeHighs[i] - cardinalRangeLows[i])/2.0)
                 {
-                    if (data.value > prevData.get(i).value)
+                    if (data.value > prevValue)
                     {
                         numCrossovers[i]--;
                     }

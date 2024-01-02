@@ -25,7 +25,6 @@ package TrcCommonLib.trclib;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -114,7 +113,7 @@ public abstract class TrcPriorityIndicator<T>
     protected final TrcDbgTrace tracer;
     protected final String instanceName;
     private final TrcTaskMgr.TaskObject indicatorTaskObj;
-    private List<PatternState> patternPriorities = null;
+    private ArrayList<PatternState> patternPriorities = null;
     private boolean taskEnabled = false;
     private double nextTaskRunTime;
 
@@ -215,20 +214,22 @@ public abstract class TrcPriorityIndicator<T>
             index, pattern, enabled, onDuration, offDuration);
         if (index != -1)
         {
-            patternPriorities.get(index).enabled = enabled;
+            PatternState patternState = patternPriorities.get(index);
+
+            patternState.enabled = enabled;
             if (enabled)
             {
-                patternPriorities.get(index).on = true;
-                patternPriorities.get(index).onDuration = onDuration;
-                patternPriorities.get(index).offDuration = onDuration > 0.0? offDuration: 0.0;
-                patternPriorities.get(index).expiredTime = onDuration > 0.0? TrcTimer.getCurrentTime() + onDuration: 0.0;
+                patternState.on = true;
+                patternState.onDuration = onDuration;
+                patternState.offDuration = onDuration > 0.0? offDuration: 0.0;
+                patternState.expiredTime = onDuration > 0.0? TrcTimer.getCurrentTime() + onDuration: 0.0;
             }
             else
             {
-                patternPriorities.get(index).on = false;
-                patternPriorities.get(index).onDuration = 0.0;
-                patternPriorities.get(index).offDuration = 0.0;
-                patternPriorities.get(index).expiredTime = 0.0;
+                patternState.on = false;
+                patternState.onDuration = 0.0;
+                patternState.offDuration = 0.0;
+                patternState.expiredTime = 0.0;
             }
         }
     }   //setPatternState
@@ -389,13 +390,13 @@ public abstract class TrcPriorityIndicator<T>
             instanceName, "priorityList=" + (priorities == null ? "null" : Arrays.toString(priorities)));
         if (priorities != null)
         {
-            List<PatternState> oldPriorities = patternPriorities;
+            ArrayList<PatternState> oldPriorities = patternPriorities;
             patternPriorities = new ArrayList<>();
 
             namedPatternMap.clear();
-            for (int i = 0; i < priorities.length; i++)
+            for (T priority : priorities)
             {
-                PatternState patternState = new PatternState(priorities[i]);
+                PatternState patternState = new PatternState(priority);
                 patternPriorities.add(patternState);
                 namedPatternMap.put(patternState.pattern.toString(), patternState.pattern);
             }
