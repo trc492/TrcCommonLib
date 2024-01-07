@@ -246,6 +246,8 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
 
     private TrcPidController xTippingPidCtrl = null;
     private TrcPidController yTippingPidCtrl = null;
+    private double xTippingTolerance = 0.0;
+    private double yTippingTolerance = 0.0;
     private boolean antiTippingEnabled = false;
     private Odometry referenceOdometry = null;
     private boolean synchronizeOdometries = false;
@@ -980,33 +982,40 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     /**
      * This method enables anti-tipping drive.
      *
-     * @param xTippingPidParams specifies the anti-tipping PID controller parameters for the X direction, null for
+     * @param xTippingPidCoeffs specifies the anti-tipping PID controller coefficients for the X direction, null for
      *        non-holonomic drive base.
-     * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
+     * @param xTolerance specifies the X tipping tolerance.
+     * @param xPidInput specifies the X PidInput provider.
+     * @param yTippingPidCoeffs specifies the anti-tipping PID controller coefficients for the Y direction.
+     * @param yTolerance specifies the Y tipping tolerance.
+     * @param yPidInput specifies the Y PidInput provider.
      */
     public void enableAntiTipping(
-        TrcPidController.PidParameters xTippingPidParams, TrcPidController.PidParameters yTippingPidParams)
+        TrcPidController.PidCoefficients xTippingPidCoeffs, double xTolerance, TrcPidController.PidInput xPidInput,
+        TrcPidController.PidCoefficients yTippingPidCoeffs, double yTolerance, TrcPidController.PidInput yPidInput)
     {
-        if (yTippingPidParams == null || yTippingPidParams.pidInput == null)
+        if (yTippingPidCoeffs == null || yPidInput == null)
         {
             throw new IllegalArgumentException("yTippingPidParams and yPidInput must not be null.");
         }
 
-        if (xTippingPidParams != null)
+        if (xTippingPidCoeffs != null)
         {
-            if (xTippingPidParams.pidInput == null)
+            if (xPidInput == null)
             {
                 throw new IllegalArgumentException("xPidInput must not be null.");
             }
 
-            xTippingPidCtrl = new TrcPidController("xAntiTippingPidCtrl", xTippingPidParams);
+            xTippingPidCtrl = new TrcPidController("xAntiTippingPidCtrl", xTippingPidCoeffs, xPidInput);
             xTippingPidCtrl.setAbsoluteSetPoint(true);
-            xTippingPidCtrl.setTarget(xTippingPidParams.pidInput.get());
+            xTippingPidCtrl.setTarget(xPidInput.get());
+            xTippingTolerance = xTolerance;
         }
 
-        yTippingPidCtrl = new TrcPidController("yAntiTippingPidCtrl", yTippingPidParams);
+        yTippingPidCtrl = new TrcPidController("yAntiTippingPidCtrl", yTippingPidCoeffs, yPidInput);
         yTippingPidCtrl.setAbsoluteSetPoint(true);
-        yTippingPidCtrl.setTarget(yTippingPidParams.pidInput.get());
+        yTippingPidCtrl.setTarget(yPidInput.get());
+        yTippingTolerance = yTolerance;
 
         antiTippingEnabled = true;
     }   //enableAntiTipping
@@ -1014,12 +1023,14 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     /**
      * This method enables anti-tipping drive.
      *
-     * @param yTippingPidParams specifies the anti-tipping PID controller parameters for the Y direction.
+     * @param yTippingPidCoeffs specifies the anti-tipping PID controller coefficients for the Y direction.
+     * @param yTolerance specifies the Y tipping tolerance.
+     * @param yPidInput specifies the Y PidInput provider.
      */
     public void enableAntiTipping(
-        TrcPidController.PidParameters yTippingPidParams)
+        TrcPidController.PidCoefficients yTippingPidCoeffs, double yTolerance, TrcPidController.PidInput yPidInput)
     {
-        enableAntiTipping(null, yTippingPidParams);
+        enableAntiTipping(null, 0.0, null, yTippingPidCoeffs, yTolerance, yPidInput);
     }   //enableAntiTipping
 
     /**
@@ -1052,9 +1063,10 @@ public abstract class TrcDriveBase implements TrcExclusiveSubsystem
     {
         double power;
         TrcPidController tippingPidCtrl = xTippingControl? xTippingPidCtrl: yTippingPidCtrl;
+        double tolerance = xTippingControl? xTippingTolerance: yTippingTolerance;
 
         power = tippingPidCtrl.getOutput();
-        if (Math.abs(tippingPidCtrl.getError()) <= tippingPidCtrl.getPidParameters().tolerance)
+        if (Math.abs(tippingPidCtrl.getError()) <= tolerance)
         {
             power = 0.0;
         }

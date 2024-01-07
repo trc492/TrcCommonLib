@@ -40,47 +40,16 @@ public class TrcCascadePidController extends TrcPidController
      *
      * @param instanceName specifies the instance name.
      * @param primaryPidCoefficients specifies the PID coefficients of the primary PID controller.
-     * @param primaryTolerance specifies the target tolerance of the primary PID controller.
-     * @param primarySettlingTime specifies the target settling time of the primary PID controller.
      * @param secondaryPidCoefficients specifies the PID coefficients of the secondary PID controller.
-     * @param secondaryTolerance specifies the target tolerance of the secondary PID controller.
-     * @param secondarySettlingTime specifies the target settling time of the secondary PID controller.
      * @param primaryInput specifies the supplier of the primary PID input.
      * @param secondaryInput specifies the supplier of the secondary PID input.
      */
     public TrcCascadePidController(
-        String instanceName,
-        PidCoefficients primaryPidCoefficients, double primaryTolerance, double primarySettlingTime,
-        PidCoefficients secondaryPidCoefficients, double secondaryTolerance, double secondarySettlingTime,
+        String instanceName, PidCoefficients primaryPidCoefficients, PidCoefficients secondaryPidCoefficients,
         PidInput primaryInput, PidInput secondaryInput)
     {
-        super(instanceName + ".primary", primaryPidCoefficients, primaryTolerance, primarySettlingTime, primaryInput);
-        secondaryCtrl = new TrcPidController(
-            instanceName + ".secondary", secondaryPidCoefficients, secondaryTolerance, secondarySettlingTime,
-            secondaryInput);
-    }   //TrcCascadePidController
-
-    /**
-     * Constructor: Create an instance of the object.
-     *
-     * @param instanceName specifies the instance name.
-     * @param primaryPidCoefficients specifies the PID coefficients of the primary PID controller.
-     * @param primaryTolerance specifies the target tolerance of the primary PID controller.
-     * @param secondaryPidCoefficients specifies the PID coefficients of the secondary PID controller.
-     * @param secondaryTolerance specifies the target tolerance of the secondary PID controller.
-     * @param primaryInput specifies the supplier of the primary PID input.
-     * @param secondaryInput specifies the supplier of the secondary PID input.
-     */
-    public TrcCascadePidController(
-        String instanceName,
-        PidCoefficients primaryPidCoefficients, double primaryTolerance,
-        PidCoefficients secondaryPidCoefficients, double secondaryTolerance,
-        PidInput primaryInput, PidInput secondaryInput)
-    {
-        this(instanceName,
-             primaryPidCoefficients, primaryTolerance, DEF_SETTLING_TIME,
-             secondaryPidCoefficients, secondaryTolerance, DEF_SETTLING_TIME,
-             primaryInput, secondaryInput);
+        super(instanceName + ".primary", primaryPidCoefficients, primaryInput);
+        secondaryCtrl = new TrcPidController(instanceName + ".secondary", secondaryPidCoefficients, secondaryInput);
     }   //TrcCascadePidController
 
     /**

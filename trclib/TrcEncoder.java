@@ -45,7 +45,7 @@ public interface TrcEncoder
      *
      * @return encoder position adjusted by scale and offset.
      */
-    double getPosition();
+    double getScaledPosition();
 
     /**
      * This method reverses the direction of the encoder.

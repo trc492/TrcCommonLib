@@ -59,9 +59,10 @@ public class TrcHolonomicPurePursuitDriveV2
     private boolean tracePidInfo = false;
     private boolean verbosePidInfo = false;
     private TrcRobotBattery battery = null;
-    private volatile double velTolerance;
     private volatile double posTolerance;   // Volatile so it can be changed at runtime
     private volatile double proximityRadius;// Volatile so it can be changed at runtime
+    private double turnTolerance;
+    private volatile double velTolerance;
     private TrcPath path;
     private int pathIndex = 1;
     private TrcEvent onFinishedEvent;
@@ -104,14 +105,13 @@ public class TrcHolonomicPurePursuitDriveV2
         this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.accelFF = accelFF;
-        this.velTolerance = velTolerance;
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+        this.turnTolerance = turnTolerance;
+        this.velTolerance = velTolerance;
 
-        this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, turnTolerance,
-            driveBase::getHeading);
-        this.velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, velTolerance,
-            this::getVelocityInput);
+        this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, driveBase::getHeading);
+        this.velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, this::getVelocityInput);
 
         turnPidCtrl.setAbsoluteSetPoint(true);
         velPidCtrl.setAbsoluteSetPoint(true);
@@ -137,7 +137,7 @@ public class TrcHolonomicPurePursuitDriveV2
         double velTolerance, TrcPidController.PidCoefficients velPidCoeff, double accelFF)
     {
         this(instanceName, driveBase, proximityRadius, posTolerance, 180.0, velTolerance,
-             new TrcPidController.PidCoefficients(0.0), velPidCoeff, accelFF);
+             new TrcPidController.PidCoefficients(0.0, 0.0, 0.0), velPidCoeff, accelFF);
     }   //TrcHolonomicPurePursuitDriveV2
 
     /**
@@ -186,13 +186,13 @@ public class TrcHolonomicPurePursuitDriveV2
     }   //setTraceLevel
 
     /**
-     * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
+     * Set the turn tolerance to end the path. Units need to be consistent.
      *
-     * @param turnTolerance The turn tolerance, in degrees. Should be positive.
+     * @param turnTolerance The angle error at which the controller will stop itself.
      */
     public void setTurnTolerance(double turnTolerance)
     {
-        turnPidCtrl.setTargetTolerance(turnTolerance);
+        this.turnTolerance = turnTolerance;
     }   //setTurnTolerance
 
     /**
@@ -476,7 +476,7 @@ public class TrcHolonomicPurePursuitDriveV2
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = pose.distanceTo(path.getLastWaypoint().getPositionPose()) <= posTolerance;
-        boolean headingOnTarget = turnPidCtrl.isOnTarget();
+        boolean headingOnTarget = turnPidCtrl.isOnTarget(turnTolerance);
         boolean velOnTarget = velocity <= velTolerance;
         if (timedOut || (posOnTarget && headingOnTarget && velOnTarget))
         {

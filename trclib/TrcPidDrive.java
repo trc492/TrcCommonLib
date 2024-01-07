@@ -72,6 +72,9 @@ public class TrcPidDrive
     private final TrcPidController xPidCtrl;
     private final TrcPidController yPidCtrl;
     private final TrcPidController turnPidCtrl;
+    private double xTolerance;
+    private double yTolerance;
+    private double turnTolerance;
     private final TrcTaskMgr.TaskObject driveTaskObj;
     private final TrcTaskMgr.TaskObject stopTaskObj;
     // Tracer config.
@@ -109,21 +112,32 @@ public class TrcPidDrive
      *
      * @param instanceName specifies the instance name.
      * @param driveBase specifies the drive base object.
-     * @param xPidParams specifies the parameters of the X PID controller.
-     * @param yPidParams specifies the parameters of the Y PID controller.
-     * @param turnPidParams specifies the parameters of the turn PID controller.
+     * @param xPidCoeffs specifies the PID coefficients of the X PID controller.
+     * @param xTolerance specifies the X PID tolerance.
+     * @param xPidInput specifies the method to call to get X input.
+     * @param yPidCoeffs specifies the PID coefficients of the Y PID controller.
+     * @param yTolerance specifies the Y PID tolerance.
+     * @param yPidInput specifies the method to call to get Y input.
+     * @param turnPidCoeffs specifies the PID coefficients of the turn PID controller.
+     * @param turnTolerance specifies the Turn PID tolerance.
+     * @param turnPidInput specifies the method to call to get turn input.
      */
     public TrcPidDrive(
-        String instanceName, TrcDriveBase driveBase, TrcPidController.PidParameters xPidParams,
-        TrcPidController.PidParameters yPidParams, TrcPidController.PidParameters turnPidParams)
+        String instanceName, TrcDriveBase driveBase,
+        TrcPidController.PidCoefficients xPidCoeffs, double xTolerance, TrcPidController.PidInput xPidInput,
+        TrcPidController.PidCoefficients yPidCoeffs, double yTolerance, TrcPidController.PidInput yPidInput,
+        TrcPidController.PidCoefficients turnPidCoeffs, double turnTolerance, TrcPidController.PidInput turnPidInput)
     {
         tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.driveBase = driveBase;
-        this.xPidCtrl = xPidParams != null?
-            new TrcPidController(instanceName + ".xPidCtrl", xPidParams): null;
-        this.yPidCtrl = new TrcPidController(instanceName + ".yPidCtrl", yPidParams);
-        this.turnPidCtrl = new TrcPidController(instanceName + "turnPidCtrl", turnPidParams);
+        this.xPidCtrl = xPidCoeffs != null?
+            new TrcPidController(instanceName + ".xPidCtrl", xPidCoeffs, xPidInput): null;
+        this.yPidCtrl = new TrcPidController(instanceName + ".yPidCtrl", yPidCoeffs, yPidInput);
+        this.turnPidCtrl = new TrcPidController(instanceName + "turnPidCtrl", turnPidCoeffs, turnPidInput);
+        this.xTolerance = xTolerance;
+        this.yTolerance = yTolerance;
+        this.turnTolerance = turnTolerance;
         resetAbsoluteTargetPose();
         driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
         stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);
@@ -132,6 +146,27 @@ public class TrcPidDrive
         {
             warpSpace = new TrcWarpSpace(instanceName, 0.0, 360.0);
         }
+    }   //TrcPidDrive
+
+    /**
+     * Constructor: Create an instance of the object.
+     *
+     * @param instanceName specifies the instance name.
+     * @param driveBase specifies the drive base object.
+     * @param yPidCoeffs specifies the PID coefficients of the Y PID controller.
+     * @param yTolerance specifies the Y PID tolerance.
+     * @param yPidInput specifies the method to call to get Y input.
+     * @param turnPidCoeffs specifies the PID coefficients of the turn PID controller.
+     * @param turnTolerance specifies the Turn PID tolerance.
+     * @param turnPidInput specifies the method to call to get turn input.
+     */
+    public TrcPidDrive(
+        String instanceName, TrcDriveBase driveBase,
+        TrcPidController.PidCoefficients yPidCoeffs, double yTolerance, TrcPidController.PidInput yPidInput,
+        TrcPidController.PidCoefficients turnPidCoeffs, double turnTolerance, TrcPidController.PidInput turnPidInput)
+    {
+        this(instanceName, driveBase, null, 0.0, null,
+             yPidCoeffs, yTolerance, yPidInput, turnPidCoeffs, turnTolerance, turnPidInput);
     }   //TrcPidDrive
 
     /**
@@ -144,6 +179,31 @@ public class TrcPidDrive
     {
         return instanceName;
     }   //toString
+
+    /**
+     * This method sets the PID tolerances for X, Y and Turn.
+     *
+     * @param xTolerance specifies X PID tolerance.
+     * @param yTolerance specifies Y PID tolerance.
+     * @param turnTolerance specifies Turn PID tolerance.
+     */
+    public synchronized void setPidTolerances(double xTolerance, double yTolerance, double turnTolerance)
+    {
+        this.xTolerance = xTolerance;
+        this.yTolerance = yTolerance;
+        this.turnTolerance = turnTolerance;
+    }   //setPidTolerances
+
+    /**
+     * This method sets the PID tolerances for X, Y and Turn.
+     *
+     * @param yTolerance specifies Y PID tolerance.
+     * @param turnTolerance specifies Turn PID tolerance.
+     */
+    public synchronized void setPidTolerances(double yTolerance, double turnTolerance)
+    {
+        setPidTolerances(0.0, yTolerance, turnTolerance);
+    }   //setPidTolerances
 
     /**
      * This method enables/disables absolute target mode. This class always keep track of the absolute position of
@@ -1310,9 +1370,9 @@ public class TrcPidDrive
 
         double currTime = TrcTimer.getCurrentTime();
         boolean expired = currTime >= expiredTime;
-        boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget();
-        boolean yOnTarget = yPidCtrl == null || yPidCtrl.isOnTarget();
-        boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget();
+        boolean xOnTarget = xPidCtrl == null || xPidCtrl.isOnTarget(xTolerance);
+        boolean yOnTarget = yPidCtrl == null || yPidCtrl.isOnTarget(yTolerance);
+        boolean turnOnTarget = turnPidCtrl == null || turnPidCtrl.isOnTarget(turnTolerance);
         boolean onTarget = turnOnTarget && (turnOnly || xOnTarget && yOnTarget);
         boolean stalled = (xPidCtrl == null || xPidCtrl.isStalled()) &&
                           (yPidCtrl == null || yPidCtrl.isStalled()) &&

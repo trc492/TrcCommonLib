@@ -84,8 +84,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         ControlMode currControlMode = ControlMode.Power;
         ControlMode setToControlMode = ControlMode.Power;
-        // If pidCtrl is not null, the operation is a software PID control using this PID controller.
-        TrcPidController pidCtrl = null;
+        // If softwarePidCtrl is not null, the operation is a software PID control using this PID controller.
+        TrcPidController softwarePidCtrl = null;
+        double softwarePidTolerance = 0.0;
         PowerCompensation powerComp = null;
         // motorValue can be power, velocity, position or current depending on controlMode.
         double motorValue = 0.0;
@@ -159,10 +160,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private Double controllerCurrent;
     // Software PID controllers.
     private TrcPidController velPidCtrl = null;
+    private double velTolerance = 0.0;
     private PowerCompensation velPowerComp = null;
     private TrcPidController posPidCtrl = null;
+    private double posTolerance = 0.0;
     private PowerCompensation posPowerComp = null;
     private TrcPidController currentPidCtrl = null;
+    private double currentTolerance = 0.0;
     private PowerCompensation currentPowerComp = null;
     private Double closeLoopControlTarget = null;
     // Tracer config.
@@ -744,7 +748,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         if (encoder != null)
         {
             // This is scaled position (i.e. encoder is responsible for scaling).
-            currPos = encoder.getPosition();
+            currPos = encoder.getScaledPosition();
         }
         else
         {
@@ -817,7 +821,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             if (softwarePidEnabled)
             {
-                target = taskParams.pidCtrl != null? taskParams.pidCtrl.getTarget(): 0.0;
+                target = taskParams.softwarePidCtrl != null? taskParams.softwarePidCtrl.getTarget(): 0.0;
             }
             else
             {
@@ -862,6 +866,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //pidCtrlToUse
 
     /**
+     * This method checks which PID error tolerance to use for close-loop control.
+     *
+     * @param controlMode specifies the control mode.
+     * @param useSoftwarePid specifies true to use software PID control, false otherwise.
+     * @return the PID error tolerance to used for close-loop control.
+     */
+    private double pidToleranceToUse(ControlMode controlMode, boolean useSoftwarePid)
+    {
+        return !useSoftwarePid? 0.0:
+               controlMode == ControlMode.Velocity? velTolerance:
+               controlMode == ControlMode.Position? posTolerance:
+               controlMode == ControlMode.Current? currentTolerance: null;
+    }   //pidToleranceToUse
+
+    /**
      * This method checks which PID Power Compensation callback to use for close-loop control.
      *
      * @param controlMode specifies the control mode.
@@ -896,7 +915,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 controllerCurrent = null;
             }
             taskParams.currControlMode = controlMode;
-            taskParams.pidCtrl = pidCtrlToUse(controlMode, useSoftwarePid);
+            taskParams.softwarePidCtrl = pidCtrlToUse(controlMode, useSoftwarePid);
+            taskParams.softwarePidTolerance = pidToleranceToUse(controlMode, useSoftwarePid);
             taskParams.powerComp = powerCompToUse(controlMode, useSoftwarePid);
         }
     }   //setMotorControlMode
@@ -1263,7 +1283,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         synchronized (taskParams)
         {
             taskParams.setToControlMode = controlMode;
-            taskParams.pidCtrl = pidCtrlToUse(controlMode, softwarePidEnabled);
+            taskParams.softwarePidCtrl = pidCtrlToUse(controlMode, softwarePidEnabled);
+            taskParams.softwarePidTolerance = pidToleranceToUse(controlMode, softwarePidEnabled);
             taskParams.powerComp = powerCompToUse(controlMode, softwarePidEnabled);
             taskParams.motorValue = motorValue;
             taskParams.duration = duration;
@@ -1912,7 +1933,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                velPidCtrl = new TrcPidController(instanceName + ".velPidCtrl", pidCoeff, 1.0, this::getVelocity);
+                velPidCtrl = new TrcPidController(instanceName + ".velPidCtrl", pidCoeff, this::getVelocity);
                 // Set to absolute setpoint because velocity PID control is generally absolute.
                 velPidCtrl.setAbsoluteSetPoint(true);
             }
@@ -1955,61 +1976,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setVelocityPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's velocity PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setVelocityPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (velPidCtrl != null)
-            {
-                velPidCtrl.setTargetTolerance(tolerance);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorVelocityPidTolerance(tolerance);
-        }
-    }   //setVelocityPidTolerance
-
-    /**
-     * This method sets the power compensation callback of the motor's velocity PID controller.
-     *
-     * @param powerComp specifies the power compensation callback.
-     */
-    public void setVelocityPidPowerComp(PowerCompensation powerComp)
-    {
-        if (softwarePidEnabled)
-        {
-            velPowerComp = powerComp;
-        }
-    }   //setVelocityPidPowerComp
-
-    /**
-     * This method sets the PID parameters of the motor's velocity PID controller. Note that PID coefficients are
-     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
-     * the appropriate PID coefficients accordingly.
-     *
-     * @param kP specifies the Kp coefficient.
-     * @param kI specifies the Ki coefficient.
-     * @param kD specifies the Kd coefficient.
-     * @param kF specifies the Kf coefficient.
-     * @param iZone specifies IZone, can be 0.0 if not provided.
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setVelocityPidParameters(double kP, double kI, double kD, double kF, double iZone, double tolerance)
-    {
-        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
-        setVelocityPidTolerance(tolerance);
-    }   // setVelocityPidParameters
-
-    /**
      * This method returns the PID coefficients of the motor's velocity PID controller.
      *
      * @return PID coefficients of the motor's velocity PID controller.
@@ -2038,19 +2004,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getVelocityPidCoefficients
 
     /**
-     * This method checks if velocity PID control has reached target.
+     * This method sets the PID tolerance of the motor's velocity PID controller.
      *
-     * @return true if velocity has reached target, false otherwise.
+     * @param tolerance specifies the PID tolerance.
      */
-    public boolean getVelocityOnTarget()
+    public void setVelocityPidTolerance(double tolerance)
     {
-        boolean onTarget;
-
         if (softwarePidEnabled)
         {
             if (velPidCtrl != null)
             {
-                onTarget = velPidCtrl.isOnTarget();
+                velTolerance = tolerance;
             }
             else
             {
@@ -2059,11 +2023,54 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorVelocityOnTarget();
+            setMotorVelocityPidTolerance(tolerance);
+            velTolerance = tolerance;
+        }
+    }   //setVelocityPidTolerance
+
+    /**
+     * This method checks if velocity PID control has reached target.
+     *
+     * @param tolerance specifies the PID tolerance.
+     * @return true if velocity has reached target, false otherwise.
+     */
+    public boolean getVelocityOnTarget(double tolerance)
+    {
+        boolean onTarget;
+
+        if (softwarePidEnabled)
+        {
+            if (velPidCtrl != null)
+            {
+                onTarget = velPidCtrl.isOnTarget(tolerance);
+                velTolerance = tolerance;
+            }
+            else
+            {
+                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
+            }
+        }
+        else
+        {
+            onTarget = getMotorVelocityOnTarget(tolerance);
+            velTolerance = tolerance;
         }
 
         return onTarget;
     }   //getVelocityOnTarget
+
+    /**
+     * This method sets the power compensation callback of the motor's velocity PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setVelocityPidPowerComp(PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            velPowerComp = powerComp;
+        }
+    }   //setVelocityPidPowerComp
 
     /**
      * This method returns the software velocity PID controller if one was created by enabling software PID control.
@@ -2095,8 +2102,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                posPidCtrl = new TrcPidController(
-                    instanceName + ".posPidCtrl", pidCoeff, 1.0, this::getPosition);
+                posPidCtrl = new TrcPidController(instanceName + ".posPidCtrl", pidCoeff, this::getPosition);
                 // Set to absolute setpoint because position PID control is generally absolute.
                 posPidCtrl.setAbsoluteSetPoint(true);
             }
@@ -2139,61 +2145,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setPositionPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's position PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setPositionPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (posPidCtrl != null)
-            {
-                posPidCtrl.setTargetTolerance(tolerance);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Position PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorPositionPidTolerance(tolerance);
-        }
-    }   //setPositionPidTolerance
-
-    /**
-     * This method sets the power compensation callback of the motor's position PID controller.
-     *
-     * @param powerComp specifies the power compensation callback.
-     */
-    public void setPositionPidPowerComp(PowerCompensation powerComp)
-    {
-        if (softwarePidEnabled)
-        {
-            posPowerComp = powerComp;
-        }
-    }   //setPositionPidPowerComp
-
-    /**
-     * This method sets the PID parameters of the motor's position PID controller. Note that PID coefficients are
-     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
-     * the appropriate PID coefficients accordingly.
-     *
-     * @param kP specifies the Kp coefficient.
-     * @param kI specifies the Ki coefficient.
-     * @param kD specifies the Kd coefficient.
-     * @param kF specifies the Kf coefficient.
-     * @param iZone specifies IZone, can be 0.0 if not provided.
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setPositionPidParameters(double kP, double kI, double kD, double kF, double iZone, double tolerance)
-    {
-        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
-        setPositionPidTolerance(tolerance);
-    }   // setPositionPidParameters
-
-    /**
      * This method returns the PID coefficients of the motor's position PID controller.
      *
      * @return PID coefficients of the motor's position PID controller.
@@ -2222,19 +2173,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getPositionPidCoefficients
 
     /**
-     * This method checks if position PID control has reached target.
+     * This method sets the PID tolerance of the motor's position PID controller.
      *
-     * @return true if position has reached target, false otherwise.
+     * @param tolerance specifies the PID tolerance.
      */
-    public boolean getPositionOnTarget()
+    public void setPositionPidTolerance(double tolerance)
     {
-        boolean onTarget;
-
         if (softwarePidEnabled)
         {
             if (posPidCtrl != null)
             {
-                onTarget = posPidCtrl.isOnTarget();
+                posTolerance = tolerance;
             }
             else
             {
@@ -2243,11 +2192,54 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorPositionOnTarget();
+            setMotorPositionPidTolerance(tolerance);
+            posTolerance = tolerance;
+        }
+    }   //setPositionPidTolerance
+
+    /**
+     * This method checks if position PID control has reached target.
+     *
+     * @param tolerance specifies the PID tolerance.
+     * @return true if position has reached target, false otherwise.
+     */
+    public boolean getPositionOnTarget(double tolerance)
+    {
+        boolean onTarget;
+
+        if (softwarePidEnabled)
+        {
+            if (posPidCtrl != null)
+            {
+                onTarget = posPidCtrl.isOnTarget(tolerance);
+                posTolerance = tolerance;
+            }
+            else
+            {
+                throw new IllegalStateException("Software Position PID coefficients have not been set.");
+            }
+        }
+        else
+        {
+            onTarget = getMotorPositionOnTarget(tolerance);
+            posTolerance = tolerance;
         }
 
         return onTarget;
     }   //getPositionOnTarget
+
+    /**
+     * This method sets the power compensation callback of the motor's position PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setPositionPidPowerComp(PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            posPowerComp = powerComp;
+        }
+    }   //setPositionPidPowerComp
 
     /**
      * This method returns the software position PID controller if one was created by enabling software PID control.
@@ -2279,8 +2271,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                currentPidCtrl = new TrcPidController(
-                    instanceName + ".currentPidCtrl", pidCoeff, 1.0, this::getCurrent);
+                currentPidCtrl = new TrcPidController(instanceName + ".currentPidCtrl", pidCoeff, this::getCurrent);
                 // Set to absolute setpoint because current PID control is generally absolute.
                 currentPidCtrl.setAbsoluteSetPoint(true);
             }
@@ -2323,61 +2314,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setCurrentPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's current PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setCurrentPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (currentPidCtrl != null)
-            {
-                currentPidCtrl.setTargetTolerance(tolerance);
-            }
-            else
-            {
-                throw new IllegalStateException("Software Current PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorCurrentPidTolerance(tolerance);
-        }
-    }   //setCurrentPidTolerance
-
-    /**
-     * This method sets the power compensation callback of the motor's current PID controller.
-     *
-     * @param powerComp specifies the power compensation callback.
-     */
-    public void setCurrentPidPowerComp(PowerCompensation powerComp)
-    {
-        if (softwarePidEnabled)
-        {
-            currentPowerComp = powerComp;
-        }
-    }   //setCurrentPidPowerComp
-
-    /**
-     * This method sets the PID parameters of the motor's current PID controller. Note that PID coefficients are
-     * different for software PID and controller built-in PID. If you enable/disable software PID, you need to set
-     * the appropriate PID coefficients accordingly.
-     *
-     * @param kP specifies the Kp coefficient.
-     * @param kI specifies the Ki coefficient.
-     * @param kD specifies the Kd coefficient.
-     * @param kF specifies the Kf coefficient.
-     * @param iZone specifies IZone, can be 0.0 if not provided.
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setCurrentPidParameters(double kP, double kI, double kD, double kF, double iZone, double tolerance)
-    {
-        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
-        setCurrentPidTolerance(tolerance);
-    }   // setCurrentPidParameters
-
-    /**
      * This method returns the PID coefficients of the motor's current PID controller.
      *
      * @return PID coefficients of the motor's current PID controller.
@@ -2406,19 +2342,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getCurrentPidCoefficients
 
     /**
-     * This method checks if current PID control has reached target.
+     * This method sets the PID tolerance of the motor's current PID controller.
      *
-     * @return true if current has reached target, false otherwise.
+     * @param tolerance specifies the PID tolerance.
      */
-    public boolean getCurrentOnTarget()
+    public void setCurrentPidTolerance(double tolerance)
     {
-        boolean onTarget;
-
         if (softwarePidEnabled)
         {
             if (currentPidCtrl != null)
             {
-                onTarget = currentPidCtrl.isOnTarget();
+                currentTolerance = tolerance;
             }
             else
             {
@@ -2427,11 +2361,54 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorCurrentOnTarget();
+            setMotorCurrentPidTolerance(tolerance);
+            currentTolerance = tolerance;
+        }
+    }   //setCurrentPidTolerance
+
+    /**
+     * This method checks if current PID control has reached target.
+     *
+     * @param tolerance specifies the PID tolerance.
+     * @return true if current has reached target, false otherwise.
+     */
+    public boolean getCurrentOnTarget(double tolerance)
+    {
+        boolean onTarget;
+
+        if (softwarePidEnabled)
+        {
+            if (currentPidCtrl != null)
+            {
+                onTarget = currentPidCtrl.isOnTarget(tolerance);
+                currentTolerance = tolerance;
+            }
+            else
+            {
+                throw new IllegalStateException("Software Current PID coefficients have not been set.");
+            }
+        }
+        else
+        {
+            onTarget = getMotorCurrentOnTarget(tolerance);
+            currentTolerance = tolerance;
         }
 
         return onTarget;
     }   //getCurrentOnTarget
+
+    /**
+     * This method sets the power compensation callback of the motor's current PID controller.
+     *
+     * @param powerComp specifies the power compensation callback.
+     */
+    public void setCurrentPidPowerComp(PowerCompensation powerComp)
+    {
+        if (softwarePidEnabled)
+        {
+            currentPowerComp = powerComp;
+        }
+    }   //setCurrentPidPowerComp
 
     /**
      * This method returns the software current PID controller if one was created by enabling software PID control.
@@ -2625,23 +2602,24 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     {
                         // Doing software close loop PID control or monitoring controller PID control.
                         onTarget =
-                            taskParams.pidCtrl != null? taskParams.pidCtrl.isOnTarget():    // Software PID control
-                                taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget():
-                                taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget():
-                                taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget();
-                        stalled = taskParams.pidCtrl != null && taskParams.pidCtrl.isStalled();
+                            taskParams.softwarePidCtrl != null?
+                                taskParams.softwarePidCtrl.isOnTarget(taskParams.softwarePidTolerance):
+                            taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget(velTolerance):
+                            taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget(posTolerance):
+                            taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget(currentTolerance);
+                        stalled = taskParams.softwarePidCtrl != null && taskParams.softwarePidCtrl.isStalled();
                         expired =           // Only for software PID control.
-                            taskParams.pidCtrl != null && taskParams.timeout != 0.0 &&
+                            taskParams.softwarePidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
-                            taskParams.pidCtrl != null && !taskParams.holdTarget && (onTarget || expired || stalled);
+                            taskParams.softwarePidCtrl != null && !taskParams.holdTarget && (onTarget || expired || stalled);
 
                         if (doStop)
                         {
                             // We are stopping motor but control mode is not Power, so don't overwrite it.
                             setControllerMotorPower(0.0, false);
                         }
-                        else if (taskParams.pidCtrl == null)
+                        else if (taskParams.softwarePidCtrl == null)
                         {
                             // Doing motor controller close loop PID control.
                             // If a power limit is set, adjust native motor PID control correspondingly.
@@ -2710,7 +2688,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             // Doing software PID control.
                             // We are either holding target or we are not yet onTarget or stalled or timed out,
                             // keep applying PID calculated power.
-                            double power = taskParams.pidCtrl.getOutput();
+                            double power = taskParams.softwarePidCtrl.getOutput();
 
                             if (taskParams.powerLimit != null)
                             {
@@ -2729,17 +2707,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                             tracer.traceDebug(
                                 instanceName, "onTarget=%s(%f/%f), expired=%s, stalled=%s, powerLimit=%s, power=%f",
-                                onTarget, getPosition(), taskParams.pidCtrl.getTarget(), expired, stalled,
+                                onTarget, getPosition(), taskParams.softwarePidCtrl.getTarget(), expired, stalled,
                                 taskParams.powerLimit, power);
                             if (tracePidInfo)
                             {
-                                taskParams.pidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                                taskParams.softwarePidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
                             }
                         }
 
                         if (onTarget || stalled || expired)
                         {
-                            taskParams.pidCtrl.endStallDetection();
+                            taskParams.softwarePidCtrl.endStallDetection();
                             completionEvent = taskParams.notifyEvent;
                             target = closeLoopControlTarget;
                             taskParams.notifyEvent = null;

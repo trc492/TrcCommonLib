@@ -86,6 +86,7 @@ public class TrcPurePursuitDrive
     private final TrcDriveBase driveBase;
     private volatile double proximityRadius;    // Volatile so it can be changed at runtime
     private volatile double posTolerance;       // Volatile so it can be changed at runtime
+    private volatile double turnTolerance;      // Volatile so it can be changed at runtime
     private final TrcPidController xPosPidCtrl, yPosPidCtrl, turnPidCtrl, velPidCtrl;
     private final TrcWarpSpace warpSpace;
     private final TrcTaskMgr.TaskObject driveTaskObj;
@@ -155,10 +156,8 @@ public class TrcPurePursuitDrive
         if (INVERTED_TARGET)
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
-                new TrcPidController(
-                    instanceName + ".xPosPid", xPosPidCoeff, posTolerance, this::getXPosition);
-            yPosPidCtrl = new TrcPidController(
-                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, this::getYPosition);
+                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, this::getXPosition);
+            yPosPidCtrl = new TrcPidController(instanceName + ".yPosPid", yPosPidCoeff, this::getYPosition);
             if (xPosPidCtrl != null)
             {
                 xPosPidCtrl.setAbsoluteSetPoint(true);
@@ -170,21 +169,19 @@ public class TrcPurePursuitDrive
         else
         {
             xPosPidCtrl = xPosPidCoeff == null ? null :
-                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, posTolerance, driveBase::getXPosition);
-            yPosPidCtrl = new TrcPidController(
-                instanceName + ".yPosPid", yPosPidCoeff, posTolerance, driveBase::getYPosition);
+                new TrcPidController(instanceName + ".xPosPid", xPosPidCoeff, driveBase::getXPosition);
+            yPosPidCtrl = new TrcPidController(instanceName + ".yPosPid", yPosPidCoeff, driveBase::getYPosition);
         }
 
-        turnPidCtrl = new TrcPidController(
-            instanceName + ".turnPid", turnPidCoeff, turnTolerance, driveBase::getHeading);
+        turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, driveBase::getHeading);
         turnPidCtrl.setAbsoluteSetPoint(true);
         turnPidCtrl.setNoOscillation(false);
         // We are not checking velocity being onTarget, so we don't need velocity tolerance.
-        velPidCtrl = new TrcPidController(
-            instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
+        velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, this::getVelocityInput);
         velPidCtrl.setAbsoluteSetPoint(true);
 
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+        this.turnTolerance = turnTolerance;
 
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
@@ -374,11 +371,6 @@ public class TrcPurePursuitDrive
 
         if (posTolerance != null)
         {
-            yPosPidCtrl.setTargetTolerance(posTolerance);
-            if (xPosPidCtrl != null)
-            {
-                xPosPidCtrl.setTargetTolerance(posTolerance);
-            }
             this.posTolerance = posTolerance;
         }
 
@@ -415,7 +407,7 @@ public class TrcPurePursuitDrive
      */
     public synchronized void setTurnTolerance(double turnTolerance)
     {
-        turnPidCtrl.setTargetTolerance(turnTolerance);
+        this.turnTolerance = turnTolerance;
     }   //setTurnTolerance
 
     /**
@@ -1044,8 +1036,9 @@ public class TrcPurePursuitDrive
 
         stalled = (xPosPidCtrl == null || xPosPidCtrl.isStalled()) &&
                   yPosPidCtrl.isStalled() && turnPidCtrl.isStalled();
-        boolean posOnTarget = (xPosPidCtrl == null || xPosPidCtrl.isOnTarget()) && yPosPidCtrl.isOnTarget();
-        boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget();
+        boolean posOnTarget =
+            (xPosPidCtrl == null || xPosPidCtrl.isOnTarget(posTolerance)) && yPosPidCtrl.isOnTarget(posTolerance);
+        boolean headingOnTarget = maintainHeading || turnPidCtrl.isOnTarget(turnTolerance);
 
         if (stalled || timedOut)
         {

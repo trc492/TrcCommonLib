@@ -291,13 +291,6 @@ public interface TrcMotorController
     void setMotorVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method sets the PID tolerance of the motor controller's velocity PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorVelocityPidTolerance(double tolerance);
-
-    /**
      * This method returns the PID coefficients of the motor controller's velocity PID controller.
      *
      * @return PID coefficients of the motor's veloicty PID controller.
@@ -305,11 +298,19 @@ public interface TrcMotorController
     TrcPidController.PidCoefficients getMotorVelocityPidCoefficients();
 
     /**
+     * This method sets the PID tolerance of the motor controller's velocity PID controller.
+     *
+     * @param tolerance specifies the PID tolerance to set.
+     */
+    void setMotorVelocityPidTolerance(double tolerance);
+
+    /**
      * This method checks if the motor is at the set velocity.
      *
+     * @param tolerance specifies the PID tolerance.
      * @return true if motor is on target, false otherwise.
      */
-    boolean getMotorVelocityOnTarget();
+    boolean getMotorVelocityOnTarget(double tolerance);
 
     /**
      * This method sets the PID coefficients of the motor controller's position PID controller.
@@ -319,13 +320,6 @@ public interface TrcMotorController
     void setMotorPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method sets the PID tolerance of the motor controller's position PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorPositionPidTolerance(double tolerance);
-
-    /**
      * This method returns the PID coefficients of the motor controller's position PID controller.
      *
      * @return PID coefficients of the motor's position PID controller.
@@ -333,11 +327,19 @@ public interface TrcMotorController
     TrcPidController.PidCoefficients getMotorPositionPidCoefficients();
 
     /**
+     * This method sets the PID tolerance of the motor controller's position PID controller.
+     *
+     * @param tolerance specifies the PID tolerance to set.
+     */
+    void setMotorPositionPidTolerance(double tolerance);
+
+    /**
      * This method checks if the motor is at the set position.
      *
+     * @param tolerance specifies the PID tolerance.
      * @return true if motor is on target, false otherwise.
      */
-    boolean getMotorPositionOnTarget();
+    boolean getMotorPositionOnTarget(double tolerance);
 
     /**
      * This method sets the PID coefficients of the motor controller's current PID controller.
@@ -347,13 +349,6 @@ public interface TrcMotorController
     void setMotorCurrentPidCoefficients(TrcPidController.PidCoefficients pidCoeff);
 
     /**
-     * This method sets the PID tolerance of the motor controller's current PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorCurrentPidTolerance(double tolerance);
-
-    /**
      * This method returns the PID coefficients of the motor controller's current PID controller.
      *
      * @return PID coefficients of the motor's current PID controller.
@@ -361,11 +356,19 @@ public interface TrcMotorController
     TrcPidController.PidCoefficients getMotorCurrentPidCoefficients();
 
     /**
+     * This method sets the PID tolerance of the motor controller's current PID controller.
+     *
+     * @param tolerance specifies the PID tolerance to set.
+     */
+    void setMotorCurrentPidTolerance(double tolerance);
+
+    /**
      * This method checks if the motor is at the set current.
      *
+     * @param tolerance specifies the PID tolerance.
      * @return true if motor is on target, false otherwise.
      */
-    boolean getMotorCurrentOnTarget();
+    boolean getMotorCurrentOnTarget(double tolerance);
 
     //
     // The following methods simulate features that the motor controller does not have support for. If the motor

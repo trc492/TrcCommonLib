@@ -90,6 +90,7 @@ public class TrcHolonomicPurePursuitDrive
     private TrcRobotBattery battery = null;
     private volatile double posTolerance; // Volatile so it can be changed at runtime
     private volatile double proximityRadius; // Volatile so it can be changed at runtime
+    private volatile double turnTolerance;
     private TrcPath path;
     private int pathIndex = 1;
     private double positionInput;
@@ -134,11 +135,11 @@ public class TrcHolonomicPurePursuitDrive
         this.instanceName = instanceName;
         warpSpace = new TrcWarpSpace(instanceName + ".warpSpace", 0.0, 360.0);
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
+        this.turnTolerance = turnTolerance;
 
-        this.posPidCtrl = new TrcPidController(instanceName + ".posPid", posPidCoeff, 0.0, this::getPositionInput);
-        this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, turnTolerance,
-            driveBase::getHeading);
-        this.velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, 0.0, this::getVelocityInput);
+        this.posPidCtrl = new TrcPidController(instanceName + ".posPid", posPidCoeff, this::getPositionInput);
+        this.turnPidCtrl = new TrcPidController(instanceName + ".turnPid", turnPidCoeff, driveBase::getHeading);
+        this.velPidCtrl = new TrcPidController(instanceName + ".velPid", velPidCoeff, this::getVelocityInput);
 
         posPidCtrl.setAbsoluteSetPoint(true);
         turnPidCtrl.setAbsoluteSetPoint(true);
@@ -255,16 +256,6 @@ public class TrcHolonomicPurePursuitDrive
     }   //setMaintainHeading
 
     /**
-     * Set the turn tolerance for the closed loop control on turning. Only applicable if not maintaining heading.
-     *
-     * @param turnTolerance The turn tolerance, in degrees. Should be positive.
-     */
-    public void setTurnTolerance(double turnTolerance)
-    {
-        turnPidCtrl.setTargetTolerance(turnTolerance);
-    }   //setTurnTolerance
-
-    /**
      * Configure the method of interpolating between waypoints. Methods ending with INV will favor the ending point.
      *
      * @param interpolationType The type of interpolation to use.
@@ -310,6 +301,16 @@ public class TrcHolonomicPurePursuitDrive
     {
         setPositionToleranceAndProximityRadius(posTolerance, proximityRadius);
     }   //setProximityRadius
+
+    /**
+     * Set the turn tolerance to end the path. Units need to be consistent.
+     *
+     * @param turnTolerance The angle error at which the controller will stop itself.
+     */
+    public void setTurnTolerance(double turnTolerance)
+    {
+        this.turnTolerance = turnTolerance;
+    }   //setTurnTolerance
 
     /**
      * Sets the pid coefficients for the position controller. This will work in the middle of an operation as well.
@@ -694,7 +695,7 @@ public class TrcHolonomicPurePursuitDrive
         // If we have timed out or finished, stop the operation.
         boolean timedOut = TrcTimer.getCurrentTime() >= timedOutTime;
         boolean posOnTarget = dist <= posTolerance;
-        boolean headingOnTarget = maintainHeading || (!maintainHeading && turnPidCtrl.isOnTarget());
+        boolean headingOnTarget = maintainHeading || (!maintainHeading && turnPidCtrl.isOnTarget(turnTolerance));
         if (timedOut || (pathIndex == path.getSize() - 1 && posOnTarget && headingOnTarget))
         {
             if (onFinishedEvent != null)
