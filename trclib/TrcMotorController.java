@@ -396,7 +396,8 @@ public interface TrcMotorController
      * natively. TrcMotor by default supports software follower list.
      *
      * @param motor specifies the motor to follow.
+     * @param inverted specifies true if this motor is inverted from the motor it is following, false otherwise.
      */
-    void follow(TrcMotor motor);
+    void follow(TrcMotor motor, boolean inverted);
 
 }   //interface TrcMotorController

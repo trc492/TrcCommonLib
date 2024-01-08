@@ -368,11 +368,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets this motor to follow another motor.
      *
      * @param motor specifies the motor to follow.
+     * @param inverted specifies true if this motor is inverted from the motor it is following, false otherwise.
      */
     @Override
-    public void follow(TrcMotor motor)
+    public void follow(TrcMotor motor, boolean inverted)
     {
         motor.addFollower(this);
+        setMotorInverted(motor.isMotorInverted() ^ inverted);
     }   //follow
 
     //
