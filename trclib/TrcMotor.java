@@ -86,7 +86,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         ControlMode setToControlMode = ControlMode.Power;
         // If softwarePidCtrl is not null, the operation is a software PID control using this PID controller.
         TrcPidController softwarePidCtrl = null;
-        double softwarePidTolerance = 0.0;
+        Double softwarePidTolerance = null;
         PowerCompensation powerComp = null;
         // motorValue can be power, velocity, position or current depending on controlMode.
         double motorValue = 0.0;
@@ -874,12 +874,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param useSoftwarePid specifies true to use software PID control, false otherwise.
      * @return the PID error tolerance to used for close-loop control.
      */
-    private double pidToleranceToUse(ControlMode controlMode, boolean useSoftwarePid)
+    private Double pidToleranceToUse(ControlMode controlMode, boolean useSoftwarePid)
     {
-        return !useSoftwarePid? 0.0:
-               controlMode == ControlMode.Velocity? velTolerance:
-               controlMode == ControlMode.Position? posTolerance:
-               controlMode == ControlMode.Current? currentTolerance: null;
+        return !useSoftwarePid? (Double) 0.0:
+               controlMode == ControlMode.Velocity? (Double) velTolerance:
+               controlMode == ControlMode.Position? (Double) posTolerance:
+               controlMode == ControlMode.Current? (Double) currentTolerance: null;
     }   //pidToleranceToUse
 
     /**
