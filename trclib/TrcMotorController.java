@@ -257,9 +257,10 @@ public interface TrcMotorController
      * This method commands the motor to go to the given position using close loop control.
      *
      * @param position specifies the position in sensor units.
-     * @param powerLimit specifies the maximum power output limits.
+     * @param powerLimit specifies the maximum power output limits, can be null if not provided. If not provided, the
+     *        previous set limit is applied.
      */
-    void setMotorPosition(double position, double powerLimit);
+    void setMotorPosition(double position, Double powerLimit);
 
     /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
