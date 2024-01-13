@@ -242,9 +242,10 @@ public interface TrcMotorController
     /**
      * This method commands the motor to spin at the given velocity using close loop control.
      *
-     * @param velocity specifies the motor velocity in sensor units per second.
-    */
-    void setMotorVelocity(double velocity);
+     * @param velocity specifies the motor velocity in rotations per second.
+     * @param acceleration specifies the max motor acceleration rotations per second square, can be 0 if not provided.
+     */
+    void setMotorVelocity(double velocity, double acceleration);
 
     /**
      * This method returns the current motor velocity.
@@ -254,13 +255,15 @@ public interface TrcMotorController
     double getMotorVelocity();
 
     /**
-     * This method commands the motor to go to the given position using close loop control.
+     * This method commands the motor to go to the given position using close loop control and optionally limits the
+     * power of the motor movement.
      *
-     * @param position specifies the position in sensor units.
+     * @param position specifies the position in rotations.
      * @param powerLimit specifies the maximum power output limits, can be null if not provided. If not provided, the
      *        previous set limit is applied.
+     * @param velocity specifies the max motor veloicty rotations per second, can be 0 if not provided.
      */
-    void setMotorPosition(double position, Double powerLimit);
+    void setMotorPosition(double position, Double powerLimit, double velocity);
 
     /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder

@@ -984,7 +984,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             controllerVelocity = velocity;
 
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordStartTime();
-            setMotorVelocity(velocity/sensorScale);
+            setMotorVelocity(velocity/sensorScale, 0.0);
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
@@ -1010,7 +1010,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             controllerPowerLimit = powerLimit;
 
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordStartTime();
-            setMotorPosition(convertPositionToSensorUnits(position), powerLimit);
+            setMotorPosition(convertPositionToSensorUnits(position), 0.0, powerLimit);
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
