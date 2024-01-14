@@ -244,8 +244,9 @@ public interface TrcMotorController
      *
      * @param velocity specifies the motor velocity in rotations per second.
      * @param acceleration specifies the max motor acceleration rotations per second square, can be 0 if not provided.
+     * @param feedForward specifies feedforward in volts.
      */
-    void setMotorVelocity(double velocity, double acceleration);
+    void setMotorVelocity(double velocity, double acceleration, double feedForward);
 
     /**
      * This method returns the current motor velocity.
@@ -262,8 +263,9 @@ public interface TrcMotorController
      * @param powerLimit specifies the maximum power output limits, can be null if not provided. If not provided, the
      *        previous set limit is applied.
      * @param velocity specifies the max motor veloicty rotations per second, can be 0 if not provided.
+     * @param feedForward specifies feedforward in volts.
      */
-    void setMotorPosition(double position, Double powerLimit, double velocity);
+    void setMotorPosition(double position, Double powerLimit, double velocity, double feedForward);
 
     /**
      * This method returns the motor position by reading the position sensor. The position sensor can be an encoder
