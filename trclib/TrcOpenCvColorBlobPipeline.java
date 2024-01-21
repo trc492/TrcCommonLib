@@ -201,7 +201,6 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private static final double ANNOTATE_FONT_SCALE = 0.3;
 
     private final TrcDbgTrace tracer;
-    private final TrcVisionPerformanceMetrics performanceMetrics;
     private final String instanceName;
     private final Integer colorConversion;
     private double[] colorThresholds;
@@ -218,6 +217,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     private boolean annotateEnabled = false;
     private int morphOp = Imgproc.MORPH_CLOSE;
     private Mat kernelMat = null;
+    private TrcVisionPerformanceMetrics performanceMetrics = null;
 
     /**
      * Constructor: Create an instance of the object.
@@ -244,7 +244,6 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
         }
 
         this.tracer = new TrcDbgTrace();
-        this.performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
         this.instanceName = instanceName;
         this.colorConversion = colorConversion;
         this.colorThresholds = colorThresholds;
@@ -277,6 +276,23 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     {
         return tracer;
     }   //getTracer
+
+    /**
+     * This method enables/disables vision performance metrics.
+     *
+     * @param enabled specifies true to enable performance metrics, false to disable.
+     */
+    public void setPerformanceMetricsEnabled(boolean enabled)
+    {
+        if (enabled)
+        {
+            performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
+        }
+        else
+        {
+            performanceMetrics = null;
+        }
+    }   //setPerformanceMetricsEnabled
 
     /**
      * This method returns the color threshold values.
@@ -344,7 +360,10 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     @Override
     public void reset()
     {
-        performanceMetrics.reset();
+        if (performanceMetrics != null)
+        {
+            performanceMetrics.reset();
+        }
         intermediateStep = 0;
     }   //reset
 
@@ -390,8 +409,11 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
             contoursOutput = filterContoursOutput;
         }
-        performanceMetrics.logProcessingTime(startTime);
-        performanceMetrics.printMetrics();
+        if (performanceMetrics != null)
+        {
+            performanceMetrics.logProcessingTime(startTime);
+            performanceMetrics.printMetrics();
+        }
 
         if (contoursOutput.size() > 0)
         {
