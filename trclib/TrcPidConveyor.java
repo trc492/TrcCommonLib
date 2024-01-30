@@ -22,11 +22,10 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * This class implements a platform independent conveyor subsystem. It contains a motor and optionally an entrance
+ * This class implements a platform independent conveyor subsystem. It contains a motor and optionally an entry
  * and an exit sensor that detects if the an object has entered or exited the conveyor. It also supports exclusive
  * subsystem access by implementing TrcExclusiveSubsystem. This enables the conveyor subsystem to be aware of multiple
  * callers' access to the subsystem. While one caller starts the conveyor for an operation, nobody can access it until
@@ -51,8 +50,7 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return String.format(
-                Locale.US, "objDistance=%f, movePower=%f, maxCap=%d", objectDistance, movePower, maxCapacity);
+            return "(objDistance=" + objectDistance + ",movePower=" + movePower + ",maxCap=" + maxCapacity + ")";
         }   //toString
 
         /**
@@ -94,12 +92,12 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
     }   //class Parameters
 
     public final TrcMotor motor;
-    private final TrcDigitalInput entranceSensor;
+    private final TrcDigitalInput entrySensor;
     private final TrcDigitalInput exitSensor;
     private final Parameters params;
-    private final TrcTriggerDigitalInput entranceTrigger;
+    private final TrcTriggerDigitalInput entryTrigger;
     private final TrcTriggerDigitalInput exitTrigger;
-    private TrcEvent entranceEvent;
+    private TrcEvent entryEvent;
     private TrcEvent exitEvent;
     private int numObjects = 0;
 
@@ -108,32 +106,32 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
-     * @param entranceSensor specifies the sensor object for the conveyor entrance.
+     * @param entrySensor specifies the sensor object for the conveyor entry.
      * @param exitSensor specifies the sensor object for the conveyor exit.
      * @param params specifies the parameters object.
      */
     public TrcPidConveyor(
-        String instanceName, TrcMotor motor, TrcDigitalInput entranceSensor, TrcDigitalInput exitSensor,
+        String instanceName, TrcMotor motor, TrcDigitalInput entrySensor, TrcDigitalInput exitSensor,
         Parameters params)
     {
         this.motor = motor;
-        this.entranceSensor = entranceSensor;
+        this.entrySensor = entrySensor;
         this.exitSensor = exitSensor;
         this.params = params;
 
-        if (entranceSensor != null)
+        if (entrySensor != null)
         {
-            entranceTrigger = new TrcTriggerDigitalInput(instanceName + ".entranceTrigger", entranceSensor);
-            entranceTrigger.enableTrigger(this::onEntranceEvent);
+            entryTrigger = new TrcTriggerDigitalInput(instanceName + ".entyTrigger", entrySensor);
+            entryTrigger.enableTrigger(this::onEntryEvent);
         }
         else
         {
-            entranceTrigger = null;
+            entryTrigger = null;
         }
 
         if (exitSensor != null)
         {
-            exitTrigger = new TrcTriggerDigitalInput(instanceName + ".exitTrigger", entranceSensor);
+            exitTrigger = new TrcTriggerDigitalInput(instanceName + ".exitTrigger", exitSensor);
             exitTrigger.enableTrigger(this::onExitEvent);
         }
         else
@@ -144,7 +142,7 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
 
     /**
      * This method returns the number of objects in the conveyor.
-     * Note: Conveyor can only keep track of the number of objects if it has entrance and exit sensors. Otherwise,
+     * Note: Conveyor can only keep track of the number of objects if it has entry and exit sensors. Otherwise,
      * the number of objects returned will not be correct.
      *
      * @return number of objects in the conveyor.
@@ -165,17 +163,17 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
     }   //setPreloadedObjects
 
     /**
-     * This method registers an event to be signaled when the entrance sensor is triggered.
+     * This method registers an event to be signaled when the entry sensor is triggered.
      *
      * @param event specifies event to signal when an object has entered the conveyor.
      */
-    public void registerEntranceEvent(TrcEvent event)
+    public void registerEntryEvent(TrcEvent event)
     {
-        if (entranceTrigger != null)
+        if (entryTrigger != null)
         {
-            entranceEvent = event;
+            entryEvent = event;
         }
-    }   //registerEntranceEvent
+    }   //registerEntryEvent
 
     /**
      * This method registers an event to be signaled when the exit sensor is triggered.
@@ -195,10 +193,10 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
      *
      * @return digital sensor state.
      */
-    public boolean isEntranceSensorActive()
+    public boolean isEntrySensorActive()
     {
-        return entranceSensor != null && entranceSensor.isActive();
-    }   //isEntranceSensorActive
+        return entrySensor != null && entrySensor.isActive();
+    }   //isEntrySensorActive
 
     /**
      * This method returns the sensor state read from the digital sensor.
@@ -267,11 +265,11 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
     }   //backup
 
     /**
-     * This method is called when the entrance sensor is triggered.
+     * This method is called when the entry sensor is triggered.
      *
      * @param context specifies true if an object has activated the sensor, false if the object has deactivated it.
      */
-    private void onEntranceEvent(Object context)
+    private void onEntryEvent(Object context)
     {
         boolean active = ((AtomicBoolean) context).get();
 
@@ -285,11 +283,11 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
             motor.setPower(0.0);
         }
 
-        if (entranceEvent != null)
+        if (entryEvent != null)
         {
-            entranceEvent.signal();
+            entryEvent.signal();
         }
-    }   //onEntranceEvent
+    }   //onEntryEvent
 
     /**
      * This method is called when the exit sensor is triggered.
