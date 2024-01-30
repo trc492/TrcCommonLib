@@ -55,10 +55,10 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
          * @return rect of the detected object.
          */
         @Override
-        public Rect getRect()
+        public Rect getObjectRect()
         {
             return object;
-        }   //getRect
+        }   //getObjectRect
 
         /**
          * This method returns the area of the detected object.
@@ -66,10 +66,10 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
          * @return area of the detected object.
          */
         @Override
-        public double getArea()
+        public double getObjectArea()
         {
             return object.area();
-        }   //getArea
+        }   //getObjectArea
 
         /**
          * This method returns the pose of the detected object relative to the camera.

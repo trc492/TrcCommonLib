@@ -116,7 +116,7 @@ public interface TrcOpenCvPipeline<O>
     {
         for (TrcOpenCvDetector.DetectedObject<?> object : detectedObjects)
         {
-            Rect objRect = object.getRect();
+            Rect objRect = object.getObjectRect();
             Imgproc.rectangle(image, objRect, color, thickness);
             if (label != null)
             {

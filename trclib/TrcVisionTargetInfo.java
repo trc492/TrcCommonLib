@@ -44,14 +44,14 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
          *
          * @return rect of the detected object.
          */
-        Rect getRect();
+        Rect getObjectRect();
 
         /**
          * This method returns the area of the detected object.
          *
          * @return area of the detected object.
          */
-        double getArea();
+        double getObjectArea();
 
         /**
          * This method returns the pose of the detected object relative to the camera.
@@ -77,8 +77,8 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     }   //interface ObjectInfo
 
     public O detectedObj;
-    public Rect rect;
-    public double area;
+    public Rect objRect;
+    public double objArea;
     public TrcPose3D objPose;
     public Double objWidth;
     public Double objDepth;
@@ -98,8 +98,8 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
         O detectedObj, TrcHomographyMapper homographyMapper, double objHeightOffset, double cameraHeight)
     {
         this.detectedObj = detectedObj;
-        this.rect = detectedObj.getRect();
-        this.area = detectedObj.getArea();
+        this.objRect = detectedObj.getObjectRect();
+        this.objArea = detectedObj.getObjectArea();
 
         if (homographyMapper == null)
         {
@@ -112,10 +112,10 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
         else
         {
             // Call provided homography mapper, we will use it to calculate the detected object pose.
-            Point topLeft = homographyMapper.mapPoint(new Point(rect.x, rect.y));
-            Point topRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y));
-            Point bottomLeft = homographyMapper.mapPoint(new Point(rect.x, rect.y + rect.height));
-            Point bottomRight = homographyMapper.mapPoint(new Point(rect.x + rect.width, rect.y + rect.height));
+            Point topLeft = homographyMapper.mapPoint(new Point(objRect.x, objRect.y));
+            Point topRight = homographyMapper.mapPoint(new Point(objRect.x + objRect.width, objRect.y));
+            Point bottomLeft = homographyMapper.mapPoint(new Point(objRect.x, objRect.y + objRect.height));
+            Point bottomRight = homographyMapper.mapPoint(new Point(objRect.x + objRect.width, objRect.y + objRect.height));
             double xDistanceFromCamera = (bottomLeft.x + bottomRight.x)/2.0;
             double yDistanceFromCamera = (bottomLeft.y + bottomRight.y)/2.0;
             double horiAngleRadian = Math.atan2(xDistanceFromCamera, yDistanceFromCamera);
@@ -162,7 +162,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     {
         return String.format(
             Locale.US, "(Obj=%s,rect=%s,area=%f,pose=%s,width=%f,depth=%f)",
-            detectedObj, rect, area, objPose, objWidth != null? objWidth: 0.0, objDepth != null? objDepth: 0.0);
+            detectedObj, objRect, objArea, objPose, objWidth != null? objWidth: 0.0, objDepth != null? objDepth: 0.0);
     }   //toString
 
 }   //class TrcVisionTargetInfo
