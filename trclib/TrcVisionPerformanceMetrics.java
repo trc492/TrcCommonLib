@@ -29,7 +29,6 @@ package TrcCommonLib.trclib;
 public class TrcVisionPerformanceMetrics
 {
     private final String instanceName;
-    private final TrcDbgTrace tracer;
     private double sessionStartTime;
     private double totalProcessedTime;
     private long totalProcessedFrames;
@@ -38,12 +37,10 @@ public class TrcVisionPerformanceMetrics
      * Constructor: Create an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param tracer specifies the tracer to be used to print performance info.
      */
-    public TrcVisionPerformanceMetrics(String instanceName, TrcDbgTrace tracer)
+    public TrcVisionPerformanceMetrics(String instanceName)
     {
         this.instanceName = instanceName;
-        this.tracer = tracer;
         reset();
     }   //TrcVisionPerformanceMetrics
 
@@ -70,8 +67,10 @@ public class TrcVisionPerformanceMetrics
 
     /**
      * This method prints the pipeline performance metrics using the given tracer.
+     *
+     * @param tracer specifies the tracer to be used to print performance info.
      */
-    public void printMetrics()
+    public void printMetrics(TrcDbgTrace tracer)
     {
         tracer.traceInfo(
             instanceName, "AvgProcessTime=%.6f, FrameRate=%f",

@@ -278,21 +278,32 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
     }   //getTracer
 
     /**
-     * This method enables/disables vision performance metrics.
+     * This method enables/disables performance metrics.
      *
      * @param enabled specifies true to enable performance metrics, false to disable.
      */
     public void setPerformanceMetricsEnabled(boolean enabled)
     {
-        if (enabled)
+        if (performanceMetrics == null && enabled)
         {
-            performanceMetrics = new TrcVisionPerformanceMetrics(instanceName, tracer);
+            performanceMetrics = new TrcVisionPerformanceMetrics(instanceName);
         }
-        else
+        else if (performanceMetrics != null && !enabled)
         {
             performanceMetrics = null;
         }
     }   //setPerformanceMetricsEnabled
+
+    /**
+     * This method prints the performance metrics to the trace log.
+     */
+    public void printPerformanceMetrics()
+    {
+        if (performanceMetrics != null)
+        {
+            performanceMetrics.printMetrics(tracer);
+        }
+    }   //printPerformanceMetrics
 
     /**
      * This method returns the color threshold values.
@@ -409,11 +420,7 @@ public class TrcOpenCvColorBlobPipeline implements TrcOpenCvPipeline<TrcOpenCvDe
             filterContours(contoursOutput, filterContourParams, filterContoursOutput);
             contoursOutput = filterContoursOutput;
         }
-        if (performanceMetrics != null)
-        {
-            performanceMetrics.logProcessingTime(startTime);
-            performanceMetrics.printMetrics();
-        }
+        if (performanceMetrics != null) performanceMetrics.logProcessingTime(startTime);
 
         if (contoursOutput.size() > 0)
         {
