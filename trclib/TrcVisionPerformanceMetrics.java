@@ -30,9 +30,9 @@ public class TrcVisionPerformanceMetrics
 {
     private final String instanceName;
     private final TrcDbgTrace tracer;
-    private double startTime = 0.0;
-    private double totalProcessedTime = 0.0;
-    private long totalProcessedFrames = 0;
+    private double sessionStartTime;
+    private double totalProcessedTime;
+    private long totalProcessedFrames;
 
     /**
      * Constructor: Create an instance of the object.
@@ -44,6 +44,7 @@ public class TrcVisionPerformanceMetrics
     {
         this.instanceName = instanceName;
         this.tracer = tracer;
+        reset();
     }   //TrcVisionPerformanceMetrics
 
     /**
@@ -51,7 +52,7 @@ public class TrcVisionPerformanceMetrics
      */
     public void reset()
     {
-        startTime = TrcTimer.getCurrentTime();
+        sessionStartTime = TrcTimer.getCurrentTime();
         totalProcessedTime = 0.0;
         totalProcessedFrames = 0;
     }   //reset
@@ -74,7 +75,7 @@ public class TrcVisionPerformanceMetrics
     {
         tracer.traceInfo(
             instanceName, "AvgProcessTime=%.6f, FrameRate=%f",
-            totalProcessedTime/totalProcessedFrames, totalProcessedFrames/(TrcTimer.getCurrentTime() - startTime));
+            totalProcessedTime/totalProcessedFrames, totalProcessedFrames/(TrcTimer.getCurrentTime() - sessionStartTime));
     }   //printMetrics
 
 }   //class TrcVisionPerformanceMetrics
