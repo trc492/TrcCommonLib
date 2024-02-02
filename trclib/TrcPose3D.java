@@ -209,6 +209,16 @@ public class TrcPose3D
     }   //hashCode
 
     /**
+     * This method creates and returns a copy of this pose.
+     *
+     * @return a copy of this pose.
+     */
+    public TrcPose3D clone()
+    {
+        return new TrcPose3D(this.x, this.y, this.z, this.yaw, this.pitch, this.roll);
+    }   //clone
+
+    /**
      * This method converts the Pose3D to a Pose2D.
      *
      * @return converted Pose2D.
