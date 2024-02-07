@@ -368,7 +368,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     public void disableMotionProfile()
     {
         // TODO: implement software motion profile support.
-        throw new UnsupportedOperation("Not supported yet.");
+        throw new UnsupportedOperationException("Not supported yet.");
     }   //disableMotionProfile
 
     /**
