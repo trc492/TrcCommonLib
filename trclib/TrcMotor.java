@@ -348,6 +348,30 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //isVoltageCompensationEnabled
 
     /**
+     * This method enables motion profile support.
+     *
+     * @param velocity specifies cruise velocity in the unit of rps.
+     * @param acceleration specifies acceleration in the unit of rot per sec square.
+     * @param jerk specifies acceleration derivation in the unit of rot per sec cube.
+     */
+    @Override
+    public void enableMotionProfile(double velocity, double acceleration, double jerk)
+    {
+        // TODO: implement software motion profile support.
+        throw new UnsupportedOperationException("Not supported yet.");
+    }   //enableMotionProfile
+
+    /**
+     * This method disables motion profile support.
+     */
+    @Override
+    public void disableMotionProfile()
+    {
+        // TODO: implement software motion profile support.
+        throw new UnsupportedOperation("Not supported yet.");
+    }   //disableMotionProfile
+
+    /**
      * This method adds the given motor to the list that will follow this motor. It should only be called by the
      * given motor to add it to the follower list of the motor it wants to follow.
      *

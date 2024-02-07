@@ -398,6 +398,20 @@ public interface TrcMotorController
     boolean isVoltageCompensationEnabled();
 
     /**
+     * This method enables motion profile support.
+     *
+     * @param velocity specifies cruise velocity in the unit of rps.
+     * @param acceleration specifies acceleration in the unit of rot per sec square.
+     * @param jerk specifies acceleration derivation in the unit of rot per sec cube.
+     */
+    void enableMotionProfile(double velocity, double acceleration, double jerk);
+
+    /**
+     * This method disables motion profile support.
+     */
+    void disableMotionProfile();
+
+    /**
      * This method sets this motor to follow another motor. Motor subclass should override this if it supports this
      * natively. TrcMotor by default supports software follower list.
      *
