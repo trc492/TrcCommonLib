@@ -157,6 +157,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private Double controllerVelocity;
     private Double controllerPosition;
     private Double controllerPowerLimit;
+    private Double controllerFeedforward;
     private Double controllerCurrent;
     // Software PID controllers.
     private TrcPidController velPidCtrl = null;
@@ -938,6 +939,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 controllerVelocity = null;
                 controllerPosition = null;
                 controllerPowerLimit = null;
+                controllerFeedforward = null;
                 controllerCurrent = null;
             }
             taskParams.currControlMode = controlMode;
@@ -997,18 +999,21 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * value to the motor repeatedly and also will take care of the followers.
      *
      * @param velocity specifies the velocity in scaled units/sec.
+     * @param feedForward specifies the feedforward value
      */
-    private void setControllerMotorVelocity(double velocity)
+    private void setControllerMotorVelocity(double velocity, double feedforward)
     {
         // Optimization: Only do this if we are not already in velocity control mode or velocity is different from
         // last time.
-        if (controllerVelocity == null || velocity != controllerVelocity)
+        if (controllerVelocity == null || velocity != controllerVelocity ||
+            controllerFeedforward == null || feedforward != controllerFeedforward)
         {
             setMotorControlMode(ControlMode.Velocity, false);
             controllerVelocity = velocity;
+            controllerFeedforward = feedforward;
 
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordStartTime();
-            setMotorVelocity(velocity/sensorScale, 0.0, 0.0);
+            setMotorVelocity(velocity/sensorScale, 0.0, feedforward);
             if (motorSetVelocityElapsedTimer != null) motorSetVelocityElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
@@ -1020,21 +1025,24 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param position specifies the position in scaled units.
      * @param powerLimit specifies the maximum power output limits.
+     * @param feedForward specifies the feedforward value
      */
-    private void setControllerMotorPosition(double position, double powerLimit)
+    private void setControllerMotorPosition(double position, double powerLimit, double feedforward)
     {
         // Optimization: Only do this if we are not already in position control mode or position is different from
         // last time.
-        if (controllerPosition == null || controllerPowerLimit == null ||
-            position != controllerPosition || powerLimit != controllerPowerLimit)
+        if (controllerPosition == null || position != controllerPosition ||
+            controllerPowerLimit == null || powerLimit != controllerPowerLimit ||
+            controllerFeedforward == null || feedforward != controllerFeedforward)
         {
             // Position mode doesn't have the same optimization as the other control modes.
             setMotorControlMode(ControlMode.Position, false);
             controllerPosition = position;
             controllerPowerLimit = powerLimit;
+            controllerFeedforward = feedforward;
 
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordStartTime();
-            setMotorPosition(convertPositionToSensorUnits(position), powerLimit, 0.0, 0.0);
+            setMotorPosition(convertPositionToSensorUnits(position), powerLimit, 0.0, feedforward);
             if (motorSetPositionElapsedTimer != null) motorSetPositionElapsedTimer.recordEndTime();
             // pidCtrlTask will take care of followers.
         }
@@ -1209,7 +1217,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     }
                     else
                     {
-                        setControllerMotorVelocity(params.motorValue);
+                        double feedforward =
+                            params.powerComp != null? params.powerComp.getCompensation(params.motorValue): 0.0;
+                        setControllerMotorVelocity(params.motorValue, feedforward);
                     }
                     break;
 
@@ -1584,7 +1594,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                setControllerMotorPosition(params.motorValue, params.powerLimit);
+                double feedforward =
+                    params.powerComp != null? params.powerComp.getCompensation(params.motorValue): 0.0;
+                setControllerMotorPosition(params.motorValue, params.powerLimit, feedforward);
             }
         }
     }   //delayPositionExpiredCallback
@@ -2648,12 +2660,30 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         else if (taskParams.softwarePidCtrl == null)
                         {
                             // Doing motor controller close loop PID control.
-                            // If a power limit is set, adjust native motor PID control correspondingly.
-                            if (taskParams.powerLimit != null)
+                            // If we have powerLimit or powerComp, we need to update closed-loop control with them.
+                            if (taskParams.powerLimit != null || taskParams.powerComp != null)
                             {
-                                // Set the same target position but change power limit if necessary.
-                                // If powerLimit did not change from last time, setControllerMotorPosition is a no-op.
-                                setControllerMotorPosition(controllerPosition, taskParams.powerLimit);
+                                if (taskParams.currControlMode == ControlMode.Position)
+                                {
+                                    // Set the same target position but change powerLimit and powerComp if necessary.
+                                    // If powerLimit and powerComp did not change from last time,
+                                    // setControllerMotorPosition is a no-op.
+                                    setControllerMotorPosition(
+                                        controllerPosition,
+                                        taskParams.powerLimit != null? taskParams.powerLimit: 0.0,
+                                        taskParams.powerComp != null?
+                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0);
+                                }
+                                else if (taskParams.currControlMode == ControlMode.Velocity)
+                                {
+                                    // Set the same target velocity but change powerComp if necessary.
+                                    // If powerComp did not change from last time, setControllerMotorVelocity is a
+                                    // no-op.
+                                    setControllerMotorVelocity(
+                                        controllerVelocity,
+                                        taskParams.powerComp != null?
+                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0);
+                                }
                             }
                             // We are monitoring for completion and sync the followers if motor controller does not
                             // support motor following.
@@ -2674,7 +2704,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                                 // So, instead of calling setMotorVelocity, we call
                                                 // setControllerMotorVelocity which has optimization to not sending
                                                 // same velocity if it hasn't change.
-                                                follower.setControllerMotorVelocity(taskParams.motorValue);
+                                                follower.setControllerMotorVelocity(
+                                                    taskParams.motorValue, controllerFeedforward);
                                                 break;
 
                                             case Position:
