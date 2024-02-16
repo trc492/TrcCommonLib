@@ -209,6 +209,23 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
     }   //isExitSensorActive
 
     /**
+     * This methods sets the conveyor motor power. This is useful if the entry sensor is positioned a little way back
+     * such that the convery needs to be ON and transport the 
+     * @param owner
+     * @param power
+     */
+    public void setPower(String owner, double power)
+    {
+        if (validateOwnership(owner))
+        {
+            if (numObjects == 0 || power <= 0.0)
+            {
+                motor.setPower(power);
+            }
+        }
+    }   //setPower
+
+    /**
      * This method advances or backs up the conveyor by the number of object units.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the conveyor.
