@@ -22,26 +22,65 @@
 
 package TrcCommonLib.trclib;
 
-import java.util.Locale;
-
 /**
  * This class implements a platform independent auto-assist intake subsystem. It contains a motor or a continuous
- * servo and a sensor that detects if the intake has captured objects. It provides the autoAssist method that allows
- * the caller to call the intake subsystem to pickup or dump objects on a press of a button and the intake subsystem
- * will stop itself once it is done. While it provides the auto-assist functionality to pickup or dump objects, it
- * also supports exclusive subsystem access by implementing TrcExclusiveSubsystem. This enables the intake subsystem
- * to be aware of multiple callers' access to the subsystem. While one caller starts the intake for an operation,
- * nobody can access it until the previous caller is done with the operation.
+ * servo and optionally entry and exit sensors that detects if the intake has captured objects. It provides the
+ * autoAssist method that allows the caller to call the intake subsystem to pickup or eject objects on a press of
+ * a button and the intake subsystem will stop itself once it is done. While it provides the auto-assist functionality
+ * to pickup or dump objects, it also supports exclusive subsystem access by implementing TrcExclusiveSubsystem.
+ * This enables the intake subsystem to be aware of multiple callers' access to the subsystem. While one caller starts
+ * the intake for an operation, nobody can access it until the previous caller is done with the operation.
  */
 public class TrcIntake implements TrcExclusiveSubsystem
 {
     /**
-     * This class contains all the parameters related to the intake.
+     * This class contains all the parameters related to the Trigger.
      */
-    public static class Parameters
+    public static class Trigger
     {
-        public Double analogThreshold = null;
-        public boolean analogTriggerInverted = false;
+        private final TrcTrigger trigger;
+        private final TrcEvent.Callback triggerCallback;
+        private final Double analogTriggerThreshold;
+        private final Boolean analogTriggerInverted;
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param trigger specifies the TrcTrigger object.
+         * @param triggerCallback specifies the callback method to call when a trigger occurred, null if not provided.
+         * @param threshold specifies the sensor's analog threshold value, null if trigger is digital.
+         * @param triggerInverted specifies true if got object triggered below threshold, false if triggered above,
+         *        null if trigger is digital.
+         */
+        public Trigger(
+            TrcTrigger trigger, TrcEvent.Callback triggerCallback, Double threshold, Boolean triggerInverted)
+        {
+            this.trigger = trigger;
+            this.triggerCallback = triggerCallback;
+            this.analogTriggerThreshold = threshold;
+            this.analogTriggerInverted = triggerInverted;
+        }   //Trigger
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param trigger specifies the TrcTrigger object.
+         * @param triggerCallback specifies the callback method to call when a trigger occurred, null if not provided.
+         */
+        public Trigger(TrcTrigger trigger, TrcEvent.Callback triggerCallback)
+        {
+            this(trigger, triggerCallback, null, null);
+        }   //Trigger
+
+        /**
+         * Constructor: Create an instance of the object.
+         *
+         * @param trigger specifies the TrcTrigger object.
+         */
+        public Trigger(TrcTrigger trigger)
+        {
+            this(trigger, null, null, null);
+        }   //Trigger
 
         /**
          * This method returns the string form of all the parameters.
@@ -51,33 +90,28 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return "analogThreshold=" + analogThreshold +
+            return "analogThreshold=" + analogTriggerThreshold +
                    ", analogTriggerInverted=" + analogTriggerInverted;
         }   //toString
 
-        /**
-         * This method sets the anlog sensor threshold value.
-         *
-         * @param threshold specifies the sensor threshold value.
-         * @param triggerInverted specifies true if got object triggered below threshold, false if triggered above
-         *        threshold.
-         * @return this parameter object.
-         */
-        public Parameters setAnalogThreshold(double threshold, boolean triggerInverted)
-        {
-            this.analogThreshold = threshold;
-            this.analogTriggerInverted = triggerInverted;
-            return this;
-        }   //setAnalogThreshold
+    }   //class Trigger
 
-    }   //class Parameters
+    /**
+     * Specifies the auto-assist operation types.
+     */
+    private enum Operation
+    {
+        Intake,
+        EjectForward,
+        EjectReverse
+    }   //enum Operation
 
     /**
      * This class encapsulates all the parameters required to perform the intake action.
      */
     private static class ActionParams
     {
-        boolean intake;
+        Operation operation;
         double intakePower;
         double retainPower;
         double finishDelay;
@@ -85,10 +119,10 @@ public class TrcIntake implements TrcExclusiveSubsystem
         double timeout;
 
         ActionParams(
-            boolean intake, double intakePower, double retainPower, double finishDelay,
-            TrcEvent event, double timeout)
+            Operation operation, double intakePower, double retainPower, double finishDelay, TrcEvent event,
+            double timeout)
         {
-            this.intake = intake;
+            this.operation = operation;
             this.intakePower = intakePower;
             this.retainPower = retainPower;
             this.finishDelay = finishDelay;
@@ -99,7 +133,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return "intake=" + intake +
+            return "op=" + operation +
                    ", intakePower=" + intakePower +
                    ", retainPower=" + retainPower +
                    ", finishDelay=" + finishDelay +
@@ -111,10 +145,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
     private final TrcDbgTrace tracer;
     private final String instanceName;
-    private final TrcMotor motor;
-    private final Parameters params;
-    private final TrcTrigger sensorTrigger;
-    private final TrcEvent.Callback eventCallback;
+    public final TrcMotor motor;
+    public final Trigger entryTrigger;
+    public final Trigger exitTrigger;
     private final TrcTimer timer;
     private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
@@ -125,21 +158,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
-     * @param params specifies the parameters object.
-     * @param sensorTrigger specifies the sensor trigger object, can be null if none.
-     * @param eventCallback specifies the notification callback when a trigger event occurred,
-     *        null if no sensorTrigger.
+     * @param entryTrigger specifies the entry trigger object, can be null if none.
+     * @param exitTrigger specifies the exit trigger object, can be null if none.
      */
-    private TrcIntake(
-        String instanceName, TrcMotor motor, Parameters params, TrcTrigger sensorTrigger,
-        TrcEvent.Callback eventCallback)
+    public TrcIntake(String instanceName, TrcMotor motor, Trigger entryTrigger, Trigger exitTrigger)
     {
         this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
         this.motor = motor;
-        this.params = params;
-        this.sensorTrigger = sensorTrigger;
-        this.eventCallback = eventCallback;
+        this.entryTrigger = entryTrigger;
+        this.exitTrigger = exitTrigger;
+
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
     }   //TrcIntake
@@ -149,11 +178,22 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *
      * @param instanceName specifies the hardware name.
      * @param motor specifies the motor object.
-     * @param params specifies the parameters object.
+     * @param entryTrigger specifies the entry trigger object, can be null if none.
      */
-    public TrcIntake(String instanceName, TrcMotor motor, Parameters params)
+    public TrcIntake(String instanceName, TrcMotor motor, Trigger entryTrigger)
     {
-        this(instanceName, motor, params, null, null);
+        this(instanceName, motor, entryTrigger, null);
+    }   //TrcIntake
+
+    /**
+     * Constructor: Creates an instance of the object.
+     *
+     * @param instanceName specifies the hardware name.
+     * @param motor specifies the motor object.
+     */
+    public TrcIntake(String instanceName, TrcMotor motor)
+    {
+        this(instanceName, motor, null, null);
     }   //TrcIntake
 
     /**
@@ -164,9 +204,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
     @Override
     public String toString()
     {
-        return String.format(
-            Locale.US, "%s: pwr=%.3f, current=%.3f, autoAssistActive=%s, hasObject=%s",
-            instanceName, getPower(), motor != null? motor.getMotorCurrent(): 0.0, isAutoAssistActive(), hasObject());
+        return instanceName +
+               ": pwr=" + getPower() +
+               ", current=" + motor.getMotorCurrent() +
+               ", autoAssistActive=" + isAutoAssistActive() +
+               ", hasObject=" + hasObject();
     }   //toString
 
     /**
@@ -285,7 +327,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
             double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
-            sensorTrigger.disableTrigger();
+            entryTrigger.trigger.disableTrigger();
+            exitTrigger.trigger.disableTrigger();
 
             if (actionParams.event != null)
             {
@@ -320,12 +363,19 @@ public class TrcIntake implements TrcExclusiveSubsystem
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
 
-        if (actionParams.intake ^ objCaptured)
+        if (actionParams.operation == Operation.Intake ^ objCaptured)
         {
-            // Picking up object and we don't have one yet, or dumping object and we still have one.
+            // Picking up object and we don't have one yet, or ejecting object and we still have one.
             tracer.traceDebug(instanceName, "AutoAssist: " + actionParams + ", hasObject=" + objCaptured);
             motor.setPower(actionParams.intakePower);
-            sensorTrigger.enableTrigger(this::triggerCallback);
+            if (actionParams.operation == Operation.Intake || actionParams.operation == Operation.EjectForward)
+            {
+                exitTrigger.trigger.enableTrigger(this::exitTriggerCallback);
+            }
+            else
+            {
+                entryTrigger.trigger.enableTrigger(this::entryTriggerCallback);
+            }
 
             if (actionParams.timeout > 0.0)
             {
@@ -335,25 +385,39 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }
         else
         {
-            // Picking up object but we already have one, or dumping object but there isn't any.
+            // Picking up object but we already have one, or ejecting object but there isn't any.
             tracer.traceDebug(instanceName, "Already done: hasObject=" + objCaptured);
             finishAutoAssist(false);
         }
     }   //performAutoAssist
 
     /**
-     * This method is called when the sensor trigger state has changed.
+     * This method is called when the entry trigger state has changed.
      *
-     * @param context not used.
+     * @param context specifies the TriggerState object.
      */
-    private void triggerCallback(Object context)
+    private void entryTriggerCallback(Object context)
     {
         finishAutoAssist(false);
-        if (eventCallback != null)
+        if (entryTrigger.triggerCallback != null)
         {
-            eventCallback.notify(context);
+            entryTrigger.triggerCallback.notify(context);
         }
-    }   //triggerCallback
+    }   //entryTriggerCallback
+
+    /**
+     * This method is called when the exit trigger state has changed.
+     *
+     * @param context specifies the TriggerState object.
+     */
+    private void exitTriggerCallback(Object context)
+    {
+        finishAutoAssist(false);
+        if (exitTrigger.triggerCallback != null)
+        {
+            exitTrigger.triggerCallback.notify(context);
+        }
+    }   //exitTriggerCallback
 
     /**
      * This method is called when the auto-assist operation has timed out.
@@ -367,11 +431,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
     /**
      * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
-     * and it will stop itself once object is picked up or dumped in the intake at which time the given event will be
-     * signaled.
+     * and it will stop itself once object is picked up or ejected in the intake at which time the given event will
+     * be signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-     * @param intake specifies true for intake operation, false for spitout operation.
+     * @param operation specifies the intake operation.
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured, applicable only to intake
@@ -383,24 +447,22 @@ public class TrcIntake implements TrcExclusiveSubsystem
      *                must call hasObject() to figure out if it has given up.
      */
     private void autoAssistOperation(
-        String owner, boolean intake, double delay, double power, double retainPower, double finishDelay,
+        String owner, Operation operation, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
-        if (sensorTrigger == null || power == 0.0)
+        if (entryTrigger == null && exitTrigger == null || power == 0.0)
         {
             throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist Intake.");
         }
-        // Caller specified an owner but did not acquire ownership, acquire it on its behalf.
-        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
-        {
-            currOwner = owner;
-        }
+
+        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, event, tracer);
+        if (releaseOwnershipEvent != null) event = releaseOwnershipEvent;
         //
         // This is an auto-assist operation, make sure the caller has ownership.
         //
         if (validateOwnership(owner))
         {
-            actionParams = new ActionParams(intake, power, retainPower, finishDelay, event, timeout);
+            actionParams = new ActionParams(operation, power, retainPower, finishDelay, event, timeout);
             if (delay > 0.0)
             {
                 timerEvent.setCallback(this::performAutoAssist, actionParams);
@@ -432,29 +494,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         String owner, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, true, delay, power, retainPower, finishDelay, event, timeout);
+        autoAssistOperation(owner, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
     }   //autoAssistIntake
-
-    /**
-     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
-     *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-     * @param delay specifies the delay time in seconds before executing the action.
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
-     * @param event specifies the event to signal when object is detected in the intake.
-     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-     *                must call hasObject() to figure out if it has given up.
-     */
-    public void autoAssistSpitout(
-        String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
-    {
-        autoAssistOperation(owner, false, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistSpitout
 
     /**
      * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
@@ -473,27 +514,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
     public void autoAssistIntake(
         double delay, double power, double retainPower, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, true, delay, power, retainPower, finishDelay, event, timeout);
+        autoAssistOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
     }   //autoAssistIntake
-
-    /**
-     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
-     *
-     * @param delay specifies the delay time in seconds before executing the action.
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
-     * @param event specifies the event to signal when object is detected in the intake.
-     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
-     *                must call hasObject() to figure out if it has given up.
-     */
-    public void autoAssistSpitout(double delay, double power, double finishDelay, TrcEvent event, double timeout)
-    {
-        autoAssistOperation(null, false, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistSpitout
 
     /**
      * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
@@ -508,24 +530,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void autoAssistIntake(double delay, double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, true, delay, power, retainPower, finishDelay, null, 0.0);
+        autoAssistOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, null, 0.0);
     }   //autoAssistIntake
-
-    /**
-     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
-     *
-     * @param delay specifies the delay time in seconds before executing the action.
-     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
-     */
-    public void autoAssistSpitout(double delay, double power, double finishDelay)
-    {
-        autoAssistOperation(null, false, delay, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistSpitout
 
     /**
      * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
@@ -539,12 +545,68 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public void autoAssistIntake(double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, true, 0.0, power, retainPower, finishDelay, null, 0.0);
+        autoAssistOperation(null, Operation.Intake, 0.0, power, retainPower, finishDelay, null, 0.0);
     }   //autoAssistIntake
 
     /**
-     * This method is an auto-assist spitout operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistEjectForward(
+        String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(owner, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoAssistEjectForward
+
+    /**
+     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistEjectForward(double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoAssistEjectForward
+
+    /**
+     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     */
+    public void autoAssistEjectForward(double delay, double power, double finishDelay)
+    {
+        autoAssistOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, null, 0.0);
+    }   //autoAssistEjectForward
+
+    /**
+     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
      * signaled.
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
@@ -552,10 +614,81 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
      *        spinning the intake.
      */
-    public void autoAssistSpitout(double power, double finishDelay)
+    public void autoAssistEjectForward(double power, double finishDelay)
     {
-        autoAssistOperation(null, false, 0.0, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistSpitout
+        autoAssistOperation(null, Operation.EjectForward, 0.0, power, 0.0, finishDelay, null, 0.0);
+    }   //autoAssistEjectForward
+
+    /**
+     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistEjectReverse(
+        String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(owner, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoAssistEjectReverse
+
+    /**
+     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoAssistEjectReverse(double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    {
+        autoAssistOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoAssistEjectReverse
+
+    /**
+     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     */
+    public void autoAssistEjectReverse(double delay, double power, double finishDelay)
+    {
+        autoAssistOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, null, 0.0);
+    }   //autoAssistEjectReverse
+
+    /**
+     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
+     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
+     * signaled.
+     *
+     * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
+     *              power to dump.
+     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
+     *        spinning the intake.
+     */
+    public void autoAssistEjectReverse(double power, double finishDelay)
+    {
+        autoAssistOperation(null, Operation.EjectReverse, 0.0, power, 0.0, finishDelay, null, 0.0);
+    }   //autoAssistEjectReverse
 
     /**
      * This method cancels the auto-assist operation if one is active.
@@ -586,24 +719,51 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //autoAssistCancel
 
     /**
-     * This method returns the sensor value read from the analog sensor.
+     * This method returns the sensor value read from the analog sensor of the trigger.
      *
-     * @return analog sensor value.
+     * @param trigger specifies the trigger.
+     * @return analog trigger sensor value.
      */
-    public double getSensorValue()
+    public double getSensorValue(Trigger trigger)
     {
-        return sensorTrigger != null && params.analogThreshold != null? sensorTrigger.getSensorValue(): 0.0;
+        return trigger.analogTriggerThreshold != null? trigger.trigger.getSensorValue(): 0.0;
     }   //getSensorValue
 
     /**
-     * This method returns the sensor state read from the digital sensor.
+     * This method returns the sensor state read from the digital sensor of the trigger.
      *
-     * @return digital sensor state.
+     * @return digital trigger sensor state.
      */
-    public boolean getSensorState()
+    public boolean getSensorState(Trigger trigger)
     {
-        return sensorTrigger != null && params.analogThreshold == null && sensorTrigger.getSensorState();
+        return trigger.analogTriggerThreshold == null && trigger.trigger.getSensorState();
     }   //getSensorState
+
+    /**
+     * This method checks if the trigger sensor has detected an object.
+     *
+     * @param trigger specifies the trigger to check.
+     * @return true if trigger sensor detected an object, false otherwise.
+     */
+    public boolean isTriggerActive(Trigger trigger)
+    {
+        boolean active = false;
+
+        if (trigger.analogTriggerThreshold != null)
+        {
+            active = getSensorValue(trigger) > trigger.analogTriggerThreshold;
+            if (trigger.analogTriggerInverted)
+            {
+                active = !active;
+            }
+        }
+        else
+        {
+            active = getSensorState(trigger);
+        }
+
+        return active;
+    }   //isTriggerActive
 
     /**
      *
@@ -615,20 +775,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         boolean gotObject = false;
 
-        if (sensorTrigger != null)
+        if (exitTrigger != null)
         {
-            if (params.analogThreshold != null)
-            {
-                gotObject = getSensorValue() > params.analogThreshold;
-                if (params.analogTriggerInverted)
-                {
-                    gotObject = !gotObject;
-                }
-            }
-            else
-            {
-                gotObject = getSensorState();
-            }
+            gotObject = isTriggerActive(exitTrigger);
         }
 
         return gotObject;
