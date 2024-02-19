@@ -315,16 +315,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * completion. It can also be called if the caller explicitly cancel the auto-assist operation in which case
      * the event will be set to canceled.
      *
-     * @param canceled specifies true if the operation is canceled, false otherwsie.
+     * @param completed specifies true if the operation is completed, false if canceled.
      */
-    private void finishAutoAssist(boolean canceled)
+    private void finish(boolean completed)
     {
         if (isAutoAssistActive())
         {
             tracer.traceDebug(
-                instanceName, "canceled=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
-                canceled, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
-            double power = !canceled && hasObject()? actionParams.retainPower: 0.0;
+                instanceName, "completed=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
+                completed, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
+            double power = completed && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
             entryTrigger.trigger.disableTrigger();
@@ -332,13 +332,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
             if (actionParams.event != null)
             {
-                if (canceled)
+                if (completed)
                 {
-                    actionParams.event.cancel();
+                    actionParams.event.signal();
                 }
                 else
                 {
-                    actionParams.event.signal();
+                    actionParams.event.cancel();
                 }
                 actionParams.event = null;
             }
@@ -351,7 +351,34 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 currOwner = null;
             }
         }
-    }   //finishAutoAssist
+        else
+        {
+            motor.stop();
+        }
+    }   //finish
+
+    /**
+     * This method cancel an intake operation if any.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *        ownership aware.
+     */
+    public void cancel(String owner)
+    {
+        tracer.traceInfo(instanceName, "owner=" + owner);
+        if (validateOwnership(owner))
+        {
+            finish(false);
+        }
+    }   //cancel
+
+    /**
+     * This method cancel an intake operation if any.
+     */
+    public void cancel()
+    {
+        cancel(null);
+    }   //cancel
 
     /**
      * This method performs the auto-assist action.
@@ -387,7 +414,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             // Picking up object but we already have one, or ejecting object but there isn't any.
             tracer.traceDebug(instanceName, "Already done: hasObject=" + objCaptured);
-            finishAutoAssist(false);
+            finish(true);
         }
     }   //performAutoAssist
 
@@ -398,7 +425,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void entryTriggerCallback(Object context)
     {
-        finishAutoAssist(false);
+        finish(true);
         if (entryTrigger.triggerCallback != null)
         {
             entryTrigger.triggerCallback.notify(context);
@@ -412,7 +439,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void exitTriggerCallback(Object context)
     {
-        finishAutoAssist(false);
+        finish(true);
         if (exitTrigger.triggerCallback != null)
         {
             exitTrigger.triggerCallback.notify(context);
@@ -426,7 +453,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void autoAssistTimedOut(Object context)
     {
-        finishAutoAssist(true);
+        finish(false);
     }   //autoAssistTimedOut
 
     /**
@@ -689,34 +716,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         autoAssistOperation(null, Operation.EjectReverse, 0.0, power, 0.0, finishDelay, null, 0.0);
     }   //autoAssistEjectReverse
-
-    /**
-     * This method cancels the auto-assist operation if one is active.
-     *
-     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
-     */
-    public void autoAssistCancel(String owner)
-    {
-        if (validateOwnership(owner))
-        {
-            if (isAutoAssistActive())
-            {
-                finishAutoAssist(true);
-            }
-            else if (getPower() != 0.0)
-            {
-                setPower(0.0);
-            }
-        }
-    }   //autoAssistCancel
-
-    /**
-     * This method cancels the auto-assist operation if one is active.
-     */
-    public void autoAssistCancel()
-    {
-        autoAssistCancel(null);
-    }   //autoAssistCancel
 
     /**
      * This method returns the sensor value read from the analog sensor of the trigger.
