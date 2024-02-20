@@ -22,14 +22,16 @@
 
 package TrcCommonLib.trclib;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
- * This class implements a platform independent auto-assist intake subsystem. It contains a motor or a continuous
+ * This class implements a generic platform independent intake subsystem. It contains a motor or a continuous
  * servo and optionally entry and exit sensors that detects if the intake has captured objects. It provides the
- * autoAssist method that allows the caller to call the intake subsystem to pickup or eject objects on a press of
- * a button and the intake subsystem will stop itself once it is done. While it provides the auto-assist functionality
- * to pickup or dump objects, it also supports exclusive subsystem access by implementing TrcExclusiveSubsystem.
+ * auto methods that allow the caller to call the intake subsystem to pickup or eject objects on a press of
+ * a button and the intake subsystem will stop itself once it is done. While it provides the auto functionality
+ * to pickup or eject objects, it also supports exclusive subsystem access by implementing TrcExclusiveSubsystem.
  * This enables the intake subsystem to be aware of multiple callers' access to the subsystem. While one caller starts
- * the intake for an operation, nobody can access it until the previous caller is done with the operation.
+ * the intake for an operation, nobody can access it until the previous operation is done or canceled.
  */
 public class TrcIntake implements TrcExclusiveSubsystem
 {
@@ -97,7 +99,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //class Trigger
 
     /**
-     * Specifies the auto-assist operation types.
+     * Specifies the operation types.
      */
     private enum Operation
     {
@@ -207,7 +209,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         return instanceName +
                ": pwr=" + getPower() +
                ", current=" + motor.getMotorCurrent() +
-               ", autoAssistActive=" + isAutoAssistActive() +
+               ", isActive=" + isActive() +
                ", hasObject=" + hasObject();
     }   //toString
 
@@ -310,19 +312,19 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //setPower
 
     /**
-     * This method is called to finish the auto-assist operation and clean up. It can be called either at the end of
-     * the timeout or when object is detected to finish the auto-assist operation and signal the caller for
-     * completion. It can also be called if the caller explicitly cancel the auto-assist operation in which case
-     * the event will be set to canceled.
+     * This method is called to finish the operation and to clean up. It can be called either at the end of timeout
+     * or when object has been captured or ejected to finish the operation and signal the caller for completion. It
+     * can also be called if the caller explicitly cancel the operation in which case the event will be set to
+     * canceled.
      *
      * @param completed specifies true if the operation is completed, false if canceled.
      */
     private void finish(boolean completed)
     {
-        if (isAutoAssistActive())
+        if (isActive())
         {
             tracer.traceDebug(
-                instanceName, "completed=%s, AutoAssistTimedOut=%s, hasObject=%s, finishDelay=%.3f",
+                instanceName, "completed=%s, timedOut=%s, hasObject=%s, finishDelay=%.3f",
                 completed, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
             double power = completed && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
@@ -358,7 +360,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //finish
 
     /**
-     * This method cancel an intake operation if any.
+     * This method cancel a pending operation if any.
      *
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
      *        ownership aware.
@@ -373,7 +375,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //cancel
 
     /**
-     * This method cancel an intake operation if any.
+     * This method cancel a pending operation if any.
      */
     public void cancel()
     {
@@ -381,11 +383,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //cancel
 
     /**
-     * This method performs the auto-assist action.
+     * This method performs the action.
      *
      * @param context specifies the action parameters.
      */
-    private void performAutoAssist(Object context)
+    private void performAction(Object context)
     {
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
@@ -393,7 +395,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         if (actionParams.operation == Operation.Intake ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or ejecting object and we still have one.
-            tracer.traceDebug(instanceName, "AutoAssist: " + actionParams + ", hasObject=" + objCaptured);
+            tracer.traceDebug(instanceName, "Action: " + actionParams + ", hasObject=" + objCaptured);
             motor.setPower(actionParams.intakePower);
             if (actionParams.operation == Operation.Intake || actionParams.operation == Operation.EjectForward)
             {
@@ -406,7 +408,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
             if (actionParams.timeout > 0.0)
             {
-                timerEvent.setCallback(this::autoAssistTimedOut, null);
+                timerEvent.setCallback(this::actionTimedOut, null);
                 timer.set(actionParams.timeout, timerEvent);
             }
         }
@@ -416,48 +418,61 @@ public class TrcIntake implements TrcExclusiveSubsystem
             tracer.traceDebug(instanceName, "Already done: hasObject=" + objCaptured);
             finish(true);
         }
-    }   //performAutoAssist
+    }   //performAction
 
     /**
      * This method is called when the entry trigger state has changed.
      *
-     * @param context specifies the TriggerState object.
+     * @param context specifies the trigger state.
      */
     private void entryTriggerCallback(Object context)
     {
-        finish(true);
-        if (entryTrigger.triggerCallback != null)
+        boolean active = ((AtomicBoolean) context).get();
+
+        if (actionParams.operation == Operation.EjectReverse && !active)
         {
-            entryTrigger.triggerCallback.notify(context);
+            // The object has been ejected.
+            finish(true);
+            if (entryTrigger.triggerCallback != null)
+            {
+                entryTrigger.triggerCallback.notify(context);
+            }
         }
     }   //entryTriggerCallback
 
     /**
      * This method is called when the exit trigger state has changed.
      *
-     * @param context specifies the TriggerState object.
+     * @param context specifies the trigger state.
      */
     private void exitTriggerCallback(Object context)
     {
-        finish(true);
-        if (exitTrigger.triggerCallback != null)
+        boolean active = ((AtomicBoolean) context).get();
+
+        if (actionParams.operation == Operation.Intake && active ||
+            actionParams.operation == Operation.EjectForward && !active)
         {
-            exitTrigger.triggerCallback.notify(context);
+            // We have either captured an object or ejected it.
+            finish(true);
+            if (exitTrigger.triggerCallback != null)
+            {
+                exitTrigger.triggerCallback.notify(context);
+            }
         }
     }   //exitTriggerCallback
 
     /**
-     * This method is called when the auto-assist operation has timed out.
+     * This method is called when the action has timed out.
      *
      * @param context not used.
      */
-    private void autoAssistTimedOut(Object context)
+    private void actionTimedOut(Object context)
     {
         finish(false);
-    }   //autoAssistTimedOut
+    }   //actionTimedOut
 
     /**
-     * This method is an auto-assist operation. It allows the caller to start the intake spinning at the given power
+     * This method performs an auto operation. It allows the caller to start the intake spinning at the given power
      * and it will stop itself once object is picked up or ejected in the intake at which time the given event will
      * be signaled.
      *
@@ -467,43 +482,43 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured, applicable only to intake
      *        object.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    private void autoAssistOperation(
+    private void autoOperation(
         String owner, Operation operation, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
         if (entryTrigger == null && exitTrigger == null || power == 0.0)
         {
-            throw new RuntimeException("Must have sensor and non-zero power to perform AutoAssist Intake.");
+            throw new RuntimeException("Must have sensor and non-zero power to perform Auto Operation.");
         }
 
         TrcEvent releaseOwnershipEvent = acquireOwnership(owner, event, tracer);
         if (releaseOwnershipEvent != null) event = releaseOwnershipEvent;
         //
-        // This is an auto-assist operation, make sure the caller has ownership.
+        // Make sure the caller has ownership.
         //
         if (validateOwnership(owner))
         {
             actionParams = new ActionParams(operation, power, retainPower, finishDelay, event, timeout);
             if (delay > 0.0)
             {
-                timerEvent.setCallback(this::performAutoAssist, actionParams);
+                timerEvent.setCallback(this::performAction, actionParams);
                 timer.set(delay, timerEvent);
             }
             else
             {
-                performAutoAssist(actionParams);
+                performAction(actionParams);
             }
         }
-    }   //autoAssistOperation
+    }   //autoOperation
 
     /**
-     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
      * power and it will stop itself once object is picked up in the intake at which time the given event will be
      * signaled.
      *
@@ -511,211 +526,205 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(
+    public void autoIntake(
         String owner, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
-    }   //autoAssistIntake
+        autoOperation(owner, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntake
 
     /**
-     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
+     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
      * power and it will stop itself once object is picked up in the intake at which time the given event will be
      * signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistIntake(
+    public void autoIntake(
         double delay, double power, double retainPower, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
-    }   //autoAssistIntake
+        autoOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntake
 
     /**
-     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistIntake(double delay, double power, double retainPower, double finishDelay)
+    public void autoIntake(double delay, double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, null, 0.0);
-    }   //autoAssistIntake
+        autoOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntake
 
     /**
-     * This method is an auto-assist intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
+     * power and it will stop itself once object is picked up in the intake.
      *
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistIntake(double power, double retainPower, double finishDelay)
+    public void autoIntake(double power, double retainPower, double finishDelay)
     {
-        autoAssistOperation(null, Operation.Intake, 0.0, power, retainPower, finishDelay, null, 0.0);
-    }   //autoAssistIntake
+        autoOperation(null, Operation.Intake, 0.0, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntake
 
     /**
-     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake at which time the given event
+     * will be signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistEjectForward(
+    public void autoEjectForward(
         String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistEjectForward
+        autoOperation(owner, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoEjectForward
 
     /**
-     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake at which time the given event
+     * will be signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistEjectForward(double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    public void autoEjectForward(double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistEjectForward
+        autoOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoEjectForward
 
     /**
-     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistEjectForward(double delay, double power, double finishDelay)
+    public void autoEjectForward(double delay, double power, double finishDelay)
     {
-        autoAssistOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistEjectForward
+        autoOperation(null, Operation.EjectForward, delay, power, 0.0, finishDelay, null, 0.0);
+    }   //autoEjectForward
 
     /**
-     * This method is an auto-assist eject forward operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is ejected in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake.
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistEjectForward(double power, double finishDelay)
+    public void autoEjectForward(double power, double finishDelay)
     {
-        autoAssistOperation(null, Operation.EjectForward, 0.0, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistEjectForward
+        autoOperation(null, Operation.EjectForward, 0.0, power, 0.0, finishDelay, null, 0.0);
+    }   //autoEjectForward
 
     /**
-     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake at which time the given event
+     * will be signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistEjectReverse(
+    public void autoEjectReverse(
         String owner, double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(owner, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistEjectReverse
+        autoOperation(owner, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoEjectReverse
 
     /**
-     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake at which time the given event
+     * will be signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      * @param event specifies the event to signal when object is detected in the intake.
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoAssistEjectReverse(double delay, double power, double finishDelay, TrcEvent event, double timeout)
+    public void autoEjectReverse(double delay, double power, double finishDelay, TrcEvent event, double timeout)
     {
-        autoAssistOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
-    }   //autoAssistEjectReverse
+        autoOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, event, timeout);
+    }   //autoEjectReverse
 
     /**
-     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistEjectReverse(double delay, double power, double finishDelay)
+    public void autoEjectReverse(double delay, double power, double finishDelay)
     {
-        autoAssistOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistEjectReverse
+        autoOperation(null, Operation.EjectReverse, delay, power, 0.0, finishDelay, null, 0.0);
+    }   //autoEjectReverse
 
     /**
-     * This method is an auto-assist eject reverse operation. It allows the caller to start the intake spinning at the
-     * given power and it will stop itself once object is dumped in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto eject reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is ejected in the intake.
      *
      * @param power specifies the power value to spin the intake. It assumes positive power to pick up and negative
-     *              power to dump.
-     * @param finishDelay specifies the delay in seconds to fnish the auto-assist operation to give it extra time
-     *        spinning the intake.
+     *              power to eject.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
      */
-    public void autoAssistEjectReverse(double power, double finishDelay)
+    public void autoEjectReverse(double power, double finishDelay)
     {
-        autoAssistOperation(null, Operation.EjectReverse, 0.0, power, 0.0, finishDelay, null, 0.0);
-    }   //autoAssistEjectReverse
+        autoOperation(null, Operation.EjectReverse, 0.0, power, 0.0, finishDelay, null, 0.0);
+    }   //autoEjectReverse
 
     /**
      * This method returns the sensor value read from the analog sensor of the trigger.
@@ -783,13 +792,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //hasObject
 
     /**
-     * This method checks if auto-assist pickup is active.
+     * This method checks if auto operation is active.
      *
-     * @return true if auto-assist is in progress, false otherwise.
+     * @return true if auto operation is in progress, false otherwise.
      */
-    public boolean isAutoAssistActive()
+    public boolean isActive()
     {
         return actionParams != null;
-    }   //isAutoAssistActive
+    }   //isActive
 
 }   //class TrcIntake
