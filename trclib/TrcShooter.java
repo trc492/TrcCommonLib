@@ -62,7 +62,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private final PanTiltParams tiltParams;
     public final TrcMotor panMotor;
     private final PanTiltParams panParams;
-    private final ShootOperation shootOp;
     private final TrcEvent shooterOnTargetEvent;
     private final TrcEvent tiltOnTargetEvent;
     private final TrcEvent panOnTargetEvent;
@@ -72,6 +71,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private String currOwner = null;
     private boolean manualOverride = false;
     private TrcEvent completionEvent = null;
+    private ShootOperation shootOp = null;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -82,11 +82,10 @@ public class TrcShooter implements TrcExclusiveSubsystem
      * @param tiltParams specifies the tilt motor parameters, null if no tilt motor.
      * @param panMotor specifies the pan motor object, can be null if none.
      * @param panParams specifies the pan motor parameters, null if no pan motor.
-     * @param shootOp specifies the shoot operation object for shooting.
      */
     public TrcShooter(
         String instanceName, TrcMotor shooterMotor, TrcMotor tiltMotor, PanTiltParams tiltParams, TrcMotor panMotor,
-        PanTiltParams panParams, ShootOperation shootOp)
+        PanTiltParams panParams)
     {
         this.tracer = new TrcDbgTrace();
         this.instanceName = instanceName;
@@ -95,7 +94,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
         this.tiltParams = tiltParams;
         this.panMotor = panMotor;
         this.panParams = panParams;
-        this.shootOp = shootOp;
 
         shooterOnTargetEvent = new TrcEvent(instanceName + ".shooterOnTargetEvent");
         tiltOnTargetEvent = tiltMotor != null? new TrcEvent(instanceName + ".tiltOnTargetEvent"): null;
@@ -168,9 +166,9 @@ public class TrcShooter implements TrcExclusiveSubsystem
     }   //cancel
 
     /**
-     * This method prepares the shooter subsystem for shooting. It sets the shooter velocity and the tilt/pan angles
-     * if tilt/pan exist. This method is asynchronous. When both shooter velocity and tilt/pan positions have reached
-     * target, it will shoot and signal an event if provided.
+     * This method sets the shooter velocity and the tilt/pan angles if tilt/pan exist. This method is asynchronous.
+     * When both shooter velocity and tilt/pan positions have reached target and if shoot method is provided, it will
+     * shoot and signal an event if provided.
      *
      * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
      *        ownership aware.
@@ -179,9 +177,11 @@ public class TrcShooter implements TrcExclusiveSubsystem
      * @param panAngle specifies the absolute pan angle in degrees.
      * @param event specifies an event to signal when both reached target, can be null if not provided.
      * @param timeout specifies maximum timeout period, can be zero if no timeout.
+     * @param shootOp specifies the shoot method, can be null if aim only.
      */
-    public void aimAndShoot(
-        String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout)
+    public void aimShooter(
+        String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout,
+        ShootOperation shootOp)
     {
         tracer.traceInfo(
             instanceName,
@@ -190,7 +190,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
             ", tiltAngle=" + tiltAngle +
             ", panAngle=" + panAngle +
             ", event=" + event +
-            ", timeout=" + timeout);
+            ", timeout=" + timeout +
+            ", aimOnly=" + (shootOp == null));
         // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
         if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
         {
@@ -200,6 +201,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
         if (validateOwnership(owner))
         {
             this.completionEvent = event;
+            this.shootOp = shootOp;
 
             shooterOnTargetEvent.clear();
             shooterOnTargetEvent.setCallback(this::onTarget, null);
@@ -224,7 +226,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
                 timer.set(timeout, this::timedOut, null);
             }
         }
-    }   //aimAndShoot
+    }   //aimShooter
 
     /**
      * This method is called when the shooter has reached target velocity or tilt/pan has reached target positions.
@@ -237,15 +239,23 @@ public class TrcShooter implements TrcExclusiveSubsystem
             instanceName,
             "shooterEvent=" + shooterOnTargetEvent +
             ", tiltEvent=" + tiltOnTargetEvent +
-            ", panEvent=" + panOnTargetEvent);
+            ", panEvent=" + panOnTargetEvent +
+            ", aimOnly=" + (shootOp == null));
         if (shooterOnTargetEvent.isSignaled() &&
             (tiltOnTargetEvent == null || tiltOnTargetEvent.isSignaled()) &&
             (panOnTargetEvent == null || panOnTargetEvent.isSignaled()))
         {
-            // If both shooter velocity and tilt/pan position have reached target, shoot.
-            shootCompletionEvent.clear();
-            shootCompletionEvent.setCallback(this::shootCompleted, null);
-            shootOp.shoot(shootCompletionEvent);
+            if (shootOp != null)
+            {
+                // If both shooter velocity and tilt/pan position have reached target, shoot.
+                shootCompletionEvent.clear();
+                shootCompletionEvent.setCallback(this::shootCompleted, null);
+                shootOp.shoot(shootCompletionEvent);
+            }
+            else
+            {
+                finish(true);
+            }
         }
     }   //onTarget
 
