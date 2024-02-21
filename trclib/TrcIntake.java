@@ -135,12 +135,12 @@ public class TrcIntake implements TrcExclusiveSubsystem
         @Override
         public String toString()
         {
-            return "op=" + operation +
+            return "(op=" + operation +
                    ", intakePower=" + intakePower +
                    ", retainPower=" + retainPower +
                    ", finishDelay=" + finishDelay +
                    ", event=" + event +
-                   ", timeout=" + timeout;
+                   ", timeout=" + timeout + ")";
         }   //toString
 
     }   //class ActionParams
@@ -329,8 +329,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
             double power = completed && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
-            entryTrigger.trigger.disableTrigger();
-            exitTrigger.trigger.disableTrigger();
+            if (entryTrigger != null)
+            {
+                entryTrigger.trigger.disableTrigger();
+            }
+            if (exitTrigger != null)
+            {
+                exitTrigger.trigger.disableTrigger();
+            }
 
             if (actionParams.event != null)
             {
@@ -392,6 +398,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
 
+        tracer.traceInfo(instanceName, "hasObject=" + objCaptured + ", actionParams=" + actionParams);
         if (actionParams.operation == Operation.Intake ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or ejecting object and we still have one.
@@ -429,6 +436,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         boolean active = ((AtomicBoolean) context).get();
 
+        tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
         if (actionParams.operation == Operation.EjectReverse && !active)
         {
             // The object has been ejected.
@@ -449,6 +457,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         boolean active = ((AtomicBoolean) context).get();
 
+        tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
         if (actionParams.operation == Operation.Intake && active ||
             actionParams.operation == Operation.EjectForward && !active)
         {
@@ -468,6 +477,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private void actionTimedOut(Object context)
     {
+        tracer.traceDebug(instanceName, "Timed out: actionParams=" + actionParams);
         finish(false);
     }   //actionTimedOut
 
@@ -492,9 +502,20 @@ public class TrcIntake implements TrcExclusiveSubsystem
         String owner, Operation operation, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
-        if (entryTrigger == null && exitTrigger == null || power == 0.0)
+        if (power == 0.0)
         {
-            throw new RuntimeException("Must have sensor and non-zero power to perform Auto Operation.");
+            throw new RuntimeException("Must provide non-zero power to perform Auto Operation.");
+        }
+        else if (operation == Operation.EjectReverse)
+        {
+            if (entryTrigger == null)
+            {
+                throw new RuntimeException("Must have entry sensor to perform Auto EjectReverse.");
+            }
+        }
+        else if (exitTrigger == null)
+        {
+            throw new RuntimeException("Must have exit sensor to perform Auto Intake/EjectForward.");
         }
 
         TrcEvent releaseOwnershipEvent = acquireOwnership(owner, event, tracer);
@@ -504,6 +525,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         //
         if (validateOwnership(owner))
         {
+            power = Math.abs(power);
+            if (operation == Operation.EjectReverse) power = -power;
             actionParams = new ActionParams(operation, power, retainPower, finishDelay, event, timeout);
             if (delay > 0.0)
             {
@@ -734,7 +757,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public double getSensorValue(Trigger trigger)
     {
-        return trigger.analogTriggerThreshold != null? trigger.trigger.getSensorValue(): 0.0;
+        return trigger != null && trigger.analogTriggerThreshold != null? trigger.trigger.getSensorValue(): 0.0;
     }   //getSensorValue
 
     /**
@@ -744,7 +767,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public boolean getSensorState(Trigger trigger)
     {
-        return trigger.analogTriggerThreshold == null && trigger.trigger.getSensorState();
+        return trigger != null && trigger.analogTriggerThreshold == null && trigger.trigger.getSensorState();
     }   //getSensorState
 
     /**
@@ -757,17 +780,20 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         boolean active = false;
 
-        if (trigger.analogTriggerThreshold != null)
+        if (trigger != null)
         {
-            active = getSensorValue(trigger) > trigger.analogTriggerThreshold;
-            if (trigger.analogTriggerInverted)
+            if (trigger.analogTriggerThreshold != null)
             {
-                active = !active;
+                active = getSensorValue(trigger) > trigger.analogTriggerThreshold;
+                if (trigger.analogTriggerInverted)
+                {
+                    active = !active;
+                }
             }
-        }
-        else
-        {
-            active = getSensorState(trigger);
+            else
+            {
+                active = getSensorState(trigger);
+            }
         }
 
         return active;
@@ -781,14 +807,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public boolean hasObject()
     {
-        boolean gotObject = false;
-
-        if (exitTrigger != null)
-        {
-            gotObject = isTriggerActive(exitTrigger);
-        }
-
-        return gotObject;
+        return isTriggerActive(exitTrigger);
     }   //hasObject
 
     /**
