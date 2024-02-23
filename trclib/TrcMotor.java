@@ -140,6 +140,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private final TrcTimer timer;
     private TrcPerformanceTimer pidCtrlTaskPerformanceTimer = null;
     private boolean odometryEnabled = false;
+    private TrcEvent releaseOwnershipEvent = null;
     // Configurations for software simulation of motor controller features.
     private boolean softwarePidEnabled = false;
     private Double batteryNominalVoltage = null;
@@ -1135,59 +1136,37 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method cancels a previous operation by resetting the state set by the previous operation. Note: cancel
      * does not stop the motor and therefore it will still hold its position. If you want to stop the motor, call
      * the stop method instead.
-     *
-     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
-     *        ownership aware.
      */
-    public void cancel(String owner)
+    public void cancel()
     {
-        if (validateOwnership(owner))
+        if (releaseOwnershipEvent != null)
         {
-            timer.cancel();
-            synchronized (taskParams)
+            releaseOwnershipEvent.setCallback(null, null);
+            releaseOwnershipEvent = null;
+        }
+        cancelExclusiveAccess();
+        timer.cancel();
+
+        synchronized (taskParams)
+        {
+            taskParams.calibrating = false;
+            if (taskParams.notifyEvent != null)
             {
-                taskParams.calibrating = false;
-                if (taskParams.notifyEvent != null)
-                {
-                    taskParams.notifyEvent.cancel();
-                    taskParams.notifyEvent = null;
-                }
+                taskParams.notifyEvent.cancel();
+                taskParams.notifyEvent = null;
             }
         }
     }   //cancel
 
     /**
-     * This method cancels a previous operation by resetting the state set by the previous operation. Note: cancel
-     * does not stop the motor and therefore it will still hold its position. If you want to stop the motor, call
-     * the stop method instead.
-     */
-    public void cancel()
-    {
-        cancel(null);
-    }   //cancel
-
-    /**
      * This method stops the motor regardless of the control mode and resets it to power control mode.
      *
-     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
-     *        ownership aware.
-     */
-    public void stop(String owner)
-    {
-        if (validateOwnership(owner))
-        {
-            cancel();
-            // In addition to canceling the previous operation states, stop the physical motor.
-            setControllerMotorPower(0.0, true);
-        }
-    }   //stop
-
-    /**
-     * This method stops the motor regardless of the control mode and resets it to power control mode.
      */
     public void stop()
     {
-        stop(null);
+        cancel();
+        // In addition to canceling the previous operation states, stop the physical motor.
+        setControllerMotorPower(0.0, true);
     }   //stop
 
     /**
@@ -1356,14 +1335,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             completionEvent.clear();
         }
-
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
+        // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
+        cancel();
+        releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
         {
-            // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
-            cancel();
             // Perform voltage compensation only on power control.
             // If motor controller supports voltage compensation, voltageCompensation will not change the value and
             // therefore a no-op.
@@ -1626,7 +1604,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             completionEvent.clear();
         }
 
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
+        releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))
@@ -1634,8 +1612,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             boolean stopIt = false;
             double currPos = getPosition();
             boolean forward = position > currPos;
-            // Cancel previous operation if there is one but keep the physical motor running for a smoother transition.
-            cancel();
+            // Stop previous operation if there is one.
+            stop();
             // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
             // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
             if (lowerLimitSwitchEnabled && !forward && lowerLimitSwitch.isActive() ||
@@ -2940,7 +2918,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             completionEvent.clear();
         }
 
-        TrcEvent releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
+        releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
         if (validateOwnership(owner))

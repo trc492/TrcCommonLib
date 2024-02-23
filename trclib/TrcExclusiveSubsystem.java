@@ -107,6 +107,16 @@ public interface TrcExclusiveSubsystem
     }   //releaseExclusiveAccess
 
     /**
+     * This method release exclusive ownership of the subsystem regardless who owns it.
+     *
+     * @return true if successfully releasing ownership, false if no owner.
+     */
+    default boolean cancelExclusiveAccess()
+    {
+        return TrcOwnershipMgr.getInstance().cancelOwnership(this);
+    }   //cancelExclusiveAccess
+
+    /**
      * This method acquires exclusive access to the subsystem for the specified owner if the owner did not already
      * have ownership. If successfully acquired exclusive access, it will return an event that the owner must signal
      * when exclusive access is no longer needed. At that time, the exclusive access will be released for the owner.

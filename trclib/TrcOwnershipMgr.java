@@ -114,6 +114,7 @@ public class TrcOwnershipMgr
      * This method acquires exclusive ownership of the subsystem if it's not already owned by somebody else.
      *
      * @param owner specifies the ID string of the caller requesting ownership.
+     * @param subsystem specifies the subsystem to acquire its ownership.
      * @return true if successfully acquired ownership, false otherwise.
      */
     public synchronized boolean acquireOwnership(String owner, TrcExclusiveSubsystem subsystem)
@@ -135,9 +136,10 @@ public class TrcOwnershipMgr
     }   //acquireOwnership
 
     /**
-     * This method release exclusive ownership of the subsystem if the caller is indeed the owner.
+     * This method releases exclusive ownership of the subsystem if the caller is indeed the owner.
      *
      * @param owner specifies the ID string of the caller releasing ownership.
+     * @param subsystem specifies the subsystem to release its ownership.
      * @return true if successfully releasing ownership, false otherwise.
      */
     public synchronized boolean releaseOwnership(String owner, TrcExclusiveSubsystem subsystem)
@@ -150,5 +152,16 @@ public class TrcOwnershipMgr
         }
         return false;
     }   //releaseOwnership
+
+    /**
+     * This method releases exclusive ownership of the subsystem regardless who owns it.
+     *
+     * @param subsystem specifies the subsystem to release its ownership.
+     * @return true if successfully releasing ownership, false if no owner.
+     */
+    public synchronized boolean cancelOwnership(TrcExclusiveSubsystem subsystem)
+    {
+        return ownershipMap.remove(subsystem) != null;
+    }   //cancelOwnership
 
 }   //class TrcOwnershipMgr
