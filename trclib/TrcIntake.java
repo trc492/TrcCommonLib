@@ -44,6 +44,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         private final TrcEvent.Callback triggerCallback;
         private final Double analogTriggerThreshold;
         private final Boolean analogTriggerInverted;
+        private TrcEvent notifyEvent;
+        private TriggerType triggerType;
 
         /**
          * Constructor: Create an instance of the object.
@@ -61,6 +63,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.triggerCallback = triggerCallback;
             this.analogTriggerThreshold = threshold;
             this.analogTriggerInverted = triggerInverted;
+            this.notifyEvent = null;
+            this.triggerType = TriggerType.TRIGGER_ACTIVE;
         }   //Trigger
 
         /**
@@ -97,6 +101,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }   //toString
 
     }   //class Trigger
+
+    /**
+     * Specifies the trigger type.
+     */
+    public enum TriggerType
+    {
+        TRIGGER_ACTIVE,
+        TRIGGER_INACTIVE,
+        TRIGGER_BOTH
+    }   //enum TriggerType
 
     /**
      * Specifies the operation types.
@@ -312,6 +326,54 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //setPower
 
     /**
+     * This method enables/disables the entry trigger.
+     *
+     * @param enabled specifies true to enable trigger, false to disable.
+     */
+    private void setEntryTriggerEnabled(boolean enabled)
+    {
+        boolean triggerEnabled = entryTrigger.trigger.isEnabled();
+
+        if (!triggerEnabled && enabled)
+        {
+            // Enabling trigger.
+            entryTrigger.trigger.enableTrigger(this::entryTriggerCallback);
+        }
+        else if (triggerEnabled && !enabled)
+        {
+            // Disabling trigger only if Intake is inactive and no trigger event is registered.
+            if (actionParams == null && entryTrigger.notifyEvent == null)
+            {
+                entryTrigger.trigger.disableTrigger();
+            }
+        }
+    }   //setEntryTriggerEnabled
+
+    /**
+     * This method enables/disables the exit trigger.
+     *
+     * @param enabled specifies true to enable trigger, false to disable.
+     */
+    private void setExitTriggerEnabled(boolean enabled)
+    {
+        boolean triggerEnabled = exitTrigger.trigger.isEnabled();
+
+        if (!triggerEnabled && enabled)
+        {
+            // Enabling trigger.
+            exitTrigger.trigger.enableTrigger(this::exitTriggerCallback);
+        }
+        else if (triggerEnabled && !enabled)
+        {
+            // Disabling trigger only if Intake is inactive and no trigger event is registered.
+            if (actionParams == null && exitTrigger.notifyEvent == null)
+            {
+                exitTrigger.trigger.disableTrigger();
+            }
+        }
+    }   //setExitTriggerEnabled
+
+    /**
      * This method is called to finish the operation and to clean up. It can be called either at the end of timeout
      * or when object has been captured or ejected to finish the operation and signal the caller for completion. It
      * can also be called if the caller explicitly cancel the operation in which case the event will be set to
@@ -329,14 +391,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             double power = completed && hasObject()? actionParams.retainPower: 0.0;
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
-            if (entryTrigger != null)
-            {
-                entryTrigger.trigger.disableTrigger();
-            }
-            if (exitTrigger != null)
-            {
-                exitTrigger.trigger.disableTrigger();
-            }
 
             if (actionParams.event != null)
             {
@@ -357,6 +411,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 releaseExclusiveAccess(currOwner);
                 currOwner = null;
+            }
+
+            // Disable triggers only after actionParams is marked inactive.
+            if (entryTrigger != null)
+            {
+                setEntryTriggerEnabled(false);
+            }
+
+            if (exitTrigger != null)
+            {
+                setExitTriggerEnabled(false);
             }
         }
         else
@@ -406,11 +471,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
             motor.setPower(actionParams.intakePower);
             if (actionParams.operation == Operation.Intake || actionParams.operation == Operation.EjectForward)
             {
-                exitTrigger.trigger.enableTrigger(this::exitTriggerCallback);
+                setExitTriggerEnabled(true);
             }
             else
             {
-                entryTrigger.trigger.enableTrigger(this::entryTriggerCallback);
+                setEntryTriggerEnabled(true);
             }
 
             if (actionParams.timeout > 0.0)
@@ -428,6 +493,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //performAction
 
     /**
+     * This method is called when the action has timed out.
+     *
+     * @param context not used.
+     */
+    private void actionTimedOut(Object context)
+    {
+        tracer.traceDebug(instanceName, "Timed out: actionParams=" + actionParams);
+        finish(false);
+    }   //actionTimedOut
+
+    /**
      * This method is called when the entry trigger state has changed.
      *
      * @param context specifies the trigger state.
@@ -437,14 +513,25 @@ public class TrcIntake implements TrcExclusiveSubsystem
         boolean active = ((AtomicBoolean) context).get();
 
         tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
-        if (actionParams.operation == Operation.EjectReverse && !active)
+        if (actionParams != null)
         {
-            // The object has been ejected.
-            finish(true);
-            if (entryTrigger.triggerCallback != null)
+            if (actionParams.operation == Operation.EjectReverse && !active)
             {
-                entryTrigger.triggerCallback.notify(context);
+                // The object has been ejected.
+                finish(true);
+                if (entryTrigger.triggerCallback != null)
+                {
+                    entryTrigger.triggerCallback.notify(context);
+                }
             }
+        }
+
+        if (entryTrigger.notifyEvent != null &&
+            (entryTrigger.triggerType == TriggerType.TRIGGER_BOTH ||
+             entryTrigger.triggerType == TriggerType.TRIGGER_ACTIVE && active ||
+             entryTrigger.triggerType == TriggerType.TRIGGER_INACTIVE && !active))
+        {
+            entryTrigger.notifyEvent.signal();
         }
     }   //entryTriggerCallback
 
@@ -458,28 +545,112 @@ public class TrcIntake implements TrcExclusiveSubsystem
         boolean active = ((AtomicBoolean) context).get();
 
         tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
-        if (actionParams.operation == Operation.Intake && active ||
-            actionParams.operation == Operation.EjectForward && !active)
+        if (actionParams != null)
         {
-            // We have either captured an object or ejected it.
-            finish(true);
-            if (exitTrigger.triggerCallback != null)
+            if (actionParams.operation == Operation.Intake && active ||
+                actionParams.operation == Operation.EjectForward && !active)
             {
-                exitTrigger.triggerCallback.notify(context);
+                // We have either captured an object or ejected it.
+                finish(true);
+                if (exitTrigger.triggerCallback != null)
+                {
+                    exitTrigger.triggerCallback.notify(context);
+                }
             }
+        }
+
+        if (exitTrigger.notifyEvent != null &&
+            (exitTrigger.triggerType == TriggerType.TRIGGER_BOTH ||
+             exitTrigger.triggerType == TriggerType.TRIGGER_ACTIVE && active ||
+             exitTrigger.triggerType == TriggerType.TRIGGER_INACTIVE && !active))
+        {
+            exitTrigger.notifyEvent.signal();
         }
     }   //exitTriggerCallback
 
     /**
-     * This method is called when the action has timed out.
+     * This method registers a notification event to be signaled when the entry trigger occurred.
      *
-     * @param context not used.
+     * @param notifyEvent specifies the event to signal when entry trigger occurred.
+     * @param triggerType specifies trigger type that will signal the event.
+     * @return true if success, false if there is no entry trigger or it is already enabled by someone else.
      */
-    private void actionTimedOut(Object context)
+    public boolean registerEntryTriggerNotifyEvent(TrcEvent notifyEvent, TriggerType triggerType)
     {
-        tracer.traceDebug(instanceName, "Timed out: actionParams=" + actionParams);
-        finish(false);
-    }   //actionTimedOut
+        boolean success = false;
+
+        if (entryTrigger != null && entryTrigger.notifyEvent == null)
+        {
+            entryTrigger.notifyEvent = notifyEvent;
+            entryTrigger.triggerType = triggerType;
+            setEntryTriggerEnabled(true);
+            success = true;
+        }
+
+        return success;
+    }   //registerEntryTriggerNotifyCallback
+
+    /**
+     * This method unregisters the notification event for the entry trigger.
+     *
+     * @return true if success, false if trigger does not exist or has no notification event registered.
+     */
+    public boolean unregisterEntryTriggerNotifyEvent()
+    {
+        boolean success = false;
+
+        if (entryTrigger != null && entryTrigger.notifyEvent != null)
+        {
+            // Must disable notifyEvent before disabling trigger.
+            entryTrigger.notifyEvent = null;
+            setEntryTriggerEnabled(false);
+            success = true;
+        }
+
+        return success;
+    }   //unregisterEntryTriggerNotifyCallback
+
+    /**
+     * This method registers a notification event to be signaled when the exit trigger occurred.
+     *
+     * @param notifyEvent specifies the event to signal when exit trigger occurred.
+     * @param triggerType specifies trigger type that will signal the event.
+     * @return true if success, false if there is no exit trigger or it is already enabled by someone else.
+     */
+    public boolean registerExitTriggerNotifyEvent(TrcEvent notifyEvent, TriggerType triggerType)
+    {
+        boolean success = false;
+
+        if (exitTrigger != null && exitTrigger.notifyEvent == null)
+        {
+            exitTrigger.notifyEvent = notifyEvent;
+            exitTrigger.triggerType = triggerType;
+            setExitTriggerEnabled(true);
+            success = true;
+        }
+
+        return success;
+    }   //registerExitTriggerNotifyCallback
+
+    /**
+     * This method unregisters the notification event for the exit trigger.
+     *
+     * @return true if success, false if trigger does not exist or has no notification event registered.
+     */
+    public boolean unregisterExitTriggerNotifyEvent()
+    {
+        boolean success = false;
+
+        if (exitTrigger != null && exitTrigger.notifyEvent != null)
+        {
+            // Must disable notifyEvent before disabling trigger.
+            exitTrigger.notifyEvent = null;
+            setExitTriggerEnabled(false);
+            success = true;
+        }
+
+        return success;
+    }   //unregisterExitTriggerNotifyCallback
 
     /**
      * This method performs an auto operation. It allows the caller to start the intake spinning at the given power
