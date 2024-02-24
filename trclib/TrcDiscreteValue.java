@@ -58,7 +58,7 @@ public class TrcDiscreteValue
         this.incMin = incMin;
         this.incMax = incMax;
         this.value = defValue;
-        this.value = defInc;
+        this.inc = defInc;
     }   //TrcDiscreteValue
 
     /**
