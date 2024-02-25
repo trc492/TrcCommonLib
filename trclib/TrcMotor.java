@@ -151,6 +151,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private Double softUpperLimit = null;   // in scaled units.
     private double sensorScale = 1.0;
     private double sensorOffset = 0.0;
+    private double sensorZeroOffset = 0.0;
     private double zeroPosition = 0.0;      // in scaled units.
     private double currMotorPower = 0.0;
     // Used to remember previous set values so to optimize if value set is the same as previous set values.
@@ -736,8 +737,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         else
         {
             // Motor controllers do support scale but not offset. It's easier for us to just simulate it here.
-            sensorScale = scale;
-            sensorOffset = offset;
+            this.sensorScale = scale;
+            this.sensorOffset = offset;
+            this.sensorZeroOffset = zeroOffset;
         }
     }   //setPositionSensorScaleAndOffset
 
@@ -781,7 +783,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         else
         {
             // Motor controller position sensor is not scaled, we will do scaling here.
-            currPos = getMotorPosition()*sensorScale;
+            currPos = (getMotorPosition() - sensorZeroOffset)*sensorScale;
             if (zeroAdjust)
             {
                 currPos = currPos - zeroPosition + sensorOffset;
