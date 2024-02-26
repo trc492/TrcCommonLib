@@ -266,6 +266,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                     }
 
                 case PREP_FOR_TUNING:
+                    pidDrive.resetAbsoluteTargetPose();
                     if (tunePidCoeff != null)
                     {
                         //

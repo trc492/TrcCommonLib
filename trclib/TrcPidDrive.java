@@ -138,7 +138,7 @@ public class TrcPidDrive
         this.xTolerance = xTolerance;
         this.yTolerance = yTolerance;
         this.turnTolerance = turnTolerance;
-        resetAbsoluteTargetPose();
+        setAbsoluteTargetPose(driveBase.getFieldPosition());
         driveTaskObj = TrcTaskMgr.createTask(instanceName + ".driveTask", this::driveTask);
         stopTaskObj = TrcTaskMgr.createTask(instanceName + ".stopTask", this::stopTask);
 
@@ -216,10 +216,7 @@ public class TrcPidDrive
     public synchronized void setAbsoluteTargetModeEnabled(boolean enabled)
     {
         this.absTargetModeEnabled = enabled;
-        if (enabled)
-        {
-            resetAbsoluteTargetPose();
-        }
+        resetAbsoluteTargetPose();
     }   //setAbsoluteTargetModeEnabled
 
     /**
@@ -324,7 +321,10 @@ public class TrcPidDrive
      */
     public synchronized void resetAbsoluteTargetPose()
     {
-        setAbsoluteTargetPose(driveBase.getFieldPosition());
+        if (absTargetModeEnabled)
+        {
+            setAbsoluteTargetPose(driveBase.getFieldPosition());
+        }
     }   //resetAbsoluteTargetPose
 
     /**
@@ -642,15 +642,13 @@ public class TrcPidDrive
         if (driveBase.validateOwnership(owner))
         {
             this.owner = owner;
-            // adding relative X and Y targets to the absolute target pose.
-            TrcPose2D newTargetPose = absTargetPose.translatePose(xDelta, yDelta);
-            // adding relative turn target to the absolute target angle.
-            newTargetPose.angle += turnDelta;
+            // adding relative X, Y and turn targets to the absolute target pose.
+            TrcPose2D newAbsTargetPose = absTargetPose.addRelativePose(new TrcPose2D(xDelta, yDelta, turnDelta));
             double xTarget, yTarget, turnTarget;
 
             tracer.traceDebug(
-                instanceName, "owner=%s, xDelta=%f, yDelta=%f, turnDelta=%f, currPose=%s",
-                owner, xDelta, yDelta, turnDelta, absTargetPose);
+                instanceName, "owner=%s, xDelta=%f, yDelta=%f, turnDelta=%f, absTargetPose=%s, newAbsTargetPose=%s",
+                owner, xDelta, yDelta, turnDelta, absTargetPose, newAbsTargetPose);
             if (absTargetModeEnabled)
             {
                 if (xDelta == 0.0 && yDelta == 0.0 && turnDelta != 0.0)
@@ -670,7 +668,7 @@ public class TrcPidDrive
                     // Adjusting relative target by subtracting current robot pose from the absolute target pose.
                     // This will eliminate cumulative error.
                     //
-                    TrcPose2D relativePose = newTargetPose.relativeTo(driveBase.getFieldPosition());
+                    TrcPose2D relativePose = newAbsTargetPose.relativeTo(driveBase.getFieldPosition());
                     xTarget = relativePose.x;
                     yTarget = relativePose.y;
                 }
@@ -686,7 +684,7 @@ public class TrcPidDrive
             //
             // Adjust the turn target.
             //
-            turnTarget = turnPidCtrl.hasAbsoluteSetPoint()? newTargetPose.angle : turnDelta;
+            turnTarget = turnPidCtrl.hasAbsoluteSetPoint()? newAbsTargetPose.angle : turnDelta;
 
             if (noOscillation)
             {
@@ -709,10 +707,10 @@ public class TrcPidDrive
             }
 
             tracer.traceDebug(
-                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newPose=%s",
-                xTarget, yTarget, turnTarget, newTargetPose);
+                instanceName, "xTarget=%f, yTarget=%f, turnTarget=%f, newAbsTargetPose=%s",
+                xTarget, yTarget, turnTarget, newAbsTargetPose);
             // The new target pose will become the updated absolute target pose.
-            absTargetPose = newTargetPose;
+            absTargetPose = newAbsTargetPose;
             setTarget(xTarget, yTarget, turnTarget, holdTarget, event, timeout);
         }
     }   //setRelativeTarget
