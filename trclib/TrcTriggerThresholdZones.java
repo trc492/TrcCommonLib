@@ -85,6 +85,7 @@ public class TrcTriggerThresholdZones implements TrcTrigger
     private final CallbackContext callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
     private double[] thresholds;
+    private TriggerMode triggerMode = null;
     private TrcEvent triggerEvent = null;
     private TrcEvent.Callback triggerCallback = null;
     private Thread callbackThread = null;
@@ -179,26 +180,34 @@ public class TrcTriggerThresholdZones implements TrcTrigger
     /**
      * This method arms the trigger. It enables the task that monitors the sensor value.
      *
+     * @param triggerMode specifies the trigger direction that will signal the event. TriggerMode.OnActive will
+     *        trigger only when crossing a lower zone to a higher zone. TriggerMode.OnInactive will trigger only when
+     *        crossing from a higher zone to a lower zone. TriggerMode.OnBoth will trigger on both directions.
      * @param event specifies the event to signal when the trigger state changed.
      */
     @Override
-    public void enableTrigger(TrcEvent event)
+    public void enableTrigger(TriggerMode triggerMode, TrcEvent event)
     {
-        triggerCallback = null;
-        callbackThread = null;
+        this.triggerMode = triggerMode;
+        this.triggerCallback = null;
+        this.callbackThread = null;
         setEnabled(true, event);
     }   //enableTrigger
 
     /**
      * This method arms the trigger. It enables the task that monitors the sensor value.
      *
+     * @param triggerMode specifies the trigger direction that will trigger a callback. TriggerMode.OnActive will
+     *        trigger only when crossing a lower zone to a higher zone. TriggerMode.OnInactive will trigger only when
+     *        crossing from a higher zone to a lower zone. TriggerMode.OnBoth will trigger on both directions.
      * @param callback specifies the callback handler to notify when the trigger state changed.
      */
     @Override
-    public void enableTrigger(TrcEvent.Callback callback)
+    public void enableTrigger(TriggerMode triggerMode, TrcEvent.Callback callback)
     {
-        triggerCallback = callback;
-        callbackThread = Thread.currentThread();
+        this.triggerMode = triggerMode;
+        this.triggerCallback = callback;
+        this.callbackThread = Thread.currentThread();
         setEnabled(true, new TrcEvent(instanceName + ".triggerEvent"));
     }   //enableTrigger
 
@@ -212,8 +221,9 @@ public class TrcTriggerThresholdZones implements TrcTrigger
         {
             if (triggerState.triggerEnabled)
             {
-                triggerCallback = null;
-                callbackThread = null;
+                this.triggerMode = null;
+                this.triggerCallback = null;
+                this.callbackThread = null;
                 setEnabled(false, null);
             }
         }
@@ -373,7 +383,12 @@ public class TrcTriggerThresholdZones implements TrcTrigger
                 prevZone = triggerState.sensorZone;
                 triggerState.sensorZone = currZone;
                 triggerState.prevZone = prevZone;
-                triggered = true;
+                if (triggerMode == TriggerMode.OnBoth ||
+                    triggerMode == TriggerMode.OnActive && prevZone < currZone ||
+                    triggerMode == TriggerMode.OnInactive && prevZone > currZone)
+                {
+                    triggered = true;
+                }
             }
             triggerState.sensorValue = currValue;
         }

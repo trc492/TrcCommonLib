@@ -39,18 +39,20 @@ public interface TrcTrigger
     }   //enum TriggerMode
 
     /**
-     * This method arms the trigger. It enables the task that monitors the sensor value.
+     * This method arms the digital trigger. It enables the task that monitors the sensor state changes.
      *
+     * @param triggerMode specifies the trigger mode that will signal the event.
      * @param event specifies the event to signal when the trigger state changed.
      */
-    void enableTrigger(TrcEvent event);
+    void enableTrigger(TriggerMode triggerMode, TrcEvent event);
 
     /**
-     * This method arms the trigger. It enables the task that monitors the sensor value.
+     * This method arms the digital trigger. It enables the task that monitors the sensor state changes.
      *
+     * @param triggerMode specifies the trigger mode that will trigger a callback.
      * @param callback specifies the callback handler to notify when the trigger state changed.
      */
-    void enableTrigger(TrcEvent.Callback callback);
+    void enableTrigger(TriggerMode triggerMode, TrcEvent.Callback callback);
 
     /**
      * This method disarms the trigger. It disables the task that monitors the sensor value.

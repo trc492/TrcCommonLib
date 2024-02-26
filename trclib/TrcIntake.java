@@ -46,8 +46,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         private final TrcEvent.Callback triggerCallback;
         private final Double analogTriggerThreshold;
         private final Boolean analogTriggerInverted;
-        private TrcEvent notifyEvent;
         private TriggerMode triggerMode;
+        private TrcEvent notifyEvent;
 
         /**
          * Constructor: Create an instance of the object.
@@ -65,8 +65,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.triggerCallback = triggerCallback;
             this.analogTriggerThreshold = threshold;
             this.analogTriggerInverted = triggerInverted;
-            this.notifyEvent = null;
             this.triggerMode = TriggerMode.OnActive;
+            this.notifyEvent = null;
         }   //Trigger
 
         /**
@@ -329,7 +329,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         if (!triggerEnabled && enabled)
         {
             // Enabling trigger.
-            entryTrigger.trigger.enableTrigger(this::entryTriggerCallback);
+            entryTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::entryTriggerCallback);
         }
         else if (triggerEnabled && !enabled)
         {
@@ -353,7 +353,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         if (!triggerEnabled && enabled)
         {
             // Enabling trigger.
-            exitTrigger.trigger.enableTrigger(this::exitTriggerCallback);
+            exitTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::exitTriggerCallback);
         }
         else if (triggerEnabled && !enabled)
         {
@@ -563,18 +563,18 @@ public class TrcIntake implements TrcExclusiveSubsystem
     /**
      * This method registers a notification event to be signaled when the entry trigger occurred.
      *
-     * @param notifyEvent specifies the event to signal when entry trigger occurred.
      * @param triggerMode specifies trigger mode that will signal the event.
+     * @param notifyEvent specifies the event to signal when entry trigger occurred.
      * @return true if success, false if there is no entry trigger or it is already enabled by someone else.
      */
-    public boolean registerEntryTriggerNotifyEvent(TrcEvent notifyEvent, TriggerMode triggerMode)
+    public boolean registerEntryTriggerNotifyEvent(TriggerMode triggerMode, TrcEvent notifyEvent)
     {
         boolean success = false;
 
         if (entryTrigger != null && entryTrigger.notifyEvent == null)
         {
-            entryTrigger.notifyEvent = notifyEvent;
             entryTrigger.triggerMode = triggerMode;
+            entryTrigger.notifyEvent = notifyEvent;
             setEntryTriggerEnabled(true);
             success = true;
         }
@@ -605,18 +605,18 @@ public class TrcIntake implements TrcExclusiveSubsystem
     /**
      * This method registers a notification event to be signaled when the exit trigger occurred.
      *
-     * @param notifyEvent specifies the event to signal when exit trigger occurred.
      * @param triggerMode specifies trigger mode that will signal the event.
+     * @param notifyEvent specifies the event to signal when exit trigger occurred.
      * @return true if success, false if there is no exit trigger or it is already enabled by someone else.
      */
-    public boolean registerExitTriggerNotifyEvent(TrcEvent notifyEvent, TriggerMode triggerMode)
+    public boolean registerExitTriggerNotifyEvent(TriggerMode triggerMode, TrcEvent notifyEvent)
     {
         boolean success = false;
 
         if (exitTrigger != null && exitTrigger.notifyEvent == null)
         {
-            exitTrigger.notifyEvent = notifyEvent;
             exitTrigger.triggerMode = triggerMode;
+            exitTrigger.notifyEvent = notifyEvent;
             setExitTriggerEnabled(true);
             success = true;
         }

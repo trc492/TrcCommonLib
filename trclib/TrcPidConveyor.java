@@ -24,6 +24,8 @@ package TrcCommonLib.trclib;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import TrcCommonLib.trclib.TrcTrigger.TriggerMode;
+
 /**
  * This class implements a platform independent conveyor subsystem. It contains a motor and optionally an entry
  * and an exit sensor that detects if the an object has entered or exited the conveyor. It also supports exclusive
@@ -122,7 +124,7 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         if (entrySensor != null)
         {
             entryTrigger = new TrcTriggerDigitalInput(instanceName + ".entyTrigger", entrySensor);
-            entryTrigger.enableTrigger(this::onEntryEvent);
+            entryTrigger.enableTrigger(TriggerMode.OnBoth, this::onEntryEvent);
         }
         else
         {
@@ -132,7 +134,7 @@ public class TrcPidConveyor implements TrcExclusiveSubsystem
         if (exitSensor != null)
         {
             exitTrigger = new TrcTriggerDigitalInput(instanceName + ".exitTrigger", exitSensor);
-            exitTrigger.enableTrigger(this::onExitEvent);
+            exitTrigger.enableTrigger(TriggerMode.OnBoth, this::onExitEvent);
         }
         else
         {

@@ -68,6 +68,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
     private final TriggerState triggerState;
     private final AtomicBoolean callbackContext;
     private final TrcTaskMgr.TaskObject triggerTaskObj;
+    private TriggerMode triggerMode = null;
     private TrcEvent triggerEvent = null;
     private TrcEvent.Callback triggerCallback = null;
     private Thread callbackThread = null;
@@ -154,26 +155,30 @@ public class TrcTriggerThresholdRange implements TrcTrigger
     /**
      * This method arms the trigger. It enables the task that monitors the sensor value.
      *
+     * @param triggerMode specifies the trigger mode that will signal the event.
      * @param event specifies the event to signal when the trigger state changed.
      */
     @Override
-    public void enableTrigger(TrcEvent event)
+    public void enableTrigger(TriggerMode triggerMode, TrcEvent event)
     {
-        triggerCallback = null;
-        callbackThread = null;
+        this.triggerMode = triggerMode;
+        this.triggerCallback = null;
+        this.callbackThread = null;
         setEnabled(true, event);
     }   //enableTrigger
 
     /**
      * This method arms the trigger. It enables the task that monitors the sensor value.
      *
+     * @param triggerMode specifies the trigger mode that will trigger a callback.
      * @param callback specifies the callback handler to notify when the trigger state changed.
      */
     @Override
-    public void enableTrigger(TrcEvent.Callback callback)
+    public void enableTrigger(TriggerMode triggerMode, TrcEvent.Callback callback)
     {
-        triggerCallback = callback;
-        callbackThread = Thread.currentThread();
+        this.triggerMode = triggerMode;
+        this.triggerCallback = callback;
+        this.callbackThread = Thread.currentThread();
         setEnabled(true, new TrcEvent(instanceName + ".triggerEvent"));
     }   //enableTrigger
 
@@ -187,6 +192,7 @@ public class TrcTriggerThresholdRange implements TrcTrigger
         {
             if (triggerState.triggerEnabled)
             {
+                triggerMode = null;
                 triggerCallback = null;
                 callbackThread = null;
                 setEnabled(false, null);
@@ -369,7 +375,10 @@ public class TrcTriggerThresholdRange implements TrcTrigger
                 {
                     // Only fires a trigger event when the threshold range is first exited (i.e. edge event).
                     triggerState.triggerActive = false;
-                    triggered = true;
+                    if (triggerMode == TriggerMode.OnBoth || triggerMode == TriggerMode.OnInactive)
+                    {
+                        triggered = true;
+                    }
                 }
                 triggerState.startTime = currTime;
                 triggerState.cachedData.clear();
@@ -383,7 +392,10 @@ public class TrcTriggerThresholdRange implements TrcTrigger
                     // period (i.e. edge event).
                     triggerState.cachedData.addValue(currValue);
                     triggerState.triggerActive = true;
-                    triggered = true;
+                    if (triggerMode == TriggerMode.OnBoth || triggerMode == TriggerMode.OnActive)
+                    {
+                        triggered = true;
+                    }
                 }
             }
             else

@@ -24,6 +24,8 @@ package TrcCommonLib.trclib;
 
 import java.util.Locale;
 
+import TrcCommonLib.trclib.TrcTrigger.TriggerMode;
+
 /**
  * This class implements a platform independent auto-assist servo grabber subsystem. It contains one or two servos
  * and optionally a sensor that detects if the object is within grasp of the grabber. It provides the autoAssist
@@ -497,7 +499,7 @@ public class TrcServoGrabber implements TrcExclusiveSubsystem
             grabbedObject = true;
         }
         // Arm the sensor trigger as long as AutoAssist is enabled.
-        sensorTrigger.enableTrigger(triggerCallback);
+        sensorTrigger.enableTrigger(TriggerMode.OnBoth, triggerCallback);
         if (ap.timeout > 0.0)
         {
             if (grabbedObject)

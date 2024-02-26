@@ -177,7 +177,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private double beepDuration = DEF_BEEP_DURATION;
     // Reset position on digital trigger support.
     private TrcTriggerDigitalInput digitalTrigger;
-    private TriggerMode triggerMode;
     private TrcEvent.Callback triggerCallback;
     private AtomicBoolean triggerCallbackContext;
     private TrcEvent triggerCallbackEvent;
@@ -2809,7 +2808,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         tracer.traceDebug(instanceName, "triggerMode=" + triggerMode + ",callback=" + (triggerCallback != null));
         digitalTrigger = new TrcTriggerDigitalInput(
             instanceName + ".digitalTrigger", new TrcMotorLimitSwitch(instanceName + ".lowerLimit", this, false));
-        this.triggerMode = triggerMode;
         this.triggerCallback = triggerCallback;
 
         if (triggerCallback != null)
@@ -2818,7 +2816,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             triggerCallbackEvent = new TrcEvent(instanceName + ".triggerCallbackEvent");
         }
 
-        digitalTrigger.enableTrigger(this::resetTriggerCallback);
+        digitalTrigger.enableTrigger(triggerMode, this::resetTriggerCallback);
     }   //resetPositionOnLowerLimitSwitch
 
     /**
@@ -2865,13 +2863,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         boolean active = ((AtomicBoolean) context).get();
 
         tracer.traceDebug(instanceName, "trigger=" + digitalTrigger + ",active=" + active);
-        if (triggerMode == TriggerMode.OnBoth ||
-            triggerMode == TriggerMode.OnActive && active ||
-            triggerMode == TriggerMode.OnInactive && !active)
-        {
-            tracer.traceInfo(instanceName, "Reset position on digital trigger! (BeforePos=%f)", getPosition());
-            resetPosition(false);
-        }
+        tracer.traceInfo(instanceName, "Reset position on digital trigger! (BeforePos=%f)", getPosition());
+        resetPosition(false);
 
         if (triggerCallbackEvent != null)
         {
