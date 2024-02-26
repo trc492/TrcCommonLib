@@ -24,6 +24,8 @@ package TrcCommonLib.trclib;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import TrcCommonLib.trclib.TrcTrigger.TriggerMode;
+
 /**
  * This class implements a generic platform independent intake subsystem. It contains a motor or a continuous
  * servo and optionally entry and exit sensors that detects if the intake has captured objects. It provides the
@@ -45,7 +47,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         private final Double analogTriggerThreshold;
         private final Boolean analogTriggerInverted;
         private TrcEvent notifyEvent;
-        private TriggerType triggerType;
+        private TriggerMode triggerMode;
 
         /**
          * Constructor: Create an instance of the object.
@@ -64,7 +66,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
             this.analogTriggerThreshold = threshold;
             this.analogTriggerInverted = triggerInverted;
             this.notifyEvent = null;
-            this.triggerType = TriggerType.TRIGGER_ACTIVE;
+            this.triggerMode = TriggerMode.OnActive;
         }   //Trigger
 
         /**
@@ -101,16 +103,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }   //toString
 
     }   //class Trigger
-
-    /**
-     * Specifies the trigger type.
-     */
-    public enum TriggerType
-    {
-        TRIGGER_ACTIVE,
-        TRIGGER_INACTIVE,
-        TRIGGER_BOTH
-    }   //enum TriggerType
 
     /**
      * Specifies the operation types.
@@ -527,9 +519,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }
 
         if (entryTrigger.notifyEvent != null &&
-            (entryTrigger.triggerType == TriggerType.TRIGGER_BOTH ||
-             entryTrigger.triggerType == TriggerType.TRIGGER_ACTIVE && active ||
-             entryTrigger.triggerType == TriggerType.TRIGGER_INACTIVE && !active))
+            (entryTrigger.triggerMode == TriggerMode.OnBoth ||
+             entryTrigger.triggerMode == TriggerMode.OnActive && active ||
+             entryTrigger.triggerMode == TriggerMode.OnInactive && !active))
         {
             entryTrigger.notifyEvent.signal();
         }
@@ -560,9 +552,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }
 
         if (exitTrigger.notifyEvent != null &&
-            (exitTrigger.triggerType == TriggerType.TRIGGER_BOTH ||
-             exitTrigger.triggerType == TriggerType.TRIGGER_ACTIVE && active ||
-             exitTrigger.triggerType == TriggerType.TRIGGER_INACTIVE && !active))
+            (exitTrigger.triggerMode == TriggerMode.OnBoth ||
+             exitTrigger.triggerMode == TriggerMode.OnActive && active ||
+             exitTrigger.triggerMode == TriggerMode.OnInactive && !active))
         {
             exitTrigger.notifyEvent.signal();
         }
@@ -572,17 +564,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * This method registers a notification event to be signaled when the entry trigger occurred.
      *
      * @param notifyEvent specifies the event to signal when entry trigger occurred.
-     * @param triggerType specifies trigger type that will signal the event.
+     * @param triggerMode specifies trigger mode that will signal the event.
      * @return true if success, false if there is no entry trigger or it is already enabled by someone else.
      */
-    public boolean registerEntryTriggerNotifyEvent(TrcEvent notifyEvent, TriggerType triggerType)
+    public boolean registerEntryTriggerNotifyEvent(TrcEvent notifyEvent, TriggerMode triggerMode)
     {
         boolean success = false;
 
         if (entryTrigger != null && entryTrigger.notifyEvent == null)
         {
             entryTrigger.notifyEvent = notifyEvent;
-            entryTrigger.triggerType = triggerType;
+            entryTrigger.triggerMode = triggerMode;
             setEntryTriggerEnabled(true);
             success = true;
         }
@@ -614,17 +606,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * This method registers a notification event to be signaled when the exit trigger occurred.
      *
      * @param notifyEvent specifies the event to signal when exit trigger occurred.
-     * @param triggerType specifies trigger type that will signal the event.
+     * @param triggerMode specifies trigger mode that will signal the event.
      * @return true if success, false if there is no exit trigger or it is already enabled by someone else.
      */
-    public boolean registerExitTriggerNotifyEvent(TrcEvent notifyEvent, TriggerType triggerType)
+    public boolean registerExitTriggerNotifyEvent(TrcEvent notifyEvent, TriggerMode triggerMode)
     {
         boolean success = false;
 
         if (exitTrigger != null && exitTrigger.notifyEvent == null)
         {
             exitTrigger.notifyEvent = notifyEvent;
-            exitTrigger.triggerType = triggerType;
+            exitTrigger.triggerMode = triggerMode;
             setExitTriggerEnabled(true);
             success = true;
         }

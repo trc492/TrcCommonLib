@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import TrcCommonLib.trclib.TrcTaskMgr.TaskType;
+import TrcCommonLib.trclib.TrcTrigger.TriggerMode;
 
 /**
  * This class implements a platform independent generic motor controller. Typically, this class is extended by a
@@ -60,13 +61,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         double getCompensation(double currPower);
 
     }   //interface PowerCompensation
-
-    public enum TriggerMode
-    {
-        OnActive,
-        OnInactive,
-        OnBoth
-    }   //enum TriggerMode
 
     private enum ControlMode
     {

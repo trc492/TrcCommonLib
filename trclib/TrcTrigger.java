@@ -31,6 +31,13 @@ package TrcCommonLib.trclib;
  */
 public interface TrcTrigger
 {
+    public enum TriggerMode
+    {
+        OnActive,
+        OnInactive,
+        OnBoth
+    }   //enum TriggerMode
+
     /**
      * This method arms the trigger. It enables the task that monitors the sensor value.
      *
