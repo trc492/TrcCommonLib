@@ -99,7 +99,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
         public String toString()
         {
             return "analogThreshold=" + analogTriggerThreshold +
-                   ", analogTriggerInverted=" + analogTriggerInverted;
+                   ", analogTriggerInverted=" + analogTriggerInverted +
+                   ", triggerMode=" + triggerMode;
         }   //toString
 
     }   //class Trigger
@@ -109,7 +110,8 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     private enum Operation
     {
-        Intake,
+        IntakeForward,
+        IntakeReverse,
         EjectForward,
         EjectReverse
     }   //enum Operation
@@ -381,9 +383,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 instanceName, "completed=%s, timedOut=%s, hasObject=%s, finishDelay=%.3f",
                 completed, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
             double power = completed && hasObject()? actionParams.retainPower: 0.0;
+
             setPower(actionParams.finishDelay, power, 0.0);
             timer.cancel();
-
             if (actionParams.event != null)
             {
                 if (completed)
@@ -454,20 +456,26 @@ public class TrcIntake implements TrcExclusiveSubsystem
     {
         ActionParams actionParams = (ActionParams) context;
         boolean objCaptured = hasObject();
+        boolean doingIntake =
+            actionParams.operation == Operation.IntakeForward || actionParams.operation == Operation.IntakeReverse;
 
-        tracer.traceInfo(instanceName, "hasObject=" + objCaptured + ", actionParams=" + actionParams);
-        if (actionParams.operation == Operation.Intake ^ objCaptured)
+        tracer.traceInfo(instanceName, "Action: " + actionParams + ", hasObject=" + objCaptured);
+        if (doingIntake ^ objCaptured)
         {
             // Picking up object and we don't have one yet, or ejecting object and we still have one.
-            tracer.traceDebug(instanceName, "Action: " + actionParams + ", hasObject=" + objCaptured);
             motor.setPower(actionParams.intakePower);
-            if (actionParams.operation == Operation.Intake || actionParams.operation == Operation.EjectForward)
+            if (actionParams.operation == Operation.IntakeReverse ||
+                actionParams.operation == Operation.EjectReverse ||
+                exitTrigger == null)
             {
-                setExitTriggerEnabled(true);
+                // If we come here, there must be an entry trigger.
+                // Performing a reverse operation or a forward operation and we only have an entry trigger.
+                setEntryTriggerEnabled(true);
             }
             else
             {
-                setEntryTriggerEnabled(true);
+                // Performing a forward operation and there is an exit trigger.
+                setExitTriggerEnabled(true);
             }
 
             if (actionParams.timeout > 0.0)
@@ -479,7 +487,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         else
         {
             // Picking up object but we already have one, or ejecting object but there isn't any.
-            tracer.traceDebug(instanceName, "Already done: hasObject=" + objCaptured);
             finish(true);
         }
     }   //performAction
@@ -507,7 +514,13 @@ public class TrcIntake implements TrcExclusiveSubsystem
         tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
         if (actionParams != null)
         {
-            if (actionParams.operation == Operation.EjectReverse && !active)
+            // Only need to finish if object is reverse ejecting or reverse intaking.
+            // Or if we only have an entry trigger and we are forward ejecting or forward intaking.
+            if (actionParams.operation == Operation.EjectReverse && !active ||
+                actionParams.operation == Operation.IntakeReverse && active ||
+                exitTrigger == null &&
+                (actionParams.operation == Operation.EjectForward && !active ||
+                 actionParams.operation == Operation.IntakeForward && active))
             {
                 // The object has been ejected.
                 finish(true);
@@ -539,8 +552,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
         tracer.traceInfo(instanceName, "active=" + active + ", actionParams=" + actionParams);
         if (actionParams != null)
         {
-            if (actionParams.operation == Operation.Intake && active ||
-                actionParams.operation == Operation.EjectForward && !active)
+            // Only need to finish if object is forward ejecting or forward intaking.
+            if (actionParams.operation == Operation.EjectForward && !active ||
+                actionParams.operation == Operation.IntakeForward && active)
             {
                 // We have either captured an object or ejected it.
                 finish(true);
@@ -669,16 +683,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             throw new RuntimeException("Must provide non-zero power to perform Auto Operation.");
         }
-        else if (operation == Operation.EjectReverse)
+        else if (entryTrigger == null)
         {
-            if (entryTrigger == null)
-            {
-                throw new RuntimeException("Must have entry sensor to perform Auto EjectReverse.");
-            }
-        }
-        else if (exitTrigger == null)
-        {
-            throw new RuntimeException("Must have exit sensor to perform Auto Intake/EjectForward.");
+            throw new RuntimeException("Must have entry sensor to perform Auto Operation.");
         }
 
         TrcEvent releaseOwnershipEvent = acquireOwnership(owner, event, tracer);
@@ -689,7 +696,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         if (validateOwnership(owner))
         {
             power = Math.abs(power);
-            if (operation == Operation.EjectReverse) power = -power;
+            if (operation == Operation.EjectReverse || operation == Operation.IntakeReverse) power = -power;
             actionParams = new ActionParams(operation, power, retainPower, finishDelay, event, timeout);
             if (delay > 0.0)
             {
@@ -704,9 +711,9 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //autoOperation
 
     /**
-     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto intake forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake at which time the given event
+     * will be signaled.
      *
      * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
      * @param delay specifies the delay time in seconds before executing the action.
@@ -718,17 +725,17 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoIntake(
+    public void autoIntakeForward(
         String owner, double delay, double power, double retainPower, double finishDelay,
         TrcEvent event, double timeout)
     {
-        autoOperation(owner, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
-    }   //autoIntake
+        autoOperation(owner, Operation.IntakeForward, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntakeForward
 
     /**
-     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake at which time the given event will be
-     * signaled.
+     * This method performs the auto intake forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake at which time the given event
+     * will be signaled.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
@@ -739,15 +746,15 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
      *                must call hasObject() to figure out if it has given up.
      */
-    public void autoIntake(
+    public void autoIntakeForward(
         double delay, double power, double retainPower, double finishDelay, TrcEvent event, double timeout)
     {
-        autoOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, event, timeout);
-    }   //autoIntake
+        autoOperation(null, Operation.IntakeForward, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntakeForward
 
     /**
-     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake.
+     * This method performs the auto intake forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake.
      *
      * @param delay specifies the delay time in seconds before executing the action.
      * @param power specifies the power value to spin the intake.
@@ -755,24 +762,95 @@ public class TrcIntake implements TrcExclusiveSubsystem
      * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
      *        the intake.
      */
-    public void autoIntake(double delay, double power, double retainPower, double finishDelay)
+    public void autoIntakeForward(double delay, double power, double retainPower, double finishDelay)
     {
-        autoOperation(null, Operation.Intake, delay, power, retainPower, finishDelay, null, 0.0);
-    }   //autoIntake
+        autoOperation(null, Operation.IntakeForward, delay, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntakeForward
 
     /**
-     * This method performs the auto intake operation. It allows the caller to start the intake spinning at the given
-     * power and it will stop itself once object is picked up in the intake.
+     * This method performs the auto intake forward operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake.
      *
      * @param power specifies the power value to spin the intake.
      * @param retainPower specifies the power to retain the object after it's captured.
      * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
      *        the intake.
      */
-    public void autoIntake(double power, double retainPower, double finishDelay)
+    public void autoIntakeForward(double power, double retainPower, double finishDelay)
     {
-        autoOperation(null, Operation.Intake, 0.0, power, retainPower, finishDelay, null, 0.0);
-    }   //autoIntake
+        autoOperation(null, Operation.IntakeForward, 0.0, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntakeForward
+
+    /**
+     * This method performs the auto intake reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake at which time the given event
+     * will be signaled.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the intake subsystem.
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoIntakeReverse(
+        String owner, double delay, double power, double retainPower, double finishDelay,
+        TrcEvent event, double timeout)
+    {
+        autoOperation(owner, Operation.IntakeReverse, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntakeReverse
+
+    /**
+     * This method performs the auto intake reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake at which time the given event
+     * will be signaled.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
+     * @param event specifies the event to signal when object is detected in the intake.
+     * @param timeout specifies a timeout value at which point it will give up and signal completion. The caller
+     *                must call hasObject() to figure out if it has given up.
+     */
+    public void autoIntakeReverse(
+        double delay, double power, double retainPower, double finishDelay, TrcEvent event, double timeout)
+    {
+        autoOperation(null, Operation.IntakeReverse, delay, power, retainPower, finishDelay, event, timeout);
+    }   //autoIntakeReverse
+
+    /**
+     * This method performs the auto intake reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake.
+     *
+     * @param delay specifies the delay time in seconds before executing the action.
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
+     */
+    public void autoIntakeReverse(double delay, double power, double retainPower, double finishDelay)
+    {
+        autoOperation(null, Operation.IntakeReverse, delay, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntakeReverse
+
+    /**
+     * This method performs the auto intake reverse operation. It allows the caller to start the intake spinning at
+     * the given power and it will stop itself once object is picked up in the intake.
+     *
+     * @param power specifies the power value to spin the intake.
+     * @param retainPower specifies the power to retain the object after it's captured.
+     * @param finishDelay specifies the delay in seconds to fnish the auto operation to give it extra time spinning
+     *        the intake.
+     */
+    public void autoIntakeReverse(double power, double retainPower, double finishDelay)
+    {
+        autoOperation(null, Operation.IntakeReverse, 0.0, power, retainPower, finishDelay, null, 0.0);
+    }   //autoIntakeReverse
 
     /**
      * This method performs the auto eject forward operation. It allows the caller to start the intake spinning at
@@ -970,7 +1048,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
      */
     public boolean hasObject()
     {
-        return isTriggerActive(exitTrigger);
+        return isTriggerActive(entryTrigger) || isTriggerActive(exitTrigger);
     }   //hasObject
 
     /**
