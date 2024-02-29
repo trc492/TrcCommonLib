@@ -72,6 +72,7 @@ public class TrcPidDrive
     private final TrcPidController xPidCtrl;
     private final TrcPidController yPidCtrl;
     private final TrcPidController turnPidCtrl;
+    public final TrcLoopProfiler pidDriveTaskProfiler;
     private double xTolerance;
     private double yTolerance;
     private double turnTolerance;
@@ -146,6 +147,8 @@ public class TrcPidDrive
         {
             warpSpace = new TrcWarpSpace(instanceName, 0.0, 360.0);
         }
+
+        pidDriveTaskProfiler = new TrcLoopProfiler(instanceName);
     }   //TrcPidDrive
 
     /**
@@ -1362,6 +1365,8 @@ public class TrcPidDrive
     private synchronized void driveTask(
         TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
+        pidDriveTaskProfiler.recordLoopStartTime();
+        long startNanoTime = TrcTimer.getNanoTime();
         double xPower = turnOnly || xPidCtrl == null? 0.0: xPidCtrl.getOutput();
         double yPower = turnOnly || yPidCtrl == null? 0.0: yPidCtrl.getOutput();
         double turnPower = turnPidCtrl == null? 0.0: turnPidCtrl.getOutput();
@@ -1375,6 +1380,7 @@ public class TrcPidDrive
         boolean stalled = (xPidCtrl == null || xPidCtrl.isStalled()) &&
                           (yPidCtrl == null || yPidCtrl.isStalled()) &&
                           (turnPidCtrl == null || turnPidCtrl.isStalled());
+        pidDriveTaskProfiler.recordProfilePointElapsedTime("UpdateStates", startNanoTime, true);
 
 //        if (stuckWheelHandler != null)
 //        {
@@ -1398,10 +1404,13 @@ public class TrcPidDrive
 
         if (maintainHeading && driveBase.supportsHolonomicDrive())
         {
+            startNanoTime = TrcTimer.getNanoTime();
             driveBase.holonomicDrive(owner, manualX, manualY, turnPower, false, 0.0);
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("MaintainningHeading", startNanoTime, true);
         }
         else if (expired || stalled || onTarget)
         {
+            startNanoTime = TrcTimer.getNanoTime();
             if (expired || stalled || !holdTarget)
             {
                 stopPid(owner);
@@ -1436,14 +1445,18 @@ public class TrcPidDrive
             if (xPidCtrl != null) xPidCtrl.endStallDetection();
             if (yPidCtrl != null) yPidCtrl.endStallDetection();
             if (turnPidCtrl != null) turnPidCtrl.endStallDetection();
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("Finish", startNanoTime, true);
         }
         // If we come here, we are not on target yet, keep driving.
         else if (xPidCtrl != null && driveBase.supportsHolonomicDrive())
         {
+            startNanoTime = TrcTimer.getNanoTime();
             driveBase.holonomicDrive(owner, xPower, yPower, turnPower);
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("Drive", startNanoTime, true);
         }
         else if (turnOnly)
         {
+            startNanoTime = TrcTimer.getNanoTime();
             switch (turnMode)
             {
                 case IN_PLACE:
@@ -1473,29 +1486,38 @@ public class TrcPidDrive
                     }
                     break;
             }
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("TurnOnly", startNanoTime, true);
         }
         else if (turnMode == TurnMode.IN_PLACE)
         {
             // We are still in an in-place turn.
+            startNanoTime = TrcTimer.getNanoTime();
             driveBase.arcadeDrive(owner, yPower, turnPower, false);
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("TurnInPlace", startNanoTime, true);
         }
         else
         {
+            startNanoTime = TrcTimer.getNanoTime();
             driveBase.curveDrive(owner, yPower, turnPower, false);
+            pidDriveTaskProfiler.recordProfilePointElapsedTime("CurveTurn", startNanoTime, true);
         }
 
+        startNanoTime = TrcTimer.getNanoTime();
         if (logRobotPoseEvents)
         {
             tracer.logEvent(
                 instanceName, "RobotPose", "pose=\"" + driveBase.getFieldPosition() + "\"");
         }
+        pidDriveTaskProfiler.recordProfilePointElapsedTime("LogPoseEvent", startNanoTime, true);
 
+        startNanoTime = TrcTimer.getNanoTime();
         if (tracePidInfo)
         {
             if (xPidCtrl != null) xPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
             if (yPidCtrl != null) yPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
             if (turnPidCtrl != null) turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
+        pidDriveTaskProfiler.recordProfilePointElapsedTime("TracePidIinfo", startNanoTime, true);
     }   //driveTask
 
     /**

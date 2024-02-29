@@ -77,7 +77,7 @@ public abstract class TrcOpenCvFaceDetector extends TrcOpenCvDetector
          * @return pose of the detected object relative to camera.
          */
         @Override
-        public TrcPose3D getObjectPose()
+        public TrcPose2D getObjectPose()
         {
             // Face detection does not provide detected object pose, let caller use homography to calculate it.
             return null;

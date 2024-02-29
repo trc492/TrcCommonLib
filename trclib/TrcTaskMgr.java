@@ -36,9 +36,9 @@ public class TrcTaskMgr
     private static final String moduleName = TrcTaskMgr.class.getSimpleName();
     private static final TrcDbgTrace tracer = new TrcDbgTrace();
 
-    public static final long PERIODIC_INTERVAL_MS = 20;         // in msec
+    public static final long PERIODIC_INTERVAL_MS = 0;          // in msec (0: run as fast as you can)
     public static final long IO_INTERVAL_MS = 10;               // in msec
-    public static final long TASKTIME_THRESHOLD_MS = PERIODIC_INTERVAL_MS * 2;
+    public static final long TASKTIME_THRESHOLD_MS = PERIODIC_INTERVAL_MS > 0? PERIODIC_INTERVAL_MS * 2: 50;
 
     /**
      * These are the task type TrcTaskMgr supports:

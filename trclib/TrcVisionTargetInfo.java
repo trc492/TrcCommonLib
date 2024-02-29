@@ -54,11 +54,11 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
         double getObjectArea();
 
         /**
-         * This method returns the pose of the detected object relative to the camera.
+         * This method returns the projected 2D pose on the ground of the detected object relative to the camera.
          *
          * @return pose of the detected object relative to camera.
          */
-        TrcPose3D getObjectPose();
+        TrcPose2D getObjectPose();
 
         /**
          * This method returns the objects real world width.
@@ -79,7 +79,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
     public O detectedObj;
     public Rect objRect;
     public double objArea;
-    public TrcPose3D objPose;
+    public TrcPose2D objPose;
     public Double objWidth;
     public Double objDepth;
 
@@ -111,7 +111,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
         }
         else
         {
-            // Call provided homography mapper, we will use it to calculate the detected object pose.
+            // Caller provided homography mapper, we will use it to calculate the detected object pose.
             Point topLeft = homographyMapper.mapPoint(new Point(objRect.x, objRect.y));
             Point topRight = homographyMapper.mapPoint(new Point(objRect.x + objRect.width, objRect.y));
             Point bottomLeft = homographyMapper.mapPoint(new Point(objRect.x, objRect.y + objRect.height));
@@ -135,8 +135,7 @@ public class TrcVisionTargetInfo<O extends TrcVisionTargetInfo.ObjectInfo>
                 yDistanceFromCamera -= adjustment * Math.cos(horiAngleRadian);
             }
             // Don't have enough info to determine pitch and roll.
-            objPose = new TrcPose3D(xDistanceFromCamera, yDistanceFromCamera, objHeightOffset, horizontalAngle, 0.0,
-                                   0.0);
+            objPose = new TrcPose2D(xDistanceFromCamera, yDistanceFromCamera, horizontalAngle);
             objWidth = bottomRight.x - bottomLeft.x;
             objDepth = ((topLeft.y + topRight.y) - (bottomLeft.y + bottomRight.y))/2.0;
         }
