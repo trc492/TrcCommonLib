@@ -180,9 +180,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     private TrcEvent.Callback triggerCallback;
     private AtomicBoolean triggerCallbackContext;
     private TrcEvent triggerCallbackEvent;
-    // Position presets.
+    // Presets.
+    private boolean velocityPresets = false;
     private double presetTolerance = 2.0;
-    private double[] posPresets = null;
+    private double[] presets = null;
 
     /**
      * Constructor: Create an instance of the object.
@@ -3033,20 +3034,22 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //zeroCalibrate
 
     //
-    // Position presets.
+    // Presets.
     //
 
     /**
-     * This method sets an array of preset positions for the motor.
+     * This method sets an array of presets for the motor.
      *
+     * @param velocityPresets specifies true for velocity presets, false for position presets.
      * @param tolerance specifies the preset tolerance.
-     * @param posPresets specifies an array of preset positions in scaled unit.
+     * @param presets specifies an array of presets in scaled unit.
      */
-    public void setPosPresets(double tolerance, double... posPresets)
+    public void setPresets(boolean velocityPresets, double tolerance, double... presets)
     {
+        this.velocityPresets = velocityPresets;
         this.presetTolerance = tolerance;
-        this.posPresets = posPresets;
-    }   //setPosPresets
+        this.presets = presets;
+    }   //setPresets
 
     /**
      * This method checks if the preset index is within the preset table.
@@ -3056,19 +3059,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     public boolean validatePresetIndex(int index)
     {
-        return posPresets != null && index >= 0 && index < posPresets.length;
+        return presets != null && index >= 0 && index < presets.length;
     }   //validatePresetIndex
 
     /**
-     * This method returns the preset position at the specified index.
+     * This method returns the preset value at the specified index.
      *
-     * @param index specifies the index into the preset position table.
-     * @return preset position.
+     * @param index specifies the index into the preset table.
+     * @return preset value.
      */
-    public double getPresetPosition(int index)
+    public double getPresetValue(int index)
     {
-        return posPresets[index];
-    }   //getPresetPosition
+        return presets[index];
+    }   //getPresetValue
 
     /**
      * This method sets the motor to the specified preset position.
@@ -3078,7 +3081,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param presetIndex specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
-     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
@@ -3087,9 +3090,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         String owner, double delay, int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event,
         double timeout)
     {
-        if (validatePresetIndex(presetIndex))
+        if (!velocityPresets && validatePresetIndex(presetIndex))
         {
-            setPosition(owner, delay, posPresets[presetIndex], holdTarget, powerLimit, event, timeout);
+            setPosition(owner, delay, presets[presetIndex], holdTarget, powerLimit, event, timeout);
         }
     }   //setPresetPosition
 
@@ -3097,105 +3100,171 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
-     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
     public void setPresetPosition(
-        double delay, int preset, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
+        double delay, int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setPresetPosition(null, delay, preset, holdTarget, powerLimit, event, timeout);
+        setPresetPosition(null, delay, presetIndex, holdTarget, powerLimit, event, timeout);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param holdTarget specifies true to hold target after PID operation is completed.
      * @param powerLimit specifies the maximum power limit.
-     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
      * @param timeout specifies a timeout value in seconds. If the operation is not completed without the specified
      *                timeout, the operation will be canceled and the event will be signaled. If no timeout is
      *                specified, it should be set to zero.
      */
-    public void setPresetPosition(int preset, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
+    public void setPresetPosition(int presetIndex, boolean holdTarget, double powerLimit, TrcEvent event, double timeout)
     {
-        setPresetPosition(null, 0.0, preset, holdTarget, powerLimit, event, timeout);
+        setPresetPosition(null, 0.0, presetIndex, holdTarget, powerLimit, event, timeout);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
-     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
      */
-    public void setPresetPosition(int preset, double powerLimit, TrcEvent event)
+    public void setPresetPosition(int presetIndex, double powerLimit, TrcEvent event)
     {
-        setPresetPosition(null, 0.0, preset, true, powerLimit, event, 0.0);
+        setPresetPosition(null, 0.0, presetIndex, true, powerLimit, event, 0.0);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
-     * @param preset specifies the index to the preset position array.
-     * @param event specifies the event to signal when done, can be null if not provided.
+     * @param presetIndex specifies the index to the preset position array.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
      */
-    public void setPresetPosition(int preset, TrcEvent event)
+    public void setPresetPosition(int presetIndex, TrcEvent event)
     {
-        setPresetPosition(null, 0.0, preset, true, 1.0, event, 0.0);
+        setPresetPosition(null, 0.0, presetIndex, true, 1.0, event, 0.0);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
      */
-    public void setPresetPosition(double delay, int preset, double powerLimit)
+    public void setPresetPosition(double delay, int presetIndex, double powerLimit)
     {
-        setPresetPosition(null, delay, preset, true, powerLimit, null, 0.0);
+        setPresetPosition(null, delay, presetIndex, true, powerLimit, null, 0.0);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
      * @param delay specifies delay time in seconds before setting position, can be zero if no delay.
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      */
-    public void setPresetPosition(double delay, int preset)
+    public void setPresetPosition(double delay, int presetIndex)
     {
-        setPresetPosition(null, delay, preset, true, 1.0, null, 0.0);
+        setPresetPosition(null, delay, presetIndex, true, 1.0, null, 0.0);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      * @param powerLimit specifies the maximum power limit.
      */
-    public void setPresetPosition(int preset, double powerLimit)
+    public void setPresetPosition(int presetIndex, double powerLimit)
     {
-        setPresetPosition(null, 0.0, preset, true, powerLimit, null, 0.0);
+        setPresetPosition(null, 0.0, presetIndex, true, powerLimit, null, 0.0);
     }   //setPresetPosition
 
     /**
      * This method sets the motor to the specified preset position.
      *
-     * @param preset specifies the index to the preset position array.
+     * @param presetIndex specifies the index to the preset position array.
      */
-    public void setPresetPosition(int preset)
+    public void setPresetPosition(int presetIndex)
     {
-        setPresetPosition(null, 0.0, preset, true, 1.0, null, 0.0);
+        setPresetPosition(null, 0.0, presetIndex, true, 1.0, null, 0.0);
     }   //setPresetPosition
 
     /**
-     * This method determines the next preset index up from the current position.
+     * This method sets the motor to the specified preset velocity.
+     *
+     * @param owner specifies the owner ID to check if the caller has ownership of the subsystem.
+     * @param delay specifies delay time in seconds before setting velocity, can be zero if no delay.
+     * @param presetIndex specifies the index to the preset velocity array.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
+     */
+    public void setPresetVelocity(String owner, double delay, int presetIndex, double duration, TrcEvent event)
+    {
+        if (velocityPresets && validatePresetIndex(presetIndex))
+        {
+            setVelocity(owner, delay, presets[presetIndex], duration, event);
+        }
+    }   //setPresetVelocity
+
+    /**
+     * This method sets the motor to the specified preset velocity.
+     *
+     * @param delay specifies delay time in seconds before setting velocity, can be zero if no delay.
+     * @param presetIndex specifies the index to the preset velocity array.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
+     */
+    public void setPresetVelocity(double delay, int presetIndex, double duration, TrcEvent event)
+    {
+        setPresetVelocity(null, delay, presetIndex, duration, event);
+    }   //setPresetVelocity
+
+    /**
+     * This method sets the motor to the specified preset velocity.
+     *
+     * @param presetIndex specifies the index to the preset velocity array.
+     * @param duration specifies the duration in seconds to run the motor and turns it off afterwards, 0.0 if not
+     *        turning off.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
+     */
+    public void setPresetVelocity(int presetIndex, double duration, TrcEvent event)
+    {
+        setPresetVelocity(null, 0.0, presetIndex, duration, event);
+    }   //setPresetVelocity
+
+    /**
+     * This method sets the motor to the specified preset velocity.
+     *
+     * @param presetIndex specifies the index to the preset velocity array.
+     * @param event specifies the event to signal when target is reached, can be null if not provided.
+     */
+    public void setPresetVelocity(int presetIndex, TrcEvent event)
+    {
+        setPresetVelocity(null, 0.0, presetIndex, 0.0, event);
+    }   //setPresetVelocity
+
+    /**
+     * This method sets the motor to the specified preset velocity.
+     *
+     * @param presetIndex specifies the index to the preset velocity array.
+     */
+    public void setPresetVelocity(int presetIndex)
+    {
+        setPresetVelocity(null, 0.0, presetIndex, 0.0, null);
+    }   //setPresetVelocity
+
+    /**
+     * This method determines the next preset index up from the current preset value.
      *
      * @return next preset index up, -1 if there is no preset table.
      */
@@ -3203,13 +3272,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         int index = -1;
 
-        if (posPresets != null)
+        if (presets != null)
         {
-            double currPos = getPosition() + presetTolerance;
+            double currValue = (velocityPresets? getVelocity(): getPosition()) + presetTolerance;
 
-            for (int i = 0; i < posPresets.length; i++)
+            for (int i = 0; i < presets.length; i++)
             {
-                if (posPresets[i] > currPos )
+                if (presets[i] > currValue)
                 {
                     index = i;
                     break;
@@ -3218,7 +3287,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
             if (index == -1)
             {
-                index = posPresets.length - 1;
+                index = presets.length - 1;
             }
         }
 
@@ -3226,7 +3295,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //nextPresetIndexUp
 
     /**
-     * This method determines the next preset index down from the current position.
+     * This method determines the next preset index down from the current value.
      *
      * @return next preset index down, -1 if there is no preset table.
      */
@@ -3234,13 +3303,13 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         int index = -1;
 
-        if (posPresets != null)
+        if (presets != null)
         {
-            double currPos = getPosition() - presetTolerance;
+            double currValue = (velocityPresets? getVelocity(): getPosition()) - presetTolerance;
 
-            for (int i = posPresets.length - 1; i >= 0; i--)
+            for (int i = presets.length - 1; i >= 0; i--)
             {
-                if (posPresets[i] < currPos)
+                if (presets[i] < currValue)
                 {
                     index = i;
                     break;
@@ -3300,6 +3369,48 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         setNextPresetPosition(owner, false, powerLimit);
     }   //presetPositionDown
+
+    /**
+     * This method sets the motor to the next preset velocity up or down from the current velocity.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
+     *        is required.
+     * @param presetUp specifies true to move to next preset up, false to move to next preset down.
+     */
+    private void setNextPresetVelocity(String owner, boolean presetUp)
+    {
+        int index = presetUp? nextPresetIndexUp(): nextPresetIndexDown();
+
+        if (index != -1)
+        {
+            setPresetVelocity(owner, 0.0, index, 0.0, null);
+        }
+    }   //setNextPresetVelocity
+
+    /**
+     * This method sets the motor to the next preset velocity up from the current velocity.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
+     *        is required.
+     */
+    public void presetVelocityUp(String owner)
+    {
+        setNextPresetVelocity(owner, true);
+    }   //presetVelocityUp
+
+    /**
+     * This method sets the motor to the next preset velocity down from the current velocity.
+     *
+     * @param owner specifies the owner ID that will acquire ownership before setting the preset position and will
+     *        automatically release ownership when the motor movement is completed, can be null if no ownership
+     *        is required.
+     */
+    public void presetVelocityDown(String owner)
+    {
+        setNextPresetVelocity(owner, false);
+    }   //presetVelocityDown
 
     //
     // Odometry.
