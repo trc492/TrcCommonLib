@@ -110,7 +110,12 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private void finish(boolean completed)
     {
         timer.cancel();
-        shooterMotor.stop();
+
+        // Don't stop the shooter if aim-only.
+        if (shootOp != null)
+        {
+            shooterMotor.stop();
+        }
 
         if (tiltMotor != null)
         {
