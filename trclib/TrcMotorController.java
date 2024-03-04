@@ -74,6 +74,13 @@ public interface TrcMotorController
      */
     void setCurrentLimit(double currentLimit, double triggerThresholdCurrent, double triggerThresholdTime);
 
+    /**
+     * This method sets the stator current limit of the motor.
+     *
+     * @param currentLimit specifies the stator current limit in amperes.
+     */
+    void setStatorCurrentLimit(double currentLimit);
+
     // /**
     //  * This method sets the close loop percentage output limits. By default the limits are set to the max at -1 to 1.
     //  * By setting a non-default limits, it effectively limits the output power of the close loop control.
