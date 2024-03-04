@@ -352,8 +352,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     x = -y * Math.sin(gyroRadians) + x * Math.cos(gyroRadians);
                     y = temp;
                 }
-
-                if (isGyroAssistEnabled())
+                else if (isGyroAssistEnabled())
                 {
                     rotation += getGyroAssistPower(rotation);
                 }
