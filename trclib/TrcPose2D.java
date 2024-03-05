@@ -282,6 +282,18 @@ public class TrcPose2D
     }   //translatePose
 
     /**
+     * This method rotates this pose with the specified angle.
+     *
+     * @param angle specifies the angle to rotate the pose.
+     * @return rotated pose.
+     */
+    public TrcPose2D rotatePose(double angle)
+    {
+        RealVector vec = TrcUtil.rotateCW(toPosVector(), angle);
+        return new TrcPose2D(vec.getEntry(0), vec.getEntry(1), this.angle + angle);
+    }   //rotatePose
+
+    /**
      * This method adds a relative pose to this pose and return the resulting pose. The relative pose has a
      * relative vector and relative angle from this pose.
      *
