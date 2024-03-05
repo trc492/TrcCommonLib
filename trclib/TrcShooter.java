@@ -72,6 +72,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private boolean manualOverride = false;
     private TrcEvent completionEvent = null;
     private ShootOperation shootOp = null;
+    private boolean active = false;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -101,6 +102,16 @@ public class TrcShooter implements TrcExclusiveSubsystem
         shootCompletionEvent = new TrcEvent(instanceName + ".shootCompletionEvent");
         timer = new TrcTimer(instanceName + ".timer");
     }   //TrcShooter
+
+    /**
+     * This method checks if the shooter is active.
+     *
+     * @return true if shooter is active, false otherwise.
+     */
+    public boolean isActive()
+    {
+        return active;
+    }   //isActive
 
     /**
      * This method is called when the shooter operation is finished or canceled.
@@ -145,6 +156,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
             }
             completionEvent = null;
         }
+
+        active = false;
     }   //finish
 
     /**
@@ -230,6 +243,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
             {
                 timer.set(timeout, this::timedOut, null);
             }
+
+            active = true;
         }
     }   //aimShooter
 
