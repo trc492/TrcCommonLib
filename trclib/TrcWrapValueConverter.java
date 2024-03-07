@@ -36,7 +36,7 @@ import java.util.function.DoubleSupplier;
 public class TrcWrapValueConverter
 {
     protected final String instanceName;
-    private final DoubleSupplier valueSupplier;
+    protected final DoubleSupplier valueSupplier;
     private final double rangeLow, rangeHigh;
     private final TrcTaskMgr.TaskObject converterTaskObj;
 

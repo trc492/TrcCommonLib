@@ -31,7 +31,6 @@ import java.util.function.DoubleSupplier;
  */
 public class TrcAbsoluteEncoder extends TrcWrapValueConverter implements TrcEncoder
 {
-    private final DoubleSupplier absEncoder;
     private double sign = 1.0;
     private double scale = 1.0;
     private double offset = 0.0;
@@ -41,14 +40,13 @@ public class TrcAbsoluteEncoder extends TrcWrapValueConverter implements TrcEnco
      * Constructor: Creates an instance of the object.
      *
      * @param instanceName specifies the instance name.
-     * @param absEncoder specifies the method to call to get the encoder value.
+     * @param valueSupplier specifies the method to call to get the encoder value.
      * @param rangeLow specifies the low range of the value.
      * @param rangeHigh specifies the high range of the value.
      */
-    public TrcAbsoluteEncoder(String instanceName, DoubleSupplier absEncoder, double rangeLow, double rangeHigh)
+    public TrcAbsoluteEncoder(String instanceName, DoubleSupplier valueSupplier, double rangeLow, double rangeHigh)
     {
-        super(instanceName, absEncoder, rangeLow, rangeHigh);
-        this.absEncoder = absEncoder;
+        super(instanceName, valueSupplier, rangeLow, rangeHigh);
     }   //TrcAbsoluteEncoder
 
     //
@@ -72,7 +70,7 @@ public class TrcAbsoluteEncoder extends TrcWrapValueConverter implements TrcEnco
     @Override
     public double getRawPosition()
     {
-        return absEncoder.getAsDouble();
+        return valueSupplier.getAsDouble();
     }   //getRawPosition
 
     /**
