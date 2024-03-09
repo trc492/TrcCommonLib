@@ -1325,8 +1325,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         String owner, ControlMode controlMode, double delay, double value, double duration, TrcEvent completionEvent)
     {
         tracer.traceDebug(
-            instanceName, "owner=%s, controlMode=%s, delay=%.3f, value=%f, duration=%.3f, event=%s",
-            owner, controlMode, delay, value, duration, completionEvent);
+            instanceName, "owner=" + owner + ", controlMode=" + controlMode + ", delay=" + delay +
+            ", value=" + value + ", duration=" + duration + ", event=" + completionEvent);
         if (completionEvent != null)
         {
             completionEvent.clear();
@@ -1593,8 +1593,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         double timeout)
     {
         tracer.traceDebug(
-            instanceName, "owner=%s, delay=%.3f, pos=%f, holdTarget=%s, powerLimit=%f, event=%s, timeout=%.3f",
-            owner, delay, position, holdTarget, powerLimit, completionEvent, timeout);
+            instanceName, "owner=" + owner + ", delay=" + delay + ", pos=" + position + ", holdTarget=" + holdTarget +
+            ", powerLimit=" + powerLimit + ", event=" + completionEvent + ", timeout=" + timeout);
         if (completionEvent != null)
         {
             completionEvent.clear();
@@ -1801,15 +1801,15 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             // Hold target at current position.
                             setPosition(0.0, currPos, true, 1.0, null, 0.0);
                             tracer.traceDebug(
-                                instanceName, "Holding: power=%f, currPos=%f, prevTaget=%s",
-                                power, currPos, taskParams.prevPosTarget);
+                                instanceName, "Holding: power=" + power + ", currPos=" + currPos +
+                                ", prevTaget=" + taskParams.prevPosTarget);
                         }
                         else
                         {
                             setControllerMotorPower(0.0, true);
                             tracer.traceDebug(
-                                instanceName, "Stopping: power=%f, currPos=%f, prevTaget=%s",
-                                power, currPos, taskParams.prevPosTarget);
+                                instanceName, "Stopping: power=" + power + ", currPos=" + currPos +
+                                ", prevTaget=" + taskParams.prevPosTarget);
                         }
                     }
                     else
@@ -1817,8 +1817,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         // We are starting or changing direction.
                         setPosition(0.0, currTarget, holdTarget, power, null, 0.0);
                         tracer.traceDebug(
-                            instanceName, "Start/ChangeDir: power=%f, currPos=%f, target=%s, prevTaget=%s",
-                            power, currPos, currTarget, taskParams.prevPosTarget);
+                            instanceName, "Start/ChangeDir: power=" + power + ", currPos=" + currPos +
+                            ", target=" + currTarget + ", prevTaget=" + taskParams.prevPosTarget);
                     }
                     taskParams.prevPosTarget = currTarget;
                 }
@@ -1832,8 +1832,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     // Direction did not change but we need to update the power range.
                     taskParams.powerLimit = power;
                     tracer.traceDebug(
-                        instanceName, "UpdatePower: power=%f, currPos=%f, target=%s, prevTaget=%s",
-                        power, currPos, currTarget, taskParams.prevPosTarget);
+                        instanceName, "UpdatePower: power=" + power + ", currPos=" + currPos +
+                        ", target=" + currTarget + ", prevTaget=" + taskParams.prevPosTarget);
                 }
             }
         }
@@ -1934,8 +1934,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * the appropriate PID coefficients accordingly.
      *
      * @param pidCoeff specifies the PID coefficients to set.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff)
+    public void setVelocityPidCoefficients(TrcPidController.PidCoefficients pidCoeff, double tolerance)
     {
         if (softwarePidEnabled)
         {
@@ -1954,6 +1955,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             setMotorVelocityPidCoefficients(pidCoeff);
         }
+        velTolerance = tolerance;
     }   //setVelocityPidCoefficients
 
     /**
@@ -1966,10 +1968,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
      * @param iZone specifies IZone, can be 0.0 if not provided.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF, double iZone, double tolerance)
     {
-        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone), tolerance);
     }   //setVelocityPidCoefficients
 
     /**
@@ -1981,10 +1984,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kI specifies the Ki coefficient.
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF)
+    public void setVelocityPidCoefficients(double kP, double kI, double kD, double kF, double tolerance)
     {
-        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
+        setVelocityPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0), tolerance);
     }   //setVelocityPidCoefficients
 
     /**
@@ -2016,37 +2020,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getVelocityPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's velocity PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setVelocityPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (velPidCtrl != null)
-            {
-                velTolerance = tolerance;
-            }
-            else
-            {
-                throw new IllegalStateException("Software Velocity PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorVelocityPidTolerance(tolerance);
-            velTolerance = tolerance;
-        }
-    }   //setVelocityPidTolerance
-
-    /**
      * This method checks if velocity PID control has reached target.
      *
-     * @param tolerance specifies the PID tolerance.
      * @return true if velocity has reached target, false otherwise.
      */
-    public boolean getVelocityOnTarget(double tolerance)
+    public boolean getVelocityOnTarget()
     {
         boolean onTarget;
 
@@ -2054,8 +2032,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             if (velPidCtrl != null)
             {
-                onTarget = velPidCtrl.isOnTarget(tolerance);
-                velTolerance = tolerance;
+                onTarget = velPidCtrl.isOnTarget(velTolerance);
             }
             else
             {
@@ -2064,8 +2041,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorVelocityOnTarget(tolerance);
-            velTolerance = tolerance;
+            onTarget = Math.abs(controllerVelocity - getVelocity()) <= velTolerance;
         }
 
         return onTarget;
@@ -2103,8 +2079,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * the appropriate PID coefficients accordingly.
      *
      * @param pidCoeff specifies the PID coefficients to set.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff)
+    public void setPositionPidCoefficients(TrcPidController.PidCoefficients pidCoeff, double tolerance)
     {
         if (softwarePidEnabled)
         {
@@ -2123,6 +2100,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             setMotorPositionPidCoefficients(pidCoeff);
         }
+        posTolerance = tolerance;
     }   //setPositionPidCoefficients
 
     /**
@@ -2135,10 +2113,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
      * @param iZone specifies IZone, can be 0.0 if not provided.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF, double iZone, double tolerance)
     {
-        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone), tolerance);
     }   //setPositionPidCoefficients
 
     /**
@@ -2150,10 +2129,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kI specifies the Ki coefficient.
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF)
+    public void setPositionPidCoefficients(double kP, double kI, double kD, double kF, double tolerance)
     {
-        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
+        setPositionPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0), tolerance);
     }   //setPositionPidCoefficients
 
     /**
@@ -2185,37 +2165,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getPositionPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's position PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setPositionPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (posPidCtrl != null)
-            {
-                posTolerance = tolerance;
-            }
-            else
-            {
-                throw new IllegalStateException("Software Position PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorPositionPidTolerance(tolerance);
-            posTolerance = tolerance;
-        }
-    }   //setPositionPidTolerance
-
-    /**
      * This method checks if position PID control has reached target.
      *
-     * @param tolerance specifies the PID tolerance.
      * @return true if position has reached target, false otherwise.
      */
-    public boolean getPositionOnTarget(double tolerance)
+    public boolean getPositionOnTarget()
     {
         boolean onTarget;
 
@@ -2223,8 +2177,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             if (posPidCtrl != null)
             {
-                onTarget = posPidCtrl.isOnTarget(tolerance);
-                posTolerance = tolerance;
+                onTarget = posPidCtrl.isOnTarget(posTolerance);
+                // posTolerance = tolerance;
             }
             else
             {
@@ -2233,8 +2187,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorPositionOnTarget(tolerance);
-            posTolerance = tolerance;
+            onTarget = Math.abs(controllerPosition - getPosition()) <= posTolerance;
+            // posTolerance = tolerance;
         }
 
         return onTarget;
@@ -2272,8 +2226,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * the appropriate PID coefficients accordingly.
      *
      * @param pidCoeff specifies the PID coefficients to set.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setCurrentPidCoefficients(TrcPidController.PidCoefficients pidCoeff)
+    public void setCurrentPidCoefficients(TrcPidController.PidCoefficients pidCoeff, double tolerance)
     {
         if (softwarePidEnabled)
         {
@@ -2292,6 +2247,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             setMotorCurrentPidCoefficients(pidCoeff);
         }
+        currentTolerance = tolerance;
     }   //setCurrentPidCoefficients
 
     /**
@@ -2304,10 +2260,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
      * @param iZone specifies IZone, can be 0.0 if not provided.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF, double iZone)
+    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF, double iZone, double tolerance)
     {
-        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone));
+        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, iZone), tolerance);
     }   //setCurrentPidCoefficients
 
     /**
@@ -2319,10 +2276,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * @param kI specifies the Ki coefficient.
      * @param kD specifies the Kd coefficient.
      * @param kF specifies the Kf coefficient.
+     * @param tolerance specifies the PID tolerance.
      */
-    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF)
+    public void setCurrentPidCoefficients(double kP, double kI, double kD, double kF, double tolerance)
     {
-        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0));
+        setCurrentPidCoefficients(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0), tolerance);
     }   //setCurrentPidCoefficients
 
     /**
@@ -2354,37 +2312,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //getCurrentPidCoefficients
 
     /**
-     * This method sets the PID tolerance of the motor's current PID controller.
-     *
-     * @param tolerance specifies the PID tolerance.
-     */
-    public void setCurrentPidTolerance(double tolerance)
-    {
-        if (softwarePidEnabled)
-        {
-            if (currentPidCtrl != null)
-            {
-                currentTolerance = tolerance;
-            }
-            else
-            {
-                throw new IllegalStateException("Software Current PID coefficients have not been set.");
-            }
-        }
-        else
-        {
-            setMotorCurrentPidTolerance(tolerance);
-            currentTolerance = tolerance;
-        }
-    }   //setCurrentPidTolerance
-
-    /**
      * This method checks if current PID control has reached target.
      *
-     * @param tolerance specifies the PID tolerance.
      * @return true if current has reached target, false otherwise.
      */
-    public boolean getCurrentOnTarget(double tolerance)
+    public boolean getCurrentOnTarget()
     {
         boolean onTarget;
 
@@ -2392,8 +2324,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             if (currentPidCtrl != null)
             {
-                onTarget = currentPidCtrl.isOnTarget(tolerance);
-                currentTolerance = tolerance;
+                onTarget = currentPidCtrl.isOnTarget(currentTolerance);
+                // currentTolerance = tolerance;
             }
             else
             {
@@ -2402,8 +2334,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         }
         else
         {
-            onTarget = getMotorCurrentOnTarget(tolerance);
-            currentTolerance = tolerance;
+            onTarget = Math.abs(controllerCurrent - getCurrent()) <= currentTolerance;
+            // currentTolerance = tolerance;
         }
 
         return onTarget;
@@ -2616,15 +2548,19 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         onTarget =
                             taskParams.softwarePidCtrl != null?
                                 taskParams.softwarePidCtrl.isOnTarget(taskParams.softwarePidTolerance):
-                            taskParams.currControlMode == ControlMode.Velocity? getMotorVelocityOnTarget(velTolerance):
-                            taskParams.currControlMode == ControlMode.Position? getMotorPositionOnTarget(posTolerance):
-                            taskParams.currControlMode == ControlMode.Current && getMotorCurrentOnTarget(currentTolerance);
+                            taskParams.currControlMode == ControlMode.Velocity? getVelocityOnTarget():
+                            taskParams.currControlMode == ControlMode.Position? getPositionOnTarget():
+                            taskParams.currControlMode == ControlMode.Current && getCurrentOnTarget();
                         stalled = taskParams.softwarePidCtrl != null && taskParams.softwarePidCtrl.isStalled();
                         expired =           // Only for software PID control.
                             taskParams.softwarePidCtrl != null && taskParams.timeout != 0.0 &&
                             TrcTimer.getCurrentTime() >= taskParams.timeout;
                         boolean doStop =    // Only for software PID control.
                             taskParams.softwarePidCtrl != null && !taskParams.holdTarget && (onTarget || expired || stalled);
+
+                        tracer.traceDebug(
+                            instanceName, "onTarget=" + onTarget + ", stalled=" + stalled + ", expired=" + expired +
+                            ", doStop=" + doStop);
 
                         if (doStop)
                         {
@@ -2737,9 +2673,12 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                             setControllerMotorPower(power, false);
 
                             tracer.traceDebug(
-                                instanceName, "onTarget=%s(%f/%f), expired=%s, stalled=%s, powerLimit=%s, power=%f",
-                                onTarget, getPosition(), taskParams.softwarePidCtrl.getTarget(), expired, stalled,
-                                taskParams.powerLimit, power);
+                                instanceName, "onTarget=" + onTarget +
+                                "(" + (taskParams.softwarePidCtrl == posPidCtrl? getPosition():
+                                       taskParams.softwarePidCtrl == velPidCtrl? getVelocity(): getCurrent()) +
+                                "/" + taskParams.softwarePidCtrl.getTarget() + "), expired=" + expired +
+                                ", stalled=" + stalled + ", powerLimit=" + taskParams.powerLimit +
+                                ", power=" + power);
                             if (tracePidInfo)
                             {
                                 taskParams.softwarePidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
@@ -2748,7 +2687,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
                         if (onTarget || stalled || expired)
                         {
-                            taskParams.softwarePidCtrl.endStallDetection();
+                            if (taskParams.softwarePidCtrl != null)
+                            {
+                                taskParams.softwarePidCtrl.endStallDetection();
+                            }
                             completionEvent = taskParams.notifyEvent;
                             target = closeLoopControlTarget;
                             taskParams.notifyEvent = null;
@@ -2786,8 +2728,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         break;
                 }
                 tracer.traceInfo(
-                    instanceName, "onTarget=%s(%f/%s), stalled=%s, expired=%s, event=%s",
-                    onTarget, currValue, target, stalled, expired, completionEvent);
+                    instanceName, "onTarget=" + onTarget + "(" + currValue + "/" + target + "), stalled=" + stalled +
+                    ", expired=" + expired + ", event=" + completionEvent);
             }
         }
     }   //pidCtrlTask

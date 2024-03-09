@@ -34,24 +34,6 @@ public interface TrcMotorController
     // should throw an UnsupportedOperationException.
     //
 
-    // /**
-    //  * This method is used to check if the motor controller supports close loop control natively. Motor subclass
-    //  * should override this to report true if it supports close loop control natively. TrcMotor default is set to
-    //  * false.
-    //  *
-    //  * @return true if motor controller supports native close loop control, false otherwise.
-    //  */
-    // boolean supportCloseLoopControl();
-
-    // /**
-    //  * This method checks if the motor controller is connected to the robot. Note that this does NOT guarantee the
-    //  * connection status of the motor to the motor controller. If detecting the motor presence is impossible (e.g. the
-    //  * motor controller is connected via PWM) this method will always return true.
-    //  *
-    //  * @return true if the motor is connected or if it's impossible to know, false otherwise.
-    //  */
-    // boolean isConnected();
-
     /**
      * This method resets the motor controller configurations to factory default so that everything is at known state.
      */
@@ -80,15 +62,6 @@ public interface TrcMotorController
      * @param currentLimit specifies the stator current limit in amperes.
      */
     void setStatorCurrentLimit(double currentLimit);
-
-    // /**
-    //  * This method sets the close loop percentage output limits. By default the limits are set to the max at -1 to 1.
-    //  * By setting a non-default limits, it effectively limits the output power of the close loop control.
-    //  *
-    //  * @param revLimit specifies the percentage output limit of the reverse direction.
-    //  * @param fwdLimit specifies the percentage output limit of the forward direction.
-    //  */
-    // void setCloseLoopOutputLimits(double revLimit, double fwdLimit);
 
     /**
      * This method sets the close loop ramp rate.
@@ -311,21 +284,6 @@ public interface TrcMotorController
     TrcPidController.PidCoefficients getMotorVelocityPidCoefficients();
 
     /**
-     * This method sets the PID tolerance of the motor controller's velocity PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorVelocityPidTolerance(double tolerance);
-
-    /**
-     * This method checks if the motor is at the set velocity.
-     *
-     * @param tolerance specifies the PID tolerance.
-     * @return true if motor is on target, false otherwise.
-     */
-    boolean getMotorVelocityOnTarget(double tolerance);
-
-    /**
      * This method sets the PID coefficients of the motor controller's position PID controller.
      *
      * @param pidCoeff specifies the PID coefficients to set.
@@ -340,21 +298,6 @@ public interface TrcMotorController
     TrcPidController.PidCoefficients getMotorPositionPidCoefficients();
 
     /**
-     * This method sets the PID tolerance of the motor controller's position PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorPositionPidTolerance(double tolerance);
-
-    /**
-     * This method checks if the motor is at the set position.
-     *
-     * @param tolerance specifies the PID tolerance.
-     * @return true if motor is on target, false otherwise.
-     */
-    boolean getMotorPositionOnTarget(double tolerance);
-
-    /**
      * This method sets the PID coefficients of the motor controller's current PID controller.
      *
      * @param pidCoeff specifies the PID coefficients to set.
@@ -367,21 +310,6 @@ public interface TrcMotorController
      * @return PID coefficients of the motor's current PID controller.
      */
     TrcPidController.PidCoefficients getMotorCurrentPidCoefficients();
-
-    /**
-     * This method sets the PID tolerance of the motor controller's current PID controller.
-     *
-     * @param tolerance specifies the PID tolerance to set.
-     */
-    void setMotorCurrentPidTolerance(double tolerance);
-
-    /**
-     * This method checks if the motor is at the set current.
-     *
-     * @param tolerance specifies the PID tolerance.
-     * @return true if motor is on target, false otherwise.
-     */
-    boolean getMotorCurrentOnTarget(double tolerance);
 
     //
     // The following methods simulate features that the motor controller does not have support for. If the motor
