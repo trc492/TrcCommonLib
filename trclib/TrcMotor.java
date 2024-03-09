@@ -2510,19 +2510,18 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private void pidCtrlTask(TrcTaskMgr.TaskType taskType, TrcRobot.RunMode runMode, boolean slowPeriodicLoop)
     {
-        TrcEvent completionEvent = null;
-
-        if (pidCtrlTaskPerformanceTimer != null)
-        {
-            pidCtrlTaskPerformanceTimer.recordStartTime();
-        }
-
         synchronized (taskParams)
         {
+            TrcEvent completionEvent = null;
             boolean onTarget = false;
             boolean stalled = false;
             boolean expired = false;
             Double target = null;
+
+            if (pidCtrlTaskPerformanceTimer != null)
+            {
+                pidCtrlTaskPerformanceTimer.recordStartTime();
+            }
 
             if (taskParams.calibrating)
             {
@@ -2533,7 +2532,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     taskParams.calibrating = false;
                     completionEvent = taskParams.notifyEvent;
                     taskParams.notifyEvent = null;
-                    tracer.traceInfo(instanceName, "Zero calibration done.");
+                    tracer.traceInfo(instanceName, "Zero calibration done, event=" + completionEvent);
                 }
             }
             else
@@ -2544,32 +2543,62 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 {
                     if (taskParams.currControlMode != ControlMode.Power)
                     {
-                        // Doing software close loop PID control or monitoring controller PID control.
-                        onTarget =
-                            taskParams.softwarePidCtrl != null?
-                                taskParams.softwarePidCtrl.isOnTarget(taskParams.softwarePidTolerance):
-                            taskParams.currControlMode == ControlMode.Velocity? getVelocityOnTarget():
-                            taskParams.currControlMode == ControlMode.Position? getPositionOnTarget():
-                            taskParams.currControlMode == ControlMode.Current && getCurrentOnTarget();
-                        stalled = taskParams.softwarePidCtrl != null && taskParams.softwarePidCtrl.isStalled();
-                        expired =           // Only for software PID control.
-                            taskParams.softwarePidCtrl != null && taskParams.timeout != 0.0 &&
-                            TrcTimer.getCurrentTime() >= taskParams.timeout;
-                        boolean doStop =    // Only for software PID control.
-                            taskParams.softwarePidCtrl != null && !taskParams.holdTarget && (onTarget || expired || stalled);
-
-                        tracer.traceDebug(
-                            instanceName, "onTarget=" + onTarget + ", stalled=" + stalled + ", expired=" + expired +
-                            ", doStop=" + doStop);
-
-                        if (doStop)
+                        // Closed-loop control modes.
+                        if (taskParams.softwarePidCtrl != null)
                         {
-                            // We are stopping motor but control mode is not Power, so don't overwrite it.
-                            setControllerMotorPower(0.0, false);
+                            // Do Software PID control.
+                            onTarget = taskParams.softwarePidCtrl.isOnTarget(taskParams.softwarePidTolerance);
+                            stalled = taskParams.softwarePidCtrl.isStalled();
+                            expired = taskParams.timeout != 0.0 && TrcTimer.getCurrentTime() >= taskParams.timeout;
+
+                            if (!taskParams.holdTarget && (onTarget || expired || stalled))
+                            {
+                                // We are stopping motor but control mode is not Power, so don't overwrite it.
+                                setControllerMotorPower(0.0, false);
+                            }
+                            else
+                            {
+                                // We are either holding target or we are not yet onTarget or stalled or timed out,
+                                // keep applying PID calculated power.
+                                double power = taskParams.softwarePidCtrl.getOutput();
+
+                                if (taskParams.powerLimit != null)
+                                {
+                                    // Apply power limit to the calculated PID power.
+                                    // Only applicable for Position control mode.
+                                    power = TrcUtil.clipRange(power, taskParams.powerLimit);
+                                }
+
+                                if (taskParams.powerComp != null)
+                                {
+                                    power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
+                                }
+                                // Software PID control sets motor power but control mode is not Power, so don't
+                                // overwrite it.
+                                setControllerMotorPower(power, false);
+
+                                tracer.traceDebug(
+                                    instanceName, "onTarget=" + onTarget +
+                                    "(" + (taskParams.softwarePidCtrl == posPidCtrl? getPosition():
+                                        taskParams.softwarePidCtrl == velPidCtrl? getVelocity(): getCurrent()) +
+                                    "/" + taskParams.softwarePidCtrl.getTarget() + "), expired=" + expired +
+                                    ", stalled=" + stalled + ", powerLimit=" + taskParams.powerLimit +
+                                    ", power=" + power);
+                                if (tracePidInfo)
+                                {
+                                    taskParams.softwarePidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                                }
+                            }
                         }
-                        else if (taskParams.softwarePidCtrl == null)
+                        else
                         {
-                            // Doing motor controller close loop PID control.
+                            // Do motor controller closed-loop control.
+                            onTarget =
+                                taskParams.currControlMode == ControlMode.Velocity? getVelocityOnTarget():
+                                taskParams.currControlMode == ControlMode.Position? getPositionOnTarget():
+                                taskParams.currControlMode == ControlMode.Current && getCurrentOnTarget();
+                            stalled = false;
+                            expired = false;
                             // If we have powerLimit or powerComp, we need to update closed-loop control with them.
                             if (taskParams.powerLimit != null || taskParams.powerComp != null)
                             {
@@ -2578,21 +2607,28 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                     // Set the same target position but change powerLimit and powerComp if necessary.
                                     // If powerLimit and powerComp did not change from last time,
                                     // setControllerMotorPosition is a no-op.
-                                    setControllerMotorPosition(
-                                        controllerPosition,
-                                        taskParams.powerLimit != null? taskParams.powerLimit: 0.0,
-                                        taskParams.powerComp != null?
-                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0);
+                                    double powerLimit = taskParams.powerLimit != null? taskParams.powerLimit: 0.0;
+                                    double powerComp = taskParams.powerComp != null?
+                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0;
+                                    setControllerMotorPosition(controllerPosition, powerLimit, powerComp);
+
+                                    tracer.traceDebug(
+                                        instanceName, "PositionControl: pos=" + controllerPosition +
+                                        ", powerLimit=" + powerLimit + ", powerComp=" + powerComp +
+                                        ", onTarget=" + onTarget);
                                 }
                                 else if (taskParams.currControlMode == ControlMode.Velocity)
                                 {
                                     // Set the same target velocity but change powerComp if necessary.
                                     // If powerComp did not change from last time, setControllerMotorVelocity is a
                                     // no-op.
-                                    setControllerMotorVelocity(
-                                        controllerVelocity,
-                                        taskParams.powerComp != null?
-                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0);
+                                    double powerComp = taskParams.powerComp != null?
+                                            taskParams.powerComp.getCompensation(currMotorPower): 0.0;
+                                    setControllerMotorVelocity(controllerVelocity, powerComp);
+
+                                    tracer.traceDebug(
+                                        instanceName, "VelocityControl: vel=" + controllerVelocity +
+                                        ", powerComp=" + powerComp + ", onTarget=" + onTarget);
                                 }
                             }
                             // We are monitoring for completion and sync the followers if motor controller does not
@@ -2650,40 +2686,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                                 }
                             }
                         }
-                        else
-                        {
-                            // Doing software PID control.
-                            // We are either holding target or we are not yet onTarget or stalled or timed out,
-                            // keep applying PID calculated power.
-                            double power = taskParams.softwarePidCtrl.getOutput();
-
-                            if (taskParams.powerLimit != null)
-                            {
-                                // Apply power limit to the calculated PID power.
-                                // Only applicable for Position control mode.
-                                power = TrcUtil.clipRange(power, taskParams.powerLimit);
-                            }
-
-                            if (taskParams.powerComp != null)
-                            {
-                                power = TrcUtil.clipRange(power + taskParams.powerComp.getCompensation(power));
-                            }
-                            // Software PID control sets motor power but control mode is not Power, so don't
-                            // overwrite it.
-                            setControllerMotorPower(power, false);
-
-                            tracer.traceDebug(
-                                instanceName, "onTarget=" + onTarget +
-                                "(" + (taskParams.softwarePidCtrl == posPidCtrl? getPosition():
-                                       taskParams.softwarePidCtrl == velPidCtrl? getVelocity(): getCurrent()) +
-                                "/" + taskParams.softwarePidCtrl.getTarget() + "), expired=" + expired +
-                                ", stalled=" + stalled + ", powerLimit=" + taskParams.powerLimit +
-                                ", power=" + power);
-                            if (tracePidInfo)
-                            {
-                                taskParams.softwarePidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
-                            }
-                        }
 
                         if (onTarget || stalled || expired)
                         {
@@ -2728,8 +2730,9 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                         break;
                 }
                 tracer.traceInfo(
-                    instanceName, "onTarget=" + onTarget + "(" + currValue + "/" + target + "), stalled=" + stalled +
-                    ", expired=" + expired + ", event=" + completionEvent);
+                    instanceName, "controlMode: " + taskParams.currControlMode + " onTarget=" + onTarget +
+                    "(" + currValue + "/" + target + "), stalled=" + stalled + ", expired=" + expired +
+                    ", event=" + completionEvent);
             }
         }
     }   //pidCtrlTask
