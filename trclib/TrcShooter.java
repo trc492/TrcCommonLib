@@ -66,13 +66,15 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private final TrcEvent tiltOnTargetEvent;
     private final TrcEvent panOnTargetEvent;
     private final TrcEvent shootCompletionEvent;
-    private final TrcTimer timer;
+    private final TrcTimer aimTimer;
+    private final TrcTimer shootTimer;
 
     private String currOwner = null;
     private boolean manualOverride = false;
     private TrcEvent completionEvent = null;
     private ShootOperation shootOp = null;
     private String shootOpOwner = null;
+    private double shootOffDelay = 0.0;
     private boolean active = false;
 
     /**
@@ -101,7 +103,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
         tiltOnTargetEvent = tiltMotor != null? new TrcEvent(instanceName + ".tiltOnTargetEvent"): null;
         panOnTargetEvent = panMotor != null? new TrcEvent(instanceName + ".panOnTargetEvent"): null;
         shootCompletionEvent = new TrcEvent(instanceName + ".shootCompletionEvent");
-        timer = new TrcTimer(instanceName + ".timer");
+        aimTimer = new TrcTimer(instanceName + ".aimTimer");
+        shootTimer = new TrcTimer(instanceName + ".shootTimer");
     }   //TrcShooter
 
     /**
@@ -121,7 +124,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
      */
     private void finish(boolean completed)
     {
-        timer.cancel();
+        aimTimer.cancel();
+        shootTimer.cancel();
 
         // Don't stop the shooter if aim-only.
         if (shootOp != null)
@@ -198,10 +202,12 @@ public class TrcShooter implements TrcExclusiveSubsystem
      * @param event specifies an event to signal when both reached target, can be null if not provided.
      * @param timeout specifies maximum timeout period, can be zero if no timeout.
      * @param shootOp specifies the shoot method, can be null if aim only.
+     * @param shootOffDelay specifies the delay in seconds to turn off shooter, can be zero if no delay (only
+     *        applicable if shootOp is not null).
      */
     public void aimShooter(
         String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout,
-        ShootOperation shootOp)
+        ShootOperation shootOp, double shootOffDelay)
     {
         tracer.traceInfo(
             instanceName,
@@ -211,7 +217,8 @@ public class TrcShooter implements TrcExclusiveSubsystem
             ", panAngle=" + panAngle +
             ", event=" + event +
             ", timeout=" + timeout +
-            ", aimOnly=" + (shootOp == null));
+            ", aimOnly=" + (shootOp == null) +
+            ", shootOffDelay=" + shootOffDelay);
         // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
         if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
         {
@@ -223,6 +230,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
             this.completionEvent = event;
             this.shootOp = shootOp;
             this.shootOpOwner = shootOp != null? owner: null;
+            this.shootOffDelay = shootOffDelay;
 
             shooterOnTargetEvent.clear();
             shooterOnTargetEvent.setCallback(this::onTarget, null);
@@ -244,11 +252,30 @@ public class TrcShooter implements TrcExclusiveSubsystem
 
             if (timeout > 0.0)
             {
-                timer.set(timeout, this::timedOut, null);
+                aimTimer.set(timeout, this::timedOut, false);
             }
 
             active = true;
         }
+    }   //aimShooter
+
+    /**
+     * This method sets the shooter velocity and the tilt/pan angles if tilt/pan exist. This method is asynchronous.
+     * When both shooter velocity and tilt/pan positions have reached target and if shoot method is provided, it will
+     * shoot and signal an event if provided.
+     *
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *        ownership aware.
+     * @param velocity specifies the shooter velocity in revolutions per second.
+     * @param tiltAngle specifies the absolute tilt angle in degrees.
+     * @param panAngle specifies the absolute pan angle in degrees.
+     * @param event specifies an event to signal when both reached target, can be null if not provided.
+     * @param timeout specifies maximum timeout period, can be zero if no timeout.
+     */
+    public void aimShooter(
+        String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout)
+    {
+        aimShooter(owner, velocity, tiltAngle, panAngle, event, timeout, null, 0.0);
     }   //aimShooter
 
     /**
@@ -290,18 +317,26 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private void shootCompleted(Object context)
     {
         tracer.traceInfo(instanceName, "Shoot completed.");
-        finish(true);
+        if (shootOffDelay > 0.0)
+        {
+            shootTimer.set(shootOffDelay, this::timedOut, true);
+        }
+        else
+        {
+            finish(true);
+        }
     }   //shootCompleted
 
     /**
      * This method is called if the shooter operation has timed out.
      *
-     * @param context not used.
+     * @param context specifies true for shoot off timeout, false for operation timeout.
      */
     private void timedOut(Object context)
     {
-        tracer.traceInfo(instanceName, "Timed out.");
-        finish(false);
+        Boolean completion = (Boolean) context;
+        tracer.traceInfo(instanceName, "Timed out: completion=" + completion);
+        finish(completion);
     }   //timedOut
 
     /**
