@@ -46,6 +46,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
         private final TrcEvent.Callback triggerCallback;
         private final Double analogTriggerThreshold;
         private final Boolean analogTriggerInverted;
+
         private TriggerMode triggerMode;
         private TrcEvent notifyEvent;
 
@@ -181,6 +182,16 @@ public class TrcIntake implements TrcExclusiveSubsystem
 
         timer = new TrcTimer(instanceName);
         timerEvent = new TrcEvent(instanceName + ".timerEvent");
+
+        if (entryTrigger != null)
+        {
+            entryTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::entryTriggerCallback);
+        }
+
+        if (exitTrigger != null)
+        {
+            exitTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::exitTriggerCallback);
+        }
     }   //TrcIntake
 
     /**
@@ -320,54 +331,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
     }   //setPower
 
     /**
-     * This method enables/disables the entry trigger.
-     *
-     * @param enabled specifies true to enable trigger, false to disable.
-     */
-    private void setEntryTriggerEnabled(boolean enabled)
-    {
-        boolean triggerEnabled = entryTrigger.trigger.isEnabled();
-
-        if (!triggerEnabled && enabled)
-        {
-            // Enabling trigger.
-            entryTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::entryTriggerCallback);
-        }
-        else if (triggerEnabled && !enabled)
-        {
-            // Disabling trigger only if Intake is inactive and no trigger event is registered.
-            if (actionParams == null && entryTrigger.notifyEvent == null)
-            {
-                entryTrigger.trigger.disableTrigger();
-            }
-        }
-    }   //setEntryTriggerEnabled
-
-    /**
-     * This method enables/disables the exit trigger.
-     *
-     * @param enabled specifies true to enable trigger, false to disable.
-     */
-    private void setExitTriggerEnabled(boolean enabled)
-    {
-        boolean triggerEnabled = exitTrigger.trigger.isEnabled();
-
-        if (!triggerEnabled && enabled)
-        {
-            // Enabling trigger.
-            exitTrigger.trigger.enableTrigger(TriggerMode.OnBoth, this::exitTriggerCallback);
-        }
-        else if (triggerEnabled && !enabled)
-        {
-            // Disabling trigger only if Intake is inactive and no trigger event is registered.
-            if (actionParams == null && exitTrigger.notifyEvent == null)
-            {
-                exitTrigger.trigger.disableTrigger();
-            }
-        }
-    }   //setExitTriggerEnabled
-
-    /**
      * This method is called to finish the operation and to clean up. It can be called either at the end of timeout
      * or when object has been captured or ejected to finish the operation and signal the caller for completion. It
      * can also be called if the caller explicitly cancel the operation in which case the event will be set to
@@ -405,17 +368,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 releaseExclusiveAccess(currOwner);
                 currOwner = null;
-            }
-
-            // Disable triggers only after actionParams is marked inactive.
-            if (entryTrigger != null)
-            {
-                setEntryTriggerEnabled(false);
-            }
-
-            if (exitTrigger != null)
-            {
-                setExitTriggerEnabled(false);
             }
         }
         else
@@ -464,20 +416,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             // Picking up object and we don't have one yet, or ejecting object and we still have one.
             motor.setPower(actionParams.intakePower);
-            if (actionParams.operation == Operation.IntakeReverse ||
-                actionParams.operation == Operation.EjectReverse ||
-                exitTrigger == null)
-            {
-                // If we come here, there must be an entry trigger.
-                // Performing a reverse operation or a forward operation and we only have an entry trigger.
-                setEntryTriggerEnabled(true);
-            }
-            else
-            {
-                // Performing a forward operation and there is an exit trigger.
-                setExitTriggerEnabled(true);
-            }
-
             if (actionParams.timeout > 0.0)
             {
                 timerEvent.setCallback(this::actionTimedOut, null);
@@ -524,10 +462,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 // The object has been ejected.
                 finish(true);
-                if (entryTrigger.triggerCallback != null)
-                {
-                    entryTrigger.triggerCallback.notify(context);
-                }
             }
         }
 
@@ -537,6 +471,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
              entryTrigger.triggerMode == TriggerMode.OnInactive && !active))
         {
             entryTrigger.notifyEvent.signal();
+        }
+
+        if (entryTrigger.triggerCallback != null)
+        {
+            entryTrigger.triggerCallback.notify(context);
         }
     }   //entryTriggerCallback
 
@@ -558,10 +497,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
             {
                 // We have either captured an object or ejected it.
                 finish(true);
-                if (exitTrigger.triggerCallback != null)
-                {
-                    exitTrigger.triggerCallback.notify(context);
-                }
             }
         }
 
@@ -571,6 +506,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
              exitTrigger.triggerMode == TriggerMode.OnInactive && !active))
         {
             exitTrigger.notifyEvent.signal();
+        }
+
+        if (exitTrigger.triggerCallback != null)
+        {
+            exitTrigger.triggerCallback.notify(context);
         }
     }   //exitTriggerCallback
 
@@ -589,7 +529,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             entryTrigger.triggerMode = triggerMode;
             entryTrigger.notifyEvent = notifyEvent;
-            setEntryTriggerEnabled(true);
             success = true;
         }
 
@@ -609,7 +548,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             // Must disable notifyEvent before disabling trigger.
             entryTrigger.notifyEvent = null;
-            setEntryTriggerEnabled(false);
             success = true;
         }
 
@@ -631,7 +569,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             exitTrigger.triggerMode = triggerMode;
             exitTrigger.notifyEvent = notifyEvent;
-            setExitTriggerEnabled(true);
             success = true;
         }
 
@@ -651,7 +588,6 @@ public class TrcIntake implements TrcExclusiveSubsystem
         {
             // Must disable notifyEvent before disabling trigger.
             exitTrigger.notifyEvent = null;
-            setExitTriggerEnabled(false);
             success = true;
         }
 
