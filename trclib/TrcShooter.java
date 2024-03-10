@@ -72,6 +72,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private boolean manualOverride = false;
     private TrcEvent completionEvent = null;
     private ShootOperation shootOp = null;
+    private String shootOpOwner = null;
     private boolean active = false;
 
     /**
@@ -143,6 +144,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
             releaseExclusiveAccess(currOwner);
             currOwner = null;
         }
+        shootOpOwner = null;
 
         if (completionEvent != null)
         {
@@ -211,16 +213,16 @@ public class TrcShooter implements TrcExclusiveSubsystem
             ", timeout=" + timeout +
             ", aimOnly=" + (shootOp == null));
         // Caller specifies an owner but has not acquired ownership, let's acquire ownership on its behalf.
-        if (owner != null && !hasOwnership(owner))
+        if (owner != null && !hasOwnership(owner) && acquireExclusiveAccess(owner))
         {
-            acquireExclusiveAccess(owner);
+            currOwner = owner;
         }
 
         if (validateOwnership(owner))
         {
-            currOwner = owner;
             this.completionEvent = event;
             this.shootOp = shootOp;
+            this.shootOpOwner = shootOp != null? owner: null;
 
             shooterOnTargetEvent.clear();
             shooterOnTargetEvent.setCallback(this::onTarget, null);
@@ -271,7 +273,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
                 // If both shooter velocity and tilt/pan position have reached target, shoot.
                 shootCompletionEvent.clear();
                 shootCompletionEvent.setCallback(this::shootCompleted, null);
-                shootOp.shoot(currOwner, shootCompletionEvent);
+                shootOp.shoot(shootOpOwner, shootCompletionEvent);
             }
             else
             {
