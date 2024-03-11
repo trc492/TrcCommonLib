@@ -279,6 +279,20 @@ public class TrcShooter implements TrcExclusiveSubsystem
     }   //aimShooter
 
     /**
+     * This method sets the shooter velocity and the tilt/pan angles if tilt/pan exist. This method is asynchronous.
+     * When both shooter velocity and tilt/pan positions have reached target and if shoot method is provided, it will
+     * shoot and signal an event if provided.
+     *
+     * @param velocity specifies the shooter velocity in revolutions per second.
+     * @param tiltAngle specifies the absolute tilt angle in degrees.
+     * @param panAngle specifies the absolute pan angle in degrees.
+     */
+    public void aimShooter(double velocity, double tiltAngle, double panAngle)
+    {
+        aimShooter(null, velocity, tiltAngle, panAngle, null, 0.0, null, 0.0);
+    }   //aimShooter
+
+    /**
      * This method is called when the shooter has reached target velocity or tilt/pan has reached target positions.
      *
      * @param context not used.
