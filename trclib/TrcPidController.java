@@ -789,7 +789,7 @@ public class TrcPidController
      */
     public double getCurrentInput()
     {
-        return pidInput.get();
+        return pidInput != null? pidInput.get(): pidCtrlState.input;
     }   //getCurrentInput
 
     /**
@@ -798,14 +798,8 @@ public class TrcPidController
      *
      * @return PID output value.
      */
-    public double getOutput()
+    public double getOutput(double input, double setPoint)
     {
-        //
-        // Read from input device without holding a lock on this object, since this could
-        // be a long-running call.
-        //
-        final double currInput = pidInput.get();
-
         synchronized (pidCtrlState)
         {
             double prevTime = pidCtrlState.currTime;
@@ -813,12 +807,13 @@ public class TrcPidController
             pidCtrlState.deltaTime = pidCtrlState.currTime - prevTime;
 
             double prevError = pidCtrlState.currError;
-            pidCtrlState.currError = inverted? currInput - pidCtrlState.setPoint: pidCtrlState.setPoint - currInput;
+            pidCtrlState.currError = inverted? input - setPoint: setPoint - input;
             pidCtrlState.errorRate =
                 pidCtrlState.deltaTime > 0.0? (pidCtrlState.currError - prevError)/pidCtrlState.deltaTime: 0.0;
             double absErr = Math.abs(pidCtrlState.currError);
 
-            pidCtrlState.input = currInput;
+            pidCtrlState.input = input;
+            pidCtrlState.setPoint = setPoint;
             // Only allow integration if error is within iZone but greater than tolerance.
             if (pidCtrlState.pidCoeffs.kI != 0.0 &&
                 (pidCtrlState.pidCoeffs.iZone == 0.0 || absErr <= pidCtrlState.pidCoeffs.iZone))
@@ -872,6 +867,17 @@ public class TrcPidController
 
             return pidCtrlState.output;
         }
+    }   //getOutput
+
+    /**
+     * This method calculates the PID output applying the PID equation to the given set point target and current
+     * input value.
+     *
+     * @return PID output value.
+     */
+    public double getOutput()
+    {
+        return getOutput(pidInput.get(), pidCtrlState.setPoint);
     }   //getOutput
 
     /**
