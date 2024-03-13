@@ -127,11 +127,11 @@ public class TrcShooter implements TrcExclusiveSubsystem
         aimTimer.cancel();
         shootTimer.cancel();
 
-        // Don't stop the shooter if aim-only.
-        if (shootOp != null)
-        {
-            shooterMotor.stop();
-        }
+        // // Don't stop the shooter if aim-only.
+        // if (shootOp != null)
+        // {
+        //     shooterMotor.stop();
+        // }
 
         if (tiltMotor != null)
         {
