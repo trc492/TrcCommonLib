@@ -209,7 +209,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
         String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout,
         ShootOperation shootOp, double shootOffDelay)
     {
-        tracer.traceInfo(
+        tracer.traceDebug(
             instanceName,
             "owner=" + owner +
             ", vel=" + velocity +
@@ -299,7 +299,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
      */
     private void onTarget(Object context)
     {
-        tracer.traceInfo(
+        tracer.traceDebug(
             instanceName,
             "shooterEvent=" + shooterOnTargetEvent +
             ", tiltEvent=" + tiltOnTargetEvent +
