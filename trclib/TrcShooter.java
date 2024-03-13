@@ -127,11 +127,12 @@ public class TrcShooter implements TrcExclusiveSubsystem
         aimTimer.cancel();
         shootTimer.cancel();
 
-        // // Don't stop the shooter if aim-only.
-        // if (shootOp != null)
-        // {
-        //     shooterMotor.stop();
-        // }
+        if (!completed || shootOp != null)
+        {
+            shooterMotor.stop();
+        }
+        shootOp = null;
+        shootOpOwner = null;
 
         if (tiltMotor != null)
         {
@@ -148,7 +149,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
             releaseExclusiveAccess(currOwner);
             currOwner = null;
         }
-        shootOpOwner = null;
 
         if (completionEvent != null)
         {
@@ -209,7 +209,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
         String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout,
         ShootOperation shootOp, double shootOffDelay)
     {
-        tracer.traceDebug(
+        tracer.traceInfo(
             instanceName,
             "owner=" + owner +
             ", vel=" + velocity +
@@ -299,7 +299,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
      */
     private void onTarget(Object context)
     {
-        tracer.traceDebug(
+        tracer.traceInfo(
             instanceName,
             "shooterEvent=" + shooterOnTargetEvent +
             ", tiltEvent=" + tiltOnTargetEvent +
@@ -333,6 +333,12 @@ public class TrcShooter implements TrcExclusiveSubsystem
         tracer.traceInfo(instanceName, "Shoot completed.");
         if (shootOffDelay > 0.0)
         {
+            // Even if we have a shootOffDelay, don't delay signaling completion.
+            if (completionEvent != null)
+            {
+                completionEvent.signal();
+                completionEvent = null;
+            }
             shootTimer.set(shootOffDelay, this::timedOut, true);
         }
         else
