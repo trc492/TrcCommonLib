@@ -42,7 +42,6 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     private final TrcSwerveModule lfModule, rfModule, lbModule, rbModule;
     private final double wheelBaseWidth, wheelBaseLength, wheelBaseDiagonal;
     private final TrcHashMap<TrcMotor, TrcSwerveModule> driveMotorToModuleMap = new TrcHashMap<>();
-    private boolean antiDefenseModeEnabled = false;
 
     /**
      * Constructor: Create an instance of the 4-wheel swerve drive base.
@@ -417,44 +416,21 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     }   //holonomicDrive
 
     /**
-     * This method checks if anti-defense mode is enabled.
+     * This method set all the wheels into an X configuration so that nobody can bump us out of position.
      *
-     * @return true if anti-defense mode is enabled, false if disabled.
+     * @param owner specifies the ID string of the caller for checking ownership, can be null if caller is not
+     *        ownership aware.
      */
-    public boolean isAntiDefenseEnabled()
-    {
-        return antiDefenseModeEnabled;
-    }   //isAntiDefenseEnabled
-
-    /**
-     * This method enables/disables the anti-defense mode where it puts all swerve wheels into an X-formation.
-     * By doing so, it is very difficult for others to push us around.
-     *
-     * @param owner     specifies the ID string of the caller for checking ownership, can be null if caller is not
-     *                  ownership aware.
-     * @param enabled   specifies true to enable anti-defense mode, false to disable.
-     */
-    public void setAntiDefenseEnabled(String owner, boolean enabled)
+    public void setXMode(String owner)
     {
         if (validateOwnership(owner))
         {
-            if (enabled)
-            {
-                lfModule.setSteerAngle(-45.0);
-                rfModule.setSteerAngle(45.0);
-                lbModule.setSteerAngle(45.0);
-                rbModule.setSteerAngle(-45.0);
-            }
-            else
-            {
-                lfModule.setSteerAngle(0.0);
-                rfModule.setSteerAngle(0.0);
-                lbModule.setSteerAngle(0.0);
-                rbModule.setSteerAngle(0.0);
-            }
-            antiDefenseModeEnabled = enabled;
+            lfModule.setSteerAngle(-45.0);
+            rfModule.setSteerAngle(45.0);
+            lbModule.setSteerAngle(45.0);
+            rbModule.setSteerAngle(-45.0);
         }
-    }   //setAntiDefenseEnabled
+    }   //setXMode
 
     /**
      * This method is called periodically to calculate the delta between the previous and current motor odometries.
