@@ -1623,10 +1623,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         tracer.traceDebug(
             instanceName, "owner=" + owner + ", delay=" + delay + ", pos=" + position + ", holdTarget=" + holdTarget +
             ", powerLimit=" + powerLimit + ", event=" + completionEvent + ", timeout=" + timeout);
-        if (completionEvent != null)
-        {
-            completionEvent.clear();
-        }
 
         releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
@@ -1638,6 +1634,10 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             boolean forward = position > currPos;
             // Stop previous operation if there is one.
             stop(false);
+            if (completionEvent != null)
+            {
+                completionEvent.clear();
+            }
             // Perform hardware limit switch check. If motor controller supports hardware limit switches, both
             // revLimitSwitch and fwdLimitSwitch should be null and therefore a no-op.
             if (lowerLimitSwitchEnabled && !forward && lowerLimitSwitch.isActive() ||
@@ -2876,11 +2876,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      */
     private void zeroCalibrate(String owner, double calPower, TrcEvent completionEvent, TrcEvent.Callback callback)
     {
-        if (completionEvent != null)
-        {
-            completionEvent.clear();
-        }
-
         releaseOwnershipEvent = acquireOwnership(owner, completionEvent, tracer);
         if (releaseOwnershipEvent != null) completionEvent = releaseOwnershipEvent;
 
@@ -2888,6 +2883,11 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             // Stop previous operation if there is one.
             stop(false);
+            if (completionEvent != null)
+            {
+                completionEvent.clear();
+            }
+
             synchronized (taskParams)
             {
                 taskParams.calPower = calPower;
