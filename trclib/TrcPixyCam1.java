@@ -372,7 +372,7 @@ public abstract class TrcPixyCam1
                                 ObjectBlock[] array = new ObjectBlock[objects.size()];
                                 detectedObjects = objects.toArray(array);
                                 objects.clear();
-                                if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
+                                if (tracer.getTraceLevel().value >= TrcDbgTrace.MsgLevel.DEBUG.value)
                                 {
                                     for (int i = 0; i < detectedObjects.length; i++)
                                     {

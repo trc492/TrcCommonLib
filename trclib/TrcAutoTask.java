@@ -193,8 +193,8 @@ public abstract class TrcAutoTask<T>
 
         if (state != null)
         {
+            tracer.tracePreStateInfo(sm.toString(), state);
             runTaskState(taskParams, state, taskType, runMode, slowPeriodicLoop);
-            tracer.traceStateInfo(sm.toString(), state);
         }
     }   //autoTask
 

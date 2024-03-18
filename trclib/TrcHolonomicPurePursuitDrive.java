@@ -64,17 +64,12 @@ public class TrcHolonomicPurePursuitDrive
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
 
-        private final int value;
+        final int value;
 
         InterpolationType(int value)
         {
             this.value = value;
         }   //InterpolationType
-
-        public int getValue()
-        {
-            return value;
-        }   //getValue
 
     }   //enum InterpolationType
 
@@ -765,13 +760,13 @@ public class TrcHolonomicPurePursuitDrive
             case QUADRATIC:
             case CUBIC:
             case QUARTIC:
-                weight = Math.pow(weight, interpolationType.getValue());
+                weight = Math.pow(weight, interpolationType.value);
                 break;
 
             case QUADRATIC_INV:
             case CUBIC_INV:
             case QUARTIC_INV:
-                weight = Math.pow(weight, 1.0 / interpolationType.getValue());
+                weight = Math.pow(weight, 1.0 / interpolationType.value);
                 break;
         }
 

@@ -133,7 +133,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
             double turnTarget = 0.0;
 
             dashboard.displayPrintf(1, "State: " + state);
-
+            tracer.tracePreStateInfo(sm.toString(), state);
             switch (state)
             {
                 case WALTZ_TURN:
@@ -156,8 +156,7 @@ public class CmdWaltzTurn implements TrcRobot.RobotCommand
                     sm.stop();
                     break;
             }
-
-            tracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
+            tracer.tracePostStateInfo(sm.toString(), state, driveBase, pidDrive);
         }
 
         return !sm.isEnabled();

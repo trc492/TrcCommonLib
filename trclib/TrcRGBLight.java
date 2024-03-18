@@ -97,7 +97,7 @@ public abstract class TrcRGBLight
         RGB_CYAN(COLOR_CYAN),
         RGB_WHITE(COLOR_WHITE);
 
-        private final int value;
+        final int value;
 
         /**
          * Constructor: Create an instance of the enum object with the given value.
@@ -110,16 +110,6 @@ public abstract class TrcRGBLight
         }   //RGBColor
 
         /**
-         * This method returns the ordinal value of the color.
-         *
-         * @return ordinal value of the color.
-         */
-        public int getValue()
-        {
-            return value;
-        }   //getValue
-
-        /**
          * This method returns the color enum with the specified ordinal value.
          *
          * @param value specifies the ordinal value of the color.
@@ -127,15 +117,7 @@ public abstract class TrcRGBLight
          */
         public static RGBColor getColor(int value)
         {
-            for (RGBColor color: RGBColor.values())
-            {
-                if (value == color.getValue())
-                {
-                    return color;
-                }
-            }
-
-            return RGB_INVALID;
+            return values()[value];
         }   //getColor
 
     }   //enum RGBColor
@@ -264,7 +246,7 @@ public abstract class TrcRGBLight
             sm.stop();
         }
 
-        setColorValue(color.getValue());
+        setColorValue(color.value);
     }   //setColor
 
     /**
@@ -329,7 +311,7 @@ public abstract class TrcRGBLight
             switch (state)
             {
                 case TURN_ON:
-                    setColorValue(color.getValue());
+                    setColorValue(color.value);
                     if (onPeriod != 0.0)
                     {
                         timer.set(onPeriod, timerEvent);

@@ -244,7 +244,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
         else
         {
             dashboard.displayPrintf(1, "State: " + state);
-
+            tracer.tracePreStateInfo(sm.toString(), state);
             switch (state)
             {
                 case DO_DELAY:
@@ -337,8 +337,7 @@ public class CmdPidDrive implements TrcRobot.RobotCommand
                     cancel();
                     break;
             }
-
-            tracer.traceStateInfo(sm.toString(), state, driveBase, pidDrive);
+            tracer.tracePostStateInfo(sm.toString(), state, driveBase, pidDrive);
         }
 
         return !sm.isEnabled();

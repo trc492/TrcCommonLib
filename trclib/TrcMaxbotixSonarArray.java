@@ -38,7 +38,7 @@ public class TrcMaxbotixSonarArray
         PULL_RX_HIGH,
         PULL_RX_LOW,
         DONE
-    }   //State
+    }   //enum State
 
     private final TrcDbgTrace tracer;
     private final String instanceName;

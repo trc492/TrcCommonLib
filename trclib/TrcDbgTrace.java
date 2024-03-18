@@ -44,17 +44,13 @@ public class TrcDbgTrace
         DEBUG(5),
         VERBOSE(6);
 
-        private final int value;
+        final int value;
 
         MsgLevel(int value)
         {
             this.value = value;
         }   //MsgLevel
 
-        public int getValue()
-        {
-            return this.value;
-        }   //getValue
     }   //enum MsgLevel
 
     /**
@@ -306,7 +302,7 @@ public class TrcDbgTrace
      */
     private void traceMsgWorker(String callerInstance, int methodIndex, MsgLevel level, String text)
     {
-        if (level.getValue() <= msgLevel.getValue())
+        if (level.value <= msgLevel.value)
         {
             String msg =
                 callerInstance + "." + new Throwable().getStackTrace()[methodIndex].getMethodName() + "_" + level +
@@ -757,8 +753,25 @@ public class TrcDbgTrace
     }   //logEventInternal
 
     /**
-     * This method logs a state info event using the global tracer. The state info event can be used to debug an
-     * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
+     * This method logs a pre-state info event using the global tracer. The pre-state info event can be used to
+     * debug a state machine when the state is about to be executed.
+     *
+     * @param name specifies the instance name of the state machine.
+     * @param state specifies the current state of the state machine.
+     */
+    public void tracePreStateInfo(String name, Object state)
+    {
+        if (msgLevel.value >= MsgLevel.INFO.value && state != null)
+        {
+            logEventInternal(name, 3, "StateInfo", "tag=\"vvvvv\" " + name + ".state=\"" + state + "\"");
+        }
+    }   //tracePreStateInfo
+
+    /**
+     * This method logs a post-state info event using the global tracer. The post-state info event can be used to
+     * debug a state machine after the state was executed. If the state involves PID controlled driving, it also
+     * logs the robot's movement. Post-state info contains information of the async operations it has started but not
+     * necessarily finished.
      *
      * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
@@ -767,7 +780,7 @@ public class TrcDbgTrace
      * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    private void traceStateInfoWorker(
+    private void tracePostStateInfoWorker(
         String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
         TrcRobotBattery battery)
     {
@@ -811,11 +824,13 @@ public class TrcDbgTrace
 
             logEventInternal(name, 4, "StateInfo", msg.toString());
         }
-    }   //traceStateInfoWorker
+    }   //tracePostStateInfoWorker
 
     /**
-     * This method logs a state info event using the global tracer. The state info event can be used to debug an
-     * autonomous state machine. If the state involves PID controlled driving, it also logs the robot's movement.
+     * This method logs a post-state info event using the global tracer. The post-state info event can be used to
+     * debug a state machine after the state was executed. If the state involves PID controlled driving, it also
+     * logs the robot's movement. Post-state info contains information of the async operations it has started but not
+     * necessarily finished.
      *
      * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
@@ -824,76 +839,71 @@ public class TrcDbgTrace
      * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    public void traceStateInfo(
+    public void tracePostStateInfo(
         String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive, TrcPurePursuitDrive ppDrive,
         TrcRobotBattery battery)
     {
         if (msgLevel.value >= MsgLevel.INFO.value)
         {
-            traceStateInfoWorker(name, state, driveBase, pidDrive, ppDrive, battery);
+            tracePostStateInfoWorker(name, state, driveBase, pidDrive, ppDrive, battery);
         }
-    }   //traceStateInfo
+    }   //tracePostStateInfo
 
     /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     * If the state involves PID controlled driving, it also logs the robot's movement.
+     * This method logs a post-state info event using the global tracer. The post-state info event can be used to
+     * debug a state machine after the state was executed. If the state involves PID controlled driving, it also
+     * logs the robot's movement. Post-state info contains information of the async operations it has started but not
+     * necessarily finished.
      *
+     * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param pidDrive specifies the pidDrive object, can be null if the state does not involve robot movement.
      */
-    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
+    public void tracePostStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPidDrive pidDrive)
     {
         if (msgLevel.value >= MsgLevel.INFO.value)
         {
-            traceStateInfoWorker(name, state, driveBase, pidDrive, null, null);
+            tracePostStateInfoWorker(name, state, driveBase, pidDrive, null, null);
         }
-    }   //traceStateInfo
+    }   //tracePostStateInfo
 
     /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     * If the state involves PID controlled driving, it also logs the robot's movement.
+     * This method logs a post-state info event using the global tracer. The post-state info event can be used to
+     * debug a state machine after the state was executed. If the state involves PID controlled driving, it also
+     * logs the robot's movement. Post-state info contains information of the async operations it has started but not
+     * necessarily finished.
      *
      * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param driveBase specifies the robot drive base, can be null if the state does not involve robot movement.
      * @param ppDrive specifies the purePursuitDrive object, can be null if the state does not involve pp drive.
+     * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    public void traceStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
+    public void tracePostStateInfo(String name, Object state, TrcDriveBase driveBase, TrcPurePursuitDrive ppDrive)
     {
         if (msgLevel.value >= MsgLevel.INFO.value)
         {
-            traceStateInfoWorker(name, state, driveBase, null, ppDrive, null);
+            tracePostStateInfoWorker(name, state, driveBase, null, ppDrive, null);
         }
-    }   //traceStateInfo
+    }   //tracePostStateInfo
 
     /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
+     * This method logs a post-state info event using the global tracer. The post-state info event can be used to
+     * debug a state machine after the state was executed. If the state involves PID controlled driving, it also
+     * logs the robot's movement. Post-state info contains information of the async operations it has started but not
+     * necessarily finished.
      *
      * @param name specifies the instance name of the state machine.
      * @param state specifies the current state of the state machine.
      * @param battery specifies the robot battery object, can be null if not interested in battery info.
      */
-    public void traceStateInfo(String name, Object state, TrcRobotBattery battery)
+    public void tracePostStateInfo(String name, Object state, TrcRobotBattery battery)
     {
         if (msgLevel.value >= MsgLevel.INFO.value)
         {
-            traceStateInfoWorker(name, state, null, null, null, battery);
+            tracePostStateInfoWorker(name, state, null, null, null, battery);
         }
-    }   //traceStateInfo
-
-    /**
-     * This method logs a state info event. The state info event can be used to debug an autonomous state machine.
-     *
-     * @param name specifies the instance name of the state machine.
-     * @param state specifies the current state of the state machine.
-     */
-    public void traceStateInfo(String name, Object state)
-    {
-        if (msgLevel.value >= MsgLevel.INFO.value)
-        {
-            traceStateInfoWorker(name, state, null, null, null, null);
-        }
-    }   //traceStateInfo
+    }   //tracePostStateInfo
 
 }   //class TrcDbgTrace

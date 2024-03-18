@@ -249,7 +249,7 @@ public class TrcWatchdogMgr
         Watchdog watchdog = null;
 
         instance = getInstance();
-        if (staticTracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
+        if (staticTracer.getTraceLevel().value >= TrcDbgTrace.MsgLevel.DEBUG.value)
         {
             staticTracer.traceDebug(
                 moduleName,
@@ -313,7 +313,7 @@ public class TrcWatchdogMgr
     {
         boolean success;
 
-        if (staticTracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
+        if (staticTracer.getTraceLevel().value >= TrcDbgTrace.MsgLevel.DEBUG.value)
         {
             staticTracer.traceDebug(moduleName, "Unregistering watchdog " + watchdog + ".");
             TrcDbgTrace.printThreadStack();

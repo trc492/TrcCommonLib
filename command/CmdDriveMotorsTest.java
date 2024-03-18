@@ -125,7 +125,8 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
             }
             dashboard.displayPrintf(1, "Motors Test: state=" + state + ", index=" + motorIndex);
             dashboard.displayPrintf(2, msg.toString());
-    
+
+            tracer.tracePreStateInfo(sm.toString(), state);
             switch (state)
             {
                 case START:
@@ -159,8 +160,6 @@ public class CmdDriveMotorsTest implements TrcRobot.RobotCommand
                     sm.stop();
                     break;
             }
-
-            tracer.traceStateInfo(sm.toString(), state);
         }
 
         return !sm.isEnabled();

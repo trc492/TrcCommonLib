@@ -452,7 +452,7 @@ public class TrcTaskMgr
             taskTotalElapsedTimes[taskType.value] += elapsedTime;
             taskTimeSlotCounts[taskType.value]++;
 
-            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
+            if (tracer.getTraceLevel().value >= TrcDbgTrace.MsgLevel.DEBUG.value)
             {
                 tracer.traceVerbose(
                     moduleName, "%s.%s: start=.6f, elapsed=%.6f",

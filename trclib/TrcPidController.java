@@ -860,7 +860,7 @@ public class TrcPidController
 
             pidCtrlState.output = output;
 
-            if (tracer.getTraceLevel().getValue() >= TrcDbgTrace.MsgLevel.DEBUG.getValue())
+            if (tracer.getTraceLevel().value >= TrcDbgTrace.MsgLevel.DEBUG.value)
             {
                 printPidInfo(tracer, pidCtrlState.verbosePidInfo, pidCtrlState.battery);
             }
