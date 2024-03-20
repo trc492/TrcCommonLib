@@ -163,6 +163,7 @@ public class TrcIntake implements TrcExclusiveSubsystem
     private final TrcEvent timerEvent;
     private ActionParams actionParams = null;
     private String currOwner = null;
+    private boolean delayFinishPending = false;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -347,7 +348,11 @@ public class TrcIntake implements TrcExclusiveSubsystem
                 completed, timerEvent.isSignaled(), hasObject(), actionParams.finishDelay);
             double power = completed && hasObject()? actionParams.retainPower: 0.0;
 
+            tracer.traceInfo(
+                instanceName, "Finishing intake: completed=" + completed +
+                ", power=" + power + ", finishDelay=" + actionParams.finishDelay);
             setPower(actionParams.finishDelay, power, 0.0);
+            delayFinishPending = actionParams.finishDelay > 0.0;
             timer.cancel();
             if (actionParams.event != null)
             {
@@ -372,7 +377,14 @@ public class TrcIntake implements TrcExclusiveSubsystem
         }
         else
         {
-            motor.stop();
+            // TODO: Need to debug this, it doesn't work.
+            tracer.traceInfo(
+                instanceName, "Finishing inactive intake: completed=" + completed +
+                ", delayFinishPending=" + delayFinishPending);
+            if (!delayFinishPending)
+            {
+                motor.stop();
+            }
         }
     }   //finish
 
