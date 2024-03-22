@@ -69,6 +69,16 @@ public interface TrcExclusiveSubsystem
     }   //hasOwnership
 
     /**
+     * This method returns the current owner of this subsystem.
+     *
+     * @return current owner, null if no owner.
+     */
+    default String getCurrentOwner()
+    {
+        return TrcOwnershipMgr.getInstance().getOwner(this);
+    }   //getCurrentOwner
+
+    /**
      * This method checks if the caller has exclusive ownership of the subsystem. If not, it throws an exception.
      * It throws an exception only if the caller is aware of exclusive ownership and the it doesn't currently own
      * the subsystem. If the caller is unaware of exclusive ownership and the subsystem is owned by somebody else,

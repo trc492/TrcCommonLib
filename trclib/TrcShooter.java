@@ -212,6 +212,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
         tracer.traceDebug(
             instanceName,
             "owner=" + owner +
+            ", currOwner=" + getCurrentOwner() +
             ", vel=" + velocity +
             ", tiltAngle=" + tiltAngle +
             ", panAngle=" + panAngle +
