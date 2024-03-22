@@ -312,7 +312,6 @@ public class TrcPose3D
 //     */
 //    public TrcPose3D translatePose(double xOffset, double yOffset, double zOffset)
 //    {
-//        final String funcName = "translatePose";
 //        TrcPose3D newPose = clone();
 //        double angleRadians = Math.toRadians(newPose.angle);
 //        double cosAngle = Math.cos(angleRadians);
@@ -323,7 +322,7 @@ public class TrcPose3D
 //
 //        if (debugEnabled)
 //        {
-//            dbgTrace.traceInfo(funcName, "xOffset=%.1f, yOffset=%.1f, Pose:%s, newPose:%s",
+//            dbgTrace.traceInfo(moduleName, "xOffset=%.1f, yOffset=%.1f, Pose:%s, newPose:%s",
 //                xOffset, yOffset, this, newPose);
 //        }
 //
