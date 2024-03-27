@@ -80,7 +80,7 @@ public class TrcSensorCalibrator<D>
 
         for (int i = 0; i < numAxes; i++)
         {
-            minValues[i] = maxValues[i] = ((TrcSensor.SensorData<Double>)sensor.getRawData(i, dataType)).value;
+            minValues[i] = maxValues[i] = sensor.getRawData(i, dataType).value;
             sums[i] = 0.0;
         }
 
@@ -88,7 +88,7 @@ public class TrcSensorCalibrator<D>
         {
             for (int i = 0; i < numAxes; i++)
             {
-                double value = ((TrcSensor.SensorData<Double>)sensor.getRawData(i, dataType)).value;
+                double value = sensor.getRawData(i, dataType).value;
                 sums[i] += value;
 
                 if (value < minValues[i])

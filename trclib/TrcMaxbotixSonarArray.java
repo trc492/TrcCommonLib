@@ -169,7 +169,7 @@ public class TrcMaxbotixSonarArray
      * @param sensorIndex specifies the index of the ultrasonic sensor to read its distance data.
      * @return distance data of the specified sensor.
      */
-    public TrcSensor.SensorData<Double> getDistance(int sensorIndex)
+    public TrcSensor.SensorData getDistance(int sensorIndex)
     {
         return sensors[sensorIndex].getData(0);
     }   //getDistance

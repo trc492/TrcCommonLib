@@ -51,7 +51,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param dataType specifies the data type.
      * @return raw data with the specified type.
      */
-    public abstract SensorData<Double> getRawData(int index, DataType dataType);
+    public abstract SensorData getRawData(int index, DataType dataType);
     //
     // AnalogInput options.
     //
@@ -215,7 +215,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param index specifies the data index.
      * @return processed data.
      */
-    public TrcSensor.SensorData<Double> getData(int index)
+    public TrcSensor.SensorData getData(int index)
     {
         return getProcessedData(index, DataType.INPUT_DATA);
     }   //getData
@@ -226,7 +226,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param index specifies the data index.
      * @return processed normalized data.
      */
-    public TrcSensor.SensorData<Double> getNormalizedData(int index)
+    public TrcSensor.SensorData getNormalizedData(int index)
     {
         return getProcessedData(index, DataType.NORMALIZED_DATA);
     }   //getNormalizedData
@@ -237,7 +237,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param index specifies the data index.
      * @return integrated sensor data.
      */
-    public TrcSensor.SensorData<Double> getIntegratedData(int index)
+    public TrcSensor.SensorData getIntegratedData(int index)
     {
         return dataIntegrator != null ? dataIntegrator.getIntegratedData(index) :
                                         getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
@@ -249,7 +249,7 @@ public abstract class TrcAnalogInput extends TrcSensor<TrcAnalogInput.DataType>
      * @param index specifies the data index.
      * @return double integrated sensor data.
      */
-    public TrcSensor.SensorData<Double> getDoubleIntegratedData(int index)
+    public TrcSensor.SensorData getDoubleIntegratedData(int index)
     {
         return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(index) :
                                         getRawData(index, DataType.DOUBLE_INTEGRATED_DATA);
