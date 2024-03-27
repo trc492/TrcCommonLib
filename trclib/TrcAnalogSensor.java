@@ -65,10 +65,10 @@ public class TrcAnalogSensor extends TrcAnalogInput
      * @param dataType specifies the data type (not used because AnalogSensor only returns raw data).
      * @return raw data from the analog data source.
      */
-    public SensorData<Double> getRawData(int index, DataType dataType)
+    public SensorData getRawData(int index, DataType dataType)
     {
         Double rawData = dataSource.getData();
-        return rawData != null? new SensorData<>(TrcTimer.getCurrentTime(), rawData): null;
+        return rawData != null? new SensorData(TrcTimer.getCurrentTime(), rawData): null;
     }   //getRawData
 
 }   //class TrcAnalogSensor
