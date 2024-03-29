@@ -122,7 +122,7 @@ public class TrcMaxbotixSonarArray
      * This method is called to start the ranging cycle.
      *
      * @param autoRepeat specifies true to auto repeat the ranging cycle, false otherwise. autoRepeat is ignored
-     *                   if the array is wired in loop config because it is already in continuous ranging mode.
+     *        if the array is wired in loop config because it is already in continuous ranging mode.
      */
     public synchronized void startRanging(boolean autoRepeat)
     {
