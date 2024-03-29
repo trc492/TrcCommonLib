@@ -64,6 +64,11 @@ public class TrcPath
 
         this.inDegrees = inDegrees;
         this.waypoints = waypoints;
+        // Label waypoint with path index.
+        for (int i = 0; i < waypoints.length; i++)
+        {
+            waypoints[i].index = i;
+        }
     }   //TrcPath
 
     /**

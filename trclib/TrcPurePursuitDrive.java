@@ -1377,9 +1377,9 @@ public class TrcPurePursuitDrive
                     //
                     // We are moving to the next waypoint.
                     //
-                    if (waypointEventHandler != null)
+                    if (waypointEventHandler != null && segmentStart.index != -1)
                     {
-                        waypointEventHandler.waypointEvent(i - 1, segmentStart);
+                        waypointEventHandler.waypointEvent(segmentStart.index, segmentStart);
                     }
 
                     tracer.traceDebug(

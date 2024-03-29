@@ -38,6 +38,7 @@ import java.util.Objects;
  */
 public class TrcWaypoint
 {
+    public int index;
     public double timeStep;
     public TrcPose2D pose;
     public double encoderPosition;
@@ -57,8 +58,9 @@ public class TrcWaypoint
      * @param jerk         specifies the tangential jerk at this point.
      */
     public TrcWaypoint(
-            double timeStep, TrcPose2D pose, double position, double velocity, double acceleration, double jerk)
+        double timeStep, TrcPose2D pose, double position, double velocity, double acceleration, double jerk)
     {
+        this.index = -1;
         this.timeStep = timeStep;
         this.pose = pose;
         this.encoderPosition = position;
@@ -104,6 +106,7 @@ public class TrcWaypoint
      */
     public TrcWaypoint(TrcWaypoint other)
     {
+        this.index = other.index;
         this.timeStep = other.timeStep;
         this.pose = other.pose.clone();
         this.encoderPosition = other.encoderPosition;
@@ -122,8 +125,7 @@ public class TrcWaypoint
     public TrcWaypoint(TrcPose2D pose, TrcPose2D velocity)
     {
         // Codereview: should pose be cloned?
-        this(0, pose, 0.0, velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0,
-                0, 0);
+        this(0, pose, 0.0, velocity != null? TrcUtil.magnitude(velocity.x, velocity.y): 0.0, 0, 0);
         simpleWaypoint = true;
     }   //TrcWaypoint
 
@@ -138,12 +140,12 @@ public class TrcWaypoint
         if (!simpleWaypoint)
         {
             return String.format(
-                Locale.US, "TrcWaypoint(simple=%s,timestep=%.3f,pose=%s,vel=%f,encPos=%f,accel=%f,jerk=%f)",
-                simpleWaypoint, timeStep, pose, velocity, encoderPosition, acceleration, jerk);
+                Locale.US, "TrcWaypoint(simple=%s,index=%d,timestep=%.3f,pose=%s,vel=%f,encPos=%f,accel=%f,jerk=%f)",
+                simpleWaypoint, index, timeStep, pose, velocity, encoderPosition, acceleration, jerk);
         }
         else
         {
-            return String.format(Locale.US, "TrcWaypoint(pose=%s,vel=%f)", pose, velocity);
+            return String.format(Locale.US, "TrcWaypoint(index=%d,pose=%s,vel=%f)", index, pose, velocity);
         }
     }   //toString
 
