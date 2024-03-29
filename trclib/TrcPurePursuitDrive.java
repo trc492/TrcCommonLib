@@ -625,6 +625,12 @@ public class TrcPurePursuitDrive
             {
                 onFinishedEvent.clear();
             }
+            // Label waypoints with corresponding path indexes.
+            TrcWaypoint[] waypoints = path.getAllWaypoints();
+            for (int i = 0; i < waypoints.length; i++)
+            {
+                waypoints[i].index = i;
+            }
 
             this.path = maxVel != null && maxAccel != null? path.trapezoidVelocity(maxVel, maxAccel): path;
 
