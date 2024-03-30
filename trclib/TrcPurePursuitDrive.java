@@ -63,6 +63,18 @@ public class TrcPurePursuitDrive
         void waypointEvent(int index, TrcWaypoint waypoint);
     }   //interface WaypointEventHandler
 
+    public interface TargetHeadingOffset
+    {
+        /**
+         * This method is called when fixed heading mode is enabled to get the fixed heading offset from the current
+         * robot heading.
+         *
+         * @return target heading offset from current robot heading.
+         */
+        Double getOffset();
+
+    }   //interface TargetHeadingOffset
+
     public enum InterpolationType
     {
         LINEAR(1), QUADRATIC(2), CUBIC(3), QUARTIC(4), QUADRATIC_INV(2), CUBIC_INV(3), QUARTIC_INV(4);
@@ -102,8 +114,7 @@ public class TrcPurePursuitDrive
     private WaypointEventHandler waypointEventHandler = null;
     private InterpolationType interpolationType = InterpolationType.LINEAR;
     private volatile boolean incrementalTurn;
-    private volatile boolean fixedHeadingEnabled = false;
-    private volatile double headingOffset = 0.0;
+    private TargetHeadingOffset targetHeadingOffset = null;
     private volatile boolean stalled = false;
 
     private String owner = null;
@@ -400,16 +411,15 @@ public class TrcPurePursuitDrive
      * following the path. To do this, the Turn PID controller must be vision-based and the heading offset to the
      * vision target is typically zero.
      *
-     * @param headingOffset specifies the heading offset to the target.
+     * @param headingOffset specifies the heading offset supplier.
      */
-    public synchronized void enableFixedHeading(double headingOffset)
+    public synchronized void enableFixedHeading(TargetHeadingOffset headingOffset)
     {
         if (xPosPidCtrl == null)
         {
             throw new UnsupportedOperationException("FixedHeading is only support on holonomic drive base.");
         }
-        this.headingOffset = headingOffset;
-        this.fixedHeadingEnabled = true;
+        this.targetHeadingOffset = headingOffset;
     }   //enableFixedHeading
 
     /**
@@ -417,8 +427,7 @@ public class TrcPurePursuitDrive
      */
     public synchronized void disableFixedHeading()
     {
-        this.headingOffset = 0.0;
-        this.fixedHeadingEnabled = false;
+        this.targetHeadingOffset = null;
     }   //disableFixedHeading
 
     /**
@@ -1069,9 +1078,18 @@ public class TrcPurePursuitDrive
             yPosPidCtrl.setTarget(relativeTargetPose.y, resetError);
         }
 
-        if (fixedHeadingEnabled)
+        if (targetHeadingOffset != null)
         {
-            turnPidCtrl.setTarget(headingOffset, warpSpace, resetError);
+            Double headingOffset = targetHeadingOffset.getOffset();
+            if (headingOffset != null)
+            {
+                turnPidCtrl.setTarget(driveBase.getHeading() + headingOffset, warpSpace, resetError);
+            }
+            else
+            {
+                turnPidCtrl.setTarget(
+                    relativeTargetPose.angle + referencePose.angle + robotPose.angle, warpSpace, resetError);
+            }
         }
         else
         {
