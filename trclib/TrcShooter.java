@@ -62,9 +62,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private final PanTiltParams tiltParams;
     public final TrcMotor panMotor;
     private final PanTiltParams panParams;
-    private final TrcEvent shooterOnTargetEvent;
-    private final TrcEvent tiltOnTargetEvent;
-    private final TrcEvent panOnTargetEvent;
     private final TrcEvent shootCompletionEvent;
     private final TrcTimer aimTimer;
     private final TrcTimer shootTimer;
@@ -76,6 +73,9 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private String shootOpOwner = null;
     private double shootOffDelay = 0.0;
     private boolean active = false;
+    private TrcEvent shooterOnTargetEvent = null;
+    private TrcEvent tiltOnTargetEvent = null;
+    private TrcEvent panOnTargetEvent = null;
 
     /**
      * Constructor: Creates an instance of the object.
@@ -99,9 +99,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
         this.panMotor = panMotor;
         this.panParams = panParams;
 
-        shooterOnTargetEvent = new TrcEvent(instanceName + ".shooterOnTargetEvent");
-        tiltOnTargetEvent = tiltMotor != null? new TrcEvent(instanceName + ".tiltOnTargetEvent"): null;
-        panOnTargetEvent = panMotor != null? new TrcEvent(instanceName + ".panOnTargetEvent"): null;
         shootCompletionEvent = new TrcEvent(instanceName + ".shootCompletionEvent");
         aimTimer = new TrcTimer(instanceName + ".aimTimer");
         shootTimer = new TrcTimer(instanceName + ".shootTimer");
@@ -233,20 +230,20 @@ public class TrcShooter implements TrcExclusiveSubsystem
             this.shootOpOwner = shootOp != null? owner: null;
             this.shootOffDelay = shootOffDelay;
 
-            shooterOnTargetEvent.clear();
+            shooterOnTargetEvent = new TrcEvent(instanceName + ".shooterOnTarget");
             shooterOnTargetEvent.setCallback(this::onTarget, null);
             shooterMotor.setVelocity(0.0, velocity, 0.0, shooterOnTargetEvent);
 
             if (tiltMotor != null)
             {
-                tiltOnTargetEvent.clear();
+                tiltOnTargetEvent = new TrcEvent(instanceName + ".tiltOnTarget");
                 tiltOnTargetEvent.setCallback(this::onTarget, null);
                 tiltMotor.setPosition(0.0, tiltAngle, true, tiltParams.powerLimit, tiltOnTargetEvent);
             }
 
             if (panMotor != null)
             {
-                panOnTargetEvent.clear();
+                panOnTargetEvent = new TrcEvent(instanceName + ".panOnTarget");
                 panOnTargetEvent.setCallback(this::onTarget, null);
                 panMotor.setPosition(0.0, panAngle, true, panParams.powerLimit, panOnTargetEvent);
             }
