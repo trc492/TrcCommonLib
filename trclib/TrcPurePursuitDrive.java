@@ -1059,98 +1059,140 @@ public class TrcPurePursuitDrive
     {
         TrcPose2D robotPose = driveBase.getPositionRelativeTo(referencePose, true);
         TrcWaypoint targetPoint = getFollowingPoint(robotPose);
-        relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
-        boolean lastSegment = pathIndex == path.getSize() - 1;
 
-        if (!INVERTED_TARGET)
+        if (path != null)
         {
-            //
-            // We only initialize the PID controller error state at the beginning. Once the path following has started,
-            // all subsequent setTarget calls should not re-initialize PID controller error states because we are just
-            // updating the target and do not really want to destroy totalError or previous error that will screw up
-            // the subsequent getOutput() calls where it needs the previous error states to compute the I and D terms
-            // correctly.
-            //
-            if (xPosPidCtrl != null)
+            relativeTargetPose = targetPoint.pose.relativeTo(robotPose, true);
+            boolean lastSegment = pathIndex == path.getSize() - 1;
+
+            if (!INVERTED_TARGET)
             {
-                xPosPidCtrl.setTarget(relativeTargetPose.x, resetError);
+                //
+                // We only initialize the PID controller error state at the beginning. Once the path following has started,
+                // all subsequent setTarget calls should not re-initialize PID controller error states because we are just
+                // updating the target and do not really want to destroy totalError or previous error that will screw up
+                // the subsequent getOutput() calls where it needs the previous error states to compute the I and D terms
+                // correctly.
+                //
+                if (xPosPidCtrl != null)
+                {
+                    xPosPidCtrl.setTarget(relativeTargetPose.x, resetError);
+                }
+                yPosPidCtrl.setTarget(relativeTargetPose.y, resetError);
             }
-            yPosPidCtrl.setTarget(relativeTargetPose.y, resetError);
-        }
 
-        if (targetHeadingOffset != null)
-        {
-            Double headingOffset = targetHeadingOffset.getOffset();
-            if (headingOffset != null)
+            if (targetHeadingOffset != null)
             {
-                turnPidCtrl.setTarget(driveBase.getHeading() + headingOffset, warpSpace, resetError);
+                Double headingOffset = targetHeadingOffset.getOffset();
+                if (headingOffset != null)
+                {
+                    turnPidCtrl.setTarget(driveBase.getHeading() + headingOffset, warpSpace, resetError);
+                }
+                else
+                {
+                    turnPidCtrl.setTarget(
+                        relativeTargetPose.angle + referencePose.angle + robotPose.angle, warpSpace, resetError);
+                }
             }
             else
             {
                 turnPidCtrl.setTarget(
                     relativeTargetPose.angle + referencePose.angle + robotPose.angle, warpSpace, resetError);
             }
-        }
-        else
-        {
-            turnPidCtrl.setTarget(
-                relativeTargetPose.angle + referencePose.angle + robotPose.angle, warpSpace, resetError);
-        }
-        velPidCtrl.setTarget(targetPoint.velocity, resetError);
-        resetError = false;
+            velPidCtrl.setTarget(targetPoint.velocity, resetError);
+            resetError = false;
 
-        double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
-        double yPosPower = yPosPidCtrl.getOutput();
-        double turnPower = turnPidCtrl.getOutput();
-        double velPower = targetPoint.velocity > 0.0? velPidCtrl.getOutput(): 0.0;
-        double theta = Math.atan2(relativeTargetPose.x, relativeTargetPose.y);
-        xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.sin(theta),
-                                                                -moveOutputLimit, moveOutputLimit);
-        yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
-        turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
+            double xPosPower = xPosPidCtrl != null? xPosPidCtrl.getOutput(): 0.0;
+            double yPosPower = yPosPidCtrl.getOutput();
+            double turnPower = turnPidCtrl.getOutput();
+            double velPower = targetPoint.velocity > 0.0? velPidCtrl.getOutput(): 0.0;
+            double theta = Math.atan2(relativeTargetPose.x, relativeTargetPose.y);
+            xPosPower = xPosPidCtrl == null? 0.0: TrcUtil.clipRange(xPosPower + velPower * Math.sin(theta),
+                                                                    -moveOutputLimit, moveOutputLimit);
+            yPosPower = TrcUtil.clipRange(yPosPower + velPower * Math.cos(theta), -moveOutputLimit, moveOutputLimit);
+            turnPower = TrcUtil.clipRange(turnPower, -rotOutputLimit, rotOutputLimit);
 
-        tracer.traceDebug(
-            instanceName,
-            "[" + pathIndex +
-            "] RobotPose=" + robotPose +
-            ",TargetPose=" + targetPoint.pose +
-            ",relPose=" + relativeTargetPose);
-        tracer.traceDebug(
-            instanceName,
-            "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
-            "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
-            getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
-            yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
-            xPosPower, yPosPower, turnPower, velPower);
-
-        // If we have timed out or finished, stop the operation.
-        double currTime = TrcTimer.getCurrentTime();
-        boolean timedOut = currTime >= timedOutTime;
-
-        stalled = (xPosPidCtrl == null || xPosPidCtrl.isStalled()) &&
-                  yPosPidCtrl.isStalled() && turnPidCtrl.isStalled();
-        boolean posOnTarget =
-            (xPosPidCtrl == null || xPosPidCtrl.isOnTarget(posTolerance)) && yPosPidCtrl.isOnTarget(posTolerance);
-        boolean headingOnTarget = turnPidCtrl.isOnTarget(turnTolerance);
-
-        if (stalled || timedOut)
-        {
-            if (beepDevice != null)
-            {
-                beepDevice.playTone(beepFrequency, beepDuration);
-            }
-        }
-
-        if (timedOut || lastSegment && (stalled ||posOnTarget && headingOnTarget))
-        {
-            tracer.traceInfo(
+            tracer.traceDebug(
                 instanceName,
-                "Done: index=" + pathIndex + "/" + path.getSize() +
-                ", stalled=" + stalled +
-                ", timeout=" + timedOut +
-                ", posOnTarget=" + posOnTarget +
-                ",headingOnTarget=" + headingOnTarget +
-                ",robotPose=" + driveBase.getFieldPosition());
+                "[" + pathIndex +
+                "] RobotPose=" + robotPose +
+                ",TargetPose=" + targetPoint.pose +
+                ",relPose=" + relativeTargetPose);
+            tracer.traceDebug(
+                instanceName,
+                "RobotVel=%.1f,TargetVel=%.1f,xError=%.1f,yError=%.1f,turnError=%.1f,velError=%.1f,theta=%.1f," +
+                "xPower=%.1f,yPower=%.1f,turnPower=%.1f,velPower=%.1f",
+                getVelocityInput(), targetPoint.velocity, xPosPidCtrl != null? xPosPidCtrl.getError(): 0.0,
+                yPosPidCtrl.getError(), turnPidCtrl.getError(), velPidCtrl.getError(), Math.toDegrees(theta),
+                xPosPower, yPosPower, turnPower, velPower);
+
+            // If we have timed out or finished, stop the operation.
+            double currTime = TrcTimer.getCurrentTime();
+            boolean timedOut = currTime >= timedOutTime;
+
+            stalled = (xPosPidCtrl == null || xPosPidCtrl.isStalled()) &&
+                    yPosPidCtrl.isStalled() && turnPidCtrl.isStalled();
+            boolean posOnTarget =
+                (xPosPidCtrl == null || xPosPidCtrl.isOnTarget(posTolerance)) && yPosPidCtrl.isOnTarget(posTolerance);
+            boolean headingOnTarget = turnPidCtrl.isOnTarget(turnTolerance);
+
+            if (stalled || timedOut)
+            {
+                if (beepDevice != null)
+                {
+                    beepDevice.playTone(beepFrequency, beepDuration);
+                }
+            }
+
+            if (timedOut || lastSegment && (stalled ||posOnTarget && headingOnTarget))
+            {
+                tracer.traceInfo(
+                    instanceName,
+                    "Done: index=" + pathIndex + "/" + path.getSize() +
+                    ", stalled=" + stalled +
+                    ", timeout=" + timedOut +
+                    ", posOnTarget=" + posOnTarget +
+                    ",headingOnTarget=" + headingOnTarget +
+                    ",robotPose=" + driveBase.getFieldPosition());
+                if (tracePidInfo)
+                {
+                    if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                    yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                    turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                    velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
+                }
+
+                stop();
+
+                if (onFinishedEvent != null)
+                {
+                    tracer.traceInfo(instanceName, "Signal completion event " + onFinishedEvent + ".");
+                    onFinishedEvent.signal();
+                    onFinishedEvent = null;
+                }
+
+                if (xPosPidCtrl != null) xPosPidCtrl.endStallDetection();
+                yPosPidCtrl.endStallDetection();
+                turnPidCtrl.endStallDetection();
+            }
+            else if (xPosPidCtrl != null)
+            {
+                driveBase.holonomicDrive(owner, xPosPower, yPosPower, turnPower);
+            }
+            else
+            {
+                driveBase.arcadeDrive(owner, yPosPower, turnPower, false);
+            }
+
+            if (logRobotPoseEvents)
+            {
+                tracer.logEvent(
+                    instanceName, "RobotPose",
+                    "AbsPose=\"" + driveBase.getFieldPosition() +
+                    "\" AbsTarget=\"" + referencePose.addRelativePose(targetPoint.pose) +
+                    "\" Delta=\"" + relativeTargetPose + "\"");
+            }
+
             if (tracePidInfo)
             {
                 if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
@@ -1158,44 +1200,6 @@ public class TrcPurePursuitDrive
                 turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
                 velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
             }
-
-            stop();
-
-            if (onFinishedEvent != null)
-            {
-                tracer.traceInfo(instanceName, "Signal completion event " + onFinishedEvent + ".");
-                onFinishedEvent.signal();
-                onFinishedEvent = null;
-            }
-
-            if (xPosPidCtrl != null) xPosPidCtrl.endStallDetection();
-            yPosPidCtrl.endStallDetection();
-            turnPidCtrl.endStallDetection();
-        }
-        else if (xPosPidCtrl != null)
-        {
-            driveBase.holonomicDrive(owner, xPosPower, yPosPower, turnPower);
-        }
-        else
-        {
-            driveBase.arcadeDrive(owner, yPosPower, turnPower, false);
-        }
-
-        if (logRobotPoseEvents)
-        {
-            tracer.logEvent(
-                instanceName, "RobotPose",
-                "AbsPose=\"" + driveBase.getFieldPosition() +
-                "\" AbsTarget=\"" + referencePose.addRelativePose(targetPoint.pose) +
-                "\" Delta=\"" + relativeTargetPose + "\"");
-        }
-
-        if (tracePidInfo)
-        {
-            if (xPosPidCtrl != null) xPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
-            yPosPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
-            turnPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
-            velPidCtrl.printPidInfo(tracer, verbosePidInfo, battery);
         }
     }   //driveTask
 
