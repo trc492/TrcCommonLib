@@ -62,7 +62,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private final PanTiltParams tiltParams;
     public final TrcMotor panMotor;
     private final PanTiltParams panParams;
-    private final TrcEvent shootCompletionEvent;
     private final TrcTimer aimTimer;
     private final TrcTimer shootTimer;
 
@@ -71,7 +70,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
     private TrcEvent completionEvent = null;
     private ShootOperation shootOp = null;
     private String shootOpOwner = null;
-    private double shootOffDelay = 0.0;
+    private Double shootOffDelay = null;
     private boolean active = false;
     private TrcEvent shooterOnTargetEvent = null;
     private TrcEvent tiltOnTargetEvent = null;
@@ -99,7 +98,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
         this.panMotor = panMotor;
         this.panParams = panParams;
 
-        shootCompletionEvent = new TrcEvent(instanceName + ".shootCompletionEvent");
         aimTimer = new TrcTimer(instanceName + ".aimTimer");
         shootTimer = new TrcTimer(instanceName + ".shootTimer");
     }   //TrcShooter
@@ -124,12 +122,14 @@ public class TrcShooter implements TrcExclusiveSubsystem
         aimTimer.cancel();
         shootTimer.cancel();
 
-        if (!completed || shootOp != null)
+        if (!completed)
         {
+            // The operation was canceled, stop the shooter motor.
             shooterMotor.stop();
         }
         shootOp = null;
         shootOpOwner = null;
+        shootOffDelay = null;
 
         if (tiltMotor != null)
         {
@@ -199,12 +199,13 @@ public class TrcShooter implements TrcExclusiveSubsystem
      * @param event specifies an event to signal when both reached target, can be null if not provided.
      * @param timeout specifies maximum timeout period, can be zero if no timeout.
      * @param shootOp specifies the shoot method, can be null if aim only.
-     * @param shootOffDelay specifies the delay in seconds to turn off shooter, can be zero if no delay (only
-     *        applicable if shootOp is not null).
+     * @param shootOffDelay specifies the delay in seconds to turn off shooter after shooting, or zero if no delay
+     *        (turn off immediately), only applicable if shootOp is not null. Can also be null if keeping the shooter
+     *        on.
      */
     public void aimShooter(
         String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout,
-        ShootOperation shootOp, double shootOffDelay)
+        ShootOperation shootOp, Double shootOffDelay)
     {
         tracer.traceDebug(
             instanceName,
@@ -273,7 +274,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
     public void aimShooter(
         String owner, double velocity, double tiltAngle, double panAngle, TrcEvent event, double timeout)
     {
-        aimShooter(owner, velocity, tiltAngle, panAngle, event, timeout, null, 0.0);
+        aimShooter(owner, velocity, tiltAngle, panAngle, event, timeout, null, null);
     }   //aimShooter
 
     /**
@@ -287,7 +288,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
      */
     public void aimShooter(double velocity, double tiltAngle, double panAngle)
     {
-        aimShooter(null, velocity, tiltAngle, panAngle, null, 0.0, null, 0.0);
+        aimShooter(null, velocity, tiltAngle, panAngle, null, 0.0, null, null);
     }   //aimShooter
 
     /**
@@ -310,7 +311,7 @@ public class TrcShooter implements TrcExclusiveSubsystem
             if (shootOp != null)
             {
                 // If both shooter velocity and tilt/pan position have reached target, shoot.
-                shootCompletionEvent.clear();
+                TrcEvent shootCompletionEvent = new TrcEvent(instanceName + ".shootCompletionEvent");
                 shootCompletionEvent.setCallback(this::shootCompleted, null);
                 shootOp.shoot(shootOpOwner, shootCompletionEvent);
             }
@@ -328,9 +329,21 @@ public class TrcShooter implements TrcExclusiveSubsystem
      */
     private void shootCompleted(Object context)
     {
-        tracer.traceInfo(instanceName, "Shoot completed.");
-        if (shootOffDelay > 0.0)
+        if (shootOffDelay == null)
         {
+            tracer.traceInfo(instanceName, "Shoot completed, keeping shooter motor running.");
+            finish(true);
+        }
+        else if (shootOffDelay == 0.0)
+        {
+            tracer.traceInfo(instanceName, "Shoot completed, stop shooter motor.");
+            shooterMotor.stop();
+            finish(true);
+        }
+        else
+        {
+            tracer.traceInfo(
+                instanceName, "Shoot completed, delay stopping shooter motor for " + shootOffDelay + "s.");
             // Even if we have a shootOffDelay, don't delay signaling completion.
             if (completionEvent != null)
             {
@@ -338,10 +351,6 @@ public class TrcShooter implements TrcExclusiveSubsystem
                 completionEvent = null;
             }
             shootTimer.set(shootOffDelay, this::timedOut, true);
-        }
-        else
-        {
-            finish(true);
         }
     }   //shootCompleted
 
@@ -354,6 +363,9 @@ public class TrcShooter implements TrcExclusiveSubsystem
     {
         Boolean completion = (Boolean) context;
         tracer.traceInfo(instanceName, "Timed out: completion=" + completion);
+        // Either the operation was timed out or there was a shootOffDelay.
+        // Either way, we will turn off the shooter motor.
+        shooterMotor.stop();
         finish(completion);
     }   //timedOut
 
