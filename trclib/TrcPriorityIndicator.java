@@ -467,11 +467,19 @@ public abstract class TrcPriorityIndicator<T>
                     }
                 }
 
-                if (!gotPattern && patternState.enabled && patternState.on)
+                if (!gotPattern && patternState.enabled)
                 {
-                    // Highest priority pattern that's enabled and not expired.
-                    gotPattern = true;
-                    pattern = patternState.on? patternState.pattern: null;
+                    if (patternState.on)
+                    {
+                        // Highest priority pattern that's enabled, not expired and is in ON-state.
+                        gotPattern = true;
+                        pattern = patternState.pattern;
+                    }
+                    else
+                    {
+                        // If there is no next priority pattern that is in ON-state, then we will turn it OFF.
+                        pattern = null;
+                    }
                 }
             }
         }
