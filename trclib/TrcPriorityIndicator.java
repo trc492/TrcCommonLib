@@ -467,7 +467,7 @@ public abstract class TrcPriorityIndicator<T>
                     }
                 }
 
-                if (!gotPattern && patternState.enabled)
+                if (!gotPattern && patternState.enabled && patternState.on)
                 {
                     // Highest priority pattern that's enabled and not expired.
                     gotPattern = true;
