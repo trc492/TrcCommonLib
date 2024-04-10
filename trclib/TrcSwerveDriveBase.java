@@ -425,6 +425,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
     {
         if (validateOwnership(owner))
         {
+            lfModule.driveMotor.setPower(0.0);
+            rfModule.driveMotor.setPower(0.0);
+            lbModule.driveMotor.setPower(0.0);
+            rbModule.driveMotor.setPower(0.0);
             lfModule.setSteerAngle(-45.0);
             rfModule.setSteerAngle(45.0);
             lbModule.setSteerAngle(45.0);
