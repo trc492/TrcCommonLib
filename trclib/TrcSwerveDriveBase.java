@@ -173,7 +173,11 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void setSteerAngle(String owner, double angle, boolean optimize)
     {
-        tracer.traceDebug(moduleName, "owner=%s, angle=%f, optimize=%s", owner, angle, optimize);
+        tracer.traceDebug(
+            moduleName,
+            "owner=" + owner +
+            ", angle=" + angle +
+            ", optimize=" + optimize);
         if (validateOwnership(owner))
         {
             lfModule.setSteerAngle(angle, optimize);
@@ -235,7 +239,7 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      */
     public void stop(String owner, boolean resetSteer)
     {
-        tracer.traceDebug(moduleName, "owner=" + owner + ",resetSteer=" + resetSteer);
+        tracer.traceDebug(moduleName, "owner=" + owner + ", resetSteer=" + resetSteer);
         if (validateOwnership(owner))
         {
             super.stop(owner);
@@ -310,8 +314,15 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
         TrcEvent event)
     {
         tracer.traceDebug(
-            moduleName, "owner=%s, x=%f, y=%f, rot=%f, inverted=%s, angle=%f, driveTime=%f, event=%s",
-            owner, x, y, rotation, inverted, gyroAngle, driveTime, event);
+            moduleName,
+            "owner=" + owner +
+            ", x=" + x +
+            ", y=" + y +
+            ", rot=" + rotation +
+            ", inverted=" + inverted +
+            ", gyroAngle=" + gyroAngle +
+            ", driveTime=" + driveTime +
+            ", event=" + event);
         if (validateOwnership(owner))
         {
             if (x == 0.0 && y == 0.0 && rotation == 0.0)
@@ -399,11 +410,23 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 rfModule.setSteerAngle(rfAngle);
                 lbModule.setSteerAngle(lbAngle);
                 rbModule.setSteerAngle(rbAngle);
+                tracer.traceDebug(
+                    moduleName,
+                    "lfAngle=" + lfAngle +
+                    ", rfAngle=" + rfAngle +
+                    ", lbAngle=" + lbAngle +
+                    ", rbAngle=" + rbAngle);
 
                 lfModule.setPower(lfPower);
                 rfModule.setPower(rfPower);
                 lbModule.setPower(lbPower);
                 rbModule.setPower(rbPower);
+                tracer.traceDebug(
+                    moduleName,
+                    "lfPower=" + lfPower +
+                    ", rfPower=" + rfPower +
+                    ", lbPower=" + lbPower +
+                    ", rbPower=" + rbPower);
 
                 if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
                 {
