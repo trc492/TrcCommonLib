@@ -33,7 +33,8 @@ import java.util.Arrays;
  * class so it inherits all the SimpleDriveBase methods and features
  * <p>
  * The implementation of swerve algorithm is based on
- * <a href="http://www.chiefdelphi.com/media/papers/download/3028">Ether's white paper</a>
+ * <a href="https://www.chiefdelphi.com/t/paper-4-wheel-independent-drive-independent-steering-swerve/107383">
+ * Ether's white paper</a>
  */
 public class TrcSwerveDriveBase extends TrcSimpleDriveBase
 {
