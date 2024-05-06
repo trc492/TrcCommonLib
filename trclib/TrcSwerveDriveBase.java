@@ -373,62 +373,65 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     y += getAntiTippingPower(false);
                 }
 
-                double a = x - (rotation * wheelBaseLength / wheelBaseDiagonal);
-                double b = x + (rotation * wheelBaseLength / wheelBaseDiagonal);
-                double c = y - (rotation * wheelBaseWidth / wheelBaseDiagonal);
-                double d = y + (rotation * wheelBaseWidth / wheelBaseDiagonal);
+                double xAdj = rotation * wheelBaseLength / wheelBaseDiagonal;
+                double yAdj = rotation * wheelBaseWidth/ wheelBaseDiagonal;
+                double a = x - xAdj;
+                double b = x + xAdj;
+                double c = y - yAdj;
+                double d = y + yAdj;
 
                 // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
                 // Note: atan2(y, x) in java will take care of x being zero.
                 //       It will return pi/2 for positive y and -pi/2 for negative y.
-                double lfAngle = Math.toDegrees(Math.atan2(b, d));
-                double rfAngle = Math.toDegrees(Math.atan2(b, c));
-                double lbAngle = Math.toDegrees(Math.atan2(a, d));
-                double rbAngle = Math.toDegrees(Math.atan2(a, c));
+                double[] steerAngles = new double[4];
+                steerAngles[0] = Math.toDegrees(Math.atan2(b, d));
+                steerAngles[1] = Math.toDegrees(Math.atan2(b, c));
+                steerAngles[2] = Math.toDegrees(Math.atan2(a, d));
+                steerAngles[3] = Math.toDegrees(Math.atan2(a, c));
 
                 // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
-                double lfPower = TrcUtil.magnitude(b, d);
-                double rfPower = TrcUtil.magnitude(b, c);
-                double lbPower = TrcUtil.magnitude(a, d);
-                double rbPower = TrcUtil.magnitude(a, c);
+                double[] drivePowers = new double[4];
+                drivePowers[0] = TrcUtil.magnitude(b, d);
+                drivePowers[1] = TrcUtil.magnitude(b, c);
+                drivePowers[2] = TrcUtil.magnitude(a, d);
+                drivePowers[3] = TrcUtil.magnitude(a, c);
 
-//                double[] normalizedPowers = TrcUtil.normalize(lfPower, rfPower, lbPower, rbPower);
-//                lfPower = this.clipMotorOutput(normalizedPowers[0]);
-//                rfPower = this.clipMotorOutput(normalizedPowers[1]);
-//                lbPower = this.clipMotorOutput(normalizedPowers[2]);
-//                rbPower = this.clipMotorOutput(normalizedPowers[3]);
-
+                TrcUtil.normalizeInPlace(drivePowers);
                 if (motorPowerMapper != null)
                 {
-                    lfPower = motorPowerMapper.translateMotorPower(lfPower, lfModule.driveMotor.getVelocity());
-                    rfPower = motorPowerMapper.translateMotorPower(rfPower, rfModule.driveMotor.getVelocity());
-                    lbPower = motorPowerMapper.translateMotorPower(lbPower, lbModule.driveMotor.getVelocity());
-                    rbPower = motorPowerMapper.translateMotorPower(rbPower, rbModule.driveMotor.getVelocity());
+                    drivePowers[0] = motorPowerMapper.translateMotorPower(
+                        drivePowers[0], lfModule.driveMotor.getVelocity());
+                    drivePowers[1] = motorPowerMapper.translateMotorPower(
+                        drivePowers[1], rfModule.driveMotor.getVelocity());
+                    drivePowers[2] = motorPowerMapper.translateMotorPower(
+                        drivePowers[2], lbModule.driveMotor.getVelocity());
+                    drivePowers[3] = motorPowerMapper.translateMotorPower(
+                        drivePowers[3], rbModule.driveMotor.getVelocity());
                 }
 
-                lfModule.setSteerAngle(lfAngle);
-                rfModule.setSteerAngle(rfAngle);
-                lbModule.setSteerAngle(lbAngle);
-                rbModule.setSteerAngle(rbAngle);
+                lfModule.setSteerAngle(steerAngles[0]);
+                rfModule.setSteerAngle(steerAngles[1]);
+                lbModule.setSteerAngle(steerAngles[2]);
+                rbModule.setSteerAngle(steerAngles[3]);
                 tracer.traceDebug(
                     moduleName,
-                    "lfAngle=" + lfAngle +
-                    ", rfAngle=" + rfAngle +
-                    ", lbAngle=" + lbAngle +
-                    ", rbAngle=" + rbAngle);
+                    "lfAngle=" + steerAngles[0] + "/" + lfModule.getSteerAngle() +
+                    ", rfAngle=" + steerAngles[1] + "/" + rfModule.getSteerAngle() +
+                    ", lbAngle=" + steerAngles[2] + "/" + lbModule.getSteerAngle() +
+                    ", rbAngle=" + steerAngles[3] + "/" + rbModule.getSteerAngle());
 
-                lfModule.setPower(lfPower);
-                rfModule.setPower(rfPower);
-                lbModule.setPower(lbPower);
-                rbModule.setPower(rbPower);
+                lfModule.setPower(drivePowers[0]);
+                rfModule.setPower(drivePowers[1]);
+                lbModule.setPower(drivePowers[2]);
+                rbModule.setPower(drivePowers[3]);
                 tracer.traceDebug(
                     moduleName,
-                    "lfPower=" + lfPower +
-                    ", rfPower=" + rfPower +
-                    ", lbPower=" + lbPower +
-                    ", rbPower=" + rbPower);
+                    "lfPower=" + drivePowers[0] +
+                    ", rfPower=" + drivePowers[1] +
+                    ", lbPower=" + drivePowers[2] +
+                    ", rbPower=" + drivePowers[3]);
 
-                if (lfPower == 0.0 && rfPower == 0.0 && lbPower == 0.0 && rbPower == 0.0)
+                if (drivePowers[0] == 0.0 && drivePowers[1] == 0.0 && drivePowers[2] == 0.0 && drivePowers[3] == 0.0)
                 {
                     // reset stall start time to zero if drive base is stopped.
                     stallStartTime = 0.0;
