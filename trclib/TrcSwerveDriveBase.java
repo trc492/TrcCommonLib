@@ -298,6 +298,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
      * This method implements holonomic drive where x controls how fast the robot will go in the x direction, and y
      * controls how fast the robot will go in the y direction. Rotation controls how fast the robot rotates and
      * gyroAngle specifies the heading the robot should maintain.
+     * <p>
+     * The implementation of swerve algorithm is based on
+     * <a href="https://www.chiefdelphi.com/uploads/default/original/3X/e/f/ef10db45f7d65f6d4da874cd26db294c7ad469bb.pdf">
+     * Ether's white paper</a>
      *
      * @param owner     specifies the ID string of the caller for checking ownership, can be null if caller is not
      *                  ownership aware.
@@ -374,12 +378,12 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     y += getAntiTippingPower(false);
                 }
 
-                double xAdj = rotation * wheelBaseLength / wheelBaseDiagonal;
-                double yAdj = rotation * wheelBaseWidth/ wheelBaseDiagonal;
-                double a = x - xAdj;
-                double b = x + xAdj;
-                double c = y - yAdj;
-                double d = y + yAdj;
+                double lengthRatio = rotation * wheelBaseLength / wheelBaseDiagonal;
+                double widthRatio = rotation * wheelBaseWidth/ wheelBaseDiagonal;
+                double a = x - lengthRatio;
+                double b = x + lengthRatio;
+                double c = y - widthRatio;
+                double d = y + widthRatio;
 
                 // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
                 // Note: atan2(y, x) in java will take care of x being zero.
