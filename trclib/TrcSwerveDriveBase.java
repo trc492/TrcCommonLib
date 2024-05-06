@@ -420,10 +420,10 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                 rbModule.setSteerAngle(steerAngles[3]);
                 tracer.traceDebug(
                     moduleName,
-                    "lfAngle=" + steerAngles[0] + "/" + lfModule.getSteerAngle() +
-                    ", rfAngle=" + steerAngles[1] + "/" + rfModule.getSteerAngle() +
-                    ", lbAngle=" + steerAngles[2] + "/" + lbModule.getSteerAngle() +
-                    ", rbAngle=" + steerAngles[3] + "/" + rbModule.getSteerAngle());
+                    "lfAngle=" + steerAngles[0] + "/" + (lfModule.getSteerAngle() % 360.0) +
+                    ", rfAngle=" + steerAngles[1] + "/" + (rfModule.getSteerAngle() % 360.0) +
+                    ", lbAngle=" + steerAngles[2] + "/" + (lbModule.getSteerAngle() % 360.0) +
+                    ", rbAngle=" + steerAngles[3] + "/" + (rbModule.getSteerAngle() % 360.0));
 
                 lfModule.setPower(drivePowers[0]);
                 rfModule.setPower(drivePowers[1]);
