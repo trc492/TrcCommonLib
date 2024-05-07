@@ -378,12 +378,12 @@ public class TrcSwerveDriveBase extends TrcSimpleDriveBase
                     y += getAntiTippingPower(false);
                 }
 
-                double lengthRatio = rotation * wheelBaseLength / wheelBaseDiagonal;
-                double widthRatio = rotation * wheelBaseWidth/ wheelBaseDiagonal;
-                double a = x - lengthRatio;
-                double b = x + lengthRatio;
-                double c = y - widthRatio;
-                double d = y + widthRatio;
+                double rotLr = rotation * wheelBaseLength / wheelBaseDiagonal;
+                double rotWr = rotation * wheelBaseWidth/ wheelBaseDiagonal;
+                double a = x - rotLr;
+                double b = x + rotLr;
+                double c = y - rotWr;
+                double d = y + rotWr;
 
                 // The white paper goes in order rf, lf, lb, rb. We like to do lf, rf, lb, rb.
                 // Note: atan2(y, x) in java will take care of x being zero.
