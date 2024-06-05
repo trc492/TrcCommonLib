@@ -1017,7 +1017,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      * value to the motor repeatedly and also will take care of the followers.
      *
      * @param velocity specifies the velocity in scaled units/sec.
-     * @param feedForward specifies the feedforward value
+     * @param feedforward specifies the feedforward value
      */
     private void setControllerMotorVelocity(double velocity, double feedforward)
     {
@@ -1043,7 +1043,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
      *
      * @param position specifies the position in scaled units.
      * @param powerLimit specifies the maximum power output limits.
-     * @param feedForward specifies the feedforward value
+     * @param feedforward specifies the feedforward value
      */
     private void setControllerMotorPosition(double position, double powerLimit, double feedforward)
     {
@@ -2041,6 +2041,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     }   //setVelocityPidParameters
 
     /**
+     * This method sets the velocity tolerance for PID control.
+     *
+     * @param tolerance specifies the tolerance in scaled units per second.
+     */
+    public void setVelocityPidTolerance(double tolerance)
+    {
+        velTolerance = tolerance;
+    }   //setVelocityPidTolerance
+
+    /**
      * This method returns the PID coefficients of the motor's velocity PID controller.
      *
      * @return PID coefficients of the motor's velocity PID controller.
@@ -2184,6 +2194,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         setPositionPidParameters(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0), tolerance);
     }   //setPositionPidParameters
+
+    /**
+     * This method sets the position tolerance for PID control.
+     *
+     * @param tolerance specifies the tolerance in scaled units.
+     */
+    public void setPositionPidTolerance(double tolerance)
+    {
+        posTolerance = tolerance;
+    }   //setPositionPidTolerance
 
     /**
      * This method returns the PID coefficients of the motor's position PID controller.
@@ -2331,6 +2351,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
     {
         setCurrentPidParameters(new TrcPidController.PidCoefficients(kP, kI, kD, kF, 0.0), tolerance);
     }   //setCurrentPidParameters
+
+    /**
+     * This method sets the current tolerance for PID control.
+     *
+     * @param tolerance specifies the tolerance in amperes.
+     */
+    public void setCurrentPidTolerance(double tolerance)
+    {
+        currentTolerance = tolerance;
+    }   //setCurrentPidTolerance
 
     /**
      * This method returns the PID coefficients of the motor's current PID controller.
