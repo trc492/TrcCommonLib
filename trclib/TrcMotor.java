@@ -447,6 +447,17 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         {
             posPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
         }
+
+        if (velPidCtrl != null)
+        {
+            velPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
+        }
+
+        if (currentPidCtrl != null)
+        {
+            currentPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout,
+                                                    stallErrorRateThreshold);
+        }
     }   //setStallDetectionEnabled
 
     /**
@@ -459,6 +470,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         if (posPidCtrl != null)
         {
             posPidCtrl.setStallDetectionEnabled(enabled);
+        }
+
+        if (velPidCtrl != null)
+        {
+            velPidCtrl.setStallDetectionEnabled(enabled);
+        }
+
+        if (currentPidCtrl != null)
+        {
+            currentPidCtrl.setStallDetectionEnabled(enabled);
         }
     }   //setStallDetectionEnabled
 
