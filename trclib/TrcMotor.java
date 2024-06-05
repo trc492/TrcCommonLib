@@ -455,8 +455,8 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (currentPidCtrl != null)
         {
-            currentPidCtrl.setStallDetectionEnabled(stallDetectionDelay, stallDetectionTimeout,
-                                                    stallErrorRateThreshold);
+            currentPidCtrl.setStallDetectionEnabled(
+                stallDetectionDelay, stallDetectionTimeout, stallErrorRateThreshold);
         }
     }   //setStallDetectionEnabled
 
@@ -3632,35 +3632,35 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                     motor.odometry.prevPos = motor.odometry.currPos;
                     motor.odometry.currTimestamp = TrcTimer.getCurrentTime();
                     motor.odometry.currPos = motor.getControllerPosition(true);
-                    //
-                    // Detect spurious encoder reading.
-                    //
-                    double low = Math.abs(motor.odometry.prevPos);
-                    double high = Math.abs(motor.odometry.currPos);
-
-                    if (low > high)
-                    {
-                        double temp = high;
-                        high = low;
-                        low = temp;
-                    }
-                    // To be spurious, motor must jump 10000+ units, and change by 8+ orders of magnitude
-                    // log10(high)-log10(low) gives change in order of magnitude
-                    // use log rules, equal to log10(high/low) >= 8
-                    // change of base, log2(high/low)/log2(10) >= 8
-                    // log2(high/low) >= 26.6ish
-                    // Math.getExponent() is equal to floor(log2())
-                    if (high - low > 10000)
-                    {
-                        low = Math.max(low, 1);
-                        if (Math.getExponent(high / low) >= 27)
-                        {
-                            TrcDbgTrace.globalTraceWarn(
-                                motor.instanceName, "WARNING-Spurious encoder detected! odometry=" + motor.odometry);
-                            // Throw away spurious data and use previous data instead.
-                            motor.odometry.currPos = motor.odometry.prevPos;
-                        }
-                    }
+//                    //
+//                    // Detect spurious encoder reading.
+//                    //
+//                    double low = Math.abs(motor.odometry.prevPos);
+//                    double high = Math.abs(motor.odometry.currPos);
+//
+//                    if (low > high)
+//                    {
+//                        double temp = high;
+//                        high = low;
+//                        low = temp;
+//                    }
+//                    // To be spurious, motor must jump 10000+ units, and change by 8+ orders of magnitude
+//                    // log10(high)-log10(low) gives change in order of magnitude
+//                    // use log rules, equal to log10(high/low) >= 8
+//                    // change of base, log2(high/low)/log2(10) >= 8
+//                    // log2(high/low) >= 26.6ish
+//                    // Math.getExponent() is equal to floor(log2())
+//                    if (high - low > 10000)
+//                    {
+//                        low = Math.max(low, 1);
+//                        if (Math.getExponent(high / low) >= 27)
+//                        {
+//                            TrcDbgTrace.globalTraceWarn(
+//                                motor.instanceName, "WARNING-Spurious encoder detected! odometry=" + motor.odometry);
+//                            // Throw away spurious data and use previous data instead.
+//                            motor.odometry.currPos = motor.odometry.prevPos;
+//                        }
+//                    }
 
                     try
                     {
