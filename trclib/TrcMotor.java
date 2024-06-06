@@ -1267,11 +1267,6 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 // We have set a duration, set up a timer for it.
                 timer.set(params.duration, this::durationExpiredCallback, params);
             }
-            else if (params.notifyEvent != null)
-            {
-                params.notifyEvent.signal();
-                params.notifyEvent = null;
-            }
         }
     }   //delayValueExpiredCallback
 
