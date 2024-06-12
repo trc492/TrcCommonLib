@@ -36,13 +36,11 @@ public abstract class TrcSensor<D>
     /**
      * This class implements the SensorData object that consists of the sensor value as well as a timestamp when the
      * data sample is taken.
-     *
-     * @param <T> specifies the sensor value type. It could be integer, double, enum or any complex type.
      */
-    public static class SensorData<T>
+    public static class SensorData
     {
         public double timestamp;
-        public T value;
+        public double value;
 
         /**
          * Constructor: Creates an instance of the object with the given timestamp and data value.
@@ -50,7 +48,7 @@ public abstract class TrcSensor<D>
          * @param timestamp specifies the timestamp.
          * @param value specifies the data value.
          */
-        public SensorData(double timestamp, T value)
+        public SensorData(double timestamp, double value)
         {
             this.timestamp = timestamp;
             this.value = value;
@@ -88,7 +86,7 @@ public abstract class TrcSensor<D>
          * @param dataType specifies the data type to return (e.g. rotation rate or heading of a gyro axis).
          * @return selected sensor data.
          */
-        SensorData<?> getRawData(int index, D dataType);
+        SensorData getRawData(int index, D dataType);
 
     }   //interface DataSource
 
@@ -100,7 +98,7 @@ public abstract class TrcSensor<D>
      * @param dataType specifies the data type to return (e.g. rotation rate or heading of a gyro axis).
      * @return selected sensor data.
      */
-    public abstract SensorData<?> getRawData(int index, D dataType);
+    public abstract SensorData getRawData(int index, D dataType);
 
     private static final int NUM_CAL_SAMPLES    = 100;
     private static final long CAL_INTERVAL      = 10;   //in msec.
@@ -281,9 +279,9 @@ public abstract class TrcSensor<D>
      * @param dataType specifies the data type object.
      * @return processed sensor data for the axis.
      */
-    public SensorData<Double> getProcessedData(int index, D dataType)
+    public SensorData getProcessedData(int index, D dataType)
     {
-        SensorData<Double> data = (SensorData<Double>)getRawData(index, dataType);
+        SensorData data = (SensorData)getRawData(index, dataType);
 
         if (data != null)
         {

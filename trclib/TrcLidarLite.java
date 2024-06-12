@@ -130,7 +130,7 @@ public class TrcLidarLite
     private final TrcEvent notifyEvent;
     private boolean started = false;
 
-    private final TrcSensor.SensorData<Double> distance = new TrcSensor.SensorData<>(0.0, null);
+    private final TrcSensor.SensorData distance = new TrcSensor.SensorData(0.0, 0.0);
 //    private int status = 0;
 //    private int signalCount = 0;
 //    private int acqConfig = 0;
@@ -213,12 +213,11 @@ public class TrcLidarLite
      *
      * @return distance measurement data in cm.
      */
-    public TrcSensor.SensorData<Double> getDistance()
+    public TrcSensor.SensorData getDistance()
     {
 //        if (distance == null) throw new RuntimeException("distance is null");
 //        if (distance.value == null) throw new RuntimeException("value is null");
-        return new TrcSensor.SensorData<>(
-            distance.timestamp, distance.value == null? 0: distance.value*TrcUtil.INCHES_PER_CM);
+        return new TrcSensor.SensorData(distance.timestamp, distance.value*TrcUtil.INCHES_PER_CM);
     }   //getDistance
 
 //    /**
@@ -300,7 +299,7 @@ public class TrcLidarLite
 //    public TrcSensor.SensorData<Gesture> getGesture()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(gesture.timestamp, gesture.value);
+//        return new TrcSensor.SensorData(gesture.timestamp, gesture.value);
 //    }   //getGesture
 //
 //    /**
@@ -308,10 +307,10 @@ public class TrcLidarLite
 //     *
 //     * @return gesture speed.
 //     */
-//    public TrcSensor.SensorData<Double> getGestureSpeed()
+//    public TrcSensor.SensorData getGestureSpeed()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(gestureSpeed.timestamp, gestureSpeed.value);
+//        return new TrcSensor.SensorData(gestureSpeed.timestamp, gestureSpeed.value);
 //    }   //getGestureSpeed
 //
 //    /**
@@ -319,10 +318,10 @@ public class TrcLidarLite
 //     *
 //     * @return X position.
 //     */
-//    public TrcSensor.SensorData<Double> getX()
+//    public TrcSensor.SensorData getX()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(xPos.timestamp, xPos.value);
+//        return new TrcSensor.SensorData(xPos.timestamp, xPos.value);
 //    }   //getX
 //
 //    /**
@@ -330,10 +329,10 @@ public class TrcLidarLite
 //     *
 //     * @return Z position.
 //     */
-//    public TrcSensor.SensorData<Double> getZ()
+//    public TrcSensor.SensorData getZ()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(zPos.timestamp, zPos.value);
+//        return new TrcSensor.SensorData(zPos.timestamp, zPos.value);
 //    }   //getZ
 //
 //    /**
@@ -341,10 +340,10 @@ public class TrcLidarLite
 //     *
 //     * @return left ranging data.
 //     */
-//    public TrcSensor.SensorData<Double> getLeftRangingData()
+//    public TrcSensor.SensorData getLeftRangingData()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(leftRangingData.timestamp, leftRangingData.value);
+//        return new TrcSensor.SensorData(leftRangingData.timestamp, leftRangingData.value);
 //    }   //getLeftRangingData
 //
 //    /**
@@ -352,10 +351,10 @@ public class TrcLidarLite
 //     *
 //     * @return right ranging data.
 //     */
-//    public TrcSensor.SensorData<Double> getRightRangingData()
+//    public TrcSensor.SensorData getRightRangingData()
 //    {
 //        getStatus();
-//        return new TrcSensor.SensorData<>(rightRangingData.timestamp, rightRangingData.value);
+//        return new TrcSensor.SensorData(rightRangingData.timestamp, rightRangingData.value);
 //    }   //getRightRangingData
 //
 //    /**

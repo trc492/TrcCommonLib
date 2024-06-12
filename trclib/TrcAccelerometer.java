@@ -49,7 +49,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      * @param dataType specifies the data type.
      * @return raw data of the specified type for the x-axis.
      */
-    public abstract SensorData<Double> getRawXData(DataType dataType);
+    public abstract SensorData getRawXData(DataType dataType);
 
     /**
      * This abstract method returns the raw data of the specified type for the y-axis.
@@ -57,7 +57,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      * @param dataType specifies the data type.
      * @return raw data of the specified type for the y-axis.
      */
-    public abstract SensorData<Double> getRawYData(DataType dataType);
+    public abstract SensorData getRawYData(DataType dataType);
 
     /**
      * This abstract method returns the raw data of the specified type for the z-axis.
@@ -65,7 +65,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      * @param dataType specifies the data type.
      * @return raw data of the specified type for the z-axis.
      */
-    public abstract SensorData<Double> getRawZData(DataType dataType);
+    public abstract SensorData getRawZData(DataType dataType);
 
     //
     // Accelerometer options.
@@ -291,7 +291,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return X acceleration.
      */
-    public SensorData<Double> getXAcceleration()
+    public SensorData getXAcceleration()
     {
         return getProcessedData(xIndex, DataType.ACCELERATION);
     }   //getXAcceleration
@@ -301,7 +301,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Y acceleration.
      */
-    public SensorData<Double> getYAcceleration()
+    public SensorData getYAcceleration()
     {
         return getProcessedData(yIndex, DataType.ACCELERATION);
     }   //getYAcceleration
@@ -311,7 +311,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Z acceleration.
      */
-    public SensorData<Double> getZAcceleration()
+    public SensorData getZAcceleration()
     {
         return getProcessedData(zIndex, DataType.ACCELERATION);
     }   //getZAcceleration
@@ -322,7 +322,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return X velocity.
      */
-    public SensorData<Double> getXVelocity()
+    public SensorData getXVelocity()
     {
         return dataIntegrator != null ? dataIntegrator.getIntegratedData(xIndex) : getRawXData(DataType.VELOCITY);
     }   //getXVelocity
@@ -333,7 +333,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Y velocity.
      */
-    public SensorData<Double> getYVelocity()
+    public SensorData getYVelocity()
     {
         return dataIntegrator != null ? dataIntegrator.getIntegratedData(yIndex) : getRawYData(DataType.VELOCITY);
     }   //getYVelocity
@@ -344,7 +344,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Z velocity.
      */
-    public SensorData<Double> getZVelocity()
+    public SensorData getZVelocity()
     {
         return dataIntegrator != null ? dataIntegrator.getIntegratedData(zIndex) : getRawZData(DataType.VELOCITY);
     }   //getZVelocity
@@ -355,7 +355,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return X distance.
      */
-    public SensorData<Double> getXDistance()
+    public SensorData getXDistance()
     {
         return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(xIndex) : getRawXData(DataType.DISTANCE);
     }   //getXDistance
@@ -366,7 +366,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Y distance.
      */
-    public SensorData<Double> getYDistance()
+    public SensorData getYDistance()
     {
         return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(yIndex) : getRawYData(DataType.DISTANCE);
     }   //getYDistance
@@ -377,7 +377,7 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      *
      * @return Z distance.
      */
-    public SensorData<Double> getZDistance()
+    public SensorData getZDistance()
     {
         return dataIntegrator != null ? dataIntegrator.getDoubleIntegratedData(zIndex) : getRawZData(DataType.DISTANCE);
     }   //getZDistance
@@ -431,9 +431,9 @@ public abstract class TrcAccelerometer extends TrcSensor<TrcAccelerometer.DataTy
      * @return raw data for the specified axis.
      */
     @Override
-    public SensorData<Double> getRawData(int index, DataType dataType)
+    public SensorData getRawData(int index, DataType dataType)
     {
-        SensorData<Double> data = null;
+        SensorData data = null;
 
         if (getDataElapsedTimer != null) getDataElapsedTimer.recordStartTime();
         if (index == xIndex)
