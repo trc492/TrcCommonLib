@@ -2535,15 +2535,16 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
 
         if (wasStalled)
         {
+            double currTime = TrcTimer.getCurrentTime();
             if (power == 0.0)
             {
                 // We had a stalled condition but if power is removed for at least reset timeout, we clear the
                 // stalled condition.
                 if (taskParams.resetTimeout == 0.0 ||
-                    TrcTimer.getCurrentTime() - taskParams.prevTime >= taskParams.resetTimeout)
+                    currTime - taskParams.prevTime >= taskParams.resetTimeout)
                 {
                     taskParams.prevPos = getPosition();
-                    taskParams.prevTime = TrcTimer.getCurrentTime();
+                    taskParams.prevTime = currTime;
                     taskParams.stalled = false;
                     if (beepDevice != null)
                     {
@@ -2553,7 +2554,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             }
             else
             {
-                taskParams.prevTime = TrcTimer.getCurrentTime();
+                taskParams.prevTime = currTime;
             }
         }
 
