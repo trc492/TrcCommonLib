@@ -104,7 +104,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
         double resetTimeout = 0.0;
         boolean stalled = false;
         double prevPos = 0.0;
-        double prevTime = 0.0;
+        Double prevTime = null;
     }   //class TaskParams
 
     //
@@ -2492,11 +2492,20 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
             double currPos = getPosition();
             if (Math.abs(power) < taskParams.stallMinPower ||
                 Math.abs(currPos - taskParams.prevPos) > taskParams.stallTolerance ||
-                taskParams.prevTime == 0.0)
+                taskParams.prevTime == null)
             {
+                tracer.traceDebug(
+                    instanceName,
+                    "pos=" + taskParams.prevPos + "/" + currPos +
+                    ",time=" + taskParams.prevTime + "/" + currTime);
                 taskParams.prevPos = currPos;
                 taskParams.prevTime = currTime;
             }
+            tracer.traceDebug(
+                instanceName,
+                "power=" + power + "/" + taskParams.stallMinPower +
+                ",deltaPos=" + (currPos - taskParams.prevPos) + "/" + taskParams.stallTolerance +
+                ",deltaTime=" + (currTime - taskParams.prevTime) + "/" + taskParams.stallTimeout);
 
             if (currTime - taskParams.prevTime > taskParams.stallTimeout)
             {
@@ -2965,7 +2974,7 @@ public abstract class TrcMotor implements TrcMotorController, TrcExclusiveSubsys
                 taskParams.calPower = calPower;
                 taskParams.notifyEvent = completionEvent;
                 taskParams.calibrating = true;
-                taskParams.prevTime = TrcTimer.getCurrentTime();
+                taskParams.prevTime = null;
             }
         }
     }   //zeroCalibrate
