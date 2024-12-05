@@ -47,7 +47,7 @@ public class TrcCardinalConverter<D>
     private final TrcTaskMgr.TaskObject converterTaskObj;
     private final double[] cardinalRangeLows;
     private final double[] cardinalRangeHighs;
-    private final ArrayList<TrcSensor.SensorData<Double>> prevData;
+    private final ArrayList<TrcSensor.SensorData> prevData;
     private final int[] numCrossovers;
     private boolean enabled = false;
 
@@ -80,7 +80,7 @@ public class TrcCardinalConverter<D>
         {
             cardinalRangeLows[i] = 0.0;
             cardinalRangeHighs[i] = 0.0;
-            prevData.add(new TrcSensor.SensorData<>(0.0, 0.0));
+            prevData.add(new TrcSensor.SensorData(0.0, 0.0));
             numCrossovers[i] = 0;
         }
     }   //TrcCardinalConverter
@@ -174,9 +174,9 @@ public class TrcCardinalConverter<D>
      * @param index specifies the axis index.
      * @return converted cartesian data.
      */
-    public synchronized TrcSensor.SensorData<Double> getCartesianData(int index)
+    public synchronized TrcSensor.SensorData getCartesianData(int index)
     {
-        TrcSensor.SensorData<Double> data = sensor.getProcessedData(index, dataType);
+        TrcSensor.SensorData data = sensor.getProcessedData(index, dataType);
 
         if (enabled)
         {
@@ -199,7 +199,7 @@ public class TrcCardinalConverter<D>
     {
         for (int i = 0; i < numAxes; i++)
         {
-            TrcSensor.SensorData<Double> data = sensor.getProcessedData(i, dataType);
+            TrcSensor.SensorData data = sensor.getProcessedData(i, dataType);
 
             if (data != null)
             {
